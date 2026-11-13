@@ -185,7 +185,8 @@ export interface SOut {
   col: Vec3;
   a: number;
   seed: Vec2;
+  dist: Vec2;
 }
 
-declare const shader: Shader<{ Frame: Frame; FieldBox: FieldBox; FieldSample: FieldSample; Geode: Geode; Forest: Forest; Pool: Pool; Temple: Temple; Forge: Forge; FireLight: FireLight; FireLights: FireLights; KeyLight: KeyLight; Puff: Puff; Steam: Steam; SOut: SOut }, 'frame' | 'fieldBox' | 'geode' | 'forest' | 'pool' | 'temple' | 'forge' | 'fireLights' | 'steam' | 'puffs' | 'fieldA' | 'fieldB' | 'poolWaves' | 'templeWaves' | 'samp_linear' | 'samp_repeat' | 'samp_nearest' | 'samp_shadow'>;
+declare const shader: Shader<{ Frame: Frame; FieldBox: FieldBox; FieldSample: FieldSample; Geode: Geode; Forest: Forest; Pool: Pool; Temple: Temple; Forge: Forge; FireLight: FireLight; FireLights: FireLights; KeyLight: KeyLight; Puff: Puff; Steam: Steam; SOut: SOut }, 'frame' | 'fieldBox' | 'geode' | 'forest' | 'pool' | 'temple' | 'forge' | 'fireLights' | 'steam' | 'puffs' | 'fieldA' | 'fieldB' | 'poolWaves' | 'templeWaves' | 'sceneTex' | 'samp_linear' | 'samp_repeat' | 'samp_nearest' | 'samp_shadow'>;
 export default shader;

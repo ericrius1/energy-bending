@@ -40,6 +40,11 @@ export class PostChain {
   readonly planes;
   private _post = { exposure: 1, focus: 4 };
   private filmSize: [number, number] | null;
+  /** the depth-of-field pass (main view): a kind's `declarePost` adds draws to it, which land after the lens's own
+   *  fullscreen draw, on the focused image (translucent matter the depth of field can't place: steam) */
+  readonly lens: RenderPass;
+  /** the main view's scene after the air: rgb, and in alpha the view distance (what declarePost draws test against) */
+  readonly sceneTex: Texture;
 
   constructor(private kit: Kit, private frame: FrameBuilder, main: ViewCtx, worlds: readonly World[], o: { film?: [number, number] | null; coarse?: boolean }) {
     this.filmSize = o.film ?? null;
@@ -57,6 +62,8 @@ export class PostChain {
     const lens = kit.pass({ label: 'lens', color: [{ target: lensTex }] });
     lens.fullscreen(postShader, { label: 'lens', fragment: 'fs_dof', bind: { post: this.post, src: main.targets.air } });
     add(lens);
+    this.lens = lens;
+    this.sceneTex = main.targets.air;
     const trail = kit.pass({ label: 'trail', color: [{ target: history.write }] });
     trail.fullscreen(postShader, { label: 'trail', fragment: 'fs_trail', bind: { post: this.post, src: lensTex, prev: history.read } });
     add(trail);

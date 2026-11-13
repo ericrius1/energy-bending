@@ -1,11 +1,13 @@
 // Steam: the first reaction, a matter kind with no homes on any body. It is born wherever the field makes it (heat
 // meeting wet, flame melting ice: fieldSteam), whoever brought the heat and the wet, then rises on the field's wind,
-// billows and fades. One compute step in 'sim' (after the field's), one draw per world in the glow phase.
+// billows and fades. One compute step in 'sim' (after the field's), one draw per world over the focused image (after
+// the depth of field, in the post chain's lens pass: see steam_draw.wgsl for why).
 import type { StorageBuffer, UniformBuffer } from '@ericrius1/weft';
 import simShader, { type Steam } from './steam_sim.wgsl';
 import drawShader from './steam_draw.wgsl';
 import type { MatterCtx, MatterPasses } from '../core/kind';
 import type { ScenePass } from '../../engine/scene';
+import type { PostChain } from '../../post/post';
 import type { FrameCtx } from '../../engine/frame';
 import { CAPSULES } from '../core/capsules';
 import { LIMITS } from '../../engine/limits';
@@ -31,17 +33,27 @@ export class SteamPasses implements MatterPasses {
     ctx.frame.add('sim', step, 'steam');
   }
 
-  declareView(s: ScenePass) {
-    if (s.phase !== 'glow') return;
-    s.pass.draw(drawShader, {
-      label: `steam.${s.world.id}`, bind: { steam: this.sim, puffs: this.puffs }, constants: { WORLD: s.world.light },
-      count: 6, instances: this.count, blend: OVER, depthWrite: false, cull: 'none', enabled: s.on,
-    });
+  /** nothing in the scene: steam is drawn over the focused image (declarePost) */
+  declareView(_s: ScenePass) { /* see declarePost */ }
+
+  /** the puffs over the focused image, in the post chain's lens pass, one pipeline per world (its light), the main
+   *  view's world on. Main view only: steam is born of the field, which follows the main view's world, so a gate's
+   *  view or the ?pip inset shows none (docs/extending/reactions.md) */
+  declarePost(post: PostChain) {
+    for (const w of this.ctx.worlds) {
+      post.lens.draw(drawShader, {
+        label: `steam.${w.id}`, bind: { steam: this.sim, puffs: this.puffs, sceneTex: post.sceneTex }, constants: { WORLD: w.light },
+        count: 6, instances: this.count, blend: OVER, depthWrite: false, cull: 'none', enabled: () => this.mainWorld === w.id,
+      });
+    }
   }
+  /** the main view's world, as of the last update */
+  private mainWorld = '';
 
   layout() { /* steam lives in the air, on no body */ }
 
   update(f: FrameCtx) {
+    this.mainWorld = f.views[0]?.world ?? '';
     const P = steamParams, near = this.near;
     const deps = this.ctx.field.recentDeposits();
     deps.forEach((d, k) => near.set([d.p[0], d.p[1], d.p[2], d.r * 1.5], k * 4));

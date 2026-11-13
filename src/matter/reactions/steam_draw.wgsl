@@ -1,8 +1,13 @@
 // Steam's draw: each puff a soft, billowing, camera-facing blob that grows as it rises and fades as it ages. It is
 // pale and a little luminous of its own, lit by the world from above, warmed orange by the field's heat where it is
 // (flame nearby lights it), and white-hot where steam is being made right there (the clash front). Premultiplied
-// "over" blending into the scene colour; the scene's alpha (the view distance the air and the depth of field read)
-// is left alone.
+// "over" blending.
+//
+// It is drawn after the depth of field, over the focused image (in the post chain's lens pass: MatterPasses
+// declarePost), not in the scene: steam has no one distance, so the depth of field, which reads one distance a pixel,
+// either blurred it as if it were the wall behind (bright discs) or, given the steam's own, cut sharp holes in the water
+// and in the blur. Here each puff is tested by hand against the scene's view distance (the air target's alpha) and
+// fades softly where it meets a surface. It is not blurred itself (it is soft already), and it takes no fog.
 #include "weft/frame"
 #include "../field/field"
 #include "../../worlds/light"
@@ -10,6 +15,8 @@
 
 @group(1) @binding(0) var<uniform> steam: Steam;
 @group(1) @binding(1) var<storage, read> puffs: array<Puff>;
+/** the main view's scene after the air: alpha is its view distance (m) */
+@group(1) @binding(2) var sceneTex: texture_2d<f32>;
 
 struct SOut {
   @builtin(position) pos: vec4f,
@@ -17,6 +24,8 @@ struct SOut {
   @location(1) col: vec3f,
   @location(2) a: f32,
   @location(3) seed: vec2f,
+  /** the puff's view distance (along the camera's forward, as the scene's alpha holds it) and its size */
+  @location(4) dist: vec2f,
 }
 
 const CORNERS = array<vec2f, 6>(vec2f(-1.0, -1.0), vec2f(1.0, -1.0), vec2f(1.0, 1.0), vec2f(-1.0, -1.0), vec2f(1.0, 1.0), vec2f(-1.0, 1.0));
@@ -36,6 +45,7 @@ const CORNERS = array<vec2f, 6>(vec2f(-1.0, -1.0), vec2f(1.0, -1.0), vec2f(1.0, 
   let wp = q.pos + (frame.camRight * rc.x + frame.camUp * rc.y) * size;
   o.pos = frame.viewProj * vec4f(wp, 1.0);
   o.uv = c;
+  o.dist = vec2f(dot(q.pos - frame.camPos, frame.camFwd), size);
   o.seed = vec2f(rnd(ii * 11u + 3u), rnd(ii * 17u + 9u)) * 40.0;
   // light: the world's from above and its key, the steam's own soft glow, the field's heat, the clash where it is
   let up = worldAmbient(vec3f(0.0, 1.0, 0.0), 1.0, q.pos);
@@ -61,6 +71,10 @@ const CORNERS = array<vec2f, 6>(vec2f(-1.0, -1.0), vec2f(1.0, -1.0), vec2f(1.0, 
   let o2 = (fract(i.seed.yx * 0.291) - 0.5) * 0.9;
   let o3 = -(o1 + o2) * 0.6;
   let l = exp(-dot(i.uv - o1, i.uv - o1) * 6.0) + exp(-dot(i.uv - o2, i.uv - o2) * 7.0) + exp(-dot(i.uv - o3, i.uv - o3) * 5.0);
-  let a = i.a * (1.0 - r2) * min(l * 0.7, 1.0);
+  // behind what the scene shows there: hidden, softly (a puff is a ball, so it meets a surface over its own size)
+  let scene = textureLoad(sceneTex, vec2i(i.pos.xy), 0).a;
+  let front = i.dist.x - i.dist.y * sqrt(max(1.0 - r2, 0.0));
+  let shown = smoothstep(0.0, max(i.dist.y, 0.05), scene - front);
+  let a = i.a * (1.0 - r2) * min(l * 0.7, 1.0) * shown;
   return vec4f(i.col * a, a);
 }

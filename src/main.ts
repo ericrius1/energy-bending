@@ -95,6 +95,7 @@ for (const v of drawn) { declareScene(v, worlds, kinds); frame.add('scene', v.sc
 const post = new PostChain(kit, frame, main, worlds, { film: filmSize, coarse });
 if (pip) { post.declareAir(pip.view, worlds); post.inset(pip.view, pip.rect); }
 gates.declare(kinds, post);
+for (const k of kinds) k.declarePost?.(post);   // translucent matter over the focused image (steam)
 
 // ---------------------------------------------------------------- the show and its sound
 // (the camera is the listener: sounds are panned and distanced from it; kinds that can be heard get their ears)

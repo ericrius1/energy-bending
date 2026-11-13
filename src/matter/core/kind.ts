@@ -18,6 +18,7 @@ import type { World } from '../../worlds/world';
 import type { BodyBuffers } from './bodies';
 import type { Hand } from './touch';
 import type { Field } from '../field/field';
+import type { PostChain } from '../../post/post';
 import type { BodyPart } from './capsules';
 import type { LayoutLayer } from './layout';
 import { Registry } from '../../engine/registry';
@@ -89,6 +90,10 @@ export interface MatterPasses {
    *  orientations) by its rigid move before this frame's simulation, so they arrive with the body. `move` is a
    *  column-major 4×4. Kinds whose particles live on the body should implement it (docs/extending/portal.md) */
   carry?(moves: readonly Carry[]): void;
+  /** translucent matter with no one distance (steam): draws added to `post.lens` after the depth of field, over the
+   *  focused image, tested against the scene's view distance by hand (post.sceneTex's alpha). Called once, after the
+   *  post chain is built (main.ts); the main view only */
+  declarePost?(post: PostChain): void;
   /** numbers for bend.stats() */
   stats?(): Record<string, number | string>;
 }
