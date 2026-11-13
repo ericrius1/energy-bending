@@ -7,9 +7,11 @@
 //   ?jogo=online&room=CODE[&create][&watch]   one seat of a room on the room server (&server=ws://…/ws; default this
 //                    host's 5417); &watch dances as a free guest
 //   ?jogo=script&script=NAME    a scripted jogo (src/play/scripts/NAME.json), for films and captures; also bend.jogo.run
+//                    (&bpm=N plays a local room at another tempo: a film's timeline sets it)
 //                    (&partner=… with a script: the partner brain plays dancer 2, the script dancer 1; &seed=N its seed)
 //   &world=pool &dress=fire,water &free (the 3D view; the side view is the default)
-//   nothing          the front of the game over the show (menu.ts); ?play stays the solo free dance
+//   nothing          the front of the game over the show (menu.ts); ?play stays the solo free dance. The front can
+//                    begin a jogo in the same page: bend.front.begin(mode, query, joined?) (geode/front.ts calls it)
 //
 // Each frame (phases in engine/frame.ts): input — the room's clock moves on, the beat and the music follow it, a
 // script cues; travel (after the gates carried anyone) — the jogo hears the dancers' moves and judges the exchanges,
@@ -50,6 +52,7 @@ import { ClipLibrary } from '../ai/clips';
 import { budget } from '../engine/perf';
 import { PRESETS, type PresetName } from '../ai/partner';
 import { ScriptRunner, type JogoScript } from './script';
+import { jogoParams } from './params';
 import { Lobby, Waiting, showFront, escapeToFront, hrefOf } from './menu';
 
 type V3 = [number, number, number];
@@ -101,16 +104,28 @@ export async function registerPlay(app: PlayApp) {
     // the plain page: the front of the game over the show (never in a film, or with any of the debug demos)
     const demo = ['play', 'net', 'landmarks', 'wander', 'film', 'gates', 'fly', 'nomenu', 'pip', 'you', 'lock', 'roda', 'teach', 'npcs', 'perf', 'perfgroup'].some((k) => q.has(k));
     if (!demo && typeof document !== 'undefined') {
-      const root = showFront(q);
-      // the show goes on behind it; a press on the canvas (the show's wake) hides the front
-      app.canvas.addEventListener('pointerdown', () => root.classList.add('dim'), { once: true });
+      showFront(q);
+      // (the front's fading, and beginning a jogo from a key or a tap, are the hub's: worlds/geode/front.ts)
+      // beginning in this page: the jogo with this page's parts, in the world the query names, the device that began it
+      // joined to seat 1 at once
+      const front = {
+        begin: async (m: 'same' | 'partner', query: URLSearchParams, joined?: Joined) => {
+          const w = query.get('world');
+          if (w && w !== app.main.world) await app.setWorld?.(w);
+          return startJogo({ ...app, query }, m, { joined });
+        },
+      };
+      app.frame.tick('input', () => { const b = (window as unknown as { bend?: Record<string, unknown> }).bend; if (b && b.front !== front) b.front = front; }, 'jogo: bend.front');
     }
     return null;
   }
   return startJogo(app, mode);
 }
 
-export async function startJogo(app: PlayApp, mode: string) {
+/** the device whose press began a jogo (the front's key, tap or click), joined to seat 1 as the jogo starts */
+export type Joined = { device: 'keyboard'; code: string } | { device: 'touch'; id: number; x: number; y: number } | { device: 'mouse' };
+
+export async function startJogo(app: PlayApp, mode: string, opts: { joined?: Joined } = {}) {
   const { kit, frame, show, rig, gates, music, field, query: q } = app;
   const scripted = mode === 'script';
   const online = mode === 'online';
@@ -146,11 +161,16 @@ export async function startJogo(app: PlayApp, mode: string) {
   const standIn = new StandIn();
   const wanted = q.get('partner') ?? 'playful';
   const clips = await app.travel.then((t) => new ClipLibrary(app.motion, t)).catch(() => null);
+  // the music as the partner hears it: its level, its mood's name (the temple's is the Roda: low, close, slow) and a
+  // breakdown (the groove dropped to nothing within eight bars of playing: the engine's own twinkling stillness)
+  let grooveBeat = -Infinity;
   const aiPartner = new AiPartner({
     world, events: () => frameEvents, clips,
     music: () => {
-      const e = music.engine;
-      return music.live ? { level: Math.min(1, e.level / 4 + 0.1), breakdown: false } : { level: Number(q.get('level') ?? 0.6), breakdown: false };
+      const e = music.engine, heard = !!music.live || app.film;
+      const level = heard ? Math.min(1, e.level / 4 + 0.1) : Number(q.get('level') ?? 0.6);
+      if (!heard || e.level >= 1) grooveBeat = beatNow();
+      return { level, breakdown: heard && e.level < 1 && beatNow() - grooveBeat <= 32, mood: e.mood.name };
     },
   }, wanted in PRESETS ? (wanted as PresetName) : 'playful', Number(q.get('seed') ?? 23));
   let partner: Brain = wanted === 'standin' ? standIn : aiPartner;
@@ -318,6 +338,10 @@ export async function startJogo(app: PlayApp, mode: string) {
     lobby?.hide();
     app.wake();
     if (!room.connected) await room.connect();
+    // a local room at another tempo (&bpm=N: a film's timeline asks for one; the rules' 112 otherwise)
+    const bpm = num(q.get('bpm'));
+    const S = (room.session.net as unknown as { session?: { music: { bpm: number }; changed: boolean } }).session;
+    if (!online && bpm && bpm >= 60 && bpm <= 180 && S) { S.music.bpm = bpm; S.changed = true; }
   };
   let runner: ScriptRunner | null = null;
   let playFrom: number | null = null;
@@ -344,9 +368,23 @@ export async function startJogo(app: PlayApp, mode: string) {
     play.hub.onJoin = (p) => {
       was?.(p);
       lobby?.seat(p.index, p.device);
-      if (p.index === 0 && !started) setTimeout(() => void start(), 1600);
+      // (the join is a key's or a touch's own handler: the sound starts inside the gesture, or a browser keeps it
+      // suspended until the next one)
+      if (p.index === 0 && !started) { if (!music.live) music.start(show.program.key); app.wake(); setTimeout(() => void start(), 1600); }
       if (p.index === 1) music.players.add(play.dancers[1].id);
     };
+    // the device whose press began this jogo (the front's key, tap or click) joins seat 1 now: one press starts and
+    // joins (a key or a click that names no key of the layouts joins the keyboard's solo layout, mouse included)
+    const j = opts.joined, hub = play.hub;
+    if (j) {
+      const n = hub.players.length;
+      if (j.device === 'keyboard') hub.key(j.code);
+      else if (j.device === 'touch') hub.touch(j.id, j.x, j.y);
+      if (hub.players.length === n) {
+        hub.key('KeyA');
+        (hub.players[n]?.source as { keyUp?(code: string): void } | undefined)?.keyUp?.('KeyA');
+      }
+    }
   }
 
   // ---------------------------------------------------------------- each frame
@@ -386,6 +424,7 @@ export async function startJogo(app: PlayApp, mode: string) {
 
   frame.tick('travel', (f) => {
     glows.clear();
+    glows.rings = jogoParams.rings;
     if (!started) return;
     // the build button, tapped round a move
     for (const s of room.seats) if (seatCtl[s]?.intent.interact) builder.arm(s);

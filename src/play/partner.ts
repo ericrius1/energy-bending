@@ -14,7 +14,8 @@ import type { StagePlane } from '../engine/camera';
 import { RULES } from '../../shared/rules.ts';
 import type { PublicState } from '../../shared/protocol.ts';
 import type { World } from '../worlds/world';
-import type { MusicView, RulesView, StageView } from '../ai/brain';
+import type { Brain as AiBrain, MusicView, RulesView, StageView } from '../ai/brain';
+import type { Direction } from '../ai/direct';
 import type { ClipLibrary } from '../ai/clips';
 import { Scene } from '../ai/scene';
 import { BrainDriver } from '../ai/driver';
@@ -137,15 +138,34 @@ export interface AiPartnerCtx {
 export class AiPartner implements Brain {
   readonly scene = new Scene();
   private driver: BrainDriver | null = null;
-  private brain: PartnerBrain;
+  /** the brain in the seat now: its own PartnerBrain, or another for a while (`teach`) */
+  private brain: AiBrain;
+  private own: PartnerBrain;
+  /** another brain seated for a while: until this dance time (s), or until it says it is done */
+  private lesson: { until: number } | null = null;
   private t = 0;
   private readied = false;
+  /** the seat it plays (the jogo's partner is seat 1; set by think) */
+  private seat = 1;
   constructor(private ctx: AiPartnerCtx, public preset: PresetName = 'playful', private seed = 23) {
-    this.brain = new PartnerBrain({ preset, seed, clips: ctx.clips ?? null });
+    this.brain = this.own = new PartnerBrain({ preset, seed, clips: ctx.clips ?? null });
   }
 
-  /** change the preset (a new brain, same seat) */
-  setPreset(p: PresetName) { this.preset = p; this.brain = new PartnerBrain({ preset: p, seed: this.seed, clips: this.ctx.clips ?? null }); this.driver = null; }
+  /** change the preset (a new brain, same seat; a lesson in progress ends) */
+  setPreset(p: PresetName) {
+    this.preset = p;
+    this.brain = this.own = new PartnerBrain({ preset: p, seed: this.seed, clips: this.ctx.clips ?? null });
+    this.lesson = null; this.driver = null;
+  }
+
+  /** seat another brain (src/ai: the teacher, say) for `seconds` of dance time, or until it sets `done`, then the
+   *  partner's own comes back */
+  teach(brain: AiBrain, seconds: number) { this.brain = brain; this.lesson = { until: this.t + seconds }; this.driver = null; }
+  /** a lesson in progress (the brain seated by `teach`), or null */
+  get teaching(): AiBrain | null { return this.lesson ? this.brain : null; }
+
+  /** a director's loose intentions for the partner (src/ai/direct.ts: a film timeline's cues), or null for its own */
+  direct(d: Direction | null) { this.scene.direct(`seat.${this.seat}`, d); }
 
   think(v: PartnerView): Intent {
     const it = makeIntent();
@@ -156,6 +176,9 @@ export class AiPartner implements Brain {
       return it;
     }
     this.readied = false;
+    this.seat = v.seat;
+    // a lesson ends at its time, or when the brain says it is done
+    if (this.lesson && (this.t >= this.lesson.until || (this.brain as { done?: boolean }).done)) { this.brain = this.own; this.lesson = null; this.driver = null; }
     // the scene: both seats (the other one's body where this page simulates it), the clock, the rules as the room says
     const me = { id: `seat.${v.seat}`, seat: v.seat, character: v.me };
     const them = { id: `seat.${1 - v.seat}`, seat: 1 - v.seat, character: v.them.character, where: () => ({ root: v.them.root, yaw: 0, pose: null }) };
@@ -176,7 +199,7 @@ export class AiPartner implements Brain {
     const w = this.ctx.world();
     return {
       plane: c.plane, stage: w.stages[0] ?? null, terrain: { groundAt: (x, z) => w.groundAt(x, z) },
-      gates: w.portals.map((p) => ({ id: p.id, at: p.at, normal: p.normal, radius: p.radius })), room: w.room,
+      gates: w.portals.map((p) => ({ id: p.id, at: p.at, normal: p.normal, radius: p.radius })), room: w.room, solids: w.solids,
     };
   }
 }

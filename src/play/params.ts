@@ -31,6 +31,11 @@ export const jogoParams = defineParams('jogo', {
   vortex: 4.5,
   /** how strongly a gamepad rumbles (× each exchange's own) */
   rumble: 1,
+  /** the rings of light on the floor (exchanges, unisons, the count-in's pulses, the meters at the feet): 0 hides them
+   *  (a film's `set: { jogo: { rings: 0 } }`) */
+  rings: 1,
+  /** the fusion's pull on the two roots while both hold merge and through the eight bars (0 off; fusion.ts) */
+  fusionPull: 1,
 }, {
   slowmo: { min: 0.05, max: 1 },
   breath: { min: 0, max: 1 },
@@ -44,4 +49,6 @@ export const jogoParams = defineParams('jogo', {
   fusionPad: { min: 0, max: 4 },
   vortex: { min: 0, max: 12 },
   rumble: { min: 0, max: 2 },
+  rings: { min: 0, max: 1 },
+  fusionPull: { min: 0, max: 2 },
 });

@@ -14,6 +14,7 @@ import type { Intent } from '../input/intent';
 import type { RulesEvent, Phase } from '../../shared/protocol.ts';
 import type { ClipGroove } from './clips';
 import type { Direction } from './direct';
+import type { Solid } from '../worlds/solids';
 
 export type V3 = [number, number, number];
 
@@ -62,6 +63,8 @@ export interface StageView {
   gates: readonly Gate[];
   /** how far from the world's middle a body may roam (World.room, m) */
   room: number;
+  /** the world's solid things (World.solids: the log, trunks, columns), so a free body keeps off them (ai/solids.ts) */
+  solids?: readonly Solid[];
 }
 
 /** the jogo's state, as the rules publish it (shared/rules.ts), plus this frame's events */

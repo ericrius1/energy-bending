@@ -11,6 +11,7 @@ import { MOVES } from '../dancer/moves';
 import type { Intent } from '../input/intent';
 import { Rng, type BodyHints, type Sight } from './brain';
 import { blank, canStart, pressFrame, pressMove, startBeat, stickFor } from './body';
+import { solidPush } from './solids';
 
 export interface Press {
   move: string;
@@ -94,7 +95,17 @@ export class Mind {
     const soon = !!p && p.line - sb < 0.75 && p.prio >= 2;
     const L = this.legs;
     if (!pressed && L && !soon) {
-      stickFor(c, L.x, L.z, L.k, out);
+      // free on the floor: never into a world's solid thing (the redwoods' log, a column): the part of the stick that
+      // goes into the nearest one goes, and a push away from it comes in as it nears (StageView.solids)
+      const push = c.plane ? null : solidPush(s.stage.solids, c.x, c.y, c.z);
+      if (!push) stickFor(c, L.x, L.z, L.k, out);
+      else {
+        let lx = L.x * L.k, lz = L.z * L.k;
+        const into = -(lx * push.x + lz * push.z);
+        if (into > 0) { lx += push.x * into; lz += push.z * into; }
+        lx += push.x * push.k * 0.8; lz += push.z * push.k * 0.8;
+        stickFor(c, lx, lz, 1, out);
+      }
       if (L.walk) out.walk = true;
       if (L.jump) { out.jump = true; out.jumpHeld = true; this.holdJump = 0.45; }
       if (L.drop || L.crouch) out.moveY = -1;

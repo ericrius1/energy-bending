@@ -24,6 +24,9 @@ export class Glows {
   count = 0;
   /** how bright everything is this frame (the meters dim in the free view) */
   gain = 1;
+  /** how bright the rings lying on the floor are (the exchanges' and the unisons' rings, the count-in's pulses, the
+   *  meters' rings at the feet): jogoParams.rings, 0 for a film that wants none */
+  rings = 1;
 
   private put(a: V3, b: V3, r: number, col: RGB, I: number, kind: number) {
     if (this.count >= MAX || !(r > 0) || !(I > 0)) return;
@@ -37,7 +40,7 @@ export class Glows {
   /** a capsule of light from a to b */
   seg(a: V3, b: V3, r: number, col: RGB, I = 1, shape: Shape = 'soft') { this.put(a, b, r, col, I, SHAPE[shape]); }
   /** a disc or ring lying on the floor round p */
-  flat(p: V3, r: number, col: RGB, I = 1, shape: Shape = 'ring') { this.put(p, p, r, col, I, SHAPE[shape] + 4); }
+  flat(p: V3, r: number, col: RGB, I = 1, shape: Shape = 'ring') { this.put(p, p, r, col, shape === 'ring' ? I * this.rings : I, SHAPE[shape] + 4); }
   /** a polyline of soft segments (flat xyz) */
   line(pts: ArrayLike<number>, r: number, col: RGB, I = 1) {
     for (let i = 3; i + 2 < pts.length; i += 3) this.put([pts[i - 3], pts[i - 2], pts[i - 1]], [pts[i], pts[i + 1], pts[i + 2]], r, col, I, 0);

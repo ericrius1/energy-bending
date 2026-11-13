@@ -75,7 +75,7 @@ class PageBrains {
     const w = d?.world ? this.ctx.worldOf(d.world) : this.ctx.world();
     return {
       plane: c.plane, stage: w.stages[0] ?? null, terrain: { groundAt: (x, z) => w.groundAt(x, z) },
-      gates: w.portals.map((p) => ({ id: p.id, at: p.at, normal: p.normal, radius: p.radius })), room: w.room,
+      gates: w.portals.map((p) => ({ id: p.id, at: p.at, normal: p.normal, radius: p.radius })), room: w.room, solids: w.solids,
     };
   }
 

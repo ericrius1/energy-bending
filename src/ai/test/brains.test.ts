@@ -187,6 +187,19 @@ test('the teacher climbs with a student who answers, and waits for one who does 
   return `with a student: ${T.log.length} calls, ${ok} answered, level ${T.level} (${T.log.slice(-3).map((x) => x.call.join('+')).join(' / ')}); with nobody answering: ${T2.log.length} calls, level ${T2.level}`;
 });
 
+test('the first lesson: a meia-lua and the esquiva, each answered twice, then done', () => {
+  const T = new TeacherBrain({ seed: 2, lesson: 'first' });
+  simulate({ plane, seats: [new StudentBrain({ seed: 3 }), T], seconds: 90 });
+  const answered = T.log.filter((x) => x.answered).map((x) => x.call.join('+'));
+  assert(T.done, `not done after 90 s: ${T.log.length} calls, answered ${answered.join(', ')}`);
+  assert(T.log.every((x) => x.call.length === 1 && ['meia-lua', 'esquiva'].includes(x.call[0])), `called ${T.log.map((x) => x.call.join('+')).join(', ')}`);
+  assert(answered.join(',') === 'meia-lua,meia-lua,esquiva,esquiva', `answered ${answered.join(', ')}`);
+  const T2 = new TeacherBrain({ seed: 2, lesson: 'first' });
+  simulate({ plane, seats: [new StillBrain(), T2], seconds: 40 });
+  assert(!T2.done && T2.log.every((x) => !x.answered && x.call[0] === 'meia-lua'), `still student: done ${T2.done}, ${T2.log.map((x) => x.call[0]).join(', ')}`);
+  return `with a student: ${T.log.length} calls (${T.log.map((x) => `${x.call[0]}${x.answered ? '' : ' (let pass)'}`).join(', ')}), done; nobody answering: ${T2.log.length} calls of the meia-lua`;
+});
+
 test('reactions are spread like a person\'s: log-normal about the median, no impossibly quick ones', () => {
   const r = new Rng(5), xs = Array.from({ length: 4000 }, () => r.reaction(0.22)).sort((a, b) => a - b);
   const q = (p: number) => xs[Math.floor(p * (xs.length - 1))];

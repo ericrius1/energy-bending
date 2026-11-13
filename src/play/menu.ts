@@ -11,6 +11,7 @@
 //   waiting       online, until the other seat comes: the room's code and link
 // Esc goes back to the front from anywhere.
 import { PRESETS } from '../matter/core/presets';
+import { lastDress } from '../dancer/show';
 
 export type Mode = 'same' | 'partner' | 'online' | 'solo';
 export interface Choice { mode: Mode; world: string; dress: [string, string]; lock: boolean; room?: string; create?: boolean; watch?: boolean }
@@ -80,22 +81,29 @@ export function roomCode(r: () => number = Math.random) {
   return s;
 }
 
-/** the front of the game: returns its root (removed when a choice is made) */
-export function showFront(query: URLSearchParams, open: (href: string) => void = (h) => location.assign(h)): HTMLElement {
-  const c: Choice = { mode: 'same', world: query.get('world') ?? 'geode', dress: ['fire', 'water'], lock: !query.has('free') };
+/** what the front's buttons say they are (data- attributes: data-mode, data-world, data-seat and data-name), and the
+ *  callback told of every choice as it is made (the hub's front re-dresses the dancers, turns to a gate) */
+export type FrontChoice = { kind: 'mode'; value: Mode } | { kind: 'world'; value: string } | { kind: 'body'; seat: number; value: string } | { kind: 'lock'; value: boolean };
+
+/** the front of the game: returns its root (removed when a choice is made). It starts from the bodies last chosen
+ *  (dancer/show.ts lastDress: what the show's dancers already wear) */
+export function showFront(query: URLSearchParams, open: (href: string) => void = (h) => location.assign(h), onChoose?: (c: FrontChoice) => void): HTMLElement {
+  const c: Choice = { mode: 'same', world: query.get('world') ?? 'geode', dress: lastDress(), lock: !query.has('free') };
   const root = el('div', 'jg jg-front');
   const go = () => open(hrefOf(c, location.pathname, query));
 
   const modes = el('div', 'jg-row jg-modes');
   const modeBtns: Record<string, HTMLButtonElement> = {};
   for (const [m, label] of [['same', 'together'], ['partner', 'partner'], ['online', 'online'], ['solo', 'solo']] as [Mode, string][]) {
-    modeBtns[m] = button('jg-mode', GLYPHS[m], label, () => { c.mode = m; paint(); });
+    modeBtns[m] = button('jg-mode', GLYPHS[m], label, () => { c.mode = m; paint(); onChoose?.({ kind: 'mode', value: m }); });
+    modeBtns[m].dataset.mode = m;
     modes.append(modeBtns[m]);
   }
   const worlds = el('div', 'jg-row jg-worlds');
   const worldBtns: Record<string, HTMLButtonElement> = {};
   for (const [w, col] of WORLDS) {
-    worldBtns[w] = button('jg-world', `<i style="--c:${col}"></i>`, w, () => { c.world = w; paint(); });
+    worldBtns[w] = button('jg-world', `<i style="--c:${col}"></i>`, w, () => { c.world = w; paint(); onChoose?.({ kind: 'world', value: w }); });
+    worldBtns[w].dataset.world = w;
     worlds.append(worldBtns[w]);
   }
   const bodies = el('div', 'jg-bodies');
@@ -105,7 +113,8 @@ export function showFront(query: URLSearchParams, open: (href: string) => void =
     const row = el('div', 'jg-row jg-body', `<b class="jg-seat">${s + 1}</b>`);
     for (const n of names) {
       const [a, b] = SWATCH[n];
-      const btn = button('jg-swatch', `<i style="--a:${a};--b:${b}"></i>`, n, () => { c.dress[s] = n; paint(); });
+      const btn = button('jg-swatch', `<i style="--a:${a};--b:${b}"></i>`, n, () => { c.dress[s] = n; paint(); onChoose?.({ kind: 'body', seat: s, value: n }); });
+      btn.dataset.seat = String(s); btn.dataset.name = n;
       bodyBtns[s].push(btn);
       row.append(btn);
     }
@@ -120,7 +129,7 @@ export function showFront(query: URLSearchParams, open: (href: string) => void =
     button('jg-watch', GLYPHS.watch, 'watch', () => { const v = code.value.trim().toUpperCase(); if (v) { c.room = v; c.create = false; c.watch = true; go(); } }),
   );
   const foot = el('div', 'jg-row jg-foot');
-  const lockBtn = button('jg-lock', GLYPHS.lock, 'side', () => { c.lock = !c.lock; paint(); });
+  const lockBtn = button('jg-lock', GLYPHS.lock, 'side', () => { c.lock = !c.lock; paint(); onChoose?.({ kind: 'lock', value: c.lock }); });
   const goBtn = button('jg-go', GLYPHS.go, '', go);
   foot.append(lockBtn, goBtn);
   root.append(modes, worlds, bodies, online, foot);

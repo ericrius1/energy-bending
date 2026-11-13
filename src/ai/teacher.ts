@@ -5,6 +5,10 @@
 // moves, then pairs, then quicker phrases on the 8ths); a call let pass three times is made easier (the level before,
 // or the call cut to its first move). It claps an answer it liked.
 //
+// A lesson (`new TeacherBrain({ lesson: 'first' })`, the front's first jogo) is a fixed list instead of the ladder:
+// the first is a kick (meia-lua) and the dodge (esquiva), each answered twice, the ginga between calls; then `done`, and
+// whoever seated it hands the seat back (play/partner.ts AiPartner.teach).
+//
 // `StudentBrain` is the other side, scripted: it copies what it sees a beat or two later and sometimes gets it wrong
 // (less as it practises). It is for the tests and for filming the drill; a person is the real student.
 import { MOVES } from '../dancer/moves';
@@ -25,6 +29,10 @@ export const LADDER: { moves: string[]; length: number; gap: number }[] = [
 
 type Phase = 'call' | 'calling' | 'wait' | 'praise';
 
+/** the lessons: each a list of calls, each to be answered once before the next (a call let pass is called again) */
+export const LESSONS = { first: ['meia-lua', 'meia-lua', 'esquiva', 'esquiva'] } as const;
+export type Lesson = keyof typeof LESSONS;
+
 export class TeacherBrain implements Brain {
   readonly name = 'teacher';
   readonly body: BodyHints = newHints();
@@ -44,7 +52,15 @@ export class TeacherBrain implements Brain {
   /** history, for tests and the report: each call and whether it was answered */
   readonly log: { beat: number; level: number; call: string[]; answered: boolean }[] = [];
 
-  constructor(o: { seed?: number; level?: number } = {}) { this.mind = new Mind(o.seed ?? 9); this.level = o.level ?? 0; }
+  /** a lesson's calls still to answer (null: the ladder, open-ended) */
+  private lesson: string[] | null;
+  /** a lesson answered to its end: the seat can go back to whoever had it */
+  done = false;
+
+  constructor(o: { seed?: number; level?: number; lesson?: Lesson } = {}) {
+    this.mind = new Mind(o.seed ?? 9); this.level = o.level ?? 0;
+    this.lesson = o.lesson ? [...LESSONS[o.lesson]] : null;
+  }
 
   think(s: Sight): Intent {
     const m = this.mind, b = this.body, o = s.partner ?? s.others[0];
@@ -57,7 +73,8 @@ export class TeacherBrain implements Brain {
       case 'call': {
         if (busyFor(s.self) > 0 || m.waiting(0)) break;
         const L = LADDER[this.level];
-        if (!this.call.length) this.call = this.compose(L);
+        if (this.lesson && !this.lesson.length) { this.done = true; break; }
+        if (!this.call.length) this.call = this.lesson ? [this.lesson[0]] : this.compose(L);
         const bar = Math.ceil(sb / 4 + 1e-6) * 4;
         const ax = jogoAxis(s, o), toward: [number, number] = [ax.dir[0], ax.dir[1]];
         let line = bar;
@@ -100,6 +117,14 @@ export class TeacherBrain implements Brain {
   private pass(s: Sight, ok: boolean) {
     const m = this.mind, sb = startBeat(s.beatPrev, s.beat);
     this.log.push({ beat: this.callStart, level: this.level, call: [...this.call], answered: ok });
+    if (this.lesson) {
+      // a lesson: an answer moves it on (two claps), a call let pass is called again
+      if (ok) this.lesson.shift();
+      this.call = [];
+      if (ok && MOVES.palmas) { const b0 = Math.ceil(sb + 0.5); this.mind.plan({ move: 'palmas', line: b0, late: 0.2, toward: [0, 1], prio: 0.5, why: 'praise' }); this.phase = 'praise'; this.until = b0 + 1; }
+      else this.phase = 'call';
+      return;
+    }
     if (ok) {
       this.misses = 0; this.streak++;
       if (this.streak >= 3 && this.level < LADDER.length - 1) { this.level++; this.streak = 0; }

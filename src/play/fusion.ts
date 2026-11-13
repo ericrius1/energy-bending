@@ -62,6 +62,10 @@ const lerp3 = (a: V3, b: V3, u: number): V3 => [a[0] + (b[0] - a[0]) * u, a[1] +
 
 /** how long the release holds the one body as it is let go, before each body's own matter returns (ms) */
 const RELEASE_MS = 750;
+/** the pull while both hold merge and through the eight bars: the two roots drawn to this far apart (m), no faster than
+ *  this (m/s each), so the fusion reads as one body (fire's field sums two flames into one contour only while they
+ *  stand within about half a metre). Released at the release (the parting knock) */
+const PULL_TO = 0.28, PULL_SPEED = 0.45;
 
 /** a fusion's dress for one seat: the fusion's flame (its side named, so the field tells the two bodies apart; fire
  *  counts it as a whole dancer's flame whatever its share), and the seat's own matter other than flame kept, at its own
@@ -124,6 +128,7 @@ export class Fusion {
         G.dot([C[0] + Math.cos(ang) * R, this.floorY + 0.05 + Math.sin(u * 6 + j) * 0.03, C[2] + Math.sin(ang) * R], 0.03, j % 2 ? COLOURS[this.el(0)] : COLOURS[this.el(1)], 1.4 * k, 'spark');
       }
     }
+    this.pull(dt, now);
     if (!this.kind || !a || !b) return;
     const kind = this.kind;
     if (now < this.t0) { this.gather(now, a, b); return; }
@@ -241,6 +246,22 @@ export class Fusion {
     else if (ha) this.ctx.arcs?.add(C, ha, 0.8 * env, 2);
     const hd = jointAt((fr >> 5) & 1 ? A : B, JOINT.Head);
     if (hd && hash(fr + 3) < 0.4) this.ctx.arcs?.add([C[0], this.floorY + 0.15, C[2]], hd, 0.7 * env, 2);
+  }
+
+  /** the gentle pull: while both seats hold merge (the invitation taken), and from the bar line through the eight bars,
+   *  each root is drawn toward the middle until they stand PULL_TO apart (a spring, capped; along the stage plane when
+   *  locked, since the two stand on its line). Nothing while the fusion lets go or between fusions */
+  private pull(dt: number, now: number) {
+    if (jogoParams.fusionPull <= 0 || this.releasedAt != null) return;
+    const both = !!this.bodies[0]?.intent()?.merge && !!this.bodies[1]?.intent()?.merge;
+    if (!both && !(this.kind && now >= this.t0 - 2000)) return;
+    const ca = this.bodies[0]?.character, cb = this.bodies[1]?.character;
+    if (!ca || !cb || ca.move || cb.move) return;
+    const dx = cb.root[0] - ca.root[0], dz = cb.root[2] - ca.root[2], d = Math.hypot(dx, dz);
+    if (d <= PULL_TO || d > 3) return;
+    const step = Math.min((d - PULL_TO) / 2, (d - PULL_TO) * 2.5 * dt, PULL_SPEED * jogoParams.fusionPull * dt), ux = dx / d, uz = dz / d;
+    ca.root[0] += ux * step; ca.root[2] += uz * step;
+    cb.root[0] -= ux * step; cb.root[2] -= uz * step;
   }
 
   /** the vortex stops, the dancers part, the one body is let go for a beat (then the matter returns: update) */
