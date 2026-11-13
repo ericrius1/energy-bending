@@ -15,7 +15,7 @@ import type { CameraRig, StagePlane, Ledge } from '../engine/camera';
 import type { FrameBuilder } from '../engine/frame';
 import type { World } from '../worlds/world';
 import type { Motion } from '../skeleton/clips';
-import { JOINT } from '../skeleton/rig';
+import { JOINT, JOINT_FLOATS } from '../skeleton/rig';
 import { Dancer } from './dancer';
 import { IntentController } from './intent-controller';
 import { movesOf } from './wander';
@@ -43,6 +43,9 @@ export interface PlayCtx {
   travel: Promise<Motion | null> | Motion | null;
   coarse: boolean;
   wake: () => void;
+  /** a dancer's joints (the GPU layout) as the main view sees it: through a gate when it is in another world (the
+   *  portals' seen), so the follow camera keeps aiming at a player who has walked through a gate. Default: its own */
+  seen?: (d: Dancer) => Float32Array | null;
 }
 
 export const playParams = defineParams('play', {
@@ -202,7 +205,8 @@ export async function playDemo(ctx: PlayCtx): Promise<PlayHandle> {
       c.inputYaw = rig.yaw;
     }
     // the follow camera: behind player one (and, with two, the middle of them, standing back as they part)
-    const a = dancers[0].skeleton.pos[JOINT.Spine1], b = dancers[1]?.skeleton.pos[JOINT.Spine1] ?? a;
+    const at = (d: Dancer) => { const J = ctx.seen?.(d) ?? d.skeleton.world, o = JOINT.Spine1 * JOINT_FLOATS; return [J[o], J[o + 1], J[o + 2]]; };
+    const a = at(dancers[0]), b = dancers[1] ? at(dancers[1]) : a;
     const c0 = controllers[0].character;
     rig.follow = { x: (a[0] + b[0]) / 2, y: (a[1] + b[1]) / 2 - 0.15, z: (a[2] + b[2]) / 2, yaw: c0.yaw, speed: Math.hypot(c0.v[0], c0.v[2]), spread: Math.hypot(a[0] - b[0], a[2] - b[2]) };
     const look = controllers[0].intent;

@@ -108,9 +108,18 @@ setAura('lava', { heat: 1.3, wet: 0, dry: 0.3 }, 'obsidian');   // optional thir
 ```
 
 A capsule's aura is the auras of the loadout layers worn on its part, weighted by each layer's share of that part,
-each at the dancer's form (`field.forms[d]`, or a layer's own `params.form` number). A kind without an aura is calm
+each at the dancer's form (`Dancer.form`, copied into `field.forms[d]` each frame, or a layer's own `params.form`
+number), times `Dancer.presence` (none while the matter is in a heap or shattered). A kind without an aura is calm
 (it still drags the air as it moves: `stir` 1). For testing without the real kinds: `?aura=fire,water` treats dancer 0
 as wearing fire and dancer 1 water, for the field only (they are still drawn as gems).
+
+## One field, one world
+
+The field is one box that follows the dancers of the main view's world (`Dancer.world`, kept by the portals): a dancer
+through a gate in another world lays down no aura here, and has no field there. Steam, born of the field, is drawn in
+the main view only (a gate's view and the ?pip inset show none, even of the same world), over the focused image after
+the depth of field (`MatterPasses.declarePost`: steam has no one distance for the depth of field to read). A field per
+world (or per gate view) is an open item.
 
 ## Adding a reaction
 

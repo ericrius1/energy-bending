@@ -40,6 +40,11 @@ export interface Controller {
 A `Dancer` is `new Dancer(id, controller, loadout)`. The show's cast is `show.dancers`; a debug flag can replace the
 programme's cast with a function (`show.castOverride = (program, show) => Dancer[]`, see dancer/demos.ts), and
 `show.stage(show.program)` re-dresses the stage. To change who drives a dancer mid-dance, `dancer.setController(c)`.
+A dancer also carries `form` (its power form, 0 … 1), `presence` (how much of its matter is on it) and `world`.
+
+Through a gate (src/portals) a controller that owns where its body is should implement `carry(m)` (a column-major
+rigid move) and go on in the new world's coordinates, as `IntentController` does; otherwise the portals wrap it and
+carry what it poses.
 
 Check it with a still: add a flag like `?mine` in main.ts's demo lines (the one place demos are wired), or set the cast
 from `bend.show` in a steps file, then `node scripts/shot.mjs shots/mine`.

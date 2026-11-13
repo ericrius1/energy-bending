@@ -34,6 +34,12 @@ this.ears?.event({ kind: 'ice', type: 'crack', x, y, z, strength: 1, when: stamp
 Positions are world metres (the ears pan and distance them from the camera). `strength` and `amount` are 0 … 1 (a
 little more is allowed). `speed` is m/s. `extra` is a number a voice may read (plasma's `zap` reads the arc's length).
 
+Fire, plasma, water, ice and steam do this now (fire.ts, plasma.ts, water/pool.ts for both water and ice,
+reactions/steam.ts), from the CPU: the skeletons, each kind's own state and a field probe (`matter/core/sounding.ts`
+has the helpers). Their densities are guesses that a listener should tune: fire crackles about three times a second at
+full flame and flares on a limb past 6 m/s; water drips about 1.5 a second and splashes when a foot comes down; ice
+ticks while a freeze climbs; plasma zaps as each hand-arc stroke starts; steam puffs on a burst past 0.35.
+
 What each kind can say today (the voices are in `src/audio/matter/<kind>.ts`; the file's opening comment lists them):
 
 | kind | held (`hold`) | one-off (`event`) | pitched, on the grid |

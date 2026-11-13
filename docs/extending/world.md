@@ -71,8 +71,10 @@ export class Pool implements World {
 
 ## 3. Stages and ledges (worlds/stage.ts)
 
-A stage plane is data the body physics reads: `{ id, origin, right, halfWidth, ground, ledges, spawns }` (plus what the
-camera wants: `normal`, `height`, `lens`, `maxDistance`; `stagePlane(def)` fills those in). Plane coordinates: x along
+A stage plane is data the body physics reads: `{ id, origin, right, halfWidth, ground, ledges, spawns, ledgeY? }`
+(engine/camera.ts, one type for the rig, the physics and the worlds), plus what the camera may want: `height` (how much
+to frame when nobody is on it) and `lens`; `stagePlane(def)` fills `height` in. The normal is `planeNormal(plane)`
+(right × up) and how far back the locked camera may stand comes from the world's `room`. Plane coordinates: x along
 `right` from `origin`, y up, metres. A `Ledge` is `{ id, x0, x1, y, solid?, thick?, bob? }`: its top at y from x0 to
 x1, one-way unless solid, bobbing `bob` m with the bass.
 
@@ -85,14 +87,26 @@ x1, one-way unless solid, bobbing `bob` m with the bass.
   ~3.1 m over the stage's ground; the stage ~11.5 m wide (`halfWidth` 5.75).
 - `spawns` (plane x, y) for seat 0 and seat 1; `World.spawns` is the same in the world (`spawnsOf(plane)`).
 - `groundAt(x, z)` is the floor under a point in 3D: the top of a solid ledge you'd stand on there, or (the forge)
-  how far down the game catches a fall.
+  how far down the game catches a fall. A world you can fall off also says `fallY`: below it a body (free or locked)
+  has fallen out and re-forms at its spawn (the forge: -4 m).
+- `?play` locks to `stages[0]` as it is (the pool's stage has no ledges on purpose); set ice on the plane adds one-way
+  ledges (`setIce.ledgesIn`). Nothing reads `tideY` for the bodies yet (wading is not modelled).
+
+## Light from the dancers
+
+`worlds/light.wgsl` shares the fire kind's light uniform (binding 7, `fireLights`) and gives `worldFire(p, n)`: one
+point light per flame dancer (fire warm, plasma violet by the dancer's form). Add it to your world's own shading of
+its solid things (the geode's floor and shelves, everything the redwoods' lanterns light, the temple's and the forge's
+ambient do); matter takes a quarter of it through `worldAmbient`.
 
 ## 4. Portals
 
-`portals: PortalDef[]`, `{ id, at, normal, radius, to: { world, portal } }`: where the gate's disc stands (its middle),
+`portals: PortalDef[]`, `{ id, at, normal, radius, to: { world, portal }, up? }` (`up` for a gate lying in a floor or
+a sky): where the gate's disc stands (its middle),
 which way it faces (the side you walk in from), its radius. The world chooses the site: flat, clear round it, out of
 the stage's way and of the locked camera's view. src/portals draws them. The geode is the hub (`geode.<world>`, one per
-world); every other world has one gate back (`<world>.geode`).
+world); every other world has one gate back (`<world>.geode`). The portals open every world's list at start (eight
+gates: `LIMITS.gates`), and the nearest on screen go live.
 
 ## 5. See it
 

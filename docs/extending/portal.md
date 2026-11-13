@@ -74,7 +74,18 @@ drawn in every world's view: a known gap).
 The second half: `MatterPasses.carry?(moves)` (matter/core/kind.ts). When a dancer is carried through a gate the
 portals call it once, that frame, before the simulation, with the dancer's slot and the move (column-major 4×4). Move
 every particle that belongs to that dancer (positions, velocities, orientations) by it. The gems do it in
-`matter/gems/carry.wgsl`, a compute enabled only on that frame and put before their step.
+`matter/gems/carry.wgsl`, a compute enabled only on that frame and put before their step; fire (fire/carry.wgsl) and
+water/ice (matter/core/carry.wgsl through `matter/core/carry.ts CarryStep`, which any kind on the core `Particle` can
+use) do too.
+
+What else crosses: a controller may implement `Controller.carry(m)` (dancer/controller.ts). Body physics
+(`IntentController`) moves itself and goes on in the new world's coordinates; a `NetController` does nothing (its poses
+arrive carried); any other controller is wrapped (`Carried`). `Skeleton.carry(m)` moves the last commit's positions so
+the joint velocities go on through a crossing, and `CameraRig.carry(m)` moves the rig (an orbit: no roll, the portals
+keep the residual). `Dancer.world` holds where each dancer is (main.ts copies `gates.worldOf`): the field, the fire's
+light and the plasma's arcs follow the main view's world. In `?play&net`, the played dancer's crossing is sent as the
+room's `travel`. Not honoured yet: a gate's view has no water surface (only drops and ice), and steam, mist, arcs and
+sparkles show in the main view only.
 
 A kind that ignores `seen` still works, but its particles show in every world and are not cut at the door.
 

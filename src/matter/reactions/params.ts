@@ -20,8 +20,9 @@ export const steamParams = defineParams('steam', {
   /** its size when born and when it fades (m, the blob's radius) */
   sizeBirth: 0.07,
   sizeEnd: 0.24,
-  /** how opaque a puff is at its middle */
-  density: 0.2,
+  /** how opaque a puff is at its middle (0.2 when it was drawn in the scene, where fog and the depth of field softened
+   *  it; drawn sharp over the focused image now, a strong clash went white, so less) */
+  density: 0.12,
   /** its own soft light */
   glow: 0.12,
   /** how much the field's heat lights it orange */

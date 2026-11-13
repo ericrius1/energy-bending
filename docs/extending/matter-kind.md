@@ -89,17 +89,41 @@ Set your uniforms from your parameters (`defineParams('fire', {…}, specs)`: th
 `bend.params.fire`), from `f.dt`, `f.danceDt`, `f.t`, `f.beat`, and the hand. The body's own settings shared by
 every kind (how many, trails) are `matterParams` in `matter/core/params.ts`.
 
+Read the dancers from `f.dancers[d]`: `Dancer.form` (0 … 1, the power form: fire toward plasma, water toward ice; the
+one place it lives, set with `bend.form(d, v)`), `Dancer.presence` (0 … 1, how much of its matter is on the body: the
+show lowers it in a heap or after a shatter) and `Dancer.world` (the world it is in: a dancer through a gate is
+elsewhere; the main view's world is `f.views[0].world`).
+
 ## 6. The show's moments: `acts`
 
 `rise(at, spread)`, `shatter(x, y, z, strength)`, `settle(on)`, `dancing(on)`: what a body does as a programme moves
 between dances. A kind with no such moments leaves `acts` out.
 
-## 7. Dress a dancer in it
+## 7. Through gates, heard, after the lens (wave 1's joins)
+
+- **`seen`** (engine/seen.wgsl): each view says per dancer whether it is drawn there, where (carried through a gate)
+  and which side of a door is kept. Every cull and draw of a dancer's particles reads it (`seen: s.view.seen` in the
+  bind; `seenPos`, `seenRot`, `seenDir`, `seenClip`, `seen.keep` and `seen.grow`; the recipe is in
+  docs/extending/portal.md). Fire, water, ice and gems do. Matter that belongs to no dancer (steam, ice's mist, plasma's
+  arcs, the gems' sparkles) is drawn in the main view only, or must say what it does.
+- **`carry(moves)`**: when a dancer crosses a gate, move its particles by the gate's rigid move before your step.
+  `matter/core/carry.ts` (`CarryStep`) does it for a kind whose state is the core `Particle` (core/carry.wgsl); a kind
+  with its own struct writes a carry shader with the same `Carry` uniform (fire/carry.wgsl).
+- **`hear(ears)`**: the music hands your kind its ears once; tell them what happens each frame (holds and events:
+  docs/extending/sound.md). `matter/core/sounding.ts` has the helpers (a body's middle, its fastest limb, a seeded
+  number per frame, a trigger). Scale by `Dancer.presence`.
+- **`declarePost(post)`**: translucent matter with no one distance (steam) draws over the focused image, in the post
+  chain's lens pass after the depth of field, testing the scene's distance by hand (`post.sceneTex`'s alpha). Matter
+  that has a distance stays in the scene and min-blends it into the scene's alpha (fire does).
+
+## 8. Dress a dancer in it
 
 ```js
 bend.loadout(0, { layers: [{ kind: 'gems', share: 0.4, parts: ['torso'], params: { suite: 'Ember' } },
                            { kind: 'fire', share: 0.6, parts: ['arms', 'legs', 'hands', 'feet', 'head'] }] })
 ```
 
-Then check it: `node scripts/shot.mjs shots/fire` with a steps file that sets the loadout, and `bend.stats().passes`
-for its cost.
+or by preset name: `?dress=fire,water` or `bend.dress(0, 'ember')` (matter/core/presets.ts: gems, fire, water, ice,
+plasma, ember, tide, gemwater, geodeheart, geodeheart-water; add yours there). The show keeps a dress on through
+restaging. Then check it: `node scripts/shot.mjs shots/fire` with a steps file that sets the loadout (a step's `eval`
+runs in the page with `bend`), and `bend.stats().passes` for its cost.
