@@ -1,0 +1,519 @@
+[
+ {
+  "name": "steam-pool",
+  "query": "jogo=script&script=none&world=pool&dress=fire,water",
+  "fps": 2,
+  "seconds": 22,
+  "warm": 1100,
+  "setup": "bend.jogo.run({\"name\":\"fusion7-steam\",\"world\":\"pool\",\"lock\":true,\"dress\":[\"fire\",\"water\"],\"cues\":[{\"at\":0,\"seat\":0,\"place\":-0.52},{\"at\":0,\"seat\":1,\"place\":0.52},{\"at\":1,\"seat\":0,\"move\":\"martelo\"},{\"at\":1,\"seat\":1,\"press\":\"dodge\",\"hold\":{\"moveY\":-1},\"for\":0.6},{\"at\":3,\"seat\":1,\"move\":\"meia-lua\"},{\"at\":3,\"seat\":0,\"press\":\"dodge\",\"hold\":{\"moveY\":-1},\"for\":0.6},{\"at\":5,\"seat\":0,\"move\":\"meia-lua\"},{\"at\":5,\"seat\":1,\"move\":\"meia-lua\"},{\"at\":7,\"seat\":0,\"move\":\"bencao\"},{\"at\":8.5,\"seat\":0,\"goto\":-0.52},{\"at\":8.5,\"seat\":1,\"goto\":0.52},{\"at\":10,\"seat\":0,\"move\":\"spin\"},{\"at\":10,\"seat\":1,\"move\":\"spin\"},{\"at\":12.5,\"seat\":0,\"goto\":-0.52},{\"at\":12.5,\"seat\":1,\"goto\":0.52},{\"at\":14,\"seat\":1,\"move\":\"armada\"},{\"at\":14,\"seat\":0,\"press\":\"dodge\",\"hold\":{\"moveY\":-1},\"for\":0.6},{\"at\":15.5,\"seat\":0,\"goto\":-0.52},{\"at\":15.5,\"seat\":1,\"goto\":0.52},{\"at\":17,\"seat\":0,\"move\":\"rasteira\"},{\"at\":17,\"seat\":1,\"press\":\"jump\",\"hold\":{\"jumpHeld\":true},\"for\":0.4},{\"at\":18.5,\"seat\":0,\"goto\":-0.52},{\"at\":18.5,\"seat\":1,\"goto\":0.52},{\"at\":20,\"seat\":1,\"move\":\"bencao\"},{\"at\":20.25,\"seat\":0,\"press\":\"dodge\",\"hold\":{\"dodgeHeld\":true},\"for\":0.6},{\"at\":21.5,\"seat\":0,\"goto\":-0.52},{\"at\":21.5,\"seat\":1,\"goto\":0.52},{\"at\":23,\"seat\":0,\"move\":\"meia-lua\"},{\"at\":23,\"seat\":1,\"press\":\"dodge\",\"hold\":{\"moveY\":-1},\"for\":0.6},{\"at\":25,\"seat\":1,\"move\":\"martelo\"},{\"at\":25,\"seat\":0,\"press\":\"dodge\",\"hold\":{\"moveY\":-1},\"for\":0.6},{\"at\":27,\"seat\":0,\"move\":\"armada\"},{\"at\":27.5,\"seat\":1,\"press\":\"dodge\",\"hold\":{\"moveY\":-1},\"for\":0.6},{\"at\":29,\"seat\":0,\"goto\":-0.16},{\"at\":29,\"seat\":1,\"goto\":0.16},{\"at\":29.5,\"seat\":\"both\",\"hold\":{\"merge\":true},\"for\":4},{\"at\":33,\"seat\":0,\"goto\":-0.42},{\"at\":33,\"seat\":1,\"goto\":0.42},{\"at\":36,\"seat\":\"both\",\"move\":\"spin\"},{\"at\":40,\"seat\":\"both\",\"move\":\"macaco\"},{\"at\":44,\"seat\":0,\"move\":\"spin\"},{\"at\":45,\"seat\":1,\"move\":\"spin\"},{\"at\":48,\"seat\":0,\"goto\":-0.3},{\"at\":48,\"seat\":1,\"goto\":0.3},{\"at\":52,\"seat\":\"both\",\"move\":\"spin\"},{\"at\":56,\"seat\":\"both\",\"move\":\"macaco\"},{\"at\":76,\"seat\":0,\"goto\":-0.7},{\"at\":76,\"seat\":1,\"goto\":0.7}]});",
+  "cues": {
+   "0": "console.warn('jogo', JSON.stringify(bend.jogo.stats().fusion), bend.jogo.stats().phase);",
+   "3": "console.warn('jogo', JSON.stringify(bend.jogo.stats().fusion), bend.jogo.stats().phase);",
+   "11": "console.warn('jogo', JSON.stringify(bend.jogo.stats().fusion), bend.jogo.stats().phase);",
+   "19": "console.warn('jogo', JSON.stringify(bend.jogo.stats().fusion), bend.jogo.stats().phase);",
+   "21.5": "console.warn('jogo', JSON.stringify(bend.jogo.stats().fusion), bend.jogo.stats().phase);"
+  },
+  "sheet": {
+   "cols": 11,
+   "rows": 4,
+   "width": 240
+  },
+  "stills": [
+   3,
+   5,
+   9,
+   13,
+   17,
+   19.5
+  ]
+ },
+ {
+  "name": "steam-pool-land",
+  "query": "jogo=script&script=none&world=pool&dress=fire,water",
+  "fps": 12,
+  "seconds": 4,
+  "warm": 1180,
+  "setup": "bend.jogo.run({\"name\":\"fusion7-steam\",\"world\":\"pool\",\"lock\":true,\"dress\":[\"fire\",\"water\"],\"cues\":[{\"at\":0,\"seat\":0,\"place\":-0.52},{\"at\":0,\"seat\":1,\"place\":0.52},{\"at\":1,\"seat\":0,\"move\":\"martelo\"},{\"at\":1,\"seat\":1,\"press\":\"dodge\",\"hold\":{\"moveY\":-1},\"for\":0.6},{\"at\":3,\"seat\":1,\"move\":\"meia-lua\"},{\"at\":3,\"seat\":0,\"press\":\"dodge\",\"hold\":{\"moveY\":-1},\"for\":0.6},{\"at\":5,\"seat\":0,\"move\":\"meia-lua\"},{\"at\":5,\"seat\":1,\"move\":\"meia-lua\"},{\"at\":7,\"seat\":0,\"move\":\"bencao\"},{\"at\":8.5,\"seat\":0,\"goto\":-0.52},{\"at\":8.5,\"seat\":1,\"goto\":0.52},{\"at\":10,\"seat\":0,\"move\":\"spin\"},{\"at\":10,\"seat\":1,\"move\":\"spin\"},{\"at\":12.5,\"seat\":0,\"goto\":-0.52},{\"at\":12.5,\"seat\":1,\"goto\":0.52},{\"at\":14,\"seat\":1,\"move\":\"armada\"},{\"at\":14,\"seat\":0,\"press\":\"dodge\",\"hold\":{\"moveY\":-1},\"for\":0.6},{\"at\":15.5,\"seat\":0,\"goto\":-0.52},{\"at\":15.5,\"seat\":1,\"goto\":0.52},{\"at\":17,\"seat\":0,\"move\":\"rasteira\"},{\"at\":17,\"seat\":1,\"press\":\"jump\",\"hold\":{\"jumpHeld\":true},\"for\":0.4},{\"at\":18.5,\"seat\":0,\"goto\":-0.52},{\"at\":18.5,\"seat\":1,\"goto\":0.52},{\"at\":20,\"seat\":1,\"move\":\"bencao\"},{\"at\":20.25,\"seat\":0,\"press\":\"dodge\",\"hold\":{\"dodgeHeld\":true},\"for\":0.6},{\"at\":21.5,\"seat\":0,\"goto\":-0.52},{\"at\":21.5,\"seat\":1,\"goto\":0.52},{\"at\":23,\"seat\":0,\"move\":\"meia-lua\"},{\"at\":23,\"seat\":1,\"press\":\"dodge\",\"hold\":{\"moveY\":-1},\"for\":0.6},{\"at\":25,\"seat\":1,\"move\":\"martelo\"},{\"at\":25,\"seat\":0,\"press\":\"dodge\",\"hold\":{\"moveY\":-1},\"for\":0.6},{\"at\":27,\"seat\":0,\"move\":\"armada\"},{\"at\":27.5,\"seat\":1,\"press\":\"dodge\",\"hold\":{\"moveY\":-1},\"for\":0.6},{\"at\":29,\"seat\":0,\"goto\":-0.16},{\"at\":29,\"seat\":1,\"goto\":0.16},{\"at\":29.5,\"seat\":\"both\",\"hold\":{\"merge\":true},\"for\":4},{\"at\":33,\"seat\":0,\"goto\":-0.42},{\"at\":33,\"seat\":1,\"goto\":0.42},{\"at\":36,\"seat\":\"both\",\"move\":\"spin\"},{\"at\":40,\"seat\":\"both\",\"move\":\"macaco\"},{\"at\":44,\"seat\":0,\"move\":\"spin\"},{\"at\":45,\"seat\":1,\"move\":\"spin\"},{\"at\":48,\"seat\":0,\"goto\":-0.3},{\"at\":48,\"seat\":1,\"goto\":0.3},{\"at\":52,\"seat\":\"both\",\"move\":\"spin\"},{\"at\":56,\"seat\":\"both\",\"move\":\"macaco\"},{\"at\":76,\"seat\":0,\"goto\":-0.7},{\"at\":76,\"seat\":1,\"goto\":0.7}]});",
+  "cues": {
+   "0": "console.warn('jogo', JSON.stringify(bend.jogo.stats().fusion), bend.jogo.stats().phase);",
+   "3.9": "console.warn('jogo', JSON.stringify(bend.jogo.stats().fusion), bend.jogo.stats().phase);"
+  },
+  "sheet": {
+   "cols": 8,
+   "rows": 3,
+   "width": 300
+  },
+  "stills": [
+   1.5,
+   2.5
+  ]
+ },
+ {
+  "name": "steam-temple",
+  "query": "jogo=script&script=none&world=temple&dress=fire,water",
+  "fps": 2,
+  "seconds": 22,
+  "warm": 1100,
+  "setup": "bend.jogo.run({\"name\":\"fusion7-steam\",\"world\":\"temple\",\"lock\":true,\"dress\":[\"fire\",\"water\"],\"cues\":[{\"at\":0,\"seat\":0,\"place\":-0.52},{\"at\":0,\"seat\":1,\"place\":0.52},{\"at\":1,\"seat\":0,\"move\":\"martelo\"},{\"at\":1,\"seat\":1,\"press\":\"dodge\",\"hold\":{\"moveY\":-1},\"for\":0.6},{\"at\":3,\"seat\":1,\"move\":\"meia-lua\"},{\"at\":3,\"seat\":0,\"press\":\"dodge\",\"hold\":{\"moveY\":-1},\"for\":0.6},{\"at\":5,\"seat\":0,\"move\":\"meia-lua\"},{\"at\":5,\"seat\":1,\"move\":\"meia-lua\"},{\"at\":7,\"seat\":0,\"move\":\"bencao\"},{\"at\":8.5,\"seat\":0,\"goto\":-0.52},{\"at\":8.5,\"seat\":1,\"goto\":0.52},{\"at\":10,\"seat\":0,\"move\":\"spin\"},{\"at\":10,\"seat\":1,\"move\":\"spin\"},{\"at\":12.5,\"seat\":0,\"goto\":-0.52},{\"at\":12.5,\"seat\":1,\"goto\":0.52},{\"at\":14,\"seat\":1,\"move\":\"armada\"},{\"at\":14,\"seat\":0,\"press\":\"dodge\",\"hold\":{\"moveY\":-1},\"for\":0.6},{\"at\":15.5,\"seat\":0,\"goto\":-0.52},{\"at\":15.5,\"seat\":1,\"goto\":0.52},{\"at\":17,\"seat\":0,\"move\":\"rasteira\"},{\"at\":17,\"seat\":1,\"press\":\"jump\",\"hold\":{\"jumpHeld\":true},\"for\":0.4},{\"at\":18.5,\"seat\":0,\"goto\":-0.52},{\"at\":18.5,\"seat\":1,\"goto\":0.52},{\"at\":20,\"seat\":1,\"move\":\"bencao\"},{\"at\":20.25,\"seat\":0,\"press\":\"dodge\",\"hold\":{\"dodgeHeld\":true},\"for\":0.6},{\"at\":21.5,\"seat\":0,\"goto\":-0.52},{\"at\":21.5,\"seat\":1,\"goto\":0.52},{\"at\":23,\"seat\":0,\"move\":\"meia-lua\"},{\"at\":23,\"seat\":1,\"press\":\"dodge\",\"hold\":{\"moveY\":-1},\"for\":0.6},{\"at\":25,\"seat\":1,\"move\":\"martelo\"},{\"at\":25,\"seat\":0,\"press\":\"dodge\",\"hold\":{\"moveY\":-1},\"for\":0.6},{\"at\":27,\"seat\":0,\"move\":\"armada\"},{\"at\":27.5,\"seat\":1,\"press\":\"dodge\",\"hold\":{\"moveY\":-1},\"for\":0.6},{\"at\":29,\"seat\":0,\"goto\":-0.16},{\"at\":29,\"seat\":1,\"goto\":0.16},{\"at\":29.5,\"seat\":\"both\",\"hold\":{\"merge\":true},\"for\":4},{\"at\":33,\"seat\":0,\"goto\":-0.42},{\"at\":33,\"seat\":1,\"goto\":0.42},{\"at\":36,\"seat\":\"both\",\"move\":\"spin\"},{\"at\":40,\"seat\":\"both\",\"move\":\"macaco\"},{\"at\":44,\"seat\":0,\"move\":\"spin\"},{\"at\":45,\"seat\":1,\"move\":\"spin\"},{\"at\":48,\"seat\":0,\"goto\":-0.3},{\"at\":48,\"seat\":1,\"goto\":0.3},{\"at\":52,\"seat\":\"both\",\"move\":\"spin\"},{\"at\":56,\"seat\":\"both\",\"move\":\"macaco\"},{\"at\":76,\"seat\":0,\"goto\":-0.7},{\"at\":76,\"seat\":1,\"goto\":0.7}]});",
+  "cues": {
+   "0": "console.warn('jogo', JSON.stringify(bend.jogo.stats().fusion), bend.jogo.stats().phase);",
+   "3": "console.warn('jogo', JSON.stringify(bend.jogo.stats().fusion), bend.jogo.stats().phase);",
+   "11": "console.warn('jogo', JSON.stringify(bend.jogo.stats().fusion), bend.jogo.stats().phase);",
+   "19": "console.warn('jogo', JSON.stringify(bend.jogo.stats().fusion), bend.jogo.stats().phase);",
+   "21.5": "console.warn('jogo', JSON.stringify(bend.jogo.stats().fusion), bend.jogo.stats().phase);"
+  },
+  "sheet": {
+   "cols": 11,
+   "rows": 4,
+   "width": 240
+  },
+  "stills": [
+   3,
+   5,
+   9,
+   13,
+   17,
+   19.5
+  ]
+ },
+ {
+  "name": "steam-temple-land",
+  "query": "jogo=script&script=none&world=temple&dress=fire,water",
+  "fps": 12,
+  "seconds": 4,
+  "warm": 1180,
+  "setup": "bend.jogo.run({\"name\":\"fusion7-steam\",\"world\":\"temple\",\"lock\":true,\"dress\":[\"fire\",\"water\"],\"cues\":[{\"at\":0,\"seat\":0,\"place\":-0.52},{\"at\":0,\"seat\":1,\"place\":0.52},{\"at\":1,\"seat\":0,\"move\":\"martelo\"},{\"at\":1,\"seat\":1,\"press\":\"dodge\",\"hold\":{\"moveY\":-1},\"for\":0.6},{\"at\":3,\"seat\":1,\"move\":\"meia-lua\"},{\"at\":3,\"seat\":0,\"press\":\"dodge\",\"hold\":{\"moveY\":-1},\"for\":0.6},{\"at\":5,\"seat\":0,\"move\":\"meia-lua\"},{\"at\":5,\"seat\":1,\"move\":\"meia-lua\"},{\"at\":7,\"seat\":0,\"move\":\"bencao\"},{\"at\":8.5,\"seat\":0,\"goto\":-0.52},{\"at\":8.5,\"seat\":1,\"goto\":0.52},{\"at\":10,\"seat\":0,\"move\":\"spin\"},{\"at\":10,\"seat\":1,\"move\":\"spin\"},{\"at\":12.5,\"seat\":0,\"goto\":-0.52},{\"at\":12.5,\"seat\":1,\"goto\":0.52},{\"at\":14,\"seat\":1,\"move\":\"armada\"},{\"at\":14,\"seat\":0,\"press\":\"dodge\",\"hold\":{\"moveY\":-1},\"for\":0.6},{\"at\":15.5,\"seat\":0,\"goto\":-0.52},{\"at\":15.5,\"seat\":1,\"goto\":0.52},{\"at\":17,\"seat\":0,\"move\":\"rasteira\"},{\"at\":17,\"seat\":1,\"press\":\"jump\",\"hold\":{\"jumpHeld\":true},\"for\":0.4},{\"at\":18.5,\"seat\":0,\"goto\":-0.52},{\"at\":18.5,\"seat\":1,\"goto\":0.52},{\"at\":20,\"seat\":1,\"move\":\"bencao\"},{\"at\":20.25,\"seat\":0,\"press\":\"dodge\",\"hold\":{\"dodgeHeld\":true},\"for\":0.6},{\"at\":21.5,\"seat\":0,\"goto\":-0.52},{\"at\":21.5,\"seat\":1,\"goto\":0.52},{\"at\":23,\"seat\":0,\"move\":\"meia-lua\"},{\"at\":23,\"seat\":1,\"press\":\"dodge\",\"hold\":{\"moveY\":-1},\"for\":0.6},{\"at\":25,\"seat\":1,\"move\":\"martelo\"},{\"at\":25,\"seat\":0,\"press\":\"dodge\",\"hold\":{\"moveY\":-1},\"for\":0.6},{\"at\":27,\"seat\":0,\"move\":\"armada\"},{\"at\":27.5,\"seat\":1,\"press\":\"dodge\",\"hold\":{\"moveY\":-1},\"for\":0.6},{\"at\":29,\"seat\":0,\"goto\":-0.16},{\"at\":29,\"seat\":1,\"goto\":0.16},{\"at\":29.5,\"seat\":\"both\",\"hold\":{\"merge\":true},\"for\":4},{\"at\":33,\"seat\":0,\"goto\":-0.42},{\"at\":33,\"seat\":1,\"goto\":0.42},{\"at\":36,\"seat\":\"both\",\"move\":\"spin\"},{\"at\":40,\"seat\":\"both\",\"move\":\"macaco\"},{\"at\":44,\"seat\":0,\"move\":\"spin\"},{\"at\":45,\"seat\":1,\"move\":\"spin\"},{\"at\":48,\"seat\":0,\"goto\":-0.3},{\"at\":48,\"seat\":1,\"goto\":0.3},{\"at\":52,\"seat\":\"both\",\"move\":\"spin\"},{\"at\":56,\"seat\":\"both\",\"move\":\"macaco\"},{\"at\":76,\"seat\":0,\"goto\":-0.7},{\"at\":76,\"seat\":1,\"goto\":0.7}]});",
+  "cues": {
+   "0": "console.warn('jogo', JSON.stringify(bend.jogo.stats().fusion), bend.jogo.stats().phase);",
+   "3.9": "console.warn('jogo', JSON.stringify(bend.jogo.stats().fusion), bend.jogo.stats().phase);"
+  },
+  "sheet": {
+   "cols": 8,
+   "rows": 3,
+   "width": 300
+  },
+  "stills": [
+   1.5,
+   2.5
+  ]
+ },
+ {
+  "name": "prism-pool",
+  "query": "jogo=script&script=none&world=pool&dress=fire,water",
+  "fps": 2,
+  "seconds": 22,
+  "warm": 1100,
+  "setup": "bend.jogo.run({\"name\":\"fusion7-prism\",\"world\":\"pool\",\"lock\":true,\"dress\":[\"fire\",\"water\"],\"cues\":[{\"at\":0,\"seat\":0,\"place\":-0.52},{\"at\":0,\"seat\":1,\"place\":0.52},{\"at\":1,\"seat\":0,\"move\":\"martelo\"},{\"at\":1,\"seat\":1,\"press\":\"dodge\",\"hold\":{\"moveY\":-1},\"for\":0.6},{\"at\":3,\"seat\":1,\"move\":\"meia-lua\"},{\"at\":3,\"seat\":0,\"press\":\"dodge\",\"hold\":{\"moveY\":-1},\"for\":0.6},{\"at\":5,\"seat\":0,\"move\":\"meia-lua\"},{\"at\":5,\"seat\":1,\"move\":\"meia-lua\"},{\"at\":7,\"seat\":0,\"move\":\"bencao\"},{\"at\":8.5,\"seat\":0,\"goto\":-0.52},{\"at\":8.5,\"seat\":1,\"goto\":0.52},{\"at\":10,\"seat\":0,\"move\":\"spin\"},{\"at\":10,\"seat\":1,\"move\":\"spin\"},{\"at\":12.5,\"seat\":0,\"goto\":-0.52},{\"at\":12.5,\"seat\":1,\"goto\":0.52},{\"at\":14,\"seat\":1,\"move\":\"armada\"},{\"at\":14,\"seat\":0,\"press\":\"dodge\",\"hold\":{\"moveY\":-1},\"for\":0.6},{\"at\":15.5,\"seat\":0,\"goto\":-0.52},{\"at\":15.5,\"seat\":1,\"goto\":0.52},{\"at\":17,\"seat\":0,\"move\":\"rasteira\"},{\"at\":17,\"seat\":1,\"press\":\"jump\",\"hold\":{\"jumpHeld\":true},\"for\":0.4},{\"at\":18.5,\"seat\":0,\"goto\":-0.52},{\"at\":18.5,\"seat\":1,\"goto\":0.52},{\"at\":20,\"seat\":1,\"move\":\"bencao\"},{\"at\":20.25,\"seat\":0,\"press\":\"dodge\",\"hold\":{\"dodgeHeld\":true},\"for\":0.6},{\"at\":21.5,\"seat\":0,\"goto\":-0.52},{\"at\":21.5,\"seat\":1,\"goto\":0.52},{\"at\":23,\"seat\":0,\"move\":\"meia-lua\"},{\"at\":23,\"seat\":1,\"press\":\"dodge\",\"hold\":{\"moveY\":-1},\"for\":0.6},{\"at\":25,\"seat\":1,\"move\":\"martelo\"},{\"at\":25,\"seat\":0,\"press\":\"dodge\",\"hold\":{\"moveY\":-1},\"for\":0.6},{\"at\":27,\"seat\":0,\"move\":\"armada\"},{\"at\":27.5,\"seat\":1,\"press\":\"dodge\",\"hold\":{\"moveY\":-1},\"for\":0.6},{\"at\":29,\"seat\":0,\"goto\":-0.16},{\"at\":29,\"seat\":1,\"goto\":0.16},{\"at\":29.5,\"seat\":\"both\",\"hold\":{\"merge\":true},\"for\":4},{\"at\":33,\"seat\":0,\"goto\":-0.42},{\"at\":33,\"seat\":1,\"goto\":0.42},{\"at\":36,\"seat\":\"both\",\"move\":\"spin\"},{\"at\":40,\"seat\":\"both\",\"move\":\"macaco\"},{\"at\":44,\"seat\":0,\"move\":\"spin\"},{\"at\":45,\"seat\":1,\"move\":\"spin\"},{\"at\":48,\"seat\":0,\"goto\":-0.3},{\"at\":48,\"seat\":1,\"goto\":0.3},{\"at\":52,\"seat\":\"both\",\"move\":\"spin\"},{\"at\":56,\"seat\":\"both\",\"move\":\"macaco\"},{\"at\":76,\"seat\":0,\"goto\":-0.7},{\"at\":76,\"seat\":1,\"goto\":0.7},{\"at\":27.5,\"seat\":1,\"press\":\"form\"}]});",
+  "cues": {
+   "0": "console.warn('jogo', JSON.stringify(bend.jogo.stats().fusion), bend.jogo.stats().phase);",
+   "3": "console.warn('jogo', JSON.stringify(bend.jogo.stats().fusion), bend.jogo.stats().phase);",
+   "11": "console.warn('jogo', JSON.stringify(bend.jogo.stats().fusion), bend.jogo.stats().phase);",
+   "19": "console.warn('jogo', JSON.stringify(bend.jogo.stats().fusion), bend.jogo.stats().phase);",
+   "21.5": "console.warn('jogo', JSON.stringify(bend.jogo.stats().fusion), bend.jogo.stats().phase);"
+  },
+  "sheet": {
+   "cols": 11,
+   "rows": 4,
+   "width": 240
+  },
+  "stills": [
+   3,
+   5,
+   9,
+   13,
+   17,
+   19.5
+  ]
+ },
+ {
+  "name": "prism-pool-land",
+  "query": "jogo=script&script=none&world=pool&dress=fire,water",
+  "fps": 12,
+  "seconds": 4,
+  "warm": 1180,
+  "setup": "bend.jogo.run({\"name\":\"fusion7-prism\",\"world\":\"pool\",\"lock\":true,\"dress\":[\"fire\",\"water\"],\"cues\":[{\"at\":0,\"seat\":0,\"place\":-0.52},{\"at\":0,\"seat\":1,\"place\":0.52},{\"at\":1,\"seat\":0,\"move\":\"martelo\"},{\"at\":1,\"seat\":1,\"press\":\"dodge\",\"hold\":{\"moveY\":-1},\"for\":0.6},{\"at\":3,\"seat\":1,\"move\":\"meia-lua\"},{\"at\":3,\"seat\":0,\"press\":\"dodge\",\"hold\":{\"moveY\":-1},\"for\":0.6},{\"at\":5,\"seat\":0,\"move\":\"meia-lua\"},{\"at\":5,\"seat\":1,\"move\":\"meia-lua\"},{\"at\":7,\"seat\":0,\"move\":\"bencao\"},{\"at\":8.5,\"seat\":0,\"goto\":-0.52},{\"at\":8.5,\"seat\":1,\"goto\":0.52},{\"at\":10,\"seat\":0,\"move\":\"spin\"},{\"at\":10,\"seat\":1,\"move\":\"spin\"},{\"at\":12.5,\"seat\":0,\"goto\":-0.52},{\"at\":12.5,\"seat\":1,\"goto\":0.52},{\"at\":14,\"seat\":1,\"move\":\"armada\"},{\"at\":14,\"seat\":0,\"press\":\"dodge\",\"hold\":{\"moveY\":-1},\"for\":0.6},{\"at\":15.5,\"seat\":0,\"goto\":-0.52},{\"at\":15.5,\"seat\":1,\"goto\":0.52},{\"at\":17,\"seat\":0,\"move\":\"rasteira\"},{\"at\":17,\"seat\":1,\"press\":\"jump\",\"hold\":{\"jumpHeld\":true},\"for\":0.4},{\"at\":18.5,\"seat\":0,\"goto\":-0.52},{\"at\":18.5,\"seat\":1,\"goto\":0.52},{\"at\":20,\"seat\":1,\"move\":\"bencao\"},{\"at\":20.25,\"seat\":0,\"press\":\"dodge\",\"hold\":{\"dodgeHeld\":true},\"for\":0.6},{\"at\":21.5,\"seat\":0,\"goto\":-0.52},{\"at\":21.5,\"seat\":1,\"goto\":0.52},{\"at\":23,\"seat\":0,\"move\":\"meia-lua\"},{\"at\":23,\"seat\":1,\"press\":\"dodge\",\"hold\":{\"moveY\":-1},\"for\":0.6},{\"at\":25,\"seat\":1,\"move\":\"martelo\"},{\"at\":25,\"seat\":0,\"press\":\"dodge\",\"hold\":{\"moveY\":-1},\"for\":0.6},{\"at\":27,\"seat\":0,\"move\":\"armada\"},{\"at\":27.5,\"seat\":1,\"press\":\"dodge\",\"hold\":{\"moveY\":-1},\"for\":0.6},{\"at\":29,\"seat\":0,\"goto\":-0.16},{\"at\":29,\"seat\":1,\"goto\":0.16},{\"at\":29.5,\"seat\":\"both\",\"hold\":{\"merge\":true},\"for\":4},{\"at\":33,\"seat\":0,\"goto\":-0.42},{\"at\":33,\"seat\":1,\"goto\":0.42},{\"at\":36,\"seat\":\"both\",\"move\":\"spin\"},{\"at\":40,\"seat\":\"both\",\"move\":\"macaco\"},{\"at\":44,\"seat\":0,\"move\":\"spin\"},{\"at\":45,\"seat\":1,\"move\":\"spin\"},{\"at\":48,\"seat\":0,\"goto\":-0.3},{\"at\":48,\"seat\":1,\"goto\":0.3},{\"at\":52,\"seat\":\"both\",\"move\":\"spin\"},{\"at\":56,\"seat\":\"both\",\"move\":\"macaco\"},{\"at\":76,\"seat\":0,\"goto\":-0.7},{\"at\":76,\"seat\":1,\"goto\":0.7},{\"at\":27.5,\"seat\":1,\"press\":\"form\"}]});",
+  "cues": {
+   "0": "console.warn('jogo', JSON.stringify(bend.jogo.stats().fusion), bend.jogo.stats().phase);",
+   "3.9": "console.warn('jogo', JSON.stringify(bend.jogo.stats().fusion), bend.jogo.stats().phase);"
+  },
+  "sheet": {
+   "cols": 8,
+   "rows": 3,
+   "width": 300
+  },
+  "stills": [
+   1.5,
+   2.5
+  ]
+ },
+ {
+  "name": "prism-temple",
+  "query": "jogo=script&script=none&world=temple&dress=fire,water",
+  "fps": 2,
+  "seconds": 22,
+  "warm": 1100,
+  "setup": "bend.jogo.run({\"name\":\"fusion7-prism\",\"world\":\"temple\",\"lock\":true,\"dress\":[\"fire\",\"water\"],\"cues\":[{\"at\":0,\"seat\":0,\"place\":-0.52},{\"at\":0,\"seat\":1,\"place\":0.52},{\"at\":1,\"seat\":0,\"move\":\"martelo\"},{\"at\":1,\"seat\":1,\"press\":\"dodge\",\"hold\":{\"moveY\":-1},\"for\":0.6},{\"at\":3,\"seat\":1,\"move\":\"meia-lua\"},{\"at\":3,\"seat\":0,\"press\":\"dodge\",\"hold\":{\"moveY\":-1},\"for\":0.6},{\"at\":5,\"seat\":0,\"move\":\"meia-lua\"},{\"at\":5,\"seat\":1,\"move\":\"meia-lua\"},{\"at\":7,\"seat\":0,\"move\":\"bencao\"},{\"at\":8.5,\"seat\":0,\"goto\":-0.52},{\"at\":8.5,\"seat\":1,\"goto\":0.52},{\"at\":10,\"seat\":0,\"move\":\"spin\"},{\"at\":10,\"seat\":1,\"move\":\"spin\"},{\"at\":12.5,\"seat\":0,\"goto\":-0.52},{\"at\":12.5,\"seat\":1,\"goto\":0.52},{\"at\":14,\"seat\":1,\"move\":\"armada\"},{\"at\":14,\"seat\":0,\"press\":\"dodge\",\"hold\":{\"moveY\":-1},\"for\":0.6},{\"at\":15.5,\"seat\":0,\"goto\":-0.52},{\"at\":15.5,\"seat\":1,\"goto\":0.52},{\"at\":17,\"seat\":0,\"move\":\"rasteira\"},{\"at\":17,\"seat\":1,\"press\":\"jump\",\"hold\":{\"jumpHeld\":true},\"for\":0.4},{\"at\":18.5,\"seat\":0,\"goto\":-0.52},{\"at\":18.5,\"seat\":1,\"goto\":0.52},{\"at\":20,\"seat\":1,\"move\":\"bencao\"},{\"at\":20.25,\"seat\":0,\"press\":\"dodge\",\"hold\":{\"dodgeHeld\":true},\"for\":0.6},{\"at\":21.5,\"seat\":0,\"goto\":-0.52},{\"at\":21.5,\"seat\":1,\"goto\":0.52},{\"at\":23,\"seat\":0,\"move\":\"meia-lua\"},{\"at\":23,\"seat\":1,\"press\":\"dodge\",\"hold\":{\"moveY\":-1},\"for\":0.6},{\"at\":25,\"seat\":1,\"move\":\"martelo\"},{\"at\":25,\"seat\":0,\"press\":\"dodge\",\"hold\":{\"moveY\":-1},\"for\":0.6},{\"at\":27,\"seat\":0,\"move\":\"armada\"},{\"at\":27.5,\"seat\":1,\"press\":\"dodge\",\"hold\":{\"moveY\":-1},\"for\":0.6},{\"at\":29,\"seat\":0,\"goto\":-0.16},{\"at\":29,\"seat\":1,\"goto\":0.16},{\"at\":29.5,\"seat\":\"both\",\"hold\":{\"merge\":true},\"for\":4},{\"at\":33,\"seat\":0,\"goto\":-0.42},{\"at\":33,\"seat\":1,\"goto\":0.42},{\"at\":36,\"seat\":\"both\",\"move\":\"spin\"},{\"at\":40,\"seat\":\"both\",\"move\":\"macaco\"},{\"at\":44,\"seat\":0,\"move\":\"spin\"},{\"at\":45,\"seat\":1,\"move\":\"spin\"},{\"at\":48,\"seat\":0,\"goto\":-0.3},{\"at\":48,\"seat\":1,\"goto\":0.3},{\"at\":52,\"seat\":\"both\",\"move\":\"spin\"},{\"at\":56,\"seat\":\"both\",\"move\":\"macaco\"},{\"at\":76,\"seat\":0,\"goto\":-0.7},{\"at\":76,\"seat\":1,\"goto\":0.7},{\"at\":27.5,\"seat\":1,\"press\":\"form\"}]});",
+  "cues": {
+   "0": "console.warn('jogo', JSON.stringify(bend.jogo.stats().fusion), bend.jogo.stats().phase);",
+   "3": "console.warn('jogo', JSON.stringify(bend.jogo.stats().fusion), bend.jogo.stats().phase);",
+   "11": "console.warn('jogo', JSON.stringify(bend.jogo.stats().fusion), bend.jogo.stats().phase);",
+   "19": "console.warn('jogo', JSON.stringify(bend.jogo.stats().fusion), bend.jogo.stats().phase);",
+   "21.5": "console.warn('jogo', JSON.stringify(bend.jogo.stats().fusion), bend.jogo.stats().phase);"
+  },
+  "sheet": {
+   "cols": 11,
+   "rows": 4,
+   "width": 240
+  },
+  "stills": [
+   3,
+   5,
+   9,
+   13,
+   17,
+   19.5
+  ]
+ },
+ {
+  "name": "prism-temple-land",
+  "query": "jogo=script&script=none&world=temple&dress=fire,water",
+  "fps": 12,
+  "seconds": 4,
+  "warm": 1180,
+  "setup": "bend.jogo.run({\"name\":\"fusion7-prism\",\"world\":\"temple\",\"lock\":true,\"dress\":[\"fire\",\"water\"],\"cues\":[{\"at\":0,\"seat\":0,\"place\":-0.52},{\"at\":0,\"seat\":1,\"place\":0.52},{\"at\":1,\"seat\":0,\"move\":\"martelo\"},{\"at\":1,\"seat\":1,\"press\":\"dodge\",\"hold\":{\"moveY\":-1},\"for\":0.6},{\"at\":3,\"seat\":1,\"move\":\"meia-lua\"},{\"at\":3,\"seat\":0,\"press\":\"dodge\",\"hold\":{\"moveY\":-1},\"for\":0.6},{\"at\":5,\"seat\":0,\"move\":\"meia-lua\"},{\"at\":5,\"seat\":1,\"move\":\"meia-lua\"},{\"at\":7,\"seat\":0,\"move\":\"bencao\"},{\"at\":8.5,\"seat\":0,\"goto\":-0.52},{\"at\":8.5,\"seat\":1,\"goto\":0.52},{\"at\":10,\"seat\":0,\"move\":\"spin\"},{\"at\":10,\"seat\":1,\"move\":\"spin\"},{\"at\":12.5,\"seat\":0,\"goto\":-0.52},{\"at\":12.5,\"seat\":1,\"goto\":0.52},{\"at\":14,\"seat\":1,\"move\":\"armada\"},{\"at\":14,\"seat\":0,\"press\":\"dodge\",\"hold\":{\"moveY\":-1},\"for\":0.6},{\"at\":15.5,\"seat\":0,\"goto\":-0.52},{\"at\":15.5,\"seat\":1,\"goto\":0.52},{\"at\":17,\"seat\":0,\"move\":\"rasteira\"},{\"at\":17,\"seat\":1,\"press\":\"jump\",\"hold\":{\"jumpHeld\":true},\"for\":0.4},{\"at\":18.5,\"seat\":0,\"goto\":-0.52},{\"at\":18.5,\"seat\":1,\"goto\":0.52},{\"at\":20,\"seat\":1,\"move\":\"bencao\"},{\"at\":20.25,\"seat\":0,\"press\":\"dodge\",\"hold\":{\"dodgeHeld\":true},\"for\":0.6},{\"at\":21.5,\"seat\":0,\"goto\":-0.52},{\"at\":21.5,\"seat\":1,\"goto\":0.52},{\"at\":23,\"seat\":0,\"move\":\"meia-lua\"},{\"at\":23,\"seat\":1,\"press\":\"dodge\",\"hold\":{\"moveY\":-1},\"for\":0.6},{\"at\":25,\"seat\":1,\"move\":\"martelo\"},{\"at\":25,\"seat\":0,\"press\":\"dodge\",\"hold\":{\"moveY\":-1},\"for\":0.6},{\"at\":27,\"seat\":0,\"move\":\"armada\"},{\"at\":27.5,\"seat\":1,\"press\":\"dodge\",\"hold\":{\"moveY\":-1},\"for\":0.6},{\"at\":29,\"seat\":0,\"goto\":-0.16},{\"at\":29,\"seat\":1,\"goto\":0.16},{\"at\":29.5,\"seat\":\"both\",\"hold\":{\"merge\":true},\"for\":4},{\"at\":33,\"seat\":0,\"goto\":-0.42},{\"at\":33,\"seat\":1,\"goto\":0.42},{\"at\":36,\"seat\":\"both\",\"move\":\"spin\"},{\"at\":40,\"seat\":\"both\",\"move\":\"macaco\"},{\"at\":44,\"seat\":0,\"move\":\"spin\"},{\"at\":45,\"seat\":1,\"move\":\"spin\"},{\"at\":48,\"seat\":0,\"goto\":-0.3},{\"at\":48,\"seat\":1,\"goto\":0.3},{\"at\":52,\"seat\":\"both\",\"move\":\"spin\"},{\"at\":56,\"seat\":\"both\",\"move\":\"macaco\"},{\"at\":76,\"seat\":0,\"goto\":-0.7},{\"at\":76,\"seat\":1,\"goto\":0.7},{\"at\":27.5,\"seat\":1,\"press\":\"form\"}]});",
+  "cues": {
+   "0": "console.warn('jogo', JSON.stringify(bend.jogo.stats().fusion), bend.jogo.stats().phase);",
+   "3.9": "console.warn('jogo', JSON.stringify(bend.jogo.stats().fusion), bend.jogo.stats().phase);"
+  },
+  "sheet": {
+   "cols": 8,
+   "rows": 3,
+   "width": 300
+  },
+  "stills": [
+   1.5,
+   2.5
+  ]
+ },
+ {
+  "name": "storm-pool",
+  "query": "jogo=script&script=none&world=pool&dress=fire,water",
+  "fps": 2,
+  "seconds": 22,
+  "warm": 1100,
+  "setup": "bend.jogo.run({\"name\":\"fusion7-storm\",\"world\":\"pool\",\"lock\":true,\"dress\":[\"fire\",\"water\"],\"cues\":[{\"at\":0,\"seat\":0,\"place\":-0.52},{\"at\":0,\"seat\":1,\"place\":0.52},{\"at\":1,\"seat\":0,\"move\":\"martelo\"},{\"at\":1,\"seat\":1,\"press\":\"dodge\",\"hold\":{\"moveY\":-1},\"for\":0.6},{\"at\":3,\"seat\":1,\"move\":\"meia-lua\"},{\"at\":3,\"seat\":0,\"press\":\"dodge\",\"hold\":{\"moveY\":-1},\"for\":0.6},{\"at\":5,\"seat\":0,\"move\":\"meia-lua\"},{\"at\":5,\"seat\":1,\"move\":\"meia-lua\"},{\"at\":7,\"seat\":0,\"move\":\"bencao\"},{\"at\":8.5,\"seat\":0,\"goto\":-0.52},{\"at\":8.5,\"seat\":1,\"goto\":0.52},{\"at\":10,\"seat\":0,\"move\":\"spin\"},{\"at\":10,\"seat\":1,\"move\":\"spin\"},{\"at\":12.5,\"seat\":0,\"goto\":-0.52},{\"at\":12.5,\"seat\":1,\"goto\":0.52},{\"at\":14,\"seat\":1,\"move\":\"armada\"},{\"at\":14,\"seat\":0,\"press\":\"dodge\",\"hold\":{\"moveY\":-1},\"for\":0.6},{\"at\":15.5,\"seat\":0,\"goto\":-0.52},{\"at\":15.5,\"seat\":1,\"goto\":0.52},{\"at\":17,\"seat\":0,\"move\":\"rasteira\"},{\"at\":17,\"seat\":1,\"press\":\"jump\",\"hold\":{\"jumpHeld\":true},\"for\":0.4},{\"at\":18.5,\"seat\":0,\"goto\":-0.52},{\"at\":18.5,\"seat\":1,\"goto\":0.52},{\"at\":20,\"seat\":1,\"move\":\"bencao\"},{\"at\":20.25,\"seat\":0,\"press\":\"dodge\",\"hold\":{\"dodgeHeld\":true},\"for\":0.6},{\"at\":21.5,\"seat\":0,\"goto\":-0.52},{\"at\":21.5,\"seat\":1,\"goto\":0.52},{\"at\":23,\"seat\":0,\"move\":\"meia-lua\"},{\"at\":23,\"seat\":1,\"press\":\"dodge\",\"hold\":{\"moveY\":-1},\"for\":0.6},{\"at\":25,\"seat\":1,\"move\":\"martelo\"},{\"at\":25,\"seat\":0,\"press\":\"dodge\",\"hold\":{\"moveY\":-1},\"for\":0.6},{\"at\":27,\"seat\":0,\"move\":\"armada\"},{\"at\":27.5,\"seat\":1,\"press\":\"dodge\",\"hold\":{\"moveY\":-1},\"for\":0.6},{\"at\":29,\"seat\":0,\"goto\":-0.16},{\"at\":29,\"seat\":1,\"goto\":0.16},{\"at\":29.5,\"seat\":\"both\",\"hold\":{\"merge\":true},\"for\":4},{\"at\":33,\"seat\":0,\"goto\":-0.42},{\"at\":33,\"seat\":1,\"goto\":0.42},{\"at\":36,\"seat\":\"both\",\"move\":\"spin\"},{\"at\":40,\"seat\":\"both\",\"move\":\"macaco\"},{\"at\":44,\"seat\":0,\"move\":\"spin\"},{\"at\":45,\"seat\":1,\"move\":\"spin\"},{\"at\":48,\"seat\":0,\"goto\":-0.3},{\"at\":48,\"seat\":1,\"goto\":0.3},{\"at\":52,\"seat\":\"both\",\"move\":\"spin\"},{\"at\":56,\"seat\":\"both\",\"move\":\"macaco\"},{\"at\":76,\"seat\":0,\"goto\":-0.7},{\"at\":76,\"seat\":1,\"goto\":0.7},{\"at\":27.5,\"seat\":0,\"press\":\"form\"}]});",
+  "cues": {
+   "0": "console.warn('jogo', JSON.stringify(bend.jogo.stats().fusion), bend.jogo.stats().phase);",
+   "3": "console.warn('jogo', JSON.stringify(bend.jogo.stats().fusion), bend.jogo.stats().phase);",
+   "11": "console.warn('jogo', JSON.stringify(bend.jogo.stats().fusion), bend.jogo.stats().phase);",
+   "19": "console.warn('jogo', JSON.stringify(bend.jogo.stats().fusion), bend.jogo.stats().phase);",
+   "21.5": "console.warn('jogo', JSON.stringify(bend.jogo.stats().fusion), bend.jogo.stats().phase);"
+  },
+  "sheet": {
+   "cols": 11,
+   "rows": 4,
+   "width": 240
+  },
+  "stills": [
+   3,
+   5,
+   9,
+   13,
+   17,
+   19.5
+  ]
+ },
+ {
+  "name": "storm-pool-land",
+  "query": "jogo=script&script=none&world=pool&dress=fire,water",
+  "fps": 12,
+  "seconds": 4,
+  "warm": 1180,
+  "setup": "bend.jogo.run({\"name\":\"fusion7-storm\",\"world\":\"pool\",\"lock\":true,\"dress\":[\"fire\",\"water\"],\"cues\":[{\"at\":0,\"seat\":0,\"place\":-0.52},{\"at\":0,\"seat\":1,\"place\":0.52},{\"at\":1,\"seat\":0,\"move\":\"martelo\"},{\"at\":1,\"seat\":1,\"press\":\"dodge\",\"hold\":{\"moveY\":-1},\"for\":0.6},{\"at\":3,\"seat\":1,\"move\":\"meia-lua\"},{\"at\":3,\"seat\":0,\"press\":\"dodge\",\"hold\":{\"moveY\":-1},\"for\":0.6},{\"at\":5,\"seat\":0,\"move\":\"meia-lua\"},{\"at\":5,\"seat\":1,\"move\":\"meia-lua\"},{\"at\":7,\"seat\":0,\"move\":\"bencao\"},{\"at\":8.5,\"seat\":0,\"goto\":-0.52},{\"at\":8.5,\"seat\":1,\"goto\":0.52},{\"at\":10,\"seat\":0,\"move\":\"spin\"},{\"at\":10,\"seat\":1,\"move\":\"spin\"},{\"at\":12.5,\"seat\":0,\"goto\":-0.52},{\"at\":12.5,\"seat\":1,\"goto\":0.52},{\"at\":14,\"seat\":1,\"move\":\"armada\"},{\"at\":14,\"seat\":0,\"press\":\"dodge\",\"hold\":{\"moveY\":-1},\"for\":0.6},{\"at\":15.5,\"seat\":0,\"goto\":-0.52},{\"at\":15.5,\"seat\":1,\"goto\":0.52},{\"at\":17,\"seat\":0,\"move\":\"rasteira\"},{\"at\":17,\"seat\":1,\"press\":\"jump\",\"hold\":{\"jumpHeld\":true},\"for\":0.4},{\"at\":18.5,\"seat\":0,\"goto\":-0.52},{\"at\":18.5,\"seat\":1,\"goto\":0.52},{\"at\":20,\"seat\":1,\"move\":\"bencao\"},{\"at\":20.25,\"seat\":0,\"press\":\"dodge\",\"hold\":{\"dodgeHeld\":true},\"for\":0.6},{\"at\":21.5,\"seat\":0,\"goto\":-0.52},{\"at\":21.5,\"seat\":1,\"goto\":0.52},{\"at\":23,\"seat\":0,\"move\":\"meia-lua\"},{\"at\":23,\"seat\":1,\"press\":\"dodge\",\"hold\":{\"moveY\":-1},\"for\":0.6},{\"at\":25,\"seat\":1,\"move\":\"martelo\"},{\"at\":25,\"seat\":0,\"press\":\"dodge\",\"hold\":{\"moveY\":-1},\"for\":0.6},{\"at\":27,\"seat\":0,\"move\":\"armada\"},{\"at\":27.5,\"seat\":1,\"press\":\"dodge\",\"hold\":{\"moveY\":-1},\"for\":0.6},{\"at\":29,\"seat\":0,\"goto\":-0.16},{\"at\":29,\"seat\":1,\"goto\":0.16},{\"at\":29.5,\"seat\":\"both\",\"hold\":{\"merge\":true},\"for\":4},{\"at\":33,\"seat\":0,\"goto\":-0.42},{\"at\":33,\"seat\":1,\"goto\":0.42},{\"at\":36,\"seat\":\"both\",\"move\":\"spin\"},{\"at\":40,\"seat\":\"both\",\"move\":\"macaco\"},{\"at\":44,\"seat\":0,\"move\":\"spin\"},{\"at\":45,\"seat\":1,\"move\":\"spin\"},{\"at\":48,\"seat\":0,\"goto\":-0.3},{\"at\":48,\"seat\":1,\"goto\":0.3},{\"at\":52,\"seat\":\"both\",\"move\":\"spin\"},{\"at\":56,\"seat\":\"both\",\"move\":\"macaco\"},{\"at\":76,\"seat\":0,\"goto\":-0.7},{\"at\":76,\"seat\":1,\"goto\":0.7},{\"at\":27.5,\"seat\":0,\"press\":\"form\"}]});",
+  "cues": {
+   "0": "console.warn('jogo', JSON.stringify(bend.jogo.stats().fusion), bend.jogo.stats().phase);",
+   "3.9": "console.warn('jogo', JSON.stringify(bend.jogo.stats().fusion), bend.jogo.stats().phase);"
+  },
+  "sheet": {
+   "cols": 8,
+   "rows": 3,
+   "width": 300
+  },
+  "stills": [
+   1.5,
+   2.5
+  ]
+ },
+ {
+  "name": "storm-temple",
+  "query": "jogo=script&script=none&world=temple&dress=fire,water",
+  "fps": 2,
+  "seconds": 22,
+  "warm": 1100,
+  "setup": "bend.jogo.run({\"name\":\"fusion7-storm\",\"world\":\"temple\",\"lock\":true,\"dress\":[\"fire\",\"water\"],\"cues\":[{\"at\":0,\"seat\":0,\"place\":-0.52},{\"at\":0,\"seat\":1,\"place\":0.52},{\"at\":1,\"seat\":0,\"move\":\"martelo\"},{\"at\":1,\"seat\":1,\"press\":\"dodge\",\"hold\":{\"moveY\":-1},\"for\":0.6},{\"at\":3,\"seat\":1,\"move\":\"meia-lua\"},{\"at\":3,\"seat\":0,\"press\":\"dodge\",\"hold\":{\"moveY\":-1},\"for\":0.6},{\"at\":5,\"seat\":0,\"move\":\"meia-lua\"},{\"at\":5,\"seat\":1,\"move\":\"meia-lua\"},{\"at\":7,\"seat\":0,\"move\":\"bencao\"},{\"at\":8.5,\"seat\":0,\"goto\":-0.52},{\"at\":8.5,\"seat\":1,\"goto\":0.52},{\"at\":10,\"seat\":0,\"move\":\"spin\"},{\"at\":10,\"seat\":1,\"move\":\"spin\"},{\"at\":12.5,\"seat\":0,\"goto\":-0.52},{\"at\":12.5,\"seat\":1,\"goto\":0.52},{\"at\":14,\"seat\":1,\"move\":\"armada\"},{\"at\":14,\"seat\":0,\"press\":\"dodge\",\"hold\":{\"moveY\":-1},\"for\":0.6},{\"at\":15.5,\"seat\":0,\"goto\":-0.52},{\"at\":15.5,\"seat\":1,\"goto\":0.52},{\"at\":17,\"seat\":0,\"move\":\"rasteira\"},{\"at\":17,\"seat\":1,\"press\":\"jump\",\"hold\":{\"jumpHeld\":true},\"for\":0.4},{\"at\":18.5,\"seat\":0,\"goto\":-0.52},{\"at\":18.5,\"seat\":1,\"goto\":0.52},{\"at\":20,\"seat\":1,\"move\":\"bencao\"},{\"at\":20.25,\"seat\":0,\"press\":\"dodge\",\"hold\":{\"dodgeHeld\":true},\"for\":0.6},{\"at\":21.5,\"seat\":0,\"goto\":-0.52},{\"at\":21.5,\"seat\":1,\"goto\":0.52},{\"at\":23,\"seat\":0,\"move\":\"meia-lua\"},{\"at\":23,\"seat\":1,\"press\":\"dodge\",\"hold\":{\"moveY\":-1},\"for\":0.6},{\"at\":25,\"seat\":1,\"move\":\"martelo\"},{\"at\":25,\"seat\":0,\"press\":\"dodge\",\"hold\":{\"moveY\":-1},\"for\":0.6},{\"at\":27,\"seat\":0,\"move\":\"armada\"},{\"at\":27.5,\"seat\":1,\"press\":\"dodge\",\"hold\":{\"moveY\":-1},\"for\":0.6},{\"at\":29,\"seat\":0,\"goto\":-0.16},{\"at\":29,\"seat\":1,\"goto\":0.16},{\"at\":29.5,\"seat\":\"both\",\"hold\":{\"merge\":true},\"for\":4},{\"at\":33,\"seat\":0,\"goto\":-0.42},{\"at\":33,\"seat\":1,\"goto\":0.42},{\"at\":36,\"seat\":\"both\",\"move\":\"spin\"},{\"at\":40,\"seat\":\"both\",\"move\":\"macaco\"},{\"at\":44,\"seat\":0,\"move\":\"spin\"},{\"at\":45,\"seat\":1,\"move\":\"spin\"},{\"at\":48,\"seat\":0,\"goto\":-0.3},{\"at\":48,\"seat\":1,\"goto\":0.3},{\"at\":52,\"seat\":\"both\",\"move\":\"spin\"},{\"at\":56,\"seat\":\"both\",\"move\":\"macaco\"},{\"at\":76,\"seat\":0,\"goto\":-0.7},{\"at\":76,\"seat\":1,\"goto\":0.7},{\"at\":27.5,\"seat\":0,\"press\":\"form\"}]});",
+  "cues": {
+   "0": "console.warn('jogo', JSON.stringify(bend.jogo.stats().fusion), bend.jogo.stats().phase);",
+   "3": "console.warn('jogo', JSON.stringify(bend.jogo.stats().fusion), bend.jogo.stats().phase);",
+   "11": "console.warn('jogo', JSON.stringify(bend.jogo.stats().fusion), bend.jogo.stats().phase);",
+   "19": "console.warn('jogo', JSON.stringify(bend.jogo.stats().fusion), bend.jogo.stats().phase);",
+   "21.5": "console.warn('jogo', JSON.stringify(bend.jogo.stats().fusion), bend.jogo.stats().phase);"
+  },
+  "sheet": {
+   "cols": 11,
+   "rows": 4,
+   "width": 240
+  },
+  "stills": [
+   3,
+   5,
+   9,
+   13,
+   17,
+   19.5
+  ]
+ },
+ {
+  "name": "storm-temple-land",
+  "query": "jogo=script&script=none&world=temple&dress=fire,water",
+  "fps": 12,
+  "seconds": 4,
+  "warm": 1180,
+  "setup": "bend.jogo.run({\"name\":\"fusion7-storm\",\"world\":\"temple\",\"lock\":true,\"dress\":[\"fire\",\"water\"],\"cues\":[{\"at\":0,\"seat\":0,\"place\":-0.52},{\"at\":0,\"seat\":1,\"place\":0.52},{\"at\":1,\"seat\":0,\"move\":\"martelo\"},{\"at\":1,\"seat\":1,\"press\":\"dodge\",\"hold\":{\"moveY\":-1},\"for\":0.6},{\"at\":3,\"seat\":1,\"move\":\"meia-lua\"},{\"at\":3,\"seat\":0,\"press\":\"dodge\",\"hold\":{\"moveY\":-1},\"for\":0.6},{\"at\":5,\"seat\":0,\"move\":\"meia-lua\"},{\"at\":5,\"seat\":1,\"move\":\"meia-lua\"},{\"at\":7,\"seat\":0,\"move\":\"bencao\"},{\"at\":8.5,\"seat\":0,\"goto\":-0.52},{\"at\":8.5,\"seat\":1,\"goto\":0.52},{\"at\":10,\"seat\":0,\"move\":\"spin\"},{\"at\":10,\"seat\":1,\"move\":\"spin\"},{\"at\":12.5,\"seat\":0,\"goto\":-0.52},{\"at\":12.5,\"seat\":1,\"goto\":0.52},{\"at\":14,\"seat\":1,\"move\":\"armada\"},{\"at\":14,\"seat\":0,\"press\":\"dodge\",\"hold\":{\"moveY\":-1},\"for\":0.6},{\"at\":15.5,\"seat\":0,\"goto\":-0.52},{\"at\":15.5,\"seat\":1,\"goto\":0.52},{\"at\":17,\"seat\":0,\"move\":\"rasteira\"},{\"at\":17,\"seat\":1,\"press\":\"jump\",\"hold\":{\"jumpHeld\":true},\"for\":0.4},{\"at\":18.5,\"seat\":0,\"goto\":-0.52},{\"at\":18.5,\"seat\":1,\"goto\":0.52},{\"at\":20,\"seat\":1,\"move\":\"bencao\"},{\"at\":20.25,\"seat\":0,\"press\":\"dodge\",\"hold\":{\"dodgeHeld\":true},\"for\":0.6},{\"at\":21.5,\"seat\":0,\"goto\":-0.52},{\"at\":21.5,\"seat\":1,\"goto\":0.52},{\"at\":23,\"seat\":0,\"move\":\"meia-lua\"},{\"at\":23,\"seat\":1,\"press\":\"dodge\",\"hold\":{\"moveY\":-1},\"for\":0.6},{\"at\":25,\"seat\":1,\"move\":\"martelo\"},{\"at\":25,\"seat\":0,\"press\":\"dodge\",\"hold\":{\"moveY\":-1},\"for\":0.6},{\"at\":27,\"seat\":0,\"move\":\"armada\"},{\"at\":27.5,\"seat\":1,\"press\":\"dodge\",\"hold\":{\"moveY\":-1},\"for\":0.6},{\"at\":29,\"seat\":0,\"goto\":-0.16},{\"at\":29,\"seat\":1,\"goto\":0.16},{\"at\":29.5,\"seat\":\"both\",\"hold\":{\"merge\":true},\"for\":4},{\"at\":33,\"seat\":0,\"goto\":-0.42},{\"at\":33,\"seat\":1,\"goto\":0.42},{\"at\":36,\"seat\":\"both\",\"move\":\"spin\"},{\"at\":40,\"seat\":\"both\",\"move\":\"macaco\"},{\"at\":44,\"seat\":0,\"move\":\"spin\"},{\"at\":45,\"seat\":1,\"move\":\"spin\"},{\"at\":48,\"seat\":0,\"goto\":-0.3},{\"at\":48,\"seat\":1,\"goto\":0.3},{\"at\":52,\"seat\":\"both\",\"move\":\"spin\"},{\"at\":56,\"seat\":\"both\",\"move\":\"macaco\"},{\"at\":76,\"seat\":0,\"goto\":-0.7},{\"at\":76,\"seat\":1,\"goto\":0.7},{\"at\":27.5,\"seat\":0,\"press\":\"form\"}]});",
+  "cues": {
+   "0": "console.warn('jogo', JSON.stringify(bend.jogo.stats().fusion), bend.jogo.stats().phase);",
+   "3.9": "console.warn('jogo', JSON.stringify(bend.jogo.stats().fusion), bend.jogo.stats().phase);"
+  },
+  "sheet": {
+   "cols": 8,
+   "rows": 3,
+   "width": 300
+  },
+  "stills": [
+   1.5,
+   2.5
+  ]
+ },
+ {
+  "name": "aurora-pool",
+  "query": "jogo=script&script=none&world=pool&dress=fire,water",
+  "fps": 2,
+  "seconds": 22,
+  "warm": 1100,
+  "setup": "bend.jogo.run({\"name\":\"fusion7-aurora\",\"world\":\"pool\",\"lock\":true,\"dress\":[\"fire\",\"water\"],\"cues\":[{\"at\":0,\"seat\":0,\"place\":-0.52},{\"at\":0,\"seat\":1,\"place\":0.52},{\"at\":1,\"seat\":0,\"move\":\"martelo\"},{\"at\":1,\"seat\":1,\"press\":\"dodge\",\"hold\":{\"moveY\":-1},\"for\":0.6},{\"at\":3,\"seat\":1,\"move\":\"meia-lua\"},{\"at\":3,\"seat\":0,\"press\":\"dodge\",\"hold\":{\"moveY\":-1},\"for\":0.6},{\"at\":5,\"seat\":0,\"move\":\"meia-lua\"},{\"at\":5,\"seat\":1,\"move\":\"meia-lua\"},{\"at\":7,\"seat\":0,\"move\":\"bencao\"},{\"at\":8.5,\"seat\":0,\"goto\":-0.52},{\"at\":8.5,\"seat\":1,\"goto\":0.52},{\"at\":10,\"seat\":0,\"move\":\"spin\"},{\"at\":10,\"seat\":1,\"move\":\"spin\"},{\"at\":12.5,\"seat\":0,\"goto\":-0.52},{\"at\":12.5,\"seat\":1,\"goto\":0.52},{\"at\":14,\"seat\":1,\"move\":\"armada\"},{\"at\":14,\"seat\":0,\"press\":\"dodge\",\"hold\":{\"moveY\":-1},\"for\":0.6},{\"at\":15.5,\"seat\":0,\"goto\":-0.52},{\"at\":15.5,\"seat\":1,\"goto\":0.52},{\"at\":17,\"seat\":0,\"move\":\"rasteira\"},{\"at\":17,\"seat\":1,\"press\":\"jump\",\"hold\":{\"jumpHeld\":true},\"for\":0.4},{\"at\":18.5,\"seat\":0,\"goto\":-0.52},{\"at\":18.5,\"seat\":1,\"goto\":0.52},{\"at\":20,\"seat\":1,\"move\":\"bencao\"},{\"at\":20.25,\"seat\":0,\"press\":\"dodge\",\"hold\":{\"dodgeHeld\":true},\"for\":0.6},{\"at\":21.5,\"seat\":0,\"goto\":-0.52},{\"at\":21.5,\"seat\":1,\"goto\":0.52},{\"at\":23,\"seat\":0,\"move\":\"meia-lua\"},{\"at\":23,\"seat\":1,\"press\":\"dodge\",\"hold\":{\"moveY\":-1},\"for\":0.6},{\"at\":25,\"seat\":1,\"move\":\"martelo\"},{\"at\":25,\"seat\":0,\"press\":\"dodge\",\"hold\":{\"moveY\":-1},\"for\":0.6},{\"at\":27,\"seat\":0,\"move\":\"armada\"},{\"at\":27.5,\"seat\":1,\"press\":\"dodge\",\"hold\":{\"moveY\":-1},\"for\":0.6},{\"at\":29,\"seat\":0,\"goto\":-0.16},{\"at\":29,\"seat\":1,\"goto\":0.16},{\"at\":29.5,\"seat\":\"both\",\"hold\":{\"merge\":true},\"for\":4},{\"at\":33,\"seat\":0,\"goto\":-0.42},{\"at\":33,\"seat\":1,\"goto\":0.42},{\"at\":36,\"seat\":\"both\",\"move\":\"spin\"},{\"at\":40,\"seat\":\"both\",\"move\":\"macaco\"},{\"at\":44,\"seat\":0,\"move\":\"spin\"},{\"at\":45,\"seat\":1,\"move\":\"spin\"},{\"at\":48,\"seat\":0,\"goto\":-0.3},{\"at\":48,\"seat\":1,\"goto\":0.3},{\"at\":52,\"seat\":\"both\",\"move\":\"spin\"},{\"at\":56,\"seat\":\"both\",\"move\":\"macaco\"},{\"at\":76,\"seat\":0,\"goto\":-0.7},{\"at\":76,\"seat\":1,\"goto\":0.7},{\"at\":27.5,\"seat\":0,\"press\":\"form\"},{\"at\":27.5,\"seat\":1,\"press\":\"form\"}]});",
+  "cues": {
+   "0": "console.warn('jogo', JSON.stringify(bend.jogo.stats().fusion), bend.jogo.stats().phase);",
+   "3": "console.warn('jogo', JSON.stringify(bend.jogo.stats().fusion), bend.jogo.stats().phase);",
+   "11": "console.warn('jogo', JSON.stringify(bend.jogo.stats().fusion), bend.jogo.stats().phase);",
+   "19": "console.warn('jogo', JSON.stringify(bend.jogo.stats().fusion), bend.jogo.stats().phase);",
+   "21.5": "console.warn('jogo', JSON.stringify(bend.jogo.stats().fusion), bend.jogo.stats().phase);"
+  },
+  "sheet": {
+   "cols": 11,
+   "rows": 4,
+   "width": 240
+  },
+  "stills": [
+   3,
+   5,
+   9,
+   13,
+   17,
+   19.5
+  ]
+ },
+ {
+  "name": "aurora-pool-land",
+  "query": "jogo=script&script=none&world=pool&dress=fire,water",
+  "fps": 12,
+  "seconds": 4,
+  "warm": 1180,
+  "setup": "bend.jogo.run({\"name\":\"fusion7-aurora\",\"world\":\"pool\",\"lock\":true,\"dress\":[\"fire\",\"water\"],\"cues\":[{\"at\":0,\"seat\":0,\"place\":-0.52},{\"at\":0,\"seat\":1,\"place\":0.52},{\"at\":1,\"seat\":0,\"move\":\"martelo\"},{\"at\":1,\"seat\":1,\"press\":\"dodge\",\"hold\":{\"moveY\":-1},\"for\":0.6},{\"at\":3,\"seat\":1,\"move\":\"meia-lua\"},{\"at\":3,\"seat\":0,\"press\":\"dodge\",\"hold\":{\"moveY\":-1},\"for\":0.6},{\"at\":5,\"seat\":0,\"move\":\"meia-lua\"},{\"at\":5,\"seat\":1,\"move\":\"meia-lua\"},{\"at\":7,\"seat\":0,\"move\":\"bencao\"},{\"at\":8.5,\"seat\":0,\"goto\":-0.52},{\"at\":8.5,\"seat\":1,\"goto\":0.52},{\"at\":10,\"seat\":0,\"move\":\"spin\"},{\"at\":10,\"seat\":1,\"move\":\"spin\"},{\"at\":12.5,\"seat\":0,\"goto\":-0.52},{\"at\":12.5,\"seat\":1,\"goto\":0.52},{\"at\":14,\"seat\":1,\"move\":\"armada\"},{\"at\":14,\"seat\":0,\"press\":\"dodge\",\"hold\":{\"moveY\":-1},\"for\":0.6},{\"at\":15.5,\"seat\":0,\"goto\":-0.52},{\"at\":15.5,\"seat\":1,\"goto\":0.52},{\"at\":17,\"seat\":0,\"move\":\"rasteira\"},{\"at\":17,\"seat\":1,\"press\":\"jump\",\"hold\":{\"jumpHeld\":true},\"for\":0.4},{\"at\":18.5,\"seat\":0,\"goto\":-0.52},{\"at\":18.5,\"seat\":1,\"goto\":0.52},{\"at\":20,\"seat\":1,\"move\":\"bencao\"},{\"at\":20.25,\"seat\":0,\"press\":\"dodge\",\"hold\":{\"dodgeHeld\":true},\"for\":0.6},{\"at\":21.5,\"seat\":0,\"goto\":-0.52},{\"at\":21.5,\"seat\":1,\"goto\":0.52},{\"at\":23,\"seat\":0,\"move\":\"meia-lua\"},{\"at\":23,\"seat\":1,\"press\":\"dodge\",\"hold\":{\"moveY\":-1},\"for\":0.6},{\"at\":25,\"seat\":1,\"move\":\"martelo\"},{\"at\":25,\"seat\":0,\"press\":\"dodge\",\"hold\":{\"moveY\":-1},\"for\":0.6},{\"at\":27,\"seat\":0,\"move\":\"armada\"},{\"at\":27.5,\"seat\":1,\"press\":\"dodge\",\"hold\":{\"moveY\":-1},\"for\":0.6},{\"at\":29,\"seat\":0,\"goto\":-0.16},{\"at\":29,\"seat\":1,\"goto\":0.16},{\"at\":29.5,\"seat\":\"both\",\"hold\":{\"merge\":true},\"for\":4},{\"at\":33,\"seat\":0,\"goto\":-0.42},{\"at\":33,\"seat\":1,\"goto\":0.42},{\"at\":36,\"seat\":\"both\",\"move\":\"spin\"},{\"at\":40,\"seat\":\"both\",\"move\":\"macaco\"},{\"at\":44,\"seat\":0,\"move\":\"spin\"},{\"at\":45,\"seat\":1,\"move\":\"spin\"},{\"at\":48,\"seat\":0,\"goto\":-0.3},{\"at\":48,\"seat\":1,\"goto\":0.3},{\"at\":52,\"seat\":\"both\",\"move\":\"spin\"},{\"at\":56,\"seat\":\"both\",\"move\":\"macaco\"},{\"at\":76,\"seat\":0,\"goto\":-0.7},{\"at\":76,\"seat\":1,\"goto\":0.7},{\"at\":27.5,\"seat\":0,\"press\":\"form\"},{\"at\":27.5,\"seat\":1,\"press\":\"form\"}]});",
+  "cues": {
+   "0": "console.warn('jogo', JSON.stringify(bend.jogo.stats().fusion), bend.jogo.stats().phase);",
+   "3.9": "console.warn('jogo', JSON.stringify(bend.jogo.stats().fusion), bend.jogo.stats().phase);"
+  },
+  "sheet": {
+   "cols": 8,
+   "rows": 3,
+   "width": 300
+  },
+  "stills": [
+   1.5,
+   2.5
+  ]
+ },
+ {
+  "name": "aurora-temple",
+  "query": "jogo=script&script=none&world=temple&dress=fire,water",
+  "fps": 2,
+  "seconds": 22,
+  "warm": 1100,
+  "setup": "bend.jogo.run({\"name\":\"fusion7-aurora\",\"world\":\"temple\",\"lock\":true,\"dress\":[\"fire\",\"water\"],\"cues\":[{\"at\":0,\"seat\":0,\"place\":-0.52},{\"at\":0,\"seat\":1,\"place\":0.52},{\"at\":1,\"seat\":0,\"move\":\"martelo\"},{\"at\":1,\"seat\":1,\"press\":\"dodge\",\"hold\":{\"moveY\":-1},\"for\":0.6},{\"at\":3,\"seat\":1,\"move\":\"meia-lua\"},{\"at\":3,\"seat\":0,\"press\":\"dodge\",\"hold\":{\"moveY\":-1},\"for\":0.6},{\"at\":5,\"seat\":0,\"move\":\"meia-lua\"},{\"at\":5,\"seat\":1,\"move\":\"meia-lua\"},{\"at\":7,\"seat\":0,\"move\":\"bencao\"},{\"at\":8.5,\"seat\":0,\"goto\":-0.52},{\"at\":8.5,\"seat\":1,\"goto\":0.52},{\"at\":10,\"seat\":0,\"move\":\"spin\"},{\"at\":10,\"seat\":1,\"move\":\"spin\"},{\"at\":12.5,\"seat\":0,\"goto\":-0.52},{\"at\":12.5,\"seat\":1,\"goto\":0.52},{\"at\":14,\"seat\":1,\"move\":\"armada\"},{\"at\":14,\"seat\":0,\"press\":\"dodge\",\"hold\":{\"moveY\":-1},\"for\":0.6},{\"at\":15.5,\"seat\":0,\"goto\":-0.52},{\"at\":15.5,\"seat\":1,\"goto\":0.52},{\"at\":17,\"seat\":0,\"move\":\"rasteira\"},{\"at\":17,\"seat\":1,\"press\":\"jump\",\"hold\":{\"jumpHeld\":true},\"for\":0.4},{\"at\":18.5,\"seat\":0,\"goto\":-0.52},{\"at\":18.5,\"seat\":1,\"goto\":0.52},{\"at\":20,\"seat\":1,\"move\":\"bencao\"},{\"at\":20.25,\"seat\":0,\"press\":\"dodge\",\"hold\":{\"dodgeHeld\":true},\"for\":0.6},{\"at\":21.5,\"seat\":0,\"goto\":-0.52},{\"at\":21.5,\"seat\":1,\"goto\":0.52},{\"at\":23,\"seat\":0,\"move\":\"meia-lua\"},{\"at\":23,\"seat\":1,\"press\":\"dodge\",\"hold\":{\"moveY\":-1},\"for\":0.6},{\"at\":25,\"seat\":1,\"move\":\"martelo\"},{\"at\":25,\"seat\":0,\"press\":\"dodge\",\"hold\":{\"moveY\":-1},\"for\":0.6},{\"at\":27,\"seat\":0,\"move\":\"armada\"},{\"at\":27.5,\"seat\":1,\"press\":\"dodge\",\"hold\":{\"moveY\":-1},\"for\":0.6},{\"at\":29,\"seat\":0,\"goto\":-0.16},{\"at\":29,\"seat\":1,\"goto\":0.16},{\"at\":29.5,\"seat\":\"both\",\"hold\":{\"merge\":true},\"for\":4},{\"at\":33,\"seat\":0,\"goto\":-0.42},{\"at\":33,\"seat\":1,\"goto\":0.42},{\"at\":36,\"seat\":\"both\",\"move\":\"spin\"},{\"at\":40,\"seat\":\"both\",\"move\":\"macaco\"},{\"at\":44,\"seat\":0,\"move\":\"spin\"},{\"at\":45,\"seat\":1,\"move\":\"spin\"},{\"at\":48,\"seat\":0,\"goto\":-0.3},{\"at\":48,\"seat\":1,\"goto\":0.3},{\"at\":52,\"seat\":\"both\",\"move\":\"spin\"},{\"at\":56,\"seat\":\"both\",\"move\":\"macaco\"},{\"at\":76,\"seat\":0,\"goto\":-0.7},{\"at\":76,\"seat\":1,\"goto\":0.7},{\"at\":27.5,\"seat\":0,\"press\":\"form\"},{\"at\":27.5,\"seat\":1,\"press\":\"form\"}]});",
+  "cues": {
+   "0": "console.warn('jogo', JSON.stringify(bend.jogo.stats().fusion), bend.jogo.stats().phase);",
+   "3": "console.warn('jogo', JSON.stringify(bend.jogo.stats().fusion), bend.jogo.stats().phase);",
+   "11": "console.warn('jogo', JSON.stringify(bend.jogo.stats().fusion), bend.jogo.stats().phase);",
+   "19": "console.warn('jogo', JSON.stringify(bend.jogo.stats().fusion), bend.jogo.stats().phase);",
+   "21.5": "console.warn('jogo', JSON.stringify(bend.jogo.stats().fusion), bend.jogo.stats().phase);"
+  },
+  "sheet": {
+   "cols": 11,
+   "rows": 4,
+   "width": 240
+  },
+  "stills": [
+   3,
+   5,
+   9,
+   13,
+   17,
+   19.5
+  ]
+ },
+ {
+  "name": "aurora-temple-land",
+  "query": "jogo=script&script=none&world=temple&dress=fire,water",
+  "fps": 12,
+  "seconds": 4,
+  "warm": 1180,
+  "setup": "bend.jogo.run({\"name\":\"fusion7-aurora\",\"world\":\"temple\",\"lock\":true,\"dress\":[\"fire\",\"water\"],\"cues\":[{\"at\":0,\"seat\":0,\"place\":-0.52},{\"at\":0,\"seat\":1,\"place\":0.52},{\"at\":1,\"seat\":0,\"move\":\"martelo\"},{\"at\":1,\"seat\":1,\"press\":\"dodge\",\"hold\":{\"moveY\":-1},\"for\":0.6},{\"at\":3,\"seat\":1,\"move\":\"meia-lua\"},{\"at\":3,\"seat\":0,\"press\":\"dodge\",\"hold\":{\"moveY\":-1},\"for\":0.6},{\"at\":5,\"seat\":0,\"move\":\"meia-lua\"},{\"at\":5,\"seat\":1,\"move\":\"meia-lua\"},{\"at\":7,\"seat\":0,\"move\":\"bencao\"},{\"at\":8.5,\"seat\":0,\"goto\":-0.52},{\"at\":8.5,\"seat\":1,\"goto\":0.52},{\"at\":10,\"seat\":0,\"move\":\"spin\"},{\"at\":10,\"seat\":1,\"move\":\"spin\"},{\"at\":12.5,\"seat\":0,\"goto\":-0.52},{\"at\":12.5,\"seat\":1,\"goto\":0.52},{\"at\":14,\"seat\":1,\"move\":\"armada\"},{\"at\":14,\"seat\":0,\"press\":\"dodge\",\"hold\":{\"moveY\":-1},\"for\":0.6},{\"at\":15.5,\"seat\":0,\"goto\":-0.52},{\"at\":15.5,\"seat\":1,\"goto\":0.52},{\"at\":17,\"seat\":0,\"move\":\"rasteira\"},{\"at\":17,\"seat\":1,\"press\":\"jump\",\"hold\":{\"jumpHeld\":true},\"for\":0.4},{\"at\":18.5,\"seat\":0,\"goto\":-0.52},{\"at\":18.5,\"seat\":1,\"goto\":0.52},{\"at\":20,\"seat\":1,\"move\":\"bencao\"},{\"at\":20.25,\"seat\":0,\"press\":\"dodge\",\"hold\":{\"dodgeHeld\":true},\"for\":0.6},{\"at\":21.5,\"seat\":0,\"goto\":-0.52},{\"at\":21.5,\"seat\":1,\"goto\":0.52},{\"at\":23,\"seat\":0,\"move\":\"meia-lua\"},{\"at\":23,\"seat\":1,\"press\":\"dodge\",\"hold\":{\"moveY\":-1},\"for\":0.6},{\"at\":25,\"seat\":1,\"move\":\"martelo\"},{\"at\":25,\"seat\":0,\"press\":\"dodge\",\"hold\":{\"moveY\":-1},\"for\":0.6},{\"at\":27,\"seat\":0,\"move\":\"armada\"},{\"at\":27.5,\"seat\":1,\"press\":\"dodge\",\"hold\":{\"moveY\":-1},\"for\":0.6},{\"at\":29,\"seat\":0,\"goto\":-0.16},{\"at\":29,\"seat\":1,\"goto\":0.16},{\"at\":29.5,\"seat\":\"both\",\"hold\":{\"merge\":true},\"for\":4},{\"at\":33,\"seat\":0,\"goto\":-0.42},{\"at\":33,\"seat\":1,\"goto\":0.42},{\"at\":36,\"seat\":\"both\",\"move\":\"spin\"},{\"at\":40,\"seat\":\"both\",\"move\":\"macaco\"},{\"at\":44,\"seat\":0,\"move\":\"spin\"},{\"at\":45,\"seat\":1,\"move\":\"spin\"},{\"at\":48,\"seat\":0,\"goto\":-0.3},{\"at\":48,\"seat\":1,\"goto\":0.3},{\"at\":52,\"seat\":\"both\",\"move\":\"spin\"},{\"at\":56,\"seat\":\"both\",\"move\":\"macaco\"},{\"at\":76,\"seat\":0,\"goto\":-0.7},{\"at\":76,\"seat\":1,\"goto\":0.7},{\"at\":27.5,\"seat\":0,\"press\":\"form\"},{\"at\":27.5,\"seat\":1,\"press\":\"form\"}]});",
+  "cues": {
+   "0": "console.warn('jogo', JSON.stringify(bend.jogo.stats().fusion), bend.jogo.stats().phase);",
+   "3.9": "console.warn('jogo', JSON.stringify(bend.jogo.stats().fusion), bend.jogo.stats().phase);"
+  },
+  "sheet": {
+   "cols": 8,
+   "rows": 3,
+   "width": 300
+  },
+  "stills": [
+   1.5,
+   2.5
+  ]
+ },
+ {
+  "name": "el-fw-redwoods-close",
+  "query": "play&two&dress=fire,water&world=redwoods",
+  "fps": 15,
+  "seconds": 3.2,
+  "warm": 300,
+  "setup": "bend.set('redwoods', { hour: 19.4, dayGoes: false }); bend.set('camera', { followDist: 2.6, followFov: 40, followPitch: 0.08, followSwing: 0 }); bend.wake(); bend.place(0,-0.65,0.3,Math.PI/2); bend.place(1,0.65,0.3,-Math.PI/2);",
+  "cues": {
+   "0.8": "bend.move(0,'armada')",
+   "2.0": "bend.move(1,'au')"
+  },
+  "each": "bend.camera({ yaw: 0.25 + 0.06*t });",
+  "sheet": {
+   "cols": 6,
+   "rows": 2,
+   "width": 330
+  },
+  "stills": [
+   0.4,
+   1.2,
+   2.4
+  ]
+ },
+ {
+  "name": "partner-geode",
+  "query": "jogo=partner&world=geode&dress=plasma,ice",
+  "fps": 5,
+  "seconds": 18,
+  "warm": 1,
+  "setup": "await bend.jogo.start();",
+  "cues": {
+   "4.0": "bend.move(0,'meia-lua')",
+   "5.5": "bend.move(0,'esquiva')",
+   "7.0": "bend.move(0,'armada')",
+   "8.5": "bend.move(0,'spin')",
+   "10.0": "bend.move(0,'martelo')",
+   "11.5": "bend.move(0,'au')",
+   "13.0": "bend.move(0,'block')",
+   "14.5": "bend.move(0,'meia-lua')",
+   "16.0": "bend.move(0,'role')",
+   "17.5": "bend.move(0,'armada')",
+   "19.0": "bend.move(0,'meia-lua')",
+   "20.5": "bend.move(0,'esquiva')"
+  },
+  "sheet": {
+   "cols": 9,
+   "rows": 2,
+   "width": 260
+  },
+  "stills": [
+   16
+  ]
+ },
+ {
+  "name": "t-steam-pool",
+  "query": "jogo=script&script=none&world=pool&dress=fire,water",
+  "size": "1920x1080",
+  "fps": 2,
+  "seconds": 1,
+  "warm": 1500,
+  "setup": "bend.jogo.run({\"name\":\"fusion7-steam\",\"world\":\"pool\",\"lock\":true,\"dress\":[\"fire\",\"water\"],\"cues\":[{\"at\":0,\"seat\":0,\"place\":-0.52},{\"at\":0,\"seat\":1,\"place\":0.52},{\"at\":1,\"seat\":0,\"move\":\"martelo\"},{\"at\":1,\"seat\":1,\"press\":\"dodge\",\"hold\":{\"moveY\":-1},\"for\":0.6},{\"at\":3,\"seat\":1,\"move\":\"meia-lua\"},{\"at\":3,\"seat\":0,\"press\":\"dodge\",\"hold\":{\"moveY\":-1},\"for\":0.6},{\"at\":5,\"seat\":0,\"move\":\"meia-lua\"},{\"at\":5,\"seat\":1,\"move\":\"meia-lua\"},{\"at\":7,\"seat\":0,\"move\":\"bencao\"},{\"at\":8.5,\"seat\":0,\"goto\":-0.52},{\"at\":8.5,\"seat\":1,\"goto\":0.52},{\"at\":10,\"seat\":0,\"move\":\"spin\"},{\"at\":10,\"seat\":1,\"move\":\"spin\"},{\"at\":12.5,\"seat\":0,\"goto\":-0.52},{\"at\":12.5,\"seat\":1,\"goto\":0.52},{\"at\":14,\"seat\":1,\"move\":\"armada\"},{\"at\":14,\"seat\":0,\"press\":\"dodge\",\"hold\":{\"moveY\":-1},\"for\":0.6},{\"at\":15.5,\"seat\":0,\"goto\":-0.52},{\"at\":15.5,\"seat\":1,\"goto\":0.52},{\"at\":17,\"seat\":0,\"move\":\"rasteira\"},{\"at\":17,\"seat\":1,\"press\":\"jump\",\"hold\":{\"jumpHeld\":true},\"for\":0.4},{\"at\":18.5,\"seat\":0,\"goto\":-0.52},{\"at\":18.5,\"seat\":1,\"goto\":0.52},{\"at\":20,\"seat\":1,\"move\":\"bencao\"},{\"at\":20.25,\"seat\":0,\"press\":\"dodge\",\"hold\":{\"dodgeHeld\":true},\"for\":0.6},{\"at\":21.5,\"seat\":0,\"goto\":-0.52},{\"at\":21.5,\"seat\":1,\"goto\":0.52},{\"at\":23,\"seat\":0,\"move\":\"meia-lua\"},{\"at\":23,\"seat\":1,\"press\":\"dodge\",\"hold\":{\"moveY\":-1},\"for\":0.6},{\"at\":25,\"seat\":1,\"move\":\"martelo\"},{\"at\":25,\"seat\":0,\"press\":\"dodge\",\"hold\":{\"moveY\":-1},\"for\":0.6},{\"at\":27,\"seat\":0,\"move\":\"armada\"},{\"at\":27.5,\"seat\":1,\"press\":\"dodge\",\"hold\":{\"moveY\":-1},\"for\":0.6},{\"at\":29,\"seat\":0,\"goto\":-0.16},{\"at\":29,\"seat\":1,\"goto\":0.16},{\"at\":29.5,\"seat\":\"both\",\"hold\":{\"merge\":true},\"for\":4},{\"at\":33,\"seat\":0,\"goto\":-0.42},{\"at\":33,\"seat\":1,\"goto\":0.42},{\"at\":36,\"seat\":\"both\",\"move\":\"spin\"},{\"at\":40,\"seat\":\"both\",\"move\":\"macaco\"},{\"at\":44,\"seat\":0,\"move\":\"spin\"},{\"at\":45,\"seat\":1,\"move\":\"spin\"},{\"at\":48,\"seat\":0,\"goto\":-0.3},{\"at\":48,\"seat\":1,\"goto\":0.3},{\"at\":52,\"seat\":\"both\",\"move\":\"spin\"},{\"at\":56,\"seat\":\"both\",\"move\":\"macaco\"},{\"at\":76,\"seat\":0,\"goto\":-0.7},{\"at\":76,\"seat\":1,\"goto\":0.7}]});",
+  "timings": true,
+  "sheet": {
+   "cols": 2,
+   "rows": 1,
+   "width": 640
+  },
+  "stills": [
+   0.5
+  ]
+ },
+ {
+  "name": "t-prism-pool",
+  "query": "jogo=script&script=none&world=pool&dress=fire,water",
+  "size": "1920x1080",
+  "fps": 2,
+  "seconds": 1,
+  "warm": 1500,
+  "setup": "bend.jogo.run({\"name\":\"fusion7-prism\",\"world\":\"pool\",\"lock\":true,\"dress\":[\"fire\",\"water\"],\"cues\":[{\"at\":0,\"seat\":0,\"place\":-0.52},{\"at\":0,\"seat\":1,\"place\":0.52},{\"at\":1,\"seat\":0,\"move\":\"martelo\"},{\"at\":1,\"seat\":1,\"press\":\"dodge\",\"hold\":{\"moveY\":-1},\"for\":0.6},{\"at\":3,\"seat\":1,\"move\":\"meia-lua\"},{\"at\":3,\"seat\":0,\"press\":\"dodge\",\"hold\":{\"moveY\":-1},\"for\":0.6},{\"at\":5,\"seat\":0,\"move\":\"meia-lua\"},{\"at\":5,\"seat\":1,\"move\":\"meia-lua\"},{\"at\":7,\"seat\":0,\"move\":\"bencao\"},{\"at\":8.5,\"seat\":0,\"goto\":-0.52},{\"at\":8.5,\"seat\":1,\"goto\":0.52},{\"at\":10,\"seat\":0,\"move\":\"spin\"},{\"at\":10,\"seat\":1,\"move\":\"spin\"},{\"at\":12.5,\"seat\":0,\"goto\":-0.52},{\"at\":12.5,\"seat\":1,\"goto\":0.52},{\"at\":14,\"seat\":1,\"move\":\"armada\"},{\"at\":14,\"seat\":0,\"press\":\"dodge\",\"hold\":{\"moveY\":-1},\"for\":0.6},{\"at\":15.5,\"seat\":0,\"goto\":-0.52},{\"at\":15.5,\"seat\":1,\"goto\":0.52},{\"at\":17,\"seat\":0,\"move\":\"rasteira\"},{\"at\":17,\"seat\":1,\"press\":\"jump\",\"hold\":{\"jumpHeld\":true},\"for\":0.4},{\"at\":18.5,\"seat\":0,\"goto\":-0.52},{\"at\":18.5,\"seat\":1,\"goto\":0.52},{\"at\":20,\"seat\":1,\"move\":\"bencao\"},{\"at\":20.25,\"seat\":0,\"press\":\"dodge\",\"hold\":{\"dodgeHeld\":true},\"for\":0.6},{\"at\":21.5,\"seat\":0,\"goto\":-0.52},{\"at\":21.5,\"seat\":1,\"goto\":0.52},{\"at\":23,\"seat\":0,\"move\":\"meia-lua\"},{\"at\":23,\"seat\":1,\"press\":\"dodge\",\"hold\":{\"moveY\":-1},\"for\":0.6},{\"at\":25,\"seat\":1,\"move\":\"martelo\"},{\"at\":25,\"seat\":0,\"press\":\"dodge\",\"hold\":{\"moveY\":-1},\"for\":0.6},{\"at\":27,\"seat\":0,\"move\":\"armada\"},{\"at\":27.5,\"seat\":1,\"press\":\"dodge\",\"hold\":{\"moveY\":-1},\"for\":0.6},{\"at\":29,\"seat\":0,\"goto\":-0.16},{\"at\":29,\"seat\":1,\"goto\":0.16},{\"at\":29.5,\"seat\":\"both\",\"hold\":{\"merge\":true},\"for\":4},{\"at\":33,\"seat\":0,\"goto\":-0.42},{\"at\":33,\"seat\":1,\"goto\":0.42},{\"at\":36,\"seat\":\"both\",\"move\":\"spin\"},{\"at\":40,\"seat\":\"both\",\"move\":\"macaco\"},{\"at\":44,\"seat\":0,\"move\":\"spin\"},{\"at\":45,\"seat\":1,\"move\":\"spin\"},{\"at\":48,\"seat\":0,\"goto\":-0.3},{\"at\":48,\"seat\":1,\"goto\":0.3},{\"at\":52,\"seat\":\"both\",\"move\":\"spin\"},{\"at\":56,\"seat\":\"both\",\"move\":\"macaco\"},{\"at\":76,\"seat\":0,\"goto\":-0.7},{\"at\":76,\"seat\":1,\"goto\":0.7},{\"at\":27.5,\"seat\":1,\"press\":\"form\"}]});",
+  "timings": true,
+  "sheet": {
+   "cols": 2,
+   "rows": 1,
+   "width": 640
+  },
+  "stills": [
+   0.5
+  ]
+ },
+ {
+  "name": "t-storm-pool",
+  "query": "jogo=script&script=none&world=pool&dress=fire,water",
+  "size": "1920x1080",
+  "fps": 2,
+  "seconds": 1,
+  "warm": 1500,
+  "setup": "bend.jogo.run({\"name\":\"fusion7-storm\",\"world\":\"pool\",\"lock\":true,\"dress\":[\"fire\",\"water\"],\"cues\":[{\"at\":0,\"seat\":0,\"place\":-0.52},{\"at\":0,\"seat\":1,\"place\":0.52},{\"at\":1,\"seat\":0,\"move\":\"martelo\"},{\"at\":1,\"seat\":1,\"press\":\"dodge\",\"hold\":{\"moveY\":-1},\"for\":0.6},{\"at\":3,\"seat\":1,\"move\":\"meia-lua\"},{\"at\":3,\"seat\":0,\"press\":\"dodge\",\"hold\":{\"moveY\":-1},\"for\":0.6},{\"at\":5,\"seat\":0,\"move\":\"meia-lua\"},{\"at\":5,\"seat\":1,\"move\":\"meia-lua\"},{\"at\":7,\"seat\":0,\"move\":\"bencao\"},{\"at\":8.5,\"seat\":0,\"goto\":-0.52},{\"at\":8.5,\"seat\":1,\"goto\":0.52},{\"at\":10,\"seat\":0,\"move\":\"spin\"},{\"at\":10,\"seat\":1,\"move\":\"spin\"},{\"at\":12.5,\"seat\":0,\"goto\":-0.52},{\"at\":12.5,\"seat\":1,\"goto\":0.52},{\"at\":14,\"seat\":1,\"move\":\"armada\"},{\"at\":14,\"seat\":0,\"press\":\"dodge\",\"hold\":{\"moveY\":-1},\"for\":0.6},{\"at\":15.5,\"seat\":0,\"goto\":-0.52},{\"at\":15.5,\"seat\":1,\"goto\":0.52},{\"at\":17,\"seat\":0,\"move\":\"rasteira\"},{\"at\":17,\"seat\":1,\"press\":\"jump\",\"hold\":{\"jumpHeld\":true},\"for\":0.4},{\"at\":18.5,\"seat\":0,\"goto\":-0.52},{\"at\":18.5,\"seat\":1,\"goto\":0.52},{\"at\":20,\"seat\":1,\"move\":\"bencao\"},{\"at\":20.25,\"seat\":0,\"press\":\"dodge\",\"hold\":{\"dodgeHeld\":true},\"for\":0.6},{\"at\":21.5,\"seat\":0,\"goto\":-0.52},{\"at\":21.5,\"seat\":1,\"goto\":0.52},{\"at\":23,\"seat\":0,\"move\":\"meia-lua\"},{\"at\":23,\"seat\":1,\"press\":\"dodge\",\"hold\":{\"moveY\":-1},\"for\":0.6},{\"at\":25,\"seat\":1,\"move\":\"martelo\"},{\"at\":25,\"seat\":0,\"press\":\"dodge\",\"hold\":{\"moveY\":-1},\"for\":0.6},{\"at\":27,\"seat\":0,\"move\":\"armada\"},{\"at\":27.5,\"seat\":1,\"press\":\"dodge\",\"hold\":{\"moveY\":-1},\"for\":0.6},{\"at\":29,\"seat\":0,\"goto\":-0.16},{\"at\":29,\"seat\":1,\"goto\":0.16},{\"at\":29.5,\"seat\":\"both\",\"hold\":{\"merge\":true},\"for\":4},{\"at\":33,\"seat\":0,\"goto\":-0.42},{\"at\":33,\"seat\":1,\"goto\":0.42},{\"at\":36,\"seat\":\"both\",\"move\":\"spin\"},{\"at\":40,\"seat\":\"both\",\"move\":\"macaco\"},{\"at\":44,\"seat\":0,\"move\":\"spin\"},{\"at\":45,\"seat\":1,\"move\":\"spin\"},{\"at\":48,\"seat\":0,\"goto\":-0.3},{\"at\":48,\"seat\":1,\"goto\":0.3},{\"at\":52,\"seat\":\"both\",\"move\":\"spin\"},{\"at\":56,\"seat\":\"both\",\"move\":\"macaco\"},{\"at\":76,\"seat\":0,\"goto\":-0.7},{\"at\":76,\"seat\":1,\"goto\":0.7},{\"at\":27.5,\"seat\":0,\"press\":\"form\"}]});",
+  "timings": true,
+  "sheet": {
+   "cols": 2,
+   "rows": 1,
+   "width": 640
+  },
+  "stills": [
+   0.5
+  ]
+ },
+ {
+  "name": "t-aurora-pool",
+  "query": "jogo=script&script=none&world=pool&dress=fire,water",
+  "size": "1920x1080",
+  "fps": 2,
+  "seconds": 1,
+  "warm": 1500,
+  "setup": "bend.jogo.run({\"name\":\"fusion7-aurora\",\"world\":\"pool\",\"lock\":true,\"dress\":[\"fire\",\"water\"],\"cues\":[{\"at\":0,\"seat\":0,\"place\":-0.52},{\"at\":0,\"seat\":1,\"place\":0.52},{\"at\":1,\"seat\":0,\"move\":\"martelo\"},{\"at\":1,\"seat\":1,\"press\":\"dodge\",\"hold\":{\"moveY\":-1},\"for\":0.6},{\"at\":3,\"seat\":1,\"move\":\"meia-lua\"},{\"at\":3,\"seat\":0,\"press\":\"dodge\",\"hold\":{\"moveY\":-1},\"for\":0.6},{\"at\":5,\"seat\":0,\"move\":\"meia-lua\"},{\"at\":5,\"seat\":1,\"move\":\"meia-lua\"},{\"at\":7,\"seat\":0,\"move\":\"bencao\"},{\"at\":8.5,\"seat\":0,\"goto\":-0.52},{\"at\":8.5,\"seat\":1,\"goto\":0.52},{\"at\":10,\"seat\":0,\"move\":\"spin\"},{\"at\":10,\"seat\":1,\"move\":\"spin\"},{\"at\":12.5,\"seat\":0,\"goto\":-0.52},{\"at\":12.5,\"seat\":1,\"goto\":0.52},{\"at\":14,\"seat\":1,\"move\":\"armada\"},{\"at\":14,\"seat\":0,\"press\":\"dodge\",\"hold\":{\"moveY\":-1},\"for\":0.6},{\"at\":15.5,\"seat\":0,\"goto\":-0.52},{\"at\":15.5,\"seat\":1,\"goto\":0.52},{\"at\":17,\"seat\":0,\"move\":\"rasteira\"},{\"at\":17,\"seat\":1,\"press\":\"jump\",\"hold\":{\"jumpHeld\":true},\"for\":0.4},{\"at\":18.5,\"seat\":0,\"goto\":-0.52},{\"at\":18.5,\"seat\":1,\"goto\":0.52},{\"at\":20,\"seat\":1,\"move\":\"bencao\"},{\"at\":20.25,\"seat\":0,\"press\":\"dodge\",\"hold\":{\"dodgeHeld\":true},\"for\":0.6},{\"at\":21.5,\"seat\":0,\"goto\":-0.52},{\"at\":21.5,\"seat\":1,\"goto\":0.52},{\"at\":23,\"seat\":0,\"move\":\"meia-lua\"},{\"at\":23,\"seat\":1,\"press\":\"dodge\",\"hold\":{\"moveY\":-1},\"for\":0.6},{\"at\":25,\"seat\":1,\"move\":\"martelo\"},{\"at\":25,\"seat\":0,\"press\":\"dodge\",\"hold\":{\"moveY\":-1},\"for\":0.6},{\"at\":27,\"seat\":0,\"move\":\"armada\"},{\"at\":27.5,\"seat\":1,\"press\":\"dodge\",\"hold\":{\"moveY\":-1},\"for\":0.6},{\"at\":29,\"seat\":0,\"goto\":-0.16},{\"at\":29,\"seat\":1,\"goto\":0.16},{\"at\":29.5,\"seat\":\"both\",\"hold\":{\"merge\":true},\"for\":4},{\"at\":33,\"seat\":0,\"goto\":-0.42},{\"at\":33,\"seat\":1,\"goto\":0.42},{\"at\":36,\"seat\":\"both\",\"move\":\"spin\"},{\"at\":40,\"seat\":\"both\",\"move\":\"macaco\"},{\"at\":44,\"seat\":0,\"move\":\"spin\"},{\"at\":45,\"seat\":1,\"move\":\"spin\"},{\"at\":48,\"seat\":0,\"goto\":-0.3},{\"at\":48,\"seat\":1,\"goto\":0.3},{\"at\":52,\"seat\":\"both\",\"move\":\"spin\"},{\"at\":56,\"seat\":\"both\",\"move\":\"macaco\"},{\"at\":76,\"seat\":0,\"goto\":-0.7},{\"at\":76,\"seat\":1,\"goto\":0.7},{\"at\":27.5,\"seat\":0,\"press\":\"form\"},{\"at\":27.5,\"seat\":1,\"press\":\"form\"}]});",
+  "timings": true,
+  "sheet": {
+   "cols": 2,
+   "rows": 1,
+   "width": 640
+  },
+  "stills": [
+   0.5
+  ]
+ }
+]

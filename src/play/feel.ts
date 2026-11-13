@@ -57,6 +57,8 @@ export interface FeelCtx {
   plane(): StagePlane | null;
   /** extra updraft at p from the jogo's own pieces (a ring of flame) */
   updraftAt?: (p: V3) => number;
+  /** 0 … 1: how much a fusion holds the scene (its one body has no two elements to ring at the feet) */
+  fused?: () => number;
   frame(): number;
 }
 
@@ -111,7 +113,7 @@ export class Feel {
         const a = this.bodies[0]?.chest(), b = this.bodies[1]?.chest();
         this.sfx(e.k, null);
         if (a && b) this.add(0.7, (u) => {
-          for (const [p, s] of [[a, 0], [b, 1]] as [V3, number][]) this.ctx.glows.flat([p[0], p[1] - 1.05, p[2]], 0.4 + u * 0.9, COLOURS[this.el(s)], (e.k === 'unison' ? 1.6 : 1) * (1 - u), 'ring');
+          for (const [p, s] of [[a, 0], [b, 1]] as [V3, number][]) this.ctx.glows.flat([p[0], p[1] - 1.05, p[2]], 0.4 + u * 0.9, COLOURS[this.el(s)], (e.k === 'unison' ? 1.6 : 1) * (1 - u) * (1 - (this.ctx.fused?.() ?? 0)), 'ring');
         });
         break;
       }

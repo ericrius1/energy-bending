@@ -237,7 +237,7 @@ export async function startJogo(app: PlayApp, mode: string) {
   });
   const feel = new Feel(jogo, bodies, {
     glows, sfx, field, arcs: plasma?.arcs ?? null, ripple, rumble, ear, dancer: (s) => seatDancer[s], plane,
-    updraftAt: (p) => pieces.updraftAt(p), frame: () => kit.frameIndex,
+    updraftAt: (p) => pieces.updraftAt(p), frame: () => kit.frameIndex, fused: () => fusion.weight,
   });
   const fusion = new Fusion(bodies, {
     glows, rig, field, arcs: plasma?.arcs ?? null, music, ripple, now: () => room.now(), frame: () => kit.frameIndex,

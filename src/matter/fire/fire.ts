@@ -56,7 +56,7 @@ type FlameKind = 'fire' | 'plasma';
 interface FlameDancer { dancer: number; weight: number; form: number; handForm: number; fusion: boolean }
 
 /** a fusion's light, per kind (the world lit in the fused body's colour) */
-const FUSION_LIGHT: [number, number, number][] = [[1.0, 0.86, 0.66], [0.75, 0.85, 1.0], [0.42, 0.34, 1.0], [0.3, 1.0, 0.7]];
+const FUSION_LIGHT: [number, number, number][] = [[1.0, 0.88, 0.72], [0.82, 0.88, 1.0], [0.6, 0.55, 1.0], [0.55, 0.95, 0.82]];
 const FUSION_KIND = ['steam', 'prism', 'storm', 'aurora'];
 
 const made = new WeakMap<Kit, FirePasses>();
@@ -287,7 +287,8 @@ export class FirePasses implements MatterPasses {
         pos: [(w[h] + w[c]) / 2, (w[h + 1] + w[c + 1]) / 2 + 0.1, (w[h + 2] + w[c + 2]) / 2],
         radius: 0.45,
         color: fc ? [...fc] as [number, number, number] : [mix(1.0, 0.62), mix(0.42, 0.32), mix(0.12, 1.0)],
-        intensity: fireParams.light * fd.weight * this.burn * flicker,
+        // (a fusion's two bodies are one light between them: half each)
+        intensity: fireParams.light * fd.weight * this.burn * flicker * (fc ? 0.5 : 1),
       });
     }
     writeFireLights(this.lights, L);
