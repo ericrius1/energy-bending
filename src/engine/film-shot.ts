@@ -390,8 +390,9 @@ async function run(api: FilmApi, recorder: Recorder, shot: ShotSpec, plan: ShotP
     }
     each();
     if (plan.flash && track) {
-      const b = M.clock.beatAt(M.filmClock + dt) - (Number.isFinite(M.engine.trackBeat0) ? M.engine.trackBeat0 : 0), ph = b - Math.floor(b);
-      B.set('post', { exposure: ph < 0.06 || ph > 0.985 ? flashBase * 4 : flashBase });
+      // (only where the page knows the track's grid: a jogo's lead-in before play begins doesn't, and plays free)
+      const b = M.clock.beatAt(M.filmClock + dt) - M.engine.trackBeat0, ph = b - Math.floor(b);
+      B.set('post', { exposure: Number.isFinite(b) && (ph < 0.06 || ph > 0.985) ? flashBase * 4 : flashBase });
     }
     await B.step(1, dt);
     if (track && jogo && gridScore == null) {

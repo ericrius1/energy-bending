@@ -63,6 +63,7 @@ export const tests: Tests = {
       grooveParams.level = -1;
       close(e.clock.bpm, t.bpm, 1e-9, `${id}: the clock's tempo`);
       check(count(rec, GROOVE) === 0, `${id}: ${count(rec, GROOVE)} groove calls`);
+      check(e.grooving, `${id}: the stones and matter on the grid`);
       const bars = e.events.filter((x) => x.type === 'bar').length;
       check(bars >= 3, `${id}: bars`);
       // the chord at a beat is the track's chord of that bar

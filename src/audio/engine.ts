@@ -105,8 +105,10 @@ export class Engine implements StepHost {
   get chord() { return this.harmony.chord; }
   get stepDur() { return this.clock.stepDur; }
   get fusionKind() { return this.fus?.kind ?? null; }
-  /** the groove is running (level 1 or more, or a fusion): stones and matter go on the grid */
-  get grooving() { return this.level >= 1 || !!this.fus; }
+  /** stones and matter go on the grid: under a track always, once its grid is known (a film's jogo learns it when play
+   *  begins: until then they play free, not on a grid the track doesn't have); otherwise while the groove runs (level
+   *  1 or more, or a fusion) */
+  get grooving() { return this.track ? Number.isFinite(this.trackBeat0) : this.level >= 1 || !!this.fus; }
 
   /** the bed comes in at t (the first touch; a film's prelude) */
   begin(t: number) {

@@ -391,7 +391,7 @@ if (TRACK) {
   const tin = ains.length / 2;
   const trackPart = `[${tin}:a]${p0 >= 0 ? `atrim=start=${p0.toFixed(5)},asetpts=PTS-STARTPTS` : `adelay=${Math.round(-p0 * 1000)}:all=1`},aformat=sample_rates=48000:channel_layouts=stereo,volume=${(film.audio?.gain ?? 1).toFixed(3)}[tr]`;
   const mixIn = parts.length ? `${parts.join(';')};${parts.map((_, n) => `[a${n}]`).join('')}amix=inputs=${parts.length}:normalize=0:dropout_transition=0,volume=${(under / 0.72).toFixed(4)}[sc];` : '';
-  const graph = `${mixIn}${trackPart};${parts.length ? '[tr][sc]amix=inputs=2:normalize=0:dropout_transition=0,' : '[tr]'}alimiter=limit=0.891:level=false,atrim=duration=${T.toFixed(4)}[a]`;
+  const graph = `${mixIn}${trackPart};${parts.length ? '[tr][sc]amix=inputs=2:normalize=0:dropout_transition=0,' : '[tr]'}alimiter=limit=0.891:level=false:latency=1,atrim=duration=${T.toFixed(4)}[a]`;
   await ff([...ains, '-i', TRACK.source, '-filter_complex', graph, '-map', '[a]', '-c:a', 'pcm_s16le', '-ar', '48000', score]);
   if (TRACK.loop && TRACK.downbeat + (BEAT0 + T / SPB) * SPB > TRACK.loop.end) log(`(the film runs past the track's loop: the page's chords follow the loop, the file plays on)`);
 } else if (parts.length) await ff([...ains, '-filter_complex', `${parts.join(';')};${parts.map((_, n) => `[a${n}]`).join('')}amix=inputs=${parts.length}:normalize=0:dropout_transition=0,atrim=duration=${T.toFixed(4)}[a]`, '-map', '[a]', '-c:a', 'pcm_s16le', '-ar', '48000', score]);
@@ -440,8 +440,13 @@ if (opts.flash && TRACK) {
   const errs = flashes.map((i) => { const t = i / Q.fps, b = BEAT0 + t / SPB; return (b - Math.round(b)) * SPB * 1000; });
   const abs = errs.map(Math.abs).sort((a, b) => a - b);
   const beats = Math.floor(T / SPB);
-  sync = { flashes: flashes.length, beats, medianMs: +(abs[Math.floor(abs.length / 2)] ?? NaN).toFixed(1), worstMs: +(abs[abs.length - 1] ?? NaN).toFixed(1), frameMs: +(1000 / Q.fps).toFixed(1), firstErrs: errs.slice(0, 12).map((e) => +e.toFixed(1)) };
-  log(`sync: ${flashes.length} flashes over ${beats} beats; each from the track's beat: median ${sync.medianMs} ms, worst ${sync.worstMs} ms (a frame is ${sync.frameMs} ms)`);
+  // (per shot: a shot's flashes are the frames from its cut to the next)
+  const perShot = pick.map((sh) => {
+    const e = flashes.map((i, k) => [i / Q.fps, errs[k]]).filter(([t]) => t >= sh.at - 1e-6 && t < sh.at + sh.len - 1e-6).map(([, x]) => Math.abs(x)).sort((a, b) => a - b);
+    return { shot: sh.id, flashes: e.length, beats: Math.round(sh.len / SPB), medianMs: +(e[Math.floor(e.length / 2)] ?? NaN).toFixed(1), worstMs: +(e[e.length - 1] ?? NaN).toFixed(1) };
+  });
+  sync = { flashes: flashes.length, beats, medianMs: +(abs[Math.floor(abs.length / 2)] ?? NaN).toFixed(1), worstMs: +(abs[abs.length - 1] ?? NaN).toFixed(1), frameMs: +(1000 / Q.fps).toFixed(1), perShot, firstErrs: errs.slice(0, 12).map((e) => +e.toFixed(1)) };
+  log(`sync: ${flashes.length} flashes over ${beats} beats; each from the track's beat: median ${sync.medianMs} ms, worst ${sync.worstMs} ms (a frame is ${sync.frameMs} ms); by shot ${perShot.map((p) => `${p.shot} ${p.flashes}/${p.beats} ${p.medianMs}/${p.worstMs} ms`).join(', ')}`);
 }
 writeFileSync(join(work, 'run.json'), JSON.stringify({ film: NAME, quality: Q.label, track: TRACK ? { id: TRACK.id, bpm: TRACK.bpm, beat0: BEAT0, source: relative(ROOT, TRACK.source) } : null, sync, size: [W, H], fps: Q.fps, scale: Q.scale, build: buildHash, renderS, holds, outs, shots: pick.map((s) => ({ id: s.id, seconds: s.seconds, frames: s.frames, keep: s.keep, at: s.at, takes: s.takes, dir: relative(ROOT, s.dir), info: s.info })) }, null, 1));
 process.exit(0);

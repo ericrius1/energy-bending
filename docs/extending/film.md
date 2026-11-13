@@ -32,7 +32,8 @@ node scripts/film-seams.mjs films/test-seam.json --take 3  # prove the seams are
 Options: `--url` (default `http://127.0.0.1:5435/energybending/`), `--port` (the sink, default 5436), `--take <s>`
 (take length: 10 s master, 20 s preview; `0` for one take), `--force` (render again), `--only-take <k>` (one take in a
 fresh page, for checks), `--no-encode`, `--no-score` (pictures only, silence under them: the offline score is the slow
-part, about 8× real time, so leave it off while working on a timeline), `--variant <name>` (a separate cache), `--out <dir>`
+part, about 8× real time, so leave it off while working on a timeline), `--variant <name>` (a separate cache), `--seconds <s>` (every shot that long), `--size 1280x720` (a preview's
+size), `--name <x>` (the file: `<film>-<x>-preview.mp4`), `--flash` (the sync check, below), `--out <dir>`
 (default `docs/reports/media/film`, git-ignored). Files: `<out>/<film>-master.mp4`, `-web.mp4`, `-preview.mp4`,
 `<out>/cache/<quality>/<film>-<shot>-<key>/take-NNN.mkv` (lossless x264, the takes), `score.wav` and `info.json` (the
 shot's in-point, its page frames, the jogo's state at the end, the page's warnings), `<out>/work/<film>-<quality>/`
@@ -194,7 +195,7 @@ With a track:
 - Every shot is rendered a beat longer than asked and cut where its end falls on the nearest whole beat of the track
   (to the frame: within half a frame, and no error carried from one shot to the next).
 - The track is laid under the whole film, its place at the first frame from the first shot's info, the shots' scores
-  under it at the game's balance, then a limiter at -1 dBFS. The source is the conformed WAV the analysis leaves in
+  under it at the game's balance, then a limiter at -1 dBFS (its look-ahead compensated: uncompensated it put the track 5 ms late). The source is the conformed WAV the analysis leaves in
   `docs/reports/media/music/<id>.wav` (the .m4a when it isn't there).
 - `--flash` lights every frame that starts a beat of the track and measures, from the encoded picture, how far each
   flash falls from its beat (`sync:` in the log and run.json): the pages' clock against the track the film lays.
