@@ -7,7 +7,8 @@
 //   ?jogo=online&room=CODE[&create][&watch]   one seat of a room on the room server (&server=ws://…/ws; default this
 //                    host's 5417); &watch dances as a free guest
 //   ?jogo=script&script=NAME    a scripted jogo (src/play/scripts/NAME.json), for films and captures; also bend.jogo.run
-//                    (&bpm=N plays a local room at another tempo: a film's timeline sets it)
+//                    (&bpm=N plays a local room at another tempo: a film's timeline sets it; &hold=S starts its room
+//                    S seconds late, the dancers asleep until then)
 //                    (&partner=… with a script: the partner brain plays dancer 2, the script dancer 1; &seed=N its seed)
 //   &world=pool &dress=fire,water &free (the 3D view; the side view is the default)
 //   nothing          the front of the game over the show (menu.ts); ?play stays the solo free dance. The front can
@@ -358,9 +359,16 @@ export async function startJogo(app: PlayApp, mode: string, opts: { joined?: Joi
     if (script) runScript(script);
     else console.warn(`jogo: no script '${q.get('script')}' (src/play/scripts)`);
     // a script starts its room on the first frame stepped by hand (a capture or a film: kit.manual), so frame 0 of the
-    // capture is the room's first frame whatever the page did before; watched live, after a second
-    let waited = 0;
-    frame.tick('input', () => { if (!started && (kit.manual || ++waited > 60)) void start(); }, 'jogo: a script waits for the first stepped frame');
+    // capture is the room's first frame whatever the page did before; watched live, after a second. &hold=S holds it
+    // S seconds more (of stepped time: a film's opening, the dancers asleep in their heaps until the intro wakes them;
+    // a film may wake them sooner itself); a bare &hold waits for bend.jogo.start()
+    const hold = q.has('hold') ? (q.get('hold') ? Number(q.get('hold')) : Infinity) : 0;
+    let waited = 0, held = 0;
+    frame.tick('input', (f: FrameCtx) => {
+      if (started) return;
+      if (kit.manual) { held += f.dt; if (held >= hold - 1e-6) void start(); }
+      else if (++waited > 60 + hold * 60) void start();
+    }, 'jogo: a script waits for the first stepped frame (and its hold)');
   } else if (!online) {
     lobby = new Lobby(mode === 'partner');
     lobby.seat(1, 'bot');
@@ -481,7 +489,7 @@ export async function startJogo(app: PlayApp, mode: string, opts: { joined?: Joi
 
   // ---------------------------------------------------------------- the hooks (bend.jogo)
   const api = {
-    room, jogo, feel, fusion, pieces, glows, builder,
+    room, jogo, feel, fusion, pieces, glows, builder, field,
     get state() { return room.state; },
     get phase() { return room.state?.phase ?? null; },
     /** beats since play began */

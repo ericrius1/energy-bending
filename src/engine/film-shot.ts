@@ -18,7 +18,7 @@ import { renderOffline } from '../audio/synth/synth';
 import { wav, type Recorder } from '../audio/instrument';
 import { JOINT, JOINT_FLOATS } from '../skeleton/rig';
 import { planeNormal } from './camera';
-import { FilmCamera, type CamKey, type FilmScene, type V3, type Ease, type CamPose } from './filmcam';
+import { FilmCamera, type CamKey, type FilmScene, type V3, type Ease, type CamPose, type Capsule } from './filmcam';
 import type { FilmApi } from './film';
 import { moodIndex } from '../audio/harmony';
 
@@ -116,15 +116,19 @@ async function run(api: FilmApi, recorder: Recorder, shot: ShotSpec, plan: ShotP
   // the seats' cues the jogo plays itself, on its own clock (src/play/script.ts)
   const cues = [...(shot.cues ?? [])];
   const JOGO_KEYS = ['move', 'press', 'hold', 'goto', 'place', 'build', 'tension'];
+  // (a place given as a point, [x, z], is the film's own even in a jogo: bend.place, before the room starts or free)
+  const isJogoCue = (c: ShotCue) => JOGO_KEYS.some((k) => k in c && !(k === 'place' && Array.isArray(c.place)));
   if (J) {
-    const script = cues.filter((c) => JOGO_KEYS.some((k) => k in c)).map((c) => {
+    const script = cues.filter(isJogoCue).map((c) => {
       const b = gridBeat(c.at) ?? (c.at as number) / spb + B0;
       const { at: _at, ...rest } = c;
       return { ...rest, at: b };
     });
     J.run({ name: shot.id, cues: script });
+    // a timeline that sets forms owns them for its duration: the partner brain's own form presses are held off
+    if (cues.some((c) => c.form != null) && J.partner) J.partner.formHeld = true;
   } else if (shot.wake !== false) B.wake();
-  const filmCues = cues.filter((c) => !(J && JOGO_KEYS.some((k) => k in c))).map((c) => ({ c, b: gridBeat(c.at), t: typeof c.at === 'number' ? c.at : null, done: false }));
+  const filmCues = cues.filter((c) => !(J && isJogoCue(c))).map((c) => ({ c, b: gridBeat(c.at), t: typeof c.at === 'number' ? c.at : null, done: false }));
   const forms = (shot.forms ?? []).slice();
   const seats = () => (B.show.dancers as { framed: boolean }[]).filter((d) => d.framed).slice(0, 2);
 
@@ -145,12 +149,34 @@ async function run(api: FilmApi, recorder: Recorder, shot: ShotSpec, plan: ShotP
     }
   };
   const seenJoints = (ds: unknown[]) => B.gates.seen(B.gates.rigWorld, ds).joints as Float32Array[];
+  /** the bones the film camera keeps clear of (a dancer's matter stands a hand off them: the radius), and a fusion's
+   *  column: the field's helix, from the pair's floor up past its top (aurora's flames rise far, so its column is taller
+   *  and widens as it rises) */
+  const BONES: [number, number][] = [
+    [JOINT.Hips, JOINT.Spine1], [JOINT.Spine1, JOINT.Head], [JOINT.Head, JOINT.HeadEnd],
+    [JOINT.LeftArm, JOINT.LeftForeArm], [JOINT.LeftForeArm, JOINT.LeftHand], [JOINT.RightArm, JOINT.RightForeArm], [JOINT.RightForeArm, JOINT.RightHand],
+    [JOINT.LeftUpLeg, JOINT.LeftLeg], [JOINT.LeftLeg, JOINT.LeftFoot], [JOINT.RightUpLeg, JOINT.RightLeg], [JOINT.RightLeg, JOINT.RightFoot],
+  ];
+  const bodies = (): Capsule[] => {
+    const out: Capsule[] = [];
+    for (const W of seenJoints(seats())) for (const [a, b] of BONES) out.push({ a: jointAt(W, a), b: jointAt(W, b), r: 0.15 });
+    const F = J?.field as { fusionFront: { kind: string; amount: number; floorY: number }; helix: { at: number[]; shape: number[] } } | undefined;
+    const fu = F?.fusionFront;
+    if (F && fu && fu.amount > 0.05) {
+      const at = F.helix.at, half = F.helix.shape[1] || 1, r = (at[3] || 0.6) + 0.35, tall = fu.kind === 'aurora';
+      const top = at[1] + half * (tall ? 2.2 : 1.4);
+      out.push({ a: [at[0], fu.floorY, at[2]], b: [at[0], top, at[2]], r });
+      if (tall) out.push({ a: [at[0], top, at[2]], b: [at[0], top + 3, at[2]], r: r + 1.2 });
+    }
+    return out;
+  };
   let pose: CamPose | null = null;
   let tau = -Infinity, inPoint = -1;
   const scene: FilmScene = {
     rig: { eye: [0, 0, 0], look: [0, 0, 0], fov: 38, focus: 5 },
     aspect: 16 / 9,
     clear: (a, b) => (rig.clearance ? rig.clearance(a, b) : 1),
+    bodies,
     anchor(name, joint) {
       if (name === 'stage') {
         const W = world(), st = W?.stages?.[0];
@@ -231,9 +257,10 @@ async function run(api: FilmApi, recorder: Recorder, shot: ShotSpec, plan: ShotP
         else B.form(s, c.form);
       }
       if (c.dress) B.dress(s, c.dress);
+      if (Array.isArray(c.place)) B.place(s, c.place[0], c.place[1], c.place[2]);
       if (J) continue;
       // outside a jogo the seats are ?play's players
-      if (c.place != null) { const p = Array.isArray(c.place) ? c.place : [c.place, 0]; B.place(s, p[0], p[1], p[2]); }
+      if (c.place != null && !Array.isArray(c.place)) B.place(s, c.place, 0);
       if (c.move) B.move(s, c.move);
       const patch: Record<string, unknown> = { ...(c.hold ?? {}) };
       for (const k of c.press == null ? [] : Array.isArray(c.press) ? c.press : [c.press]) patch[k] = true;
@@ -248,7 +275,8 @@ async function run(api: FilmApi, recorder: Recorder, shot: ShotSpec, plan: ShotP
     const beatNow = J ? (J.beat() as number | null) : Number.isFinite(tau) ? tau / spb : null;
     for (const q of filmCues) {
       if (q.done) continue;
-      const due = q.b != null ? beatNow != null && beatNow >= q.b - 1e-6 : q.t != null && tau >= q.t - 1e-6;
+      // (a time of -9 or less is "before anything": due on the first frame, even in a jogo's lead-in, before its grid)
+      const due = q.b != null ? beatNow != null && beatNow >= q.b - 1e-6 : q.t != null && (tau >= q.t - 1e-6 || q.t <= -9);
       if (due) { q.done = true; fire(q.c); }
     }
     for (let r = releases.length - 1; r >= 0; r--) {
@@ -295,6 +323,23 @@ async function run(api: FilmApi, recorder: Recorder, shot: ShotSpec, plan: ShotP
     }
   };
 
+  /** where things are (the progress log, for working on a timeline): the beat, the seats' roots, the eye and how far
+   *  it stands from the nearest body (a bone or a fusion's column, its own radius taken off) */
+  const where = () => {
+    const f = (v: number[]) => v.map((x) => x.toFixed(2)).join(',');
+    const b = J ? (J.beat() as number | null) : null;
+    const roots = J ? (J.stats().seats as { root: number[] }[]).map((x) => f(x.root)).join(' | ') : '';
+    if (!pose) return ` beat ${b?.toFixed(1)} seats ${roots}`;
+    const E = (pose as CamPose).eye;
+    let near = Infinity;
+    for (const c of bodies()) {
+      const ab = [c.b[0] - c.a[0], c.b[1] - c.a[1], c.b[2] - c.a[2]], L = ab[0] ** 2 + ab[1] ** 2 + ab[2] ** 2 || 1;
+      const u = Math.max(0, Math.min(1, ((E[0] - c.a[0]) * ab[0] + (E[1] - c.a[1]) * ab[1] + (E[2] - c.a[2]) * ab[2]) / L));
+      near = Math.min(near, Math.hypot(E[0] - c.a[0] - ab[0] * u, E[1] - c.a[1] - ab[1] * u, E[2] - c.a[2] - ab[2] * u) - c.r);
+    }
+    return ` beat ${b?.toFixed(1)} seats ${roots} eye ${f(E)} nearest body ${near.toFixed(2)} m`;
+  };
+
   // ---------------------------------------------------------------- the frames
   const every = plan.every;
   const paused = new Set<number>();
@@ -335,7 +380,7 @@ async function run(api: FilmApi, recorder: Recorder, shot: ShotSpec, plan: ShotP
       const px = await api.grab();
       await post(`/frame?k=${k}`, px);
     }
-    if (k % 120 === 0) console.log(`film: ${shot.id} frame ${k}/${plan.total} (${((performance.now() - t0) / 1000).toFixed(1)} s)`);
+    if (k % 30 === 0) console.log(`film: ${shot.id} frame ${k}/${plan.total} (${((performance.now() - t0) / 1000).toFixed(1)} s)${where()}`);
     if (k + 1 >= plan.end) { i++; break; }
   }
   const info = { shot: shot.id, inPoint, inTime: (inPoint + 1) * dt, pageFrames: i, pageTime: i * dt, width: kit.size.render[0], height: kit.size.render[1], jogo: J?.stats?.() ?? null };
