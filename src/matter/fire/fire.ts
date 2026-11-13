@@ -5,6 +5,10 @@
 // half-resolution target and one composite applies the colour ramp to the sum (field.ts, splat.wgsl, composite.wgsl);
 // the embers are points added into the scene (draw.wgsl).
 //
+// A fusion (play/fusion.ts) dresses both dancers in `fire` layers with `params: { fusion: 1, side: 0 | 1 }`: their
+// flames carry their side instead of a form, move by the field's fusion kind (sim.wgsl) and are made light through
+// the kind's ramp (composite.wgsl), so the two bodies sum into one shape of the kind's medium.
+//
 // Fire and plasma are one kind with a form per particle (0 fire … 1 plasma): a `plasma` loadout layer is form 1, a
 // `fire` layer is its `params.form` (default 0), and the dancer's own form (`Dancer.form`, copied into `form[d]` each
 // frame; the game animates it with bend.form) is added on top, so a dancer's flame morphs smoothly into plasma and back. The `plasma` kind (matter/plasma) hands its
@@ -47,8 +51,13 @@ const HOME_FLOATS = 8;
 
 type FlameKind = 'fire' | 'plasma';
 
-/** one dancer's flame: how much of the dancer it is, its layers' form, whether it covers the hands */
-interface FlameDancer { dancer: number; weight: number; form: number; handForm: number }
+/** one dancer's flame: how much of the dancer it is, its layers' form, whether it covers the hands, whether it is a
+ *  fusion's */
+interface FlameDancer { dancer: number; weight: number; form: number; handForm: number; fusion: boolean }
+
+/** a fusion's light, per kind (the world lit in the fused body's colour) */
+const FUSION_LIGHT: [number, number, number][] = [[1.0, 0.86, 0.66], [0.75, 0.85, 1.0], [0.42, 0.34, 1.0], [0.3, 1.0, 0.7]];
+const FUSION_KIND = ['steam', 'prism', 'storm', 'aurora'];
 
 const made = new WeakMap<Kit, FirePasses>();
 /** the one flame pool of a kit: the fire kind and the plasma kind both declare through this */
@@ -89,6 +98,8 @@ export class FirePasses implements MatterPasses {
   /** flames a whole fire dancer has now (the splats are weighted by it) */
   private perNow = fireParams.perDancer;
   private lightList: FlameLight[] = [];
+  /** the field's fusion kind now (0 steam, 1 prism, 2 storm, 3 aurora) */
+  private fusionKind = 0;
   private curl: CurlGrids;
 
   constructor(private ctx: MatterCtx) {
@@ -169,19 +180,27 @@ export class FirePasses implements MatterPasses {
   /** lay every flame layer out (once a frame at most: fire and plasma both hand layers in when a loadout changes) */
   private relayout() {
     this.dirty = false;
-    const layers = [...this.layers.fire, ...this.layers.plasma].sort((a, b) => a.dancer - b.dancer);
+    // a fusion's layer is a whole dancer's flame whatever its share: the fusion dresses it with a token share so the
+    // dancer's own matter keeps its particles (resting on its feet) and comes back without being made anew
+    const layers = [...this.layers.fire, ...this.layers.plasma].sort((a, b) => a.dancer - b.dancer)
+      .map((l) => (l.layer.params?.fusion ? { ...l, weight: 1 } : l));
     const per = fireParams.perDancer * this.scale;
     this.perNow = per;
     const total = layers.reduce((a, l) => a + l.weight, 0);
     const count = Math.min(MAXN, Math.round(per * total / 256) * 256);
-    const formOf = (l: MatterLayer) => (l.layer.kind === 'plasma' ? 1 : Math.min(1, Math.max(0, Number(l.layer.params?.form ?? 0))));
+    const isFusion = (l: MatterLayer) => !!l.layer.params?.fusion;
+    const formOf = (l: MatterLayer) => (l.layer.kind === 'plasma' ? 1 : isFusion(l) ? 0 : Math.min(1, Math.max(0, Number(l.layer.params?.form ?? 0))));
+    // what a home holds where its form goes: a fusion's flame 2 + its side (sim.wgsl isFusion, fusionSide)
+    const homeForm = (l: MatterLayer) => (isFusion(l) ? 2 + (Number(l.layer.params?.side ?? 0) > 0.5 ? 1 : 0) : formOf(l));
     // who wears flame, and how much
     const by = new Map<number, FlameDancer>();
     for (const l of layers) {
-      const fd = by.get(l.dancer) ?? { dancer: l.dancer, weight: 0, form: 0, handForm: -1 };
+      const fd = by.get(l.dancer) ?? { dancer: l.dancer, weight: 0, form: 0, handForm: -1, fusion: false };
       fd.form = (fd.form * fd.weight + formOf(l) * l.weight) / (fd.weight + l.weight || 1);
       fd.weight += l.weight;
-      if (!l.parts || l.parts.includes('hands')) fd.handForm = Math.max(fd.handForm, formOf(l));
+      fd.fusion ||= isFusion(l);
+      // (a fusion's hands are its body's, not plasma's: no arcs between them)
+      if ((!l.parts || l.parts.includes('hands')) && !isFusion(l)) fd.handForm = Math.max(fd.handForm, formOf(l));
       by.set(l.dancer, fd);
     }
     this.dancers = [...by.values()];
@@ -189,7 +208,7 @@ export class FirePasses implements MatterPasses {
     // flames spread evenly over the body (not the gems' wide heart and close accents)
     const ranges = layoutHomes(count, layers, this.homeData, { spacing: [1, 1, 1], size: [1, 1, 1] });
     layers.forEach((l, k) => {
-      const form = formOf(l);
+      const form = homeForm(l);
       for (let i = ranges[k].from; i < ranges[k].to; i++) this.homeData[i * HOME_FLOATS + 4] = form;
     });
     this.homes.write(this.homeData.subarray(0, count * HOME_FLOATS));
@@ -212,6 +231,14 @@ export class FirePasses implements MatterPasses {
     s.blast = this.blast;
     s.stretch = P.stretch; s.emberGlow = P.emberGlow;
     s.form = [[...this.form.subarray(0, 4)], [...this.form.subarray(4, 8)]] as unknown as FireSim['form'];
+    // the field's fusion: its kind, how far in, where in its bars, the landing's pulse; its helix (the strands the
+    // fusion's flames climb)
+    const fu = this.ctx.field.fusionFront, hx = this.ctx.field.helix;
+    const kind = Math.max(0, FUSION_KIND.indexOf(fu.kind));
+    this.fusionKind = kind;
+    s.fusion = [kind, fu.amount, fu.bar, fu.pulse];
+    s.helixAt = [hx.at[0], hx.at[1], hx.at[2], hx.at[3]];
+    s.helixShape = [hx.shape[0], hx.shape[1], hx.axis[3], fu.floorY];
     this.sim.set(s);
     this.blast = [0, 0, 0, 0];
     // a curl grid for each fire dancer (plasma barely takes it: past form 0.7 it has none)
@@ -223,6 +250,7 @@ export class FirePasses implements MatterPasses {
       reflect: P.reflect, stretch: P.stretch, tongues: P.tongues, intensity: P.intensity, gaps: P.gaps, scale: P.noiseScale,
       climb: P.climb, advect: P.advect, period: P.period, smokeDark: 2.5, plasmaGlow: P.plasmaGlow, flicker: P.flicker, cut: P.cut,
       focusT: P.focusT, time: f.t, embers: P.emberGlow, mirrorY: this.mirrorY(f), mirrorFall: this.onWater(f) ? 0.35 : 1.6,
+      fusion: s.fusion, fusionAt: [hx.at[0], hx.at[1], hx.at[2], fu.floorY],
     });
     this.updateLights(f);
     this.voice(f);
@@ -253,11 +281,12 @@ export class FirePasses implements MatterPasses {
       const t = f.t * 1, k = fd.dancer * 1.7;
       const flicker = 0.86 + 0.08 * Math.sin(t * 13.1 + k) + 0.06 * Math.sin(t * 31.7 + k * 2.3) + form * 0.15 * Math.sin(t * 57.3 + k);
       const mix = (a: number, b2: number) => a + (b2 - a) * form;
+      const fc = fd.fusion ? FUSION_LIGHT[this.fusionKind] : null;
       L.push({
         dancer: fd.dancer,
         pos: [(w[h] + w[c]) / 2, (w[h + 1] + w[c + 1]) / 2 + 0.1, (w[h + 2] + w[c + 2]) / 2],
         radius: 0.45,
-        color: [mix(1.0, 0.62), mix(0.42, 0.32), mix(0.12, 1.0)],
+        color: fc ? [...fc] as [number, number, number] : [mix(1.0, 0.62), mix(0.42, 0.32), mix(0.12, 1.0)],
         intensity: fireParams.light * fd.weight * this.burn * flicker,
       });
     }

@@ -11,6 +11,12 @@
 //
 // The curl: a fire dancer's flames are pushed round the eddies of their own flow (curl.wgsl: a grid round the body,
 // vorticity confinement), so the tongues curl and lick instead of only rising.
+//
+// A fusion's flames (a home whose form slot holds 2 + its side: play/fusion.ts dresses both bodies in them for the eight
+// bars) move by the fusion's kind instead of by form (fusionMotion): steam swells and rises in a column, prism clings
+// thin and quick, storm hangs heavy and some of it falls as rain, aurora rises slow and far. Some of each body's flames
+// are the helix's: born on their body's strand of the field's double helix and held to it as they climb, so the two
+// strands turn round the pair. Past the eighth bar (the release) they are thrown outward from the middle.
 #include "./flame"
 #include "../core/body"
 #include "../field/field"
@@ -63,6 +69,30 @@ fn alight(y: f32, seed: u32) -> bool {
   return true;
 }
 
+/** a point on strand `side` (0 or 1, half a turn apart) of the fusion's helix, `h` m above its centre: the field's own
+ *  strands (step.wgsl: e1, e2 the frame round an upright axis) */
+fn strandAt(side: f32, h: f32) -> vec3f {
+  let ang = sim.helixShape.x + 6.2831853 * sim.helixShape.z * h;
+  let r = (vec3f(0.0, 0.0, -1.0) * cos(ang) + vec3f(-1.0, 0.0, 0.0) * sin(ang)) * sim.helixAt.w;
+  return sim.helixAt.xyz + vec3f(0.0, h, 0.0) + select(r, -r, side > 0.5);
+}
+
+/** how a fusion kind's flames move, × fire's own: life, buoyancy, size, stirring */
+fn fusionMotion(K: u32) -> vec4f {
+  if (K == 1u) { return vec4f(0.65, 0.5, 0.8, 0.8); }     // prism: thin, quick, close to the body
+  if (K == 2u) { return vec4f(1.0, 0.35, 1.45, 1.3); }    // storm: heavy, hanging, churning
+  if (K == 3u) { return vec4f(2.3, 1.15, 1.3, 0.45); }    // aurora: slow, rising far
+  return vec4f(1.5, 1.35, 1.5, 0.9);                       // steam: swelling, a rising column
+}
+
+/** a fusion flame's role, fixed by its slot: 0 the body, 1 the helix, 2 rain (storm) */
+fn fusionRole(seed: u32, K: u32) -> u32 {
+  let r = rnd(seed ^ 0xf00du);
+  if (r < 0.18) { return 1u; }
+  if (K == 2u && r < 0.3) { return 2u; }
+  return 0u;
+}
+
 @compute @workgroup_size(256)
 fn main(@builtin(global_invocation_id) gid: vec3u) {
   let i = gid.x;
@@ -72,11 +102,19 @@ fn main(@builtin(global_invocation_id) gid: vec3u) {
   let home = homes[i];
   var f = flames[i];
   let d = dancerOf(home);
-  let form = clamp(home.look.x + sim.form[d / 4u][d % 4u], 0.0, 1.0);
+  let fus = isFusion(home.look.x);
+  let form = select(clamp(home.look.x + sim.form[d / 4u][d % 4u], 0.0, 1.0), 0.0, fus);
   let seed = pcg(i * 9781u + 17u);
   let rn = pcg(i ^ (sim.frameNo * 2654435761u));
-  // a few slots throw embers (or sparks), the rest are flame
-  let emberSlot = rnd(seed ^ 0xe0u) < 0.035 * min(sim.embers, 4.0);
+  // a few slots throw embers (or sparks), the rest are flame (a fusion's are all flame)
+  let emberSlot = rnd(seed ^ 0xe0u) < 0.035 * min(sim.embers, 4.0) && !fus;
+  let K = u32(sim.fusion.x + 0.5);
+  let side = fusionSide(home.look.x);
+  let role = select(0u, fusionRole(seed, K), fus);
+  let fm = select(vec4f(1.0), fusionMotion(K), fus);
+  // through the eight bars the column grows (aurora most), and past the eighth it is let go
+  let grow = select(1.0, 1.0 + 0.06 * clamp(sim.fusion.z, 0.0, 8.0) * select(1.0, 2.0, K == 3u), fus);
+  let released = fus && sim.fusion.z > 8.0;
 
   f.age += dt;
   if (f.age < 0.0) { flames[i] = f; return; }
@@ -115,8 +153,31 @@ fn main(@builtin(global_invocation_id) gid: vec3u) {
       f.look = vec4f(form, 1.0, -sim.size * mix(0.12, 0.26, r2), wet);
     } else {
       f.vel = H.vel * sim.inherit + H.out * mix(0.03, 0.15, r1) * (1.0 - 0.8 * form) + UP * 0.2 * (1.0 - form);
-      f.life = sim.life * mix(0.45, 1.25, r3 * r3) * k;
-      f.look = vec4f(form, T0, sim.size * mix(0.6, 1.4, r1) * (1.0 - 0.45 * cold), wet);
+      f.life = sim.life * mix(0.45, 1.25, r3 * r3) * k * fm.x * grow;
+      f.look = vec4f(form, T0, sim.size * mix(0.6, 1.4, r1) * (1.0 - 0.45 * cold) * fm.z, wet);
+    }
+    if (fus) {
+      // the flame keeps its side where its form would be (the field tells the two bodies' matter apart by it)
+      f.look.x = 2.0 + side;
+      f.look.w = 0.0;
+      if (role == 1u) {
+        // the helix: born on its body's strand, anywhere up it
+        let h = (rnd(rn ^ 0xb1u) * 2.0 - 1.0) * sim.helixShape.y;
+        f.pos = strandAt(side, h) + sphereDir(rn ^ 0xb2u) * 0.025;
+        f.vel = UP * 0.3;
+        f.life = sim.life * mix(0.9, 1.5, r3) * select(1.0, 1.6, K == 3u);
+        f.look.y = sim.heat * mix(0.4, 0.6, r2);
+        f.look.z = sim.size * mix(0.6, 0.9, r1);
+      } else if (role == 2u) {
+        // storm's rain: from above the pair, falling, thin and faint
+        let a = rnd(rn ^ 0xb3u) * 6.2831853;
+        let rr = 1.25 * sqrt(rnd(rn ^ 0xb4u));
+        f.pos = sim.helixAt.xyz + vec3f(cos(a) * rr, 0.9 + 1.4 * rnd(rn ^ 0xb5u), sin(a) * rr);
+        f.vel = vec3f(0.0, -3.2 - 1.5 * r1, 0.0);
+        f.life = 0.45 + 0.35 * r3;
+        f.look.y = sim.heat * 0.4;
+        f.look.z = sim.size * 0.45;
+      }
     }
     flames[i] = f;
     return;
@@ -128,15 +189,27 @@ fn main(@builtin(global_invocation_id) gid: vec3u) {
     // an ember (or a spark): it follows the air, drifts up and jitters (a spark crackles, a lot)
     f.vel += (UP * (0.35 + 0.4 * rnd(seed ^ 0x51u)) * (1.0 - form) + sphereDir(rn ^ 0x52u) * mix(0.5, 2.4, form) * 3.0) * dt;
     f.vel = wind + (f.vel - wind) * exp(-mix(0.9, 2.5, form) * dt);
+  } else if (role == 2u) {
+    // rain falls through the air, barely stirred
+    f.vel += (-UP * 5.0 + (wind - f.vel) * 0.6) * dt;
+  } else if (role == 1u) {
+    // a helix flame climbs its strand: an implicit spring to the strand's point at its own height, which turns
+    let T = flameT(f);
+    let goal = strandAt(side, f.pos.y - sim.helixAt.y);
+    let acc = UP * sim.buoyancy * 0.35 * (0.3 + min(T, 2.0)) * select(1.0, 1.5, K == 3u) + stir(f.pos, sim.time * 0.5, 0.6) * 0.6;
+    let kc = select(90.0, 4.0, released);
+    let c = sqrt(kc) * 0.9;
+    f.vel = (f.vel + dt * (kc * (goal - f.pos) + acc)) / (1.0 + dt * c + dt * dt * kc);
   } else {
     let T = flameT(f);
-    var acc = UP * sim.buoyancy * (0.3 + min(T, 2.5)) * (1.0 - 0.75 * form);
-    acc += stir(f.pos, sim.time, mix(1.0, 4.0, form)) * sim.turbulence * (0.35 + min(T, 1.6)) * (1.0 + 0.8 * form);
+    var acc = UP * sim.buoyancy * (0.3 + min(T, 2.5)) * (1.0 - 0.75 * form) * fm.y;
+    // aurora's stirring runs at half time
+    acc += stir(f.pos, sim.time * select(1.0, 0.5, fus && K == 3u), mix(1.0, 4.0, form)) * sim.turbulence * (0.35 + min(T, 1.6)) * (1.0 + 0.8 * form) * fm.w;
     // plasma clings to its home, so it takes little of the curl
     acc += curlAt(d, f.pos) * (1.0 - 0.8 * form);
     f.vel = wind + (f.vel - wind) * exp(-sim.drag * dt);
     // plasma clings: an implicit spring to where its home is now (stable for any stiffness and step)
-    let kc = sim.cling * form * form;
+    let kc = sim.cling * form * form + select(0.0, 25.0, fus && K == 1u && !released);
     if (kc > 0.0) {
       let H = homeOf(home, i, sim.body);
       let c = sqrt(kc) * 0.6;
@@ -144,6 +217,12 @@ fn main(@builtin(global_invocation_id) gid: vec3u) {
     } else {
       f.vel += acc * dt;
     }
+  }
+  // the release: the one body is let go, outward from the middle and up
+  if (released) {
+    let out = f.pos - sim.helixAt.xyz;
+    let o = vec3f(out.x, 0.0, out.z);
+    f.vel += (o / max(length(o), 0.05) * 5.0 + UP * 1.5) * dt * (1.0 - smoothstep(8.0, 8.6, sim.fusion.z) * 0.5);
   }
   // a shatter: a shockwave from a point; flames caught in it fly and burn a little longer
   if (sim.blast.w > 0.0) {

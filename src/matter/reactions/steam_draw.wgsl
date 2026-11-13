@@ -80,10 +80,13 @@ const CORNERS = array<vec2f, 6>(vec2f(-1.0, -1.0), vec2f(1.0, -1.0), vec2f(1.0, 
   let tSteam = fusionIs(F, 0.0);
   let tPrism = fusionIs(F, 1.0);
   let tStorm = fusionIs(F, 2.0);
+  // (a fusion's vapour is lit from inside by the body it rises from, not by the world: lit by a night's world it was a
+  // grey plume behind the pair)
   let lick = select(vec3f(0.35, 0.85, 1.0), vec3f(1.0, 0.55, 0.2), rnd(ii * 5u + 77u) < 0.5);
-  col = mix(col, mix(col, lick * (0.4 + steam.glow * 2.0), 0.45), tSteam * step(0.7, rnd(ii * 3u + 91u)));
-  col = mix(col, vec3f(0.9, 0.92, 0.95) * (up * 0.4 + 0.25), tPrism);
-  col = mix(col, vec3f(0.2, 0.21, 0.26) * (up * 0.6 + key.col * 0.3 + 0.15), tStorm);
+  let gold = vec3f(1.0, 0.94, 0.84) * 0.75;
+  col = mix(col, mix(gold, lick * 0.8, 0.45 * step(0.75, rnd(ii * 3u + 91u))), tSteam);
+  col = mix(col, vec3f(0.8, 0.88, 1.0) * 0.45, tPrism);
+  col = mix(col, vec3f(0.16, 0.13, 0.36) * (0.6 + up * 0.4), tStorm);
   let hgt = clamp((q.pos.y - (steam.hAt.y - steam.hShape.y)) / max(2.0 * steam.hShape.y, 0.5), 0.0, 1.0);
   col = mix(col, mix(vec3f(0.15, 0.9, 0.45), vec3f(0.55, 0.25, 0.95), smoothstep(0.25, 0.85, hgt)) * (0.35 + steam.glow * 2.0), aurora);
   o.col = col;

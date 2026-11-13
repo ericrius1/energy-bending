@@ -46,7 +46,6 @@ export interface GOut {
   pos: Vec4;
   at: Vec4;
   col: Vec4;
-  dist: number;
 }
 
 declare const shader: Shader<{ Frame: Frame; Glow: Glow; GlowLook: GlowLook; GOut: GOut }, 'frame' | 'look' | 'glows' | 'samp_linear' | 'samp_repeat' | 'samp_nearest' | 'samp_shadow'>;

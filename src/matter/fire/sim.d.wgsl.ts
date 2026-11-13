@@ -88,6 +88,9 @@ export interface FireSim {
   pad0: number;
   pad1: number;
   form: ArrayLike<number> | Vec4[];
+  fusion: Vec4;
+  helixAt: Vec4;
+  helixShape: Vec4;
 }
 export interface Bodies {
   dancers: number;

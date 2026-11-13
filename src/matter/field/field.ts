@@ -66,6 +66,12 @@ export interface Fusion {
   width?: number;
   /** how fast the helix turns (rad/s, default 0.7) */
   speed?: number;
+  /** where in its eight bars it is (0 … 8; past 8 the release), for the kinds that draw it (fire's fusion body) */
+  bar?: number;
+  /** the landing's swell, 0 … 1 (a short pulse as the body ignites) */
+  pulse?: number;
+  /** the pair's floor (m, world): where the column stands */
+  floorY?: number;
 }
 
 type Vec4 = [number, number, number, number];
@@ -262,10 +268,11 @@ export class Field {
    *  (steam is born along it and swirls up it), and steam takes the fusion's look (`fusionFront`). Amount 0 is nothing */
   fuse(f: Fusion | null) { this.fusion = f && f.amount > 0 ? f : null; }
 
-  /** the fusion's look as steam reads it: which kind and how far in (amount 0: none) */
-  get fusionFront(): { kind: FusionKind; amount: number } {
+  /** the fusion's look as steam and fire read it: which kind, how far in (amount 0: none), where in its bars, the
+   *  landing's pulse and the pair's floor */
+  get fusionFront(): { kind: FusionKind; amount: number; bar: number; pulse: number; floorY: number } {
     const f = this.fusion;
-    return { kind: f?.kind ?? 'steam', amount: f ? Math.min(1, Math.max(0, f.amount)) : 0 };
+    return { kind: f?.kind ?? 'steam', amount: f ? Math.min(1, Math.max(0, f.amount)) : 0, bar: f?.bar ?? 0, pulse: f?.pulse ?? 0, floorY: f?.floorY ?? 0 };
   }
 
   /** the helix this frame, as the step has it (shape[2], its amount, is 0 when there is no fusion) */
@@ -345,11 +352,13 @@ export class Field {
       for (const part of BODY_PARTS) {
         let total = 0;
         const acc: [number, number, number, number] = [0, 0, 0, 0];
-        for (const l of layers) if (l.share > 0 && (!l.parts || l.parts.includes(part))) total += l.share;
+        // (a fusion's flame is a whole body's whatever its token share: play/fusion.ts, matter/fire)
+        const shareOf = (l: LoadoutLayer) => (l.params?.fusion ? 1 : l.share);
+        for (const l of layers) if (l.share > 0 && (!l.parts || l.parts.includes(part))) total += shareOf(l);
         for (const l of layers) {
           if (!(l.share > 0) || (l.parts && !l.parts.includes(part))) continue;
           const form = typeof l.params?.form === 'number' ? (l.params.form as number) : this.forms[d] ?? 0;
-          const a = auraOf(l.kind, form), w = l.share / total;
+          const a = auraOf(l.kind, form), w = shareOf(l) / total;
           const k = w * Math.min(1, Math.max(0, this.presence[d] ?? 1));
           acc[0] += a.heat * k; acc[1] += a.wet * k; acc[2] += a.dry * k; acc[3] += a.stir * w;
         }

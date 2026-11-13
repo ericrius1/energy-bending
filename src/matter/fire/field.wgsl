@@ -1,7 +1,8 @@
 // What the fire's screen-space field shares (no bindings): its uniform, and the ramps the composite applies to the
 // summed temperature. The flames are splatted into two half-resolution targets per view (splat.wgsl):
 //
-//   heat  r: temperature (summed)   g: temperature × form (form = g / r)   b: smoke   a: unused
+//   heat  r: temperature (summed)   g: temperature × form (form = g / r; a fusion's flames: × their side)   b: smoke
+//         a: temperature of a fusion's flames (a / r: how much of a pixel is the fusion's body)
 //   flow  rg: temperature × the flame's velocity across the screen (m/s, camera right and up)
 //   b: temperature × view distance (m)   a: unused
 //
@@ -38,11 +39,16 @@ struct FireField {
   mirrorFall: f32,     // 1/m: how fast the copy fades with the flame's height over the floor (polished agate fades
                        // fast; still water mirrors the whole body)
   pad2: f32,
+  /** a fusion (field.ts fusionFront): kind (0 steam, 1 prism, 2 storm, 3 aurora), amount 0 … 1, where in its eight bars
+   *  (0 … 8, past 8 the release), the landing's pulse */
+  fusion: vec4f,
+  /** the pair's middle (xyz) and floor (m), for the kinds' colour by height */
+  fusionAt: vec4f,
 }
 
 /** the in-between of fire and plasma (form 0.5): a blue torch, deep blue at its skin, cyan-white inside, a white cone
  *  at its core. Hotter than fire, not yet ionised: its own state, not a pink crossfade */
 fn torchRamp(T: f32) -> vec3f {
   let t = clamp(T, 0.0, 3.4);
-  return vec3f(0.10, 0.22, 1.0) * 1.1 * t + vec3f(0.35, 0.70, 1.0) * 0.45 * t * t + vec3f(1.0, 0.96, 0.9) * 0.55 * t * t * t;
+  return shoulder(vec3f(0.10, 0.22, 1.0) * 1.1 * t + vec3f(0.35, 0.70, 1.0) * 0.45 * t * t + vec3f(1.0, 0.96, 0.9) * 0.55 * t * t * t);
 }
