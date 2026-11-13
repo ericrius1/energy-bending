@@ -50,28 +50,28 @@ export const waterParams = defineParams('water', {
   freezeCold: 0.25,
   // the surface
   /** a particle's sphere, × its home's size */
-  radius: 3.0,
+  radius: 4.2,
   /** the smoothing's width (m) and the depth difference (m) past which it stops smoothing across */
-  smooth: 0.035,
+  smooth: 0.045,
   falloff: 0.05,
   /** smoothing passes (each one along x and then along y) */
-  smoothPasses: 2,
+  smoothPasses: 3,
   /** the surface's resolution, × the view's (a coarse device runs half) */
   resolution: 1,
   /** how much of the splats' summed thickness counts as water (they overlap) */
   thickness: 0.35,
-  absorbR: 9,
-  absorbG: 2.6,
-  absorbB: 1.1,
-  deep: '#0b4f8f',
-  glow: 0.9,
-  refract: 0.05,
-  dispersion: 0.25,
+  absorbR: 4,
+  absorbG: 1.2,
+  absorbB: 0.55,
+  deep: '#1a72b8',
+  glow: 0.8,
+  refract: 0.03,
+  dispersion: 0.12,
   reflect: 1,
   glint: 1,
   foam: 1,
   frost: 1,
-  edge: 0.006,
+  edge: 0.02,
   /** glints on flying drops */
   drops: 1,
   dropSize: 0.012,

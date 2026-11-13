@@ -10,12 +10,12 @@ export const MOTES = 24_576;
 
 export const iceParams = defineParams('ice', {
   /** one shard on every n-th particle (fewer, bigger facets as it rises) */
-  shardEvery: 10,
-  size: 1.6,
-  frost: 1,
+  shardEvery: 14,
+  size: 1.5,
+  frost: 0.6,
   edges: 1,
   glint: 1,
-  inside: 0.55,
+  inside: 0.35,
   thin: '#8fb8d8',
   thick: '#16305a',
   ior: 1.31,

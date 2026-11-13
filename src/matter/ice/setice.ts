@@ -225,7 +225,7 @@ export class SetIce {
           // up and out from the slab's middle line, or hanging down
           const lean = u * 1.4;
           const up: V3 = icicle ? [across[0] * lean * 0.2 + (r() - 0.5) * 0.2, -1, across[2] * lean * 0.2 + (r() - 0.5) * 0.2]
-            : [across[0] * lean + (r() - 0.5) * 0.7 + dir[0] * (r() - 0.5) * 0.6, 1, across[2] * lean + (r() - 0.5) * 0.7 + dir[2] * (r() - 0.5) * 0.6];
+            : [across[0] * lean * 1.5 + (r() - 0.5) * 1.6 + dir[0] * (r() - 0.5) * 2.0, 0.7, across[2] * lean * 1.5 + (r() - 0.5) * 1.6 + dir[2] * (r() - 0.5) * 2.0];
           const ul = len(up);
           const q = qFromUp([up[0] / ul, up[1] / ul, up[2] / ul]);
           const size = (icicle ? 0.012 + 0.018 * r() : 0.014 + 0.024 * r()) * Math.min(1.4, 0.6 + p.width);

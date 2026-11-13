@@ -51,14 +51,15 @@ fn atDist(uv: vec2f, d: f32) -> vec3f {
   var dx = vec3f(0.0);
   var dy = vec3f(0.0);
   // each way, the neighbour nearer in depth (so an edge doesn't bend the normal toward what's behind it)
-  let xr = textureLoad(water, clamp(q + vec2i(1, 0), vec2i(0), wdims - 1), 0).x;
-  let xl = textureLoad(water, clamp(q - vec2i(1, 0), vec2i(0), wdims - 1), 0).x;
-  let yd = textureLoad(water, clamp(q + vec2i(0, 1), vec2i(0), wdims - 1), 0).x;
-  let yu = textureLoad(water, clamp(q - vec2i(0, 1), vec2i(0), wdims - 1), 0).x;
+  // two texels each way: the separable blur leaves a faint grain at one texel that the normal would magnify
+  let xr = textureLoad(water, clamp(q + vec2i(2, 0), vec2i(0), wdims - 1), 0).x;
+  let xl = textureLoad(water, clamp(q - vec2i(2, 0), vec2i(0), wdims - 1), 0).x;
+  let yd = textureLoad(water, clamp(q + vec2i(0, 2), vec2i(0), wdims - 1), 0).x;
+  let yu = textureLoad(water, clamp(q - vec2i(0, 2), vec2i(0), wdims - 1), 0).x;
   let useR = xr > 0.0 && (xl <= 0.0 || abs(xr - W.x) < abs(xl - W.x));
   let useD = yd > 0.0 && (yu <= 0.0 || abs(yd - W.x) < abs(yu - W.x));
-  if (useR) { dx = atDist(uv0 + vec2f(wduv.x, 0.0), xr) - P; } else if (xl > 0.0) { dx = P - atDist(uv0 - vec2f(wduv.x, 0.0), xl); }
-  if (useD) { dy = atDist(uv0 + vec2f(0.0, wduv.y), yd) - P; } else if (yu > 0.0) { dy = P - atDist(uv0 - vec2f(0.0, wduv.y), yu); }
+  if (useR) { dx = atDist(uv0 + vec2f(2.0 * wduv.x, 0.0), xr) - P; } else if (xl > 0.0) { dx = P - atDist(uv0 - vec2f(2.0 * wduv.x, 0.0), xl); }
+  if (useD) { dy = atDist(uv0 + vec2f(0.0, 2.0 * wduv.y), yd) - P; } else if (yu > 0.0) { dy = P - atDist(uv0 - vec2f(0.0, 2.0 * wduv.y), yu); }
   let ray = normalize(P);
   var N = -ray;
   if (dot(dx, dx) > 0.0 && dot(dy, dy) > 0.0) { N = normalize(cross(dy, dx)); }
@@ -90,10 +91,10 @@ fn atDist(uv: vec2f, d: f32) -> vec3f {
   col = mix(col, env, F);
   let rim = worldRim();
   let rimDir = normalize(vec3f(-0.75, 0.35, -0.55));
-  col += (key.col * pow(max(dot(R, key.dir), 0.0), 400.0) * 60.0 * key.glint + rim.rgb * rim.w * pow(max(dot(R, rimDir), 0.0), 120.0) * 4.0) * surf.glint;
+  col += (key.col * pow(max(dot(R, key.dir), 0.0), 900.0) * 14.0 * key.glint + rim.rgb * rim.w * pow(max(dot(R, rimDir), 0.0), 120.0) * 4.0) * surf.glint;
   // thin water is cyan where the light comes through it
   let thin = 1.0 - smoothstep(0.004, 0.05, thickness);
-  col += vec3f(0.30, 0.80, 1.0) * thin * 0.12 * (0.3 + length(lit));
+  col += vec3f(0.30, 0.80, 1.0) * thin * 0.2 * (0.3 + length(lit));
 
   // ---------------------------------------------------------------- foam and frost
   let foamy = clamp(W.z / max(W.y, 1e-5), 0.0, 1.0) * (1.0 - smoothstep(0.02, 0.2, thickness));

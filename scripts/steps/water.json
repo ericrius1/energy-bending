@@ -1,12 +1,12 @@
 [
   { "name": "water-geode", "query": "dress=water,gems", "params": { "dance": { "auto": false } }, "wake": true, "frames": 1100, "timings": true },
+  { "name": "freeze-0", "query": "dress=water,gems", "params": { "water": { "form": 0 } }, "frames": 30, "shot": "close" },
+  { "name": "freeze-half", "query": "dress=water,gems", "params": { "water": { "form": 0.5 } }, "frames": 150 },
+  { "name": "freeze-1", "query": "dress=water,gems", "params": { "water": { "form": 1 } }, "frames": 200, "timings": true },
+  { "name": "ice-bridge", "query": "dress=water,gems", "params": { "ice": { "demo": "bridge" } }, "frames": 200, "shot": "wide", "yaw": 0, "dist": 6 },
   { "name": "water-redwoods-day", "query": "world=redwoods&dress=water,gems", "params": { "dance": { "auto": false }, "redwoods": { "hour": 13, "dayGoes": false } }, "wake": true, "frames": 1100, "timings": true },
   { "name": "water-spin", "query": "dress=water", "params": { "dance": { "auto": false } }, "goto": 1, "frames": 1000, "shot": "close" },
-  { "name": "water-kick", "params": { "dance": { "auto": false } }, "goto": 7, "frames": 1000, "shot": "low" },
-  { "name": "freeze-0", "query": "dress=water,gems", "params": { "dance": { "auto": false }, "water": { "form": 0 } }, "wake": true, "frames": 1000, "shot": "close" },
-  { "name": "freeze-half", "params": { "water": { "form": 0.5 } }, "frames": 200 },
-  { "name": "freeze-1", "params": { "water": { "form": 1 } }, "frames": 200 },
+  { "name": "water-kick", "query": "dress=water", "goto": 7, "frames": 1000, "shot": "low" },
   { "name": "ice-night", "query": "world=redwoods&dress=ice", "params": { "dance": { "auto": false }, "redwoods": { "hour": 21.6, "dayGoes": false } }, "wake": true, "frames": 1000, "timings": true },
-  { "name": "gems-water", "query": "dress=gems+water", "params": { "dance": { "auto": false } }, "wake": true, "frames": 1000, "shot": "close" },
-  { "name": "ice-bridge", "query": "dress=water,ice", "params": { "dance": { "auto": false }, "ice": { "demo": "bridge" } }, "wake": true, "frames": 1000, "shot": "wide" }
+  { "name": "gems-water", "query": "dress=gems%2Bwater", "params": { "dance": { "auto": false } }, "wake": true, "frames": 1000, "shot": "close" }
 ]

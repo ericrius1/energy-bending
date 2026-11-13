@@ -54,7 +54,7 @@ struct VOut {
 
 /** one corner of the shard: 0..5 the ring at the top, 6..11 the ring at the bottom, 12 the top tip, 13 the bottom */
 fn corner(c: u32, seed: u32) -> vec3f {
-  if (c == 12u) { return vec3f((rnd(seed ^ 0x71u) - 0.5) * 0.5, 1.0 + 0.9 * rnd(seed ^ 0x72u), (rnd(seed ^ 0x73u) - 0.5) * 0.5); }
+  if (c == 12u) { return vec3f((rnd(seed ^ 0x71u) - 0.5) * 0.5, 0.7 + 0.45 * rnd(seed ^ 0x72u), (rnd(seed ^ 0x73u) - 0.5) * 0.5); }
   if (c == 13u) { return vec3f(0.0, -0.75 - 0.3 * rnd(seed ^ 0x74u), 0.0); }
   let s = c % 6u;
   let top = c < 6u;
@@ -113,7 +113,7 @@ fn hidden() -> VOut { var o: VOut; o.pos = vec4f(2.0, 2.0, 2.0, 1.0); return o; 
     seed = pcg(pid * 7919u + 11u);
     centre = p.pos;
     // a little tilt of its own, so the shards bristle rather than stand in rows
-    let tilt = qaxis(normalize(vec3f(rnd(seed ^ 1u) - 0.5, 0.0, rnd(seed ^ 2u) - 0.5) + vec3f(1e-3, 0.0, 0.0)), (rnd(seed ^ 3u) - 0.2) * 0.9);
+    let tilt = qaxis(normalize(vec3f(rnd(seed ^ 1u) - 0.5, 0.0, rnd(seed ^ 2u) - 0.5) + vec3f(1e-3, 0.0, 0.0)), (rnd(seed ^ 3u) - 0.2) * 1.4);
     rot = qmul(p.rot, tilt);
     size = h.look.y * look.size * sqrt(f32(sim.shardEvery)) * smoothstep(0.35, 0.8, a.ice) * (1.0 - a.gone) * (0.7 + 0.6 * rnd(seed ^ 4u));
     fresh = smoothstep(0.35, 0.6, a.ice) * (1.0 - smoothstep(0.8, 1.0, a.ice));
@@ -124,7 +124,8 @@ fn hidden() -> VOut { var o: VOut; o.pos = vec4f(2.0, 2.0, 2.0, 1.0); return o; 
   let k = vi % 3u;
   let cs = triCorners(tri);
   // the shard is longer than it is wide, by its own amount
-  let stretch = vec3f(1.0, 1.6 + 1.2 * rnd(seed ^ 0x51u), 1.0);
+  // body shards a little longer than wide; set ice chunkier
+  let stretch = vec3f(1.0, select(1.1 + 0.7 * rnd(seed ^ 0x51u), 0.8 + 0.6 * rnd(seed ^ 0x51u), SET == 1u), 1.0);
   let A = corner(cs.x, seed) * stretch;
   let B = corner(cs.y, seed) * stretch;
   let C = corner(cs.z, seed) * stretch;
@@ -158,7 +159,7 @@ fn hidden() -> VOut { var o: VOut; o.pos = vec4f(2.0, 2.0, 2.0, 1.0); return o; 
   let diff = max(dot(N, key.dir), 0.0);
   let deepness = smoothstep(0.2, 0.9, fh * 0.6 + (1.0 - cosV) * 0.2 + 0.25);
   let body = mix(look.tint.rgb, look.deep.rgb, deepness);
-  var col = body * (worldAmbient(N, 1.0, i.wp) * 0.9 + key.col * (0.25 + 1.3 * diff * diff * diff));
+  var col = body * (worldAmbient(N, 1.0, i.wp) * 0.6 + key.col * (0.25 + 1.3 * diff * diff * diff));
 
   // inside: the world refracted through the crystal, bent off a tilted inner face, a little apart in colour
   let tiltN = normalize(-N + (vec3f(fh, fract(fh * 7.1), fract(fh * 3.3)) - 0.5) * 1.2);
@@ -171,7 +172,7 @@ fn hidden() -> VOut { var o: VOut; o.pos = vec4f(2.0, 2.0, 2.0, 1.0); return o; 
 
   // the surface: the world's reflection by Fresnel (wet, melting ice is glossier)
   let F = 0.04 + 0.96 * pow(1.0 - cosV, 5.0);
-  col = mix(col, worldEnv(R, i.wp) * mix(0.9, 1.3, i.wet), F * mix(0.7, 1.0, i.wet));
+  col = mix(col, worldEnv(R, i.wp) * mix(0.6, 1.1, i.wet), F * mix(0.7, 1.0, i.wet));
 
   // hard bright edges between the facets
   let e = min(i.bary.x, min(i.bary.y, i.bary.z));
@@ -185,7 +186,7 @@ fn hidden() -> VOut { var o: VOut; o.pos = vec4f(2.0, 2.0, 2.0, 1.0); return o; 
 
   // glints: one facet in a dozen flashes for a sixth of a second; and the key's own sharp sparkle
   let tw = rnd(i.id * 113u + u32(floor(look.time * 6.0 + fh * 17.0)));
-  let glint = smoothstep(0.92, 1.0, tw) * (1.0 - smoothstep(0.0, 0.5, e * 3.0));
-  col += (vec3f(1.0) * glint * 3.0 + key.col * pow(max(dot(R, key.dir), 0.0), 220.0) * 30.0 * key.glint + rim.rgb * rim.w * pow(max(dot(R, normalize(vec3f(-0.75, 0.35, -0.55))), 0.0), 90.0) * 2.0) * look.glint;
+  let glint = smoothstep(0.95, 1.0, tw) * (1.0 - smoothstep(0.0, 0.5, e * 3.0));
+  col += (vec3f(1.0) * glint * 1.6 + key.col * pow(max(dot(R, key.dir), 0.0), 220.0) * 8.0 * key.glint + rim.rgb * rim.w * pow(max(dot(R, normalize(vec3f(-0.75, 0.35, -0.55))), 0.0), 90.0) * 2.0) * look.glint;
   return vec4f(col, dot(i.wp - frame.camPos, frame.camFwd));
 }

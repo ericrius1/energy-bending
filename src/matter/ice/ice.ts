@@ -54,7 +54,7 @@ export class IceDraws {
   demo(name: string) {
     const S = this.setIce;
     if (name === 'clear') for (const p of [...S.pieces]) S.remove(p.id);
-    if (name === 'bridge') S.add({ points: [[-2.4, 0, 0.9], [-1.9, 0.5, 0.9], [-1.3, 0.85, 0.9], [-0.6, 0.85, 0.9], [0, 0.5, 0.9], [0.5, 0, 0.9]], width: 0.55 });
+    if (name === 'bridge') S.add({ points: [[0.9, 0, -0.2], [1.4, 0.5, -0.2], [2.0, 0.85, -0.2], [2.7, 0.85, -0.2], [3.3, 0.5, -0.2], [3.8, 0, -0.2]], width: 0.55 });
     if (name === 'ramp') S.add({ points: [[-1.5, 0.05, 0.6], [0, 0.6, 0.6], [1.2, 0.6, 0.6]], width: 0.4, life: 20 });
   }
 

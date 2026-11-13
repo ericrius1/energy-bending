@@ -1,5 +1,6 @@
 [
-  { "name": "try-water", "query": "dress=water,gems", "params": { "dance": { "auto": false } }, "wake": true, "frames": 1000, "shot": "close", "timings": true },
+  { "name": "try-water", "query": "dress=water,gems", "params": { "dance": { "auto": false } }, "wake": true, "frames": 1000, "shot": "close" },
   { "name": "try-half", "query": "dress=water,gems", "params": { "water": { "form": 0.5 } }, "frames": 150 },
-  { "name": "try-ice", "query": "dress=water,gems", "params": { "water": { "form": 1 }, "ice": { "demo": "bridge" } }, "frames": 240, "shot": "wide", "timings": true }
+  { "name": "try-ice", "query": "dress=water,gems", "params": { "water": { "form": 1 } }, "frames": 240 },
+  { "name": "try-bridge", "query": "dress=water,gems", "params": { "ice": { "demo": "bridge" } }, "frames": 120, "shot": "wide", "yaw": 0, "dist": 6, "timings": true }
 ]
