@@ -31,7 +31,7 @@ override MIRROR: u32 = 0u;
 struct SOut {
   @builtin(position) pos: vec4f,
   @location(0) uv: vec2f,
-  /** temperature, form, smoke, the distance the scene is tested at */
+  /** temperature, form (a fusion's flame: 2 + its side), smoke, the distance the scene is tested at */
   @location(1) @interpolate(flat) a: vec4f,
   /** velocity across the screen (m/s), view distance, which side of this view's door (discarded below 0) */
   @location(2) @interpolate(flat) b: vec4f,
@@ -51,7 +51,9 @@ const CORNERS = array<vec2f, 6>(vec2f(-1.0, -1.0), vec2f(1.0, -1.0), vec2f(1.0, 
   if (rnd(pcg(ii * 2654435761u + 17u)) > seen.keep) { return o; }
   let sd = seen.d[min(dancerOf(homes[ii]), MAX_DANCERS - 1u)];
   let u = clamp(f.age / max(f.life, 1e-3), 0.0, 1.0);
-  let form = f.look.x;
+  // a fusion's flame: its side (which body it is of) rides where the form would; it draws at form 0
+  let fus = isFusion(f.look.x);
+  let form = select(f.look.x, 0.0, fus);
   var p = seenPos(sd, f.pos);
   var v = seenDir(sd, f.vel);
   if (seenClip(sd, p) < -0.3) { return o; }
@@ -64,7 +66,7 @@ const CORNERS = array<vec2f, 6>(vec2f(-1.0, -1.0), vec2f(1.0, -1.0), vec2f(1.0, 
   }
   let T = flameT(f);
   // wet flames turn to smoke as they go; dry fire makes a little at the end of its life
-  let smoke = clamp(f.look.w * (0.3 + 0.9 * u) + field.drySmoke * smoothstep(0.55, 1.0, u), 0.0, 1.0) * (1.0 - form);
+  let smoke = clamp(f.look.w * (0.3 + 0.9 * u) + field.drySmoke * smoothstep(0.55, 1.0, u), 0.0, 1.0) * (1.0 - form) * select(1.0, 0.0, fus);
   if (T * fade < 0.003 && smoke * fade < 0.01) { return o; }
   // a flame swells as it rises and cools; plasma stays thin
   let w = seen.grow * abs(f.look.z) * field.spread * mix(0.7, 1.35, u) * mix(1.0, 0.55, form) * (1.0 + smoke * 0.8);
@@ -99,7 +101,7 @@ const CORNERS = array<vec2f, 6>(vec2f(-1.0, -1.0), vec2f(1.0, -1.0), vec2f(1.0, 
   // fewer, bigger splats in a gate's view each add less (the sum per pixel stays the same)
   let veil = select(heartVeil(hearts, p, frame.camPos), 1.0, MIRROR == 1u);
   let g = field.gain * fade * veil / max(seen.keep * seen.grow * seen.grow, 1e-3);
-  o.a = vec4f(T * tongue * g, form, smoke * field.smokeGain * fade / max(seen.keep * seen.grow * seen.grow, 1e-3), test);
+  o.a = vec4f(T * tongue * g, f.look.x, smoke * field.smokeGain * fade / max(seen.keep * seen.grow * seen.grow, 1e-3), test);
   o.b = vec4f(dot(v, frame.camRight), dot(v, frame.camUp), dist, 0.0);
   return o;
 }
@@ -121,7 +123,9 @@ struct Field2 { @location(0) heat: vec4f, @location(1) flow: vec4f }
   let seenHere = smoothstep(0.0, field.soft, opaque - i.a.w);
   let t = i.a.x * k * seenHere;
   var o: Field2;
-  o.heat = vec4f(t, t * i.a.y, i.a.z * k * seenHere, 0.0);
+  // a fusion's flame: its side into g (where a flame's form goes) and itself into a
+  let fus = isFusion(i.a.y);
+  o.heat = vec4f(t, t * select(i.a.y, fusionSide(i.a.y), fus), i.a.z * k * seenHere, select(0.0, t, fus));
   o.flow = vec4f(t * i.b.x, t * i.b.y, t * i.b.z, 0.0);
   return o;
 }

@@ -122,6 +122,9 @@ export interface FireSim {
   pad0: number;
   pad1: number;
   form: ArrayLike<number> | Vec4[];
+  fusion: Vec4;
+  helixAt: Vec4;
+  helixShape: Vec4;
 }
 export interface FireField {
   gain: number;
@@ -148,6 +151,8 @@ export interface FireField {
   mirrorY: number;
   mirrorFall: number;
   pad2: number;
+  fusion: Vec4;
+  fusionAt: Vec4;
 }
 
 declare const shader: Shader<{ Frame: Frame; FullscreenOut: FullscreenOut; Joint: Joint; Seg: Seg; Particle: Particle; Home: Home; BodyStep: BodyStep; Flame: Flame; FireSim: FireSim; FireField: FireField }, 'frame' | 'field' | 'heat' | 'flow' | 'noiseTex' | 'samp_linear' | 'samp_repeat' | 'samp_nearest' | 'samp_shadow'>;

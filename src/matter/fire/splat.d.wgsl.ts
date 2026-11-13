@@ -118,6 +118,9 @@ export interface FireSim {
   pad0: number;
   pad1: number;
   form: ArrayLike<number> | Vec4[];
+  fusion: Vec4;
+  helixAt: Vec4;
+  helixShape: Vec4;
 }
 export interface FireField {
   gain: number;
@@ -144,6 +147,8 @@ export interface FireField {
   mirrorY: number;
   mirrorFall: number;
   pad2: number;
+  fusion: Vec4;
+  fusionAt: Vec4;
 }
 export interface Seen {
   x: Vec4;

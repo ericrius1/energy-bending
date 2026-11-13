@@ -88,6 +88,9 @@ export interface FireSim {
   pad0: number;
   pad1: number;
   form: ArrayLike<number> | Vec4[];
+  fusion: Vec4;
+  helixAt: Vec4;
+  helixShape: Vec4;
 }
 
 declare const shader: Shader<{ Joint: Joint; Seg: Seg; Particle: Particle; Home: Home; BodyStep: BodyStep; Flame: Flame; FireSim: FireSim }, never>;

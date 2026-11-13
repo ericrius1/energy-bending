@@ -30,6 +30,16 @@ The depth contract: nothing here writes the scene's alpha (the opaque view dista
 `r16float` the size of the view's field: the flames' view distance (m) where they are dense (`focusT`), 6e4 elsewhere
 (1e5 doesn't fit a half float).
 
+**A fusion** (play/fusion.ts) is drawn here: both dancers wear `{ kind: 'fire', share, params: { fusion: 1, side } }`
+(a whole dancer's flame whatever the share). Those flames carry their side where a form would be (home and flame
+`look.x` = 2 + side), move by the field's fusion kind (`fusionMotion`, `fusionRole` in sim.wgsl: a body, the helix's
+two strands, storm's rain; past bar 8 thrown outward), splat themselves into `heat.a` and their side into `heat.g`,
+and the composite puts that share of a pixel through the kind's ramp (`fusionLook`: steam, prism, storm, aurora).
+
+The ramps have a **shoulder** (`shoulder` in flame.wgsl): above 1 the brightest channel rolls off toward 1.6 and the
+others keep their ratio, and the hottest fire is held to a yellow-white, plasma to a violet-white, so a core keeps its
+hue and structure instead of clipping to a flat white disc.
+
 Loadouts: `{ kind: 'fire', share, parts?, params?: { form?: 0 … 1 } }`, `{ kind: 'plasma', share, parts? }` (form 1).
 The game's per-dancer form is `Dancer.form` (`bend.form(d, v)`), added to the layer's own. See
 `docs/reports/1-fire-plasma.md` and `docs/reports/4-fire.md`.

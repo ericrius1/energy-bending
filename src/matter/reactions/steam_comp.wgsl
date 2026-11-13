@@ -15,6 +15,24 @@
 /** thin-film colour: the hue a soap film of this thickness shows */
 fn film(x: f32) -> vec3f { return 0.5 + 0.5 * cos(6.2831853 * (x + vec3f(0.0, 0.33, 0.67))); }
 
+/** 1 inside the fusion's helix as the screen shows it (a soft-edged box round the column), 0 outside */
+fn helixOnScreen(uv: vec2f) -> f32 {
+  if (steam.hShape.z <= 0.0) { return 0.0; }
+  let c = steam.hAt.xyz;
+  let lo = frame.viewProj * vec4f(c - vec3f(0.0, steam.hShape.y, 0.0), 1.0);
+  let hi = frame.viewProj * vec4f(c + vec3f(0.0, steam.hShape.y + 0.6, 0.0), 1.0);
+  if (lo.w <= 0.05 || hi.w <= 0.05) { return 0.0; }
+  let a = lo.xy / lo.w * vec2f(0.5, -0.5) + 0.5;
+  let b = hi.xy / hi.w * vec2f(0.5, -0.5) + 0.5;
+  // the strands' radius in uv at that distance (×1.6: the vapour swirls out past them)
+  let r = steam.hAt.w * 1.6 * frame.proj[0][0] * 0.5 / lo.w;
+  let x = abs(uv.x - 0.5 * (a.x + b.x)) / max(r, 1e-4);
+  let y0 = min(a.y, b.y);
+  let y1 = max(a.y, b.y);
+  let ey = max(max(y0 - uv.y, uv.y - y1), 0.0) / max(r, 1e-4);
+  return (1.0 - smoothstep(0.7, 1.2, x)) * (1.0 - smoothstep(0.0, 0.5, ey));
+}
+
 @fragment fn fs(i: FullscreenOut) -> @location(0) vec4f {
   let texel = 1.0 / vec2f(textureDimensions(steamLow));
   let b = texel * steam.blur;
@@ -34,14 +52,20 @@ fn film(x: f32) -> vec3f { return 0.5 + 0.5 * cos(6.2831853 * (x + vec3f(0.0, 0.
   // storm: lit from inside by flickers that come and go in patches
   let storm = fusionIs(F, 2.0);
   if (storm > 0.0) {
-    let cell = floor(i.uv * vec2f(5.0, 3.0));
+    // (soft patches of a smooth noise, moved each flicker: a screen cell lit whole was a hard-edged pale rectangle
+    // behind the pair, a fifth of the screen wide and a third high)
     let beat = floor(steam.time * 9.0);
-    let flash = step(0.86, hash2i(vec2i(cell) + vec2i(i32(beat) * 7, i32(beat) * 13)));
+    let jump = vec2f(hash2i(vec2i(i32(beat), 5)), hash2i(vec2i(i32(beat), 17))) * 41.0;
+    let flash = smoothstep(0.68, 0.88, vnoise2(i.uv * vec2f(6.0, 4.0) + jump));
     col += vec3f(0.6, 0.55, 0.95) * flash * smoothstep(0.2, 1.2, tau) * storm;
     A = mix(A, steam.cap * 1.15 * (1.0 - exp(-tau * 1.5)), storm);
   }
+  // inside a fusion's helix (its column on screen: the strands' radius about the middle, its height) the vapour is the
+  // body's, so the cap is lifted there (0.8 of what is behind, 1.2 of white); everywhere else it holds
+  let inside = helixOnScreen(i.uv) * F.y;
+  A = mix(A, 0.8 * (1.0 - exp(-tau * 1.3)), inside);
   // never brighter than maxBright of white
   let m = max(col.r, max(col.g, col.b));
-  col *= min(1.0, steam.maxBright / max(m, 1e-4));
+  col *= min(1.0, mix(steam.maxBright, 1.2, inside) / max(m, 1e-4));
   return vec4f(col * A, A);
 }

@@ -21,7 +21,6 @@ struct GOut {
   // across the shape in units of its radius (x along, y across), the segment's length in radii, the shape
   @location(0) at: vec4f,
   @location(1) @interpolate(flat) col: vec4f,
-  @location(2) @interpolate(flat) dist: f32,
 }
 
 const CORNERS = array<vec2f, 6>(vec2f(-1.0, -1.0), vec2f(1.0, -1.0), vec2f(1.0, 1.0), vec2f(-1.0, -1.0), vec2f(1.0, 1.0), vec2f(-1.0, 1.0));
@@ -73,7 +72,6 @@ fn reachOf(shape: u32) -> f32 {
   }
   o.pos = frame.viewProj * vec4f(wp, 1.0);
   o.col = vec4f(g.c.rgb, g.b.w * min(1.0, g.a.w / r));
-  o.dist = dist;
   return o;
 }
 
@@ -103,6 +101,8 @@ fn reachOf(shape: u32) -> f32 {
     v = exp(-7.0 * d * d) * 2.6 + exp(-1.4 * d) * 0.16;
     v *= smoothstep(4.0, 2.5, d);
   }
-  // its distance into the scene's alpha (min-blended) where it is bright, so the depth of field keeps it sharp
-  return vec4f(i.col.rgb * i.col.a * v, select(1e5, i.dist, v > 0.4));
+  // light only: no focus distance (the glow target's alpha is min-blended, so 1e5 leaves it as it was). A glow is not
+  // a surface: writing its distance where it was bright made a binary mask that the depth of field kept sharp and the
+  // air fogged the scene behind as if a body stood across it (the landing's hard disc, the pill-shaped sparks)
+  return vec4f(i.col.rgb * i.col.a * v, 1e5);
 }

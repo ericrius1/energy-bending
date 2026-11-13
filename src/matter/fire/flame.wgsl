@@ -33,20 +33,42 @@ struct FireSim {
   emberGlow: f32,        // @range(0, 8)
   pad0: f32, pad1: f32,
   form: array<vec4f, 2>, // per dancer slot (MAX_DANCERS = 8): the game's form, 0 fire … 1 plasma
+  /** a fusion (the field's, field.ts fusionFront): kind (0 steam, 1 prism, 2 storm, 3 aurora), amount 0 … 1, where in
+   *  its eight bars (0 … 8), the landing's pulse 0 … 1 */
+  fusion: vec4f,
+  /** the fusion's double helix (the field's): its centre (xyz) and the strands' radius (m) */
+  helixAt: vec4f,
+  /** its turn (rad), half height (m), turns per metre, and the pair's floor (m) */
+  helixShape: vec4f,
 }
+
+/** a fusion flame's home carries 2 + its side (0 the first seat's body, 1 the second's) where a flame's form would be */
+fn fusionSide(look: f32) -> f32 { return clamp(look - 2.0, 0.0, 1.0); }
+fn isFusion(look: f32) -> bool { return look > 1.5; }
 
 /** temperature to colour, fire: deep red, orange at 1, yellow-white past 1.5 (docs/element-looks.md, 1) */
 fn fireRamp(T: f32) -> vec3f {
   let t = clamp(T, 1e-4, 3.2);
   let c = pow(vec3f(t), vec3f(1.0, 2.0, 3.6)) * vec3f(1.75, 0.95, 0.6);
-  // past T ~1.6 the reference's blue term overtakes the others: a hot core is held to a warm white instead of going
-  // blue-violet (the 2D original seldom got that hot; a summed field does)
-  return vec3f(c.r, min(c.g, c.r * 1.05), min(c.b, c.g * 0.82));
+  // past T ~1.6 the reference's blue term overtakes the others: a hot core is held to a yellow-white (its hue, not
+  // white: green under 0.86 of red, blue under 0.56 of green) instead of going blue-violet or flat white
+  return shoulder(vec3f(c.r, min(c.g, c.r * 0.86), min(c.b, c.g * 0.56)));
+}
+/** a highlight shoulder: below 1 nothing changes; above, the brightest channel rolls off toward 1.6 and the others
+ *  keep their ratio to it, so a hot core keeps its hue and its structure instead of clipping to a flat white disc (the
+ *  grade's ACES takes 1.6 to about 0.9: still a highlight, still its colour) */
+fn shoulder(c: vec3f) -> vec3f {
+  let m = max(c.r, max(c.g, c.b));
+  if (m <= 1.0) { return c; }
+  let x = m - 1.0;
+  return c * ((1.0 + 0.6 * (1.0 - exp(-x / 0.6))) / m);
 }
 /** temperature to colour, plasma: violet, magenta-pink, white-hot (docs/element-looks.md, 4) */
 fn plasmaRamp(T: f32) -> vec3f {
   let t = clamp(T, 0.0, 3.6);
-  return vec3f(0.42, 0.10, 1.0) * 1.5 * t + vec3f(1.0, 0.30, 0.95) * 0.6 * t * t + vec3f(1.0) * 1.1 * t * t * t;
+  let c = vec3f(0.42, 0.10, 1.0) * 1.5 * t + vec3f(1.0, 0.30, 0.95) * 0.6 * t * t + vec3f(1.0) * 0.7 * t * t * t;
+  // its hottest is violet-white, not white: red and green held under blue
+  return shoulder(vec3f(min(c.r, c.b * 0.82), min(c.g, c.b * 0.56), c.b));
 }
 
 /** how hot a flame is now: hot at birth, cooling fast at first (the core survives ~0.3 s), the tips fading quickly */

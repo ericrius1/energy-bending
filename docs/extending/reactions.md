@@ -84,10 +84,17 @@ frame or the one after. So `probe()` and `updraft()` return what was measured on
 When two dancers fuse, the game stages it on the field, once or every frame as the amount eases:
 
 ```ts
-field.fuse({ dancers: [0, 1], kind: 'storm', amount: 0.8, strength: 2.2, tightness: 1 });  // 'steam' | 'prism' | 'storm' | 'aurora'
-field.fuse(null);                     // or amount 0: nothing at all (a strict no-op in the field and in steam)
-field.fusionFront                     // { kind, amount } as steam reads it
+field.fuse({ dancers: [0, 1], kind: 'storm', amount: 0.8, strength: 2.2, tightness: 1, bar: 3.5, pulse: 0, floorY: 0 });
+field.fuse(null);                     // or amount 0: nothing at all (a strict no-op in the field, in steam and in fire)
+field.fusionFront                     // { kind, amount, bar, pulse, floorY } as steam and fire read it
 ```
+
+`bar` (0 … 8 through the eight bars, past 8 the release) and `pulse` (the landing's swell) are for the kinds that
+draw the fusion: fire draws its body (play/fusion.ts dresses both dancers in fusion flame; fire's flames climb the two
+strands of the helix and the composite applies the kind's ramp). While a fusion holds, steam makes no fronts, drips
+or sparks (a contact's; inside one body there is none), its vapour is lit by the kind instead of by the world, and
+inside the helix's column on screen its cap is lifted to 0.8 (1.2 of white); everywhere else the cap holds. A layer
+with `params.fusion` counts as a whole body's aura whatever its share.
 
 The field winds the two dancers' auras (each body's average) into a slow **double helix** round a vortex at their
 middle: two strands half a turn apart, `radius` 0.32 m, `height` 1 m either side of the centre, `tightness` turns per

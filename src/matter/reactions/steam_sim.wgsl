@@ -126,8 +126,9 @@ fn main(@builtin(global_invocation_id) gid: vec3u) {
     } else if (c.ok) {
       let e = fieldSteam(p);
       if (sort == 0u) { chance = 1.0 - exp(-e * steam.birth * dt); }
-      else if (sort == 1u) { chance = smoothstep(0.02, 0.35, e) * steam.frontRate; }
-      else { chance = 1.0 - exp(-e * steam.sparkRate * dt); }
+      // fronts, drips and sparks are a contact's: inside a fusion's one body there is no contact, so none while one holds
+      else if (sort == 1u) { chance = smoothstep(0.02, 0.35, e) * steam.frontRate * (1.0 - steam.fusion.y); }
+      else { chance = (1.0 - exp(-e * steam.sparkRate * dt)) * (1.0 - steam.fusion.y); }
     }
     if (chance <= 0.0 || rnd(rn ^ 0xabcu) >= chance) { return; }
     let pair = pairAt(p);
