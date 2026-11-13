@@ -35,6 +35,13 @@ export const waterParams = defineParams('water', {
   bulge: 0.022,
   bulgeSpacing: 0.24,
   peel: 1,
+  /** the outline breaking in the motion itself: how far the outer shell curls (m, more on a fast limb's trailing
+   *  side), the curl's scale (1/m) and how fast it climbs (m/s); streamers: the chance a second an outer particle on a
+   *  fast limb's trailing side is left hanging where the limb was (a ribbon of the body), before it falls */
+  shellCurl: 0.022,
+  shellScale: 6,
+  shellClimb: 0.4,
+  streamers: 1,
   /** drops let go a second, per particle, while dancing; more where a limb is fast */
   drip: 0.012,
   speedShed: 0.45,
@@ -75,19 +82,37 @@ export const waterParams = defineParams('water', {
   coverHi: 0.03,
   /** thickness (m) → the reference's amount W (its colours are keyed to W from 0.2 to 1.3) */
   amount: 5,
-  /** the body's glow where thin (0.04, 0.42, 0.78) and thick (0.01, 0.13, 0.42), how bright, how opaque */
-  thin: '#3bace4',
-  deep: '#1f65ac',
-  glow: 1,
-  opacity: 0.85,
-  /** the cyan rim where it is thin (0.30, 0.80, 1.0) */
-  rim: '#93e6ff',
-  rimStrength: 0.75,
+  /** what light does in it (docs/reports/7-water.md): what shows through a unit of the reference's amount W, per
+   *  channel (red goes first, so thick water is deep blue-green, not a flat blue), how milky it is per unit W (the
+   *  light it scatters inside hides the world behind), and the most it hides (thin water about 0.3 to 0.45) */
+  deep: '#a4d4da',
+  milk: 0.6,
+  opacity: 0.6,
+  /** the colour of the light scattered inside it (the world's light, taken in): pale cyan, as the reference's */
+  tint: '#cfefff',
+  /** its own faint light (the caustic rising through it): enough to read on black, far below a fire beside it */
+  glowColor: '#3bace4',
+  glow: 0.12,
+  /** the rim, only on the side a light comes from (the world's key, each fire), × that light */
+  rim: '#d8f4ff',
+  rimStrength: 1,
+  /** how sharp the rim is (the power of 1 − n·v: higher, thinner) */
+  rimSharp: 4,
+  /** the water's small waves on its surface: how much they tilt it, their scale (1/m) */
+  ripples: 0.12,
+  rippleScale: 11,
+  /** the edge that breaks: how far its tongues reach (m), how far its curl pushes (m), how much thin water tears, the
+   *  noise's scale (1/m) and how fast it climbs (m/s) */
+  wisp: 0.035,
+  curl: 0.02,
+  tear: 0.5,
+  wispScale: 9,
+  climb: 0.5,
   /** the caustic rising through it: its scale (1/m) and speed (m/s) */
   caustic: 9,
   rise: 0.22,
-  refract: 0.02,
-  dispersion: 0.12,
+  refract: 0.12,
+  dispersion: 0.05,
   reflect: 0.6,
   glint: 1,
   foam: 1,
@@ -97,7 +122,7 @@ export const waterParams = defineParams('water', {
   /** a mirroring floor's copy */
   mirror: 0.6,
   /** spray: stretched drops, their size (m), how many glint (share), foam's white */
-  drops: 1,
+  drops: 0.5,
   dropSize: 0.004,
   dropGlints: 0.05,
   foamDrops: 1,
@@ -115,7 +140,13 @@ export const waterParams = defineParams('water', {
   smoothPasses: { min: 0, max: 3, step: 1 },
   thickness: { min: 0.05, max: 2 },
   refract: { min: 0, max: 0.3 },
-  thin: { color: true, label: 'thin water' },
-  deep: { color: true, label: 'deep water' },
-  rim: { color: true, label: 'thin rim' },
+  deep: { color: true, label: 'what thick water lets through' },
+  tint: { color: true, label: 'light inside' },
+  glowColor: { color: true, label: 'own light' },
+  glow: { min: 0, max: 1, label: 'own light' },
+  opacity: { min: 0, max: 1 },
+  rim: { color: true, label: 'rim (toward light)' },
+  wisp: { min: 0, max: 0.3, step: 0.005, label: 'edge tongues (m)' },
+  curl: { min: 0, max: 0.15, step: 0.005, label: 'edge curl (m)' },
+  tear: { min: 0, max: 1 },
 });

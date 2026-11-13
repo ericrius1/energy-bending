@@ -16,6 +16,7 @@ struct WaterSim {
   splash: f32, spray: f32, wobble: f32, wobbleFreq: f32,      // how high a landing splashes, how hard a shed drop is flung, the surface's ripple (m) and its waves along the body (1/m)
   forms: array<vec4f, 2>,   // each dancer's form, 0 water … 1 ice (dancer d: forms[d / 4][d % 4])
   flow: vec4f,         // the body running: x how fast it runs along its capsules (m/s), y the travelling bulges' height (m), z their spacing (m), w how much fast limbs peel off their trailing side
+  edge: vec4f,         // the outline breaking: x how far the outer shell curls (m), y the curl's scale (1/m), z how fast it climbs (m/s), w streamers: the chance a second an outer particle on a fast limb's trailing side is left hanging
 }
 
 /** a particle's state of matter: x how frozen (0 water … 1 ice), y foam (spray, splashes), z gone (boiled away:
@@ -33,6 +34,8 @@ fn splatRadius(h: Home, a: Aux, p: Particle, scale: f32) -> f32 {
   if (loose && a.ice > 0.5) { return 0.0; }
   // flying water is smaller than the body's: a lone drop is too thin to cover a pixel once smoothed (it is drawn as a
   // stretched drop, drops.wgsl), while a sheet of them still adds up to a surface
+  // (water left hanging where a limb was is a ribbon of the body, not spray: nearly the body's size)
+  if (modeIs(p.mode, FROZEN)) { return r * 0.85; }
   if (loose) { r *= 0.55; }
   return r;
 }

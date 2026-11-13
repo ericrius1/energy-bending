@@ -16,6 +16,9 @@
 @group(1) @binding(2) var<storage, read_write> state: array<Particle>;
 @group(1) @binding(3) var<storage, read_write> aux: array<Aux>;
 
+/** how much a home faces away from the way its limb moves (1 straight behind, −1 leading) */
+fn trailingOf(outW: vec3f, vel: vec3f) -> f32 { return dot(outW, -vel / max(length(vel), 1e-3)); }
+
 @compute @workgroup_size(256)
 fn main(@builtin(global_invocation_id) gid: vec3u) {
   let i = gid.x;
@@ -86,9 +89,12 @@ fn main(@builtin(global_invocation_id) gid: vec3u) {
   bb.damping = mix(b.damping, sim.iceDamp, ice);
   bb.shedRate = b.shedRate * (1.0 - ice);
   // a fast limb peels sheets off its trailing side, more where a swell is passing
-  let trailing = dot(outW, -H.vel / max(length(H.vel), 1e-3));
+  let trailing = trailingOf(outW, H.vel);
   let peel = mix(1.0, (0.15 + 2.2 * smoothstep(-0.1, 0.6, trailing)) * (0.4 + 1.4 * bump), sim.flow.w);
   bb.speedShed = b.speedShed * (1.0 - ice) * peel;
+  // drips gather where water would hang: the undersides of the outer shell (the hands, the chin, the elbows held out)
+  let under = max(0.0, -outW.y);
+  bb.shedRate = bb.shedRate * mix(1.0, 0.15 + 4.0 * under * under * under * smoothstep(0.75, 1.0, home.place.w), liquid);
   bb.noiseAmp = b.noiseAmp * (1.0 - ice);
   bb.bounce = mix(b.bounce, 0.2, ice);
   bb.friction = mix(b.friction, 0.15, ice);
@@ -101,7 +107,14 @@ fn main(@builtin(global_invocation_id) gid: vec3u) {
   // the surface ripples: waves running along the body, out along each home's normal
   let ripple = sin(dot(H.pos, vec3f(0.3, 1.0, 0.2)) * sim.wobbleFreq - b.time * 5.0 + rnd(seed) * 1.5)
              + 0.6 * sin(dot(H.pos, vec3f(-0.8, 0.4, 0.5)) * sim.wobbleFreq * 1.7 + b.time * 3.7);
-  let goal = goalOf(H, seed, bb) + outW * ((ripple * sim.wobble + swell) * (1.0 - ice));
+  // the outer shell curls: a flow a few centimetres across that climbs the body, stronger on the side trailing the
+  // motion, so the outline is never the capsules' smooth contour (the inside stays put: it is what holds the shape)
+  let outer = smoothstep(0.75, 1.0, home.place.w) * liquid;
+  let curlP = H.pos * sim.edge.y - vec3f(0.0, b.time * sim.edge.z * sim.edge.y, 0.0);
+  let curlV = flow(curlP, b.time * 0.9);
+  let trailK = 1.0 + 1.5 * smoothstep(0.0, 0.7, trailingOf(outW, H.vel)) * smoothstep(0.5, 3.0, length(H.vel));
+  let goal = goalOf(H, seed, bb) + outW * ((ripple * sim.wobble + swell) * (1.0 - ice))
+           + (curlV + outW * (0.6 + 0.6 * curlV.y)) * (sim.edge.x * outer * trailK);
   // back at the top of its capsule: there at once
   if (wrapped && liquid > 0.5 && modeIs(p.mode, ON_BODY)) { p.pos = goal; p.vel = H.vel; }
   var T = touchAt(p.pos);
@@ -113,7 +126,17 @@ fn main(@builtin(global_invocation_id) gid: vec3u) {
   let wasOn = modeIs(p.mode, ON_BODY);
   let s = bodyStep(&p, H, goal, T, rest, 2.0 * ice, false, hips, rn, seed, bb);
 
-  // ---------------------------------------------------------------- water's own: spray, splashes, foam
+  // ---------------------------------------------------------------- water's own: streamers, spray, splashes, foam
+  // a fast limb leaves ribbons behind it: outer water on its trailing side stays hanging for a moment where the limb
+  // was (the surface draws it, so the body streams into the air), then falls and flies home. A limb that stops fast
+  // throws its water on past it as a crown (the shed drops keep the limb's speed, above)
+  let fastK = smoothstep(1.8, 5.0, length(H.vel));
+  if (modeIs(p.mode, ON_BODY) && wasOn && fastK > 0.0 && liquid > 0.5 && b.speedShed > 0.0
+      && rnd(rn ^ 0x5e7u) < sim.edge.w * fastK * outer * smoothstep(0.1, 0.7, trailing) * dt) {
+    p.mode = FROZEN;
+    p.life = 0.12 + 0.25 * rnd(rn ^ 0x5e8u);
+    p.vel = vec3f(0.0);
+  }
   a.foam = max(0.0, a.foam - dt * 2.5);
   if ((s.ev & EV_SHED) != 0u && wasOn) {
     // a drop flung from a moving limb keeps going the way the limb went, and a little out from the body

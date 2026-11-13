@@ -209,6 +209,8 @@ export class WaterPool {
 
   /** the surface's view distance in this view for the lens (MatterPasses.focus), or null */
   focus(view: ViewCtx) { return this.surfaces.get(view.id)?.focus ?? null; }
+  /** how the water bends and dims light behind it in this view (WaterSurface.veil), or null */
+  veil(view: ViewCtx) { return this.surfaces.get(view.id)?.veil ?? null; }
 
   // ---------------------------------------------------------------- the show's moments
   readonly acts: MatterActs = {
@@ -227,12 +229,16 @@ export class WaterPool {
   /** the surface's and the drops' look, from both kinds' parameters (each frame: it carries the clock and the floor) */
   private uploadLook(time = 0, floorY = 0) {
     const P = waterParams, I = iceParams;
+    // what each channel loses per unit W: deep is what one unit lets through
+    const absorb = hex(P.deep).map((c) => -Math.log(Math.max(1e-3, c)));
     this.surf.set({
-      thin: [...hex(P.thin), P.glow], deep: [...hex(P.deep), P.opacity], rim: [...hex(P.rim), P.rimStrength],
+      absorb: [...absorb, P.milk], tint: [...hex(P.tint), P.opacity], glow: [...hex(P.glowColor), P.glow], rim: [...hex(P.rim), P.rimStrength],
       iceThin: [...hex(I.thin), I.facets], iceThick: [...hex(I.thick), I.rim],
       cover: [P.coverLo, P.coverHi, P.thickness, P.amount],
+      wisp: [P.wisp, P.curl, P.tear, P.wispScale],
       refract: P.refract, dispersion: P.dispersion, glint: P.glint, foam: P.foam, caustic: P.caustic, rise: P.rise,
       reflect: P.reflect, floorY, time, iceGlint: I.glint, edges: I.edges, mirror: P.mirror, distAlpha: P.distAlpha ? 1 : 0,
+      iceOpacity: I.opacity, climb: P.climb, ripple: [P.ripples, P.rippleScale, P.rimSharp, 0],
     });
     this.smoothX.set({ dir: [1, 0], radius: P.smooth, falloff: P.falloff, maxPx: 24 });
     this.smoothY.set({ dir: [0, 1], radius: P.smooth, falloff: P.falloff, maxPx: 24 });
@@ -265,6 +271,7 @@ export class WaterPool {
     s.meltHeat = P.meltHeat; s.freezeCold = P.freezeCold; s.boilHeat = P.boilHeat; s.wind = P.wind;
     s.splash = P.splash; s.spray = P.spray; s.wobble = P.wobble; s.wobbleFreq = P.wobbleFreq;
     s.flow = [P.flowSpeed, P.bulge, P.bulgeSpacing, P.peel];
+    s.edge = [P.shellCurl, P.shellScale, P.shellClimb, P.streamers];
     s.forms = [[fm[0], fm[1], fm[2], fm[3]], [fm[4], fm[5], fm[6], fm[7]]];
     const shatter = this.shatterNow || this.ctx.hand.shatterAll;
     b.dt = dt; b.time = f.t; b.floorY = floorY; b.fill = P.fill;
@@ -387,6 +394,9 @@ export class WaterPasses implements MatterPasses {
   declareView(s: ScenePass) { this.pool.declareView(s); }
   /** (both faces answer: the one surface holds water and ice) */
   focus(view: ViewCtx) { return this.pool.primary === this.id ? this.pool.focus(view) : null; }
+  /** how the water bends and dims light behind it (WaterSurface.veil): for the post chain's glow (fire behind water).
+   *  Not on MatterPasses (only this pool has it): find it with `'veil' in passes` */
+  veil(view: ViewCtx) { return this.pool.veil(view); }
   layout(layers: MatterLayer[]) { this.pool.setLayers(this.id, layers); }
   update(f: FrameCtx) { if (this.pool.primary === this.id) this.pool.update(f); }
   hear(ears: MatterEars) { this.pool.hear(ears); }
