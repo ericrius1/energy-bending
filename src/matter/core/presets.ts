@@ -10,8 +10,8 @@
 // and single-<mineral> / monolith-<mineral> for each mineral a player can choose (amethyst, citrine, emerald,
 // obsidian, opal, quartz, rose, iron). The mixed bodies, a heart of one matter in a body of another: ember (a gem
 // heart and head inside fire limbs), gemwater (inside water), gemice (inside ice), geodeheart (the great geode torso
-// inside fire limbs) and geodeheart-water, tide (water with ice hands and feet round a celestite heart), and all (a geode heart and a gem head,
-// fire arms, water legs, ice hands and feet). A `+` or a space in a URL is not needed: every name is one word.
+// inside fire limbs) and geodeheart-water, tide (water with ice hands and feet round a celestite heart), and all (a
+// geode heart and a gem head, fire arms, water legs, ice hands and feet). A `+` or a space in a URL is not needed: every name is one word.
 import type { BodyPart, Loadout } from './kind';
 
 const CORE: BodyPart[] = ['torso', 'head'];
