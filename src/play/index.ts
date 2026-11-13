@@ -7,6 +7,7 @@
 //   ?jogo=online&room=CODE[&create][&watch]   one seat of a room on the room server (&server=ws://…/ws; default this
 //                    host's 5417); &watch dances as a free guest
 //   ?jogo=script&script=NAME    a scripted jogo (src/play/scripts/NAME.json), for films and captures; also bend.jogo.run
+//                    (&partner=… with a script: the partner brain plays dancer 2, the script dancer 1; &seed=N its seed)
 //   &world=pool &dress=fire,water &free (the 3D view; the side view is the default)
 //   nothing          the front of the game over the show (menu.ts); ?play stays the solo free dance
 //
@@ -151,7 +152,7 @@ export async function startJogo(app: PlayApp, mode: string) {
       const e = music.engine;
       return music.live ? { level: Math.min(1, e.level / 4 + 0.1), breakdown: false } : { level: Number(q.get('level') ?? 0.6), breakdown: false };
     },
-  }, wanted in PRESETS ? (wanted as PresetName) : 'playful');
+  }, wanted in PRESETS ? (wanted as PresetName) : 'playful', Number(q.get('seed') ?? 23));
   let partner: Brain = wanted === 'standin' ? standIn : aiPartner;
   const partnerView = (seat: number) => (dt: number): PartnerView | null => {
     const me = seatCtl[seat], other = seatDancer[1 - seat];
@@ -184,7 +185,8 @@ export async function startJogo(app: PlayApp, mode: string) {
     const hub = play.hub;
     hub.join(new BotSource(null, 'waiting'), 'bot');
     const ps = new BrainSource('partner', { think: (v) => partner.think(v) }, partnerView(1));
-    hub.join(scripted ? new BotSource(null, 'script') : ps, 'bot');
+    // (a script with &partner=… seats the partner brain on dancer 2 and scripts dancer 1 alone: a film's jogo)
+    hub.join(scripted && !q.has('partner') ? new BotSource(null, 'script') : ps, 'bot');
     hub.players.splice(0, hub.players.length);
     for (let s = 0; s < 2; s++) { seatCtl[s] = play.controllers[s]; seatDancer[s] = play.dancers[s]; }
     if (scripted) seatCtl[0]!.source = new BotSource(null, 'script');

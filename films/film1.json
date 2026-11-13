@@ -1,0 +1,113 @@
+{
+  "name": "film1",
+  "title": "Energy Bending (the whole idea), from docs/reports/3-critique.md's shot list; no text appears in the film",
+  "bpm": 112,
+  "size": "1920x1080",
+  "fps": 60,
+  "fadeIn": 1.2,
+  "fadeOut": 3.0,
+  "shots": [
+    {
+      "id": "ab-jogo",
+      "note": "rows 1 to 7, one page: the jogo's intro (the bodies rising at their spawns) under a crane down from the canopy, then the jogo in the redwoods: seat 0 (water, scripted) against src/ai's partner (fire, playful); ginga side-on, the forms shift close up, the lock swings in, across the ledges, then the fusion from high",
+      "mode": "jogo",
+      "world": "redwoods",
+      "hour": 19.7,
+      "cast": [{ "dress": "water" }, { "dress": "fire", "brain": "playful", "seed": 11 }],
+      "from": "start",
+      "preroll": 0.2,
+      "bars": 18,
+      "yawBase": "stage",
+      "music": { "level": 1 },
+      "cues": [
+        { "at": "1.1", "music": { "level": 2 } },
+        { "at": "1.3", "seat": 0, "move": "meia-lua" },
+        { "at": "2.1", "seat": 0, "press": "dodge", "hold": { "moveY": -1 }, "for": 0.6 },
+        { "at": "2.3", "seat": 0, "move": "armada" },
+        { "at": "3.3", "seat": 0, "move": "role" },
+        { "at": "4.1", "seat": 0, "goto": -0.7 },
+        { "at": "4.3", "seat": 0, "move": "martelo" },
+        { "at": "5.1", "seat": 0, "form": 1 },
+        { "at": "5.2", "seat": 1, "form": 1 },
+        { "at": "5.3", "seat": 0, "goto": -0.35 },
+        { "at": "6.3", "seat": 0, "move": "bencao" },
+        { "at": "7.3", "seat": 0, "move": "spin" },
+        { "at": "8.1", "music": { "level": 1 } },
+        { "at": "8.3", "seat": 0, "goto": -2.4 },
+        { "at": "9.4", "seat": 0, "build": true },
+        { "at": "10.1", "seat": 0, "move": "au" },
+        { "at": "10.1", "music": { "level": 3 } },
+        { "at": "11.1", "seat": 0, "press": "jump", "hold": { "jumpHeld": true }, "for": 0.8 },
+        { "at": "11.3", "seat": 0, "move": "martelo" },
+        { "at": "12.1", "fuse": true },
+        { "at": "12.1", "seat": 0, "goto": -0.16 },
+        { "at": "12.1", "seat": 1, "goto": 0.16 },
+        { "at": "12.3", "seat": "both", "hold": { "merge": true }, "for": 6 }
+      ],
+      "camera": [
+        { "at": 0, "around": "pair", "yaw": 0.9, "pitch": -0.5, "dist": 7.6, "height": 5.6, "fov": 56, "lag": 0.8, "focus": "pair", "handheld": 0.4 },
+        { "at": 3.6, "yaw": 0.35, "pitch": 0.12, "dist": 5.0, "height": 1.0, "fov": 40, "lag": 0.5 },
+        { "at": "1.1", "orbit": 0.0 },
+        { "at": "1.2", "yaw": 0.18, "pitch": 0.08, "dist": 4.2, "height": 1.0, "fov": 40, "orbit": 0.03, "handheld": 0.6 },
+        { "at": "4.4", "yaw": 0.05, "dist": 3.9 },
+        { "at": "5.1", "cut": true, "around": "pair", "yaw": -0.45, "pitch": 0.1, "dist": 3.1, "height": 1.15, "fov": 38, "orbit": 0.12, "lag": 0.3, "focus": "d0", "handheld": 0.8 },
+        { "at": "7.4", "focus": "d1", "dist": 3.2 },
+        { "at": "8.1", "mode": "lock", "blend": 1.1, "orbit": 0 },
+        { "at": "13.1", "mode": "free", "blend": 2.0, "around": "pair", "yaw": 0.4, "pitch": 0.25, "dist": 4.6, "height": 0.9, "fov": 40, "orbit": 0.0, "focus": "pair", "lag": 0.6, "handheld": 0.3 },
+        { "at": "14.1", "pitch": 0.72, "dist": 4.4, "height": 0.7, "orbit": 0.08 },
+        { "at": "17.1", "pitch": 0.78, "dist": 4.6 }
+      ]
+    },
+    {
+      "id": "c-gate",
+      "note": "rows 8 and 9: they walk to the gate, followed from behind; the geode seen live inside the disc as they step in (the cut on the beat goes through it)",
+      "mode": "play",
+      "world": "redwoods",
+      "hour": 19.75,
+      "cast": [{ "dress": "fire" }, { "dress": "water" }],
+      "beats": 4.5,
+      "preroll": 2.5,
+      "music": { "level": 1 },
+      "cues": [
+        { "at": -9, "seat": 0, "place": [-6.70, 2.97] },
+        { "at": -9, "seat": 1, "place": [-6.28, 3.77] },
+        { "at": 0, "js": "console.log('film: players ' + JSON.stringify(bend.players().map(p => [p.x, p.z])) + ' cam ' + JSON.stringify(bend.camera().eye))" },
+        { "at": 0.1, "seat": 0, "walk": [-11.6, 5.68], "speed": 0.5, "on": 1.4 },
+        { "at": 0.3, "seat": 1, "walk": [-11.2, 6.48], "speed": 0.5, "on": 1.4 }
+      ],
+      "camera": [
+        { "at": 0, "around": "pair", "yaw": 2.055, "pitch": 0.2, "dist": 3.8, "height": 1.1, "fov": 44, "lag": 0.6, "lead": 0.35, "focus": "pair", "handheld": 0.5 },
+        { "at": "3.2", "dist": 3.3, "pitch": 0.12 }
+      ]
+    },
+    {
+      "id": "d-hub",
+      "note": "rows 10 and 11: out of the geode's gate into the hub, a last exchange on the floor, then face to face as the light falls",
+      "mode": "play",
+      "world": "geode",
+      "cast": [{ "dress": "fire" }, { "dress": "water" }],
+      "bars": 9,
+      "preroll": 2.5,
+      "music": { "level": 2 },
+      "cues": [
+        { "at": -9, "seat": 0, "place": [3.04, 5.60] },
+        { "at": -9, "seat": 1, "place": [2.34, 5.94] },
+        { "at": 0, "seat": 0, "walk": [0.7, 1.2], "speed": 0.5 },
+        { "at": 0, "seat": 1, "walk": [-0.5, 1.6], "speed": 0.5 },
+        { "at": "4.1", "seat": 0, "move": "armada" },
+        { "at": "4.3", "seat": 1, "move": "au" },
+        { "at": "5.3", "seat": 0, "move": "meia-lua" },
+        { "at": "6.1", "music": { "level": 0 } },
+        { "at": "6.2", "seat": 0, "walk": [0.6, 1.1], "speed": 0.3 },
+        { "at": "6.2", "seat": 1, "walk": [-0.6, 1.1], "speed": 0.3 }
+      ],
+      "camera": [
+        { "at": 0, "around": "pair", "yaw": -2.69, "pitch": 0.12, "dist": 3.6, "height": 1.1, "fov": 44, "lag": 0.5, "focus": "pair", "handheld": 0.5 },
+        { "at": "3.1", "yaw": -2.4, "pitch": 0.3, "dist": 4.6, "height": 0.9 },
+        { "at": "6.1", "pitch": 0.22, "dist": 4.0, "height": 1.0 },
+        { "at": "6.3", "cut": true, "around": "pair", "yaw": 0.15, "pitch": 0.06, "dist": 2.9, "height": 1.3, "fov": 34, "lag": 0.5, "focus": "pair", "handheld": 0.5 },
+        { "at": "10.1", "dist": 2.6, "height": 1.35 }
+      ]
+    }
+  ]
+}

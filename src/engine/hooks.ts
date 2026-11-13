@@ -18,6 +18,7 @@
 //   bend.intent(p, patch)     script player p's Intent: held fields stay until changed (null clears); edges fire once
 //   bend.move(p, name)        player p starts a move by name now (the library's, or a registered clip)
 //   bend.place(p, x, z, yaw?) stand player p somewhere (free) or at s = x on the locked plane
+//   bend.worldOf(id?)         a World by id (default: the one the camera rig is in): its stages, ground, spawns (films)
 import { Capture, type Kit } from '@ericrius1/weft';
 import type { IntentController } from '../dancer/intent-controller';
 import type { Intent } from '../input/intent';
@@ -142,6 +143,8 @@ export function installHooks(app: HookApp) {
       if (ch.plane) ch.reset(x); else ch.reset(x, undefined, z);
       if (yaw !== undefined) ch.yaw = yaw;
     },
+    /** a World by id, the camera rig's by default (the film's camera reads its stage and ground) */
+    worldOf: (id?: string) => app.worlds.find((w) => w.id === (id ?? (bend as { gates?: { rigWorld: string } }).gates?.rigWorld ?? app.views[0].world)) ?? null,
     show,
     rig,
     music: app.music,

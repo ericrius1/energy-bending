@@ -1,0 +1,51 @@
+{
+ "film": "test-seam",
+ "shot": "jogo",
+ "quality": "master",
+ "take": 3,
+ "frames": {
+  "A": 514,
+  "B": 514,
+  "C": 180
+ },
+ "takesVsOneTake": {
+  "identicalFrames": 472,
+  "of": 514,
+  "worst": {
+   "mean": 0.0000028935185185185184,
+   "max": 2,
+   "px": 5,
+   "at": 397
+  }
+ },
+ "aloneVsInTakes": {
+  "take": 1,
+  "identicalFrames": 160,
+  "of": 180,
+  "worst": {
+   "mean": 0.0000024112654320987654,
+   "max": 1,
+   "px": 5,
+   "at": 251
+  }
+ },
+ "seams": [
+  {
+   "frame": 180,
+   "across": 5.257,
+   "before": 5.257,
+   "after": 5.258
+  },
+  {
+   "frame": 360,
+   "across": 8.248,
+   "before": 8.055,
+   "after": 8.377
+  }
+ ],
+ "neighbours": {
+  "median": 6.752,
+  "p95": 15.646,
+  "max": 17.457
+ }
+}
