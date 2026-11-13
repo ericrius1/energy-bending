@@ -1,0 +1,98 @@
+[
+ {
+  "name": "moves-fire",
+  "query": "play&two&dress=fire,water&world=geode",
+  "fps": 30,
+  "seconds": 15.5,
+  "warm": 200,
+  "setup": "bend.set('camera', { followDist: 4.2, followFov: 42, followPitch: 0.08, followSwing: 0 }); bend.wake(); bend.place(0,-0.75,0,Math.PI/2); bend.place(1,0.75,0,-Math.PI/2);",
+  "cues": {
+   "0.50": "bend.move(0,'armada')",
+   "0.70": "bend.move(1,'esquiva')",
+   "2.00": "bend.move(0,'meia-lua')",
+   "2.20": "bend.move(1,'esquiva')",
+   "3.50": "bend.move(0,'martelo')",
+   "3.70": "bend.move(1,'block')",
+   "5.00": "bend.move(0,'bencao')",
+   "5.20": "bend.move(1,'esquiva')",
+   "6.50": "bend.move(0,'rasteira')",
+   "6.70": "bend.move(1,'esquiva')",
+   "8.00": "bend.move(0,'au')",
+   "8.20": "bend.move(1,'esquiva')",
+   "9.50": "bend.move(0,'macaco')",
+   "9.70": "bend.move(1,'role')",
+   "11.00": "bend.move(0,'role')",
+   "11.20": "bend.move(1,'esquiva')",
+   "12.50": "bend.move(0,'spin')",
+   "12.70": "bend.move(1,'esquiva')",
+   "14.00": "bend.move(0,'strike')",
+   "14.20": "bend.move(1,'block')"
+  },
+  "each": "bend.camera({ yaw: 0.15 });",
+  "sheet": {
+   "cols": 6,
+   "rows": 5,
+   "width": 360
+  },
+  "stills": [
+   0.95,
+   2.45,
+   3.95,
+   5.45,
+   6.95,
+   8.45,
+   9.95,
+   11.45,
+   12.95,
+   14.45
+  ]
+ },
+ {
+  "name": "moves-water",
+  "query": "play&two&dress=fire,water&world=geode",
+  "fps": 30,
+  "seconds": 15.5,
+  "warm": 200,
+  "setup": "bend.set('camera', { followDist: 4.2, followFov: 42, followPitch: 0.08, followSwing: 0 }); bend.wake(); bend.place(0,-0.75,0,Math.PI/2); bend.place(1,0.75,0,-Math.PI/2);",
+  "cues": {
+   "0.50": "bend.move(1,'armada')",
+   "0.70": "bend.move(0,'esquiva')",
+   "2.00": "bend.move(1,'meia-lua')",
+   "2.20": "bend.move(0,'esquiva')",
+   "3.50": "bend.move(1,'martelo')",
+   "3.70": "bend.move(0,'block')",
+   "5.00": "bend.move(1,'bencao')",
+   "5.20": "bend.move(0,'esquiva')",
+   "6.50": "bend.move(1,'rasteira')",
+   "6.70": "bend.move(0,'esquiva')",
+   "8.00": "bend.move(1,'au')",
+   "8.20": "bend.move(0,'esquiva')",
+   "9.50": "bend.move(1,'macaco')",
+   "9.70": "bend.move(0,'role')",
+   "11.00": "bend.move(1,'role')",
+   "11.20": "bend.move(0,'esquiva')",
+   "12.50": "bend.move(1,'spin')",
+   "12.70": "bend.move(0,'esquiva')",
+   "14.00": "bend.move(1,'strike')",
+   "14.20": "bend.move(0,'block')"
+  },
+  "each": "bend.camera({ yaw: 0.15 });",
+  "sheet": {
+   "cols": 6,
+   "rows": 5,
+   "width": 360
+  },
+  "stills": [
+   0.95,
+   2.45,
+   3.95,
+   5.45,
+   6.95,
+   8.45,
+   9.95,
+   11.45,
+   12.95,
+   14.45
+  ]
+ }
+]

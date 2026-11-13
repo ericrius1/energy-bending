@@ -1,0 +1,96 @@
+[
+ {
+  "name": "mo-fire",
+  "query": "play&dress=fire&world=geode",
+  "fps": 60,
+  "seconds": 0.8,
+  "warm": 240,
+  "setup": "bend.set('camera', { followDist: 3, followFov: 42, followPitch: 0.06, followSwing: 0 }); bend.wake(); bend.place(0,0,0,Math.PI/2); bend.camera({yaw:0});",
+  "cues": {
+   "0": "bend.move(0,'armada')"
+  },
+  "each": "bend.camera({ yaw: 0 });",
+  "sheet": {
+   "cols": 8,
+   "rows": 6,
+   "width": 240
+  },
+  "stills": [
+   0.2,
+   0.35,
+   0.5
+  ]
+ },
+ {
+  "name": "mo-water",
+  "query": "play&dress=water&world=geode",
+  "fps": 60,
+  "seconds": 0.8,
+  "warm": 240,
+  "setup": "bend.set('camera', { followDist: 3, followFov: 42, followPitch: 0.06, followSwing: 0 }); bend.wake(); bend.place(0,0,0,Math.PI/2); bend.camera({yaw:0});",
+  "cues": {
+   "0": "bend.move(0,'armada')"
+  },
+  "each": "bend.camera({ yaw: 0 });",
+  "sheet": {
+   "cols": 8,
+   "rows": 6,
+   "width": 240
+  },
+  "stills": [
+   0.2,
+   0.35,
+   0.5
+  ]
+ },
+ {
+  "name": "mo-gems",
+  "query": "play&dress=gems&world=geode",
+  "fps": 60,
+  "seconds": 0.8,
+  "warm": 240,
+  "setup": "bend.set('camera', { followDist: 3, followFov: 42, followPitch: 0.06, followSwing: 0 }); bend.wake(); bend.place(0,0,0,Math.PI/2); bend.camera({yaw:0});",
+  "cues": {
+   "0": "bend.move(0,'armada')"
+  },
+  "each": "bend.camera({ yaw: 0 });",
+  "sheet": {
+   "cols": 8,
+   "rows": 6,
+   "width": 240
+  },
+  "stills": [
+   0.2,
+   0.35,
+   0.5
+  ]
+ },
+ {
+  "name": "ginga-fire",
+  "query": "play&dress=fire&world=geode",
+  "fps": 15,
+  "seconds": 3.2,
+  "warm": 240,
+  "setup": "bend.set('camera', { followDist: 3, followFov: 42, followPitch: 0.06, followSwing: 0 }); bend.wake(); bend.place(0,0,0,Math.PI/2);",
+  "each": "bend.camera({ yaw: 0 });",
+  "sheet": {
+   "cols": 8,
+   "rows": 6,
+   "width": 240
+  }
+ },
+ {
+  "name": "ginga-water",
+  "query": "play&dress=water&world=geode",
+  "fps": 15,
+  "seconds": 3.2,
+  "warm": 240,
+  "setup": "bend.set('camera', { followDist: 3, followFov: 42, followPitch: 0.06, followSwing: 0 }); bend.wake(); bend.place(0,0,0,Math.PI/2);",
+  "each": "bend.camera({ yaw: 0 });",
+  "sheet": {
+   "cols": 8,
+   "rows": 6,
+   "width": 240
+  }
+ }
+]

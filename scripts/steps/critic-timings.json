@@ -1,0 +1,112 @@
+[
+ {
+  "name": "t800-redwoods-close",
+  "size": "1280x800",
+  "query": "play&two&dress=fire,water&world=redwoods",
+  "fps": 30,
+  "seconds": 2,
+  "warm": 400,
+  "setup": "bend.set('redwoods', { hour: 19.4, dayGoes: false }); bend.set('camera', { followDist: 3.2, followFov: 46, followPitch: 0.12, followSwing: 0 }); bend.wake(); bend.place(0,-0.6,0.4,Math.PI/2); bend.place(1,0.6,0.4,-Math.PI/2); bend.move(0,'armada');",
+  "sheet": {
+   "cols": 2,
+   "rows": 1,
+   "width": 640
+  },
+  "timings": true,
+  "stills": [
+   1
+  ]
+ },
+ {
+  "name": "t800-geode-hub-pair",
+  "size": "1280x800",
+  "query": "play&two&dress=fire,water&world=geode",
+  "fps": 30,
+  "seconds": 2,
+  "warm": 400,
+  "setup": "bend.set('camera', { followDist: 5.5, followFov: 50, followPitch: 0.12, followSwing: 0 }); bend.wake(); bend.place(0,-0.6,1.0,Math.PI/2); bend.place(1,0.6,1.0,-Math.PI/2); bend.camera({yaw:-2.9});",
+  "each": "bend.camera({yaw:-2.9});",
+  "sheet": {
+   "cols": 2,
+   "rows": 1,
+   "width": 640
+  },
+  "timings": true,
+  "stills": [
+   1
+  ]
+ },
+ {
+  "name": "t800-ice-plasma",
+  "size": "1280x800",
+  "query": "play&two&dress=plasma,ice&world=temple",
+  "fps": 30,
+  "seconds": 2,
+  "warm": 400,
+  "setup": "bend.set('camera', { followDist: 3.4, followFov: 46, followPitch: 0.1, followSwing: 0 }); bend.wake(); bend.place(0,-0.6,0,Math.PI/2); bend.place(1,0.6,0,-Math.PI/2);",
+  "sheet": {
+   "cols": 2,
+   "rows": 1,
+   "width": 640
+  },
+  "timings": true,
+  "stills": [
+   1
+  ]
+ },
+ {
+  "name": "t1080-redwoods-close",
+  "size": "1920x1080",
+  "query": "play&two&dress=fire,water&world=redwoods",
+  "fps": 30,
+  "seconds": 2,
+  "warm": 400,
+  "setup": "bend.set('redwoods', { hour: 19.4, dayGoes: false }); bend.set('camera', { followDist: 3.2, followFov: 46, followPitch: 0.12, followSwing: 0 }); bend.wake(); bend.place(0,-0.6,0.4,Math.PI/2); bend.place(1,0.6,0.4,-Math.PI/2); bend.move(0,'armada');",
+  "sheet": {
+   "cols": 2,
+   "rows": 1,
+   "width": 640
+  },
+  "timings": true,
+  "stills": [
+   1
+  ]
+ },
+ {
+  "name": "t1080-geode-hub-pair",
+  "size": "1920x1080",
+  "query": "play&two&dress=fire,water&world=geode",
+  "fps": 30,
+  "seconds": 2,
+  "warm": 400,
+  "setup": "bend.set('camera', { followDist: 5.5, followFov: 50, followPitch: 0.12, followSwing: 0 }); bend.wake(); bend.place(0,-0.6,1.0,Math.PI/2); bend.place(1,0.6,1.0,-Math.PI/2); bend.camera({yaw:-2.9});",
+  "each": "bend.camera({yaw:-2.9});",
+  "sheet": {
+   "cols": 2,
+   "rows": 1,
+   "width": 640
+  },
+  "timings": true,
+  "stills": [
+   1
+  ]
+ },
+ {
+  "name": "t1080-ice-plasma",
+  "size": "1920x1080",
+  "query": "play&two&dress=plasma,ice&world=temple",
+  "fps": 30,
+  "seconds": 2,
+  "warm": 400,
+  "setup": "bend.set('camera', { followDist: 3.4, followFov: 46, followPitch: 0.1, followSwing: 0 }); bend.wake(); bend.place(0,-0.6,0,Math.PI/2); bend.place(1,0.6,0,-Math.PI/2);",
+  "sheet": {
+   "cols": 2,
+   "rows": 1,
+   "width": 640
+  },
+  "timings": true,
+  "stills": [
+   1
+  ]
+ }
+]
