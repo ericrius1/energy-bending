@@ -110,7 +110,8 @@ for (const k of kinds) k.declarePost?.(post);   // translucent matter over the f
 
 // ---------------------------------------------------------------- the show and its sound
 // (the camera is the listener: sounds are panned and distanced from it; kinds that can be heard get their ears)
-music = new Music(FILM, () => worldOf(main.world), gems?.ids ?? [], kit.camera, kinds);
+// (each world's track is the music; ?procedural plays the generative groove instead)
+music = new Music(FILM, () => worldOf(main.world), gems?.ids ?? [], kit.camera, kinds, !query.has('procedural'));
 const score = music.score;
 if (gems) gems.onStones = (when, ev, n) => score.stones(when, ev, n);
 const show = new Show(motion, kinds, bodies, rig, {

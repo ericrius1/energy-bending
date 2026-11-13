@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict';
 import {
   RULES, createSession, tick, onMove as onMoveT, onExchange, onForm, onMerge, onReady, publicState,
-  setPresent, route as routeT, barMs, nextBar, gridError, type Session,
+  setPresent, route as routeT, barMs, nextBar, gridError, sessionMs, tempoOf, type Session,
 } from '../shared/rules.ts';
 
 // the tests send deliberately malformed messages, so they talk to the rules untyped
@@ -63,7 +63,8 @@ test('perfect timing grid: 8th notes, 55 ms', () => {
 test('waiting -> intro (>= 3 s, on a bar line) -> play; music clock', () => {
   const s = createSession('redwoods', 1000);
   assert.equal(s.phase, 'waiting');
-  assert.deepEqual(publicState(s).music, { epoch: 1000, bpm: 112, mood: 1 });
+  // (the room plays the world's track: its tempo is the track's)
+  assert.deepEqual(publicState(s).music, { epoch: 1000, bpm: tempoOf('redwoods'), mood: 1 });
   setPresent(s, 0, true, 1500);
   assert.equal(s.phase, 'waiting');
   setPresent(s, 1, true, 2000);
@@ -72,7 +73,8 @@ test('waiting -> intro (>= 3 s, on a bar line) -> play; music clock', () => {
   near(((s.tEnd! - 1000) / barMs(s.music)) % 1, 0, 1e-9, 'intro end on bar');
   tick(s, s.tEnd! - 1); assert.equal(s.phase, 'intro');
   tick(s, s.tEnd!); assert.equal(s.phase, 'play');
-  near(s.tEnd! - s.sessionEnd!, 0); near(s.sessionEnd! - nextBar(s.music, 5000), RULES.SESSION_MS, 1e-6);
+  near(s.tEnd! - s.sessionEnd!, 0); near(s.sessionEnd! - nextBar(s.music, 5000), sessionMs(s.music), 1e-6);
+  near((sessionMs(s.music) / barMs(s.music)) % 1, 0, 1e-9, 'play is whole bars');
   const st = publicState(s);
   for (const k of ['phase', 'tension', 'axe', 'streak', 'flow', 'form', 'mergeReady', 'fusion', 'stage', 'tEnd', 'results', 'music']) assert.ok(k in st, k);
   assert.equal(st.stage, 'redwoods');
@@ -335,6 +337,21 @@ test('3D move fields: z defaults to 0, dir as number or [x, z], aim with 2 or 3 
   assert.equal(onMove(s, 0, { id: '0-3d2', move: 'au', x: 0, y: 0, z: 'far', dir: 1 }, t + 200).reason, 'bad');
   assert.equal(onMove(s, 0, { id: '0-3d3', move: 'au', x: 0, y: 0, dir: [1] }, t + 400).reason, 'bad');
   assert.equal(onMove(s, 0, { id: '0-3d4', move: 'au', x: 0, y: 0, dir: 1, aim: [1, 2, 3, 4] }, t + 600).move.aim, undefined);
+});
+
+test('a seat travels: the room takes the new world tempo from its next bar line; what was timed moves onto the new grid', () => {
+  const s = createSession('geode', 1000, 'geode');
+  near(s.music.bpm, tempoOf('geode'), 1e-9);
+  setPresent(s, 0, true, 1000); setPresent(s, 1, true, 1000);
+  tick(s, s.tEnd!);                                   // play
+  const old = { ...s.music }, at = 7777;
+  route(s, 0, { t: 'travel', world: 'temple', portal: 'g' }, at);
+  near(s.music.bpm, tempoOf('temple'), 1e-9);
+  near(s.music.epoch, Math.round(nextBar(old, at)), 1e-9, 'the new epoch is the next bar line of the old grid');
+  near(((s.sessionEnd! - s.music.epoch) / barMs(s.music)) % 1, 0, 1e-6, 'the end of play on the new grid');
+  const e = s.music.epoch;
+  route(s, 1, { t: 'travel', world: 'temple', portal: 'g' }, at + 10);   // the other seat follows: nothing moves
+  assert.equal(s.music.epoch, e);
 });
 
 test('world: from createSession, echoed in state; travel in any phase, 1/s per seat, events to all', () => {

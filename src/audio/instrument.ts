@@ -65,6 +65,8 @@ export interface Instrument {
   duck(t: number, depth: number): void;
   /** the ping-pong delay follows the tempo (a dotted eighth) */
   delayBeat(t: number, beat: number): void;
+  /** under a world's track (1) the world's sounds, the effects and the jogo's sit lower; 0 puts them back */
+  under(t: number, amount: number): void;
   // ---- drums
   kick(t: number, vel: number, hard?: boolean): void;
   clap(t: number, vel: number): void;

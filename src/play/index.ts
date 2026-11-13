@@ -38,7 +38,7 @@ import { Dancer as DancerClass } from '../dancer/dancer';
 import { BotSource } from '../input/touch';
 import { makeIntent } from '../input/intent';
 import { dressed } from '../matter/core/presets';
-import { gridError, beatAt, RULES } from '../../shared/rules.ts';
+import { gridError, beatAt, sessionMs, RULES } from '../../shared/rules.ts';
 import { Room } from './room';
 import { Jogo, type Element, type SeatBody, type JogoEvent } from './jogo';
 import { JogoBuilder, Pieces } from './build';
@@ -409,10 +409,11 @@ export async function startJogo(app: PlayApp, mode: string, opts: { joined?: Joi
     if (st) {
       // the beat everyone reads is the room's; the music follows it (and lands its fusion on the room's bar line)
       f.beat.beats = beatAt(st.music, room.now()); f.beat.bpm = st.music.bpm;
-      const key = `${st.music.epoch}/${st.music.bpm}`;
+      // (the room's world names the track, whose bar 1 is the epoch: a seat's travel gives the room a new one)
+      const world = st.world ?? st.stage, key = `${st.music.epoch}/${st.music.bpm}/${world}`;
       music.clock.measure(room.now() / 1000, music.heardTime(), f.dt);
-      if (key !== lastSync) { lastSync = key; music.engine.syncTo({ epoch: st.music.epoch, bpm: st.music.bpm }); }
-      if (st.phase === 'play' && playFrom == null && st.sessionEnd != null) playFrom = st.sessionEnd - RULES.SESSION_MS;
+      if (key !== lastSync) { lastSync = key; music.syncTo({ epoch: st.music.epoch, bpm: st.music.bpm, world }); }
+      if (st.phase === 'play' && playFrom == null && st.sessionEnd != null) playFrom = st.sessionEnd - sessionMs(st.music);
       if (st.phase === 'waiting' || st.phase === 'intro') playFrom = null;
     }
     // the tension (eased) for the worlds' light and the music; the fusion holds it at the top while it lasts
@@ -469,8 +470,10 @@ export async function startJogo(app: PlayApp, mode: string, opts: { joined?: Joi
     const d = show.dancers[e.dancer];
     if (!seatDancer.includes(d)) return;
     if (!travelling) { wasLocked = rig.mode === 'locked'; travelling = true; jogo.paused = true; rig.lock(null); }
-    // online, this page's own dancer moved the room (a seat's travel moves the jogo's world)
+    // online, this page's own dancer moved the room (a seat's travel moves the jogo's world, and its music: the new
+    // world's track and tempo from the room's next bar line); a local room hears both seats' travels
     if (online && d === play.dancers[0]) room.send(room.session.seat ?? 0, { t: 'travel', world: e.to, portal: e.partner });
+    else if (!online) room.send(seatDancer.indexOf(d), { t: 'travel', world: e.to, portal: e.partner });
   });
 
   frame.tick('camera', (f) => {

@@ -52,6 +52,7 @@ export class Synth implements Instrument {
   unsuck(t: number) { this.mix.unsuck(t); }
   duck(t: number, depth: number) { this.mix.duckAt(t, depth); }
   delayBeat(t: number, beat: number) { this.mix.delayBeat(t, beat); }
+  under(t: number, amount: number) { this.mix.under(t, amount); }
   // ---- drums
   kick(t: number, vel: number, hard = false) { drums.kick(this.n, this.mix, t, vel, hard); }
   clap(t: number, vel: number) { drums.clap(this.n, this.mix, t, vel); }

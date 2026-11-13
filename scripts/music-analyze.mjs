@@ -607,12 +607,12 @@ function writeShared(m) {
   }]));
   const src = `// The worlds' tracks (Suno instrumentals), as measured by scripts/music-analyze.mjs: written by it, not by hand
 // (public/music/tracks.json has the same numbers and how they were measured). Times are seconds in the track's .m4a;
-// bar 1 is \`downbeat\`; \`loop\` is whole bars (bar n starts at downbeat + n × a bar); \`triads\` are the key's seven
+// bar 1 is \`downbeat\`; \`loop\` is in whole bars counted from 0 (bar 1 is 0: bar n + 1 starts at downbeat + n bars); \`triads\` are the key's seven
 // diatonic triads (pitch classes, root first) and \`chords\` which of them each bar's chroma fits best.
 export interface TrackInfo {
   id: string; title: string; file: string; bpm: number; downbeat: number; swing: number; bars: number; duration: number;
   loop: { startBar: number; endBar: number; start: number; end: number };
-  key: { tonic: number; mode: 'major' | 'minor'; name: string };
+  key: { tonic: number; mode: 'major' | 'minor'; name: string; cents: number };
   triads: number[][]; chords: number[];
 }
 export const TRACKS: Record<string, TrackInfo> = ${JSON.stringify(lean)};

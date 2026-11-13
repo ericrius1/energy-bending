@@ -3,17 +3,23 @@
 // (the stones, the wood, the matter voices) heard through the place's low-pass (under water in the geode, open in
 // the redwoods). One reverb, shaped by the world (synth's `room`: a new impulse crossfades in over a bar), fed by
 // everything; the groove's sends pass a level of their own so a long cave does not wash the drums out. Into a
-// compressor and a soft (tanh) limiter, as the prototype had, then the output.
+// compressor and a soft (tanh) limiter, as the prototype had, then the output. A world's track (audio/track.ts: a
+// mastered recording) comes in after the limiter (`track`, through its own low-pass for the drop's sweep), so the
+// compressor never pumps it; under it (`under`) the world, the effects and the jogo's sounds are turned down.
 //
 //   drums ─┐                       world (stones, wood, matter) ─┐
 //   duck ──┼─ music ─ musicLP ─┐                                 ├─ water LP (breathing) ─┐
 //   leads ─┤          (suck)   │   reverb (room A ⇄ room B) ─────┘                        │
 //   delay ─┘                   ├───────────────────────────────────────────── master ─ comp ─ tanh ─ out
-//   fx, sfx ──────────────────────────────────────────────────────────────────┘
+//   fx, sfx ──────────────────────────────────────────────────────────────────┘           │
+//   track ─ trackLP (suck) ───────────────────────────────────────────────────────────────────── out
 import { renderRoom } from '../voices';
 import type { Room, Tone } from '../sound';
 import { wetOf } from '../sound';
 import { clamp, type Nodes } from './nodes';
+
+/** the levels (× the groove's) of the world's sounds, the effects and the jogo's sounds under a track */
+export const UNDER = { world: 0.5, fx: 0.55, sfx: 0.7 };
 
 export class Mix {
   readonly master: GainNode;
@@ -35,6 +41,9 @@ export class Mix {
   readonly grooveRev: GainNode;
   readonly delIn: GainNode;
   readonly water: BiquadFilterNode;
+  /** a world's track: the deck's segments go in here (audio/deck.ts) */
+  readonly track: GainNode;
+  readonly trackLP: BiquadFilterNode;
   private waterSway: GainNode;
   private wet: GainNode;
   private direct: GainNode;
@@ -57,6 +66,9 @@ export class Mix {
     lim.curve = curve;
     this.out = g(0.72);
     this.master.connect(comp).connect(lim).connect(this.out).connect(ctx.destination);
+    this.trackLP = n.bq('lowpass', 19000, 0.6);
+    this.track = g(1);
+    this.track.connect(this.trackLP).connect(this.out);
     this.preAnalyser = new AnalyserNode(ctx, { fftSize: 1024 });
     comp.connect(this.preAnalyser);
     this.analyser = new AnalyserNode(ctx, { fftSize: 1024 });
@@ -140,18 +152,29 @@ export class Mix {
     this.rooms.push({ key, gain });
   }
 
-  /** the drop's suck: the music swept down to 320 Hz by t1, then wide open on it */
+  /** the drop's suck: the music (the groove, or the track) swept down to 320 Hz by t1, then wide open on it */
   suck(t0: number, t1: number) {
-    const f = this.musicLP.frequency;
-    f.cancelScheduledValues(t0);
-    f.setValueAtTime(Math.min(this.top, 18000), t0);
-    f.exponentialRampToValueAtTime(320, Math.max(t0 + 0.01, t1 - 0.015));
-    f.setValueAtTime(this.top, t1);
+    for (const [f, top] of [[this.musicLP.frequency, this.top], [this.trackLP.frequency, 19000]] as const) {
+      f.cancelScheduledValues(t0);
+      f.setValueAtTime(Math.min(top, 18000), t0);
+      f.exponentialRampToValueAtTime(320, Math.max(t0 + 0.01, t1 - 0.015));
+      f.setValueAtTime(top, t1);
+    }
   }
   unsuck(t: number) {
-    const f = this.musicLP.frequency;
-    f.cancelScheduledValues(t);
-    f.setTargetAtTime(this.top, t, 0.06);
+    for (const [f, top] of [[this.musicLP.frequency, this.top], [this.trackLP.frequency, 19000]] as const) {
+      f.cancelScheduledValues(t);
+      f.setTargetAtTime(top, t, 0.06);
+    }
+  }
+
+  /** under a track (`amount` 1) the world (stones, feet, matter), the effects and the jogo's sounds sit lower: the track
+   *  is mastered loud and these were levelled against the groove; 0 puts them back */
+  under(t: number, amount: number, levels = UNDER) {
+    const a = clamp(amount, 0, 1), to = (p: AudioParam, v: number) => p.setTargetAtTime(1 + (v - 1) * a, t, 0.3);
+    to(this.world.gain, levels.world);
+    to(this.fxBus.gain, levels.fx);
+    to(this.sfxBus.gain, 0.9 * levels.sfx);
   }
 
   /** the kick: the pad and the bass dip under it and come back */
