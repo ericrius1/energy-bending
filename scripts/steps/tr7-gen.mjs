@@ -2,7 +2,7 @@
 // critic's takes for these two worlds re-shot with the time pinned (the temple's tide held, the redwoods at dusk, so a
 // before and an after are the same moment), plus the lead shot's framing, the locks at 1080p, a close look at the log's
 // end and the moon, the 1080p timings and ?baseline. One take per run (each well under a minute under the lock):
-//   node scripts/steps/tr7-gen.mjs && node scripts/critic-cap.mjs scripts/steps/tr7.json --only <take> --prefix 7 --shots shots/tr7 --url http://[::1]:5456/energybending/
+//   node scripts/steps/tr7-gen.mjs && node scripts/critic-cap.mjs scripts/steps/tr7.json --only <take> --prefix 7tr --shots shots/tr7 --url http://[::1]:5456/energybending/
 import { writeFileSync } from 'node:fs';
 
 const takes = [];
