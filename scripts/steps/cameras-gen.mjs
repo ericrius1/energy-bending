@@ -41,7 +41,7 @@ out('gates', [
     setup: `${dusk} bend.set('gates', { fly: 'geode.redwoods', flySpeed: 0, flyT: -0.6, flyLength: 3 });`,
     each: "bend.set('gates', { flyT: t < 2 ? -0.6 + t * 0.6 : 0.6 - (t - 2) * 0.6 });",
     sheet: { cols: 8, rows: 4, width: 300 } },
-  // ten gates in the hub's world: the farthest drop out (no warning)
+  // four more pairs (sixteen gates open, eight in the hub's world): the farthest drop out, no warning
   { name: 'cam-many', query: 'world=geode&dress=fire', fps: 4, seconds: 3, warm: 200,
     setup: "bend.set('camera',{ shots:false, autoOrbit:false }); for (let k = 0; k < 4; k++) bend.gates.open({ id: 'x'+k, world: 'geode', at: [-3 + k*2, 1.35, -5.5], normal: [0,0,1], radius: 0.8, to: { world: 'temple', portal: 'y'+k } }, { id: 'y'+k, world: 'temple', at: [-4 + k*2.5, 1.4, 2], normal: [0,0,-1], radius: 0.8, to: { world: 'geode', portal: 'x'+k } });",
     each: 'bend.camera({ idle:0, yaw: 0.2 + t*0.3, dist: 6, pitch: 0.1, height: 1.4, fov: 70 });',
