@@ -1,11 +1,11 @@
 # Report 9: the films' tooling and timelines
 
-Branch `worktree-agent-a648819b41d203241`, not pushed or merged into master (master `684ae8e`, the first three
-wave 7 merges, is merged into it). Items 1, 2 and the films' half of 13 in `8-integration.md`'s "What is left", plus
+Branch `worktree-agent-a648819b41d203241`, not pushed or merged into master (master at `7d74dc7`, the wave 7
+merges so far, is merged into it). Items 1, 2 and the films' half of 13 in `8-integration.md`'s "What is left", plus
 the tooling they needed.
 
 **Measured** (RTX 5090, headless Chrome through `scripts/film-serve.mjs` on 5452, the sink on 5453, every take under
-the shared render lock): both films rendered whole with `--preview` and their scores after the merge of master, and
+the shared render lock): both films rendered whole with `--preview` and their scores after the second merge of master, and
 about a dozen `--no-score` previews of single shots before it while working; I looked at every contact sheet named
 here and at extra frame grids cut from the previews (the release, the bow, film 1's opening, the fusion's end). Each
 page now logs once a second where the seats stand and how far the film camera's eye is from the nearest body (a bone
@@ -68,13 +68,49 @@ determinism after the merge, any other machine.
   dancer and they stood one inside the other for two bars; the closing two-shot at 3.4 to 3.1 m (was 2.9 to 2.6, both
   cut by the frame's edges).
 
-## What changed in the films with master's merge
+## What changed in the films with master's merges
 
-(filled in from the final sheets)
+Master was merged twice (`684ae8e`: the fusion and moves, the field, the near fade and the gates' focus; `7d74dc7`:
+the temple's lock, the stage dim, the forge), both without conflict, and both films rendered again after the second.
+Compared by eye, sheet against sheet, with my last pre-merge takes (not frame-diffed):
 
-## Shot by shot, the final previews
+- **The bow reads now** (master's rewritten bow): in film 2's bow both dancers fold at the waist toward each other,
+  side-on (`9-films-film2-bow.jpg`); before, the water leaned and the fire only bent.
+- **Film 2's places are the timeline's own**, so the temple's new floor spawns and the pillars moved to ±5 m don't
+  move the pair (it is placed at ±1.2 m, 3.5 m in front of the stage plane); the free camera never comes near the
+  pillars.
+- **Film 1's lock section** (bars 8 to 13) frames about as before at this size; the bounded dodge is not visible in it.
+- The fusion: film 2's pair stands 0.27 to 0.33 m apart through the eight bars (the log's roots), one steam body;
+  film 1's one aurora body. Both were one body before too, because the timelines keep travelling moves out of them.
+- The violet bars (Report 8, film 1 row 2) are not in the final take; they were not in my pre-merge takes either.
+- The near fade and the gates' focus: no solid came near the film camera's eye in these takes, so I saw no fade.
+- Scores: film 2 mean -12.8 dB, peak -3.4 dB; film 1 mean -12.5 dB, peak -0.9 dB (`volumedetect`; not listened to).
 
-(filled in from the final sheets)
+## The final previews, shot by shot
+
+`docs/reports/media/film/film1-preview.mp4` (70.7 s) and `film2-preview.mp4` (77.3 s), git-ignored; sheets of 24
+frames: `9-film-film2-temple-sheet.jpg`, `9-film-film1-ab-jogo-sheet.jpg`, `9-film-film1-c-gate-sheet.jpg`,
+`9-film-film1-d-hub-sheet.jpg`; stills `9-films-film2-lead.jpg`, `-steam.jpg`, `-bow.jpg`, `9-films-film1-comet.jpg`,
+`-aurora.jpg`. Checked against Report 8's tables:
+
+| film, shot | Report 8's fault | now |
+|---|---|---|
+| 2, the dolly (rows 1) | fire on a column stub, water on the altar's ledge | both on the open court's flagstones, the moon between them and its road on the water |
+| 2, rows 2, 8, 12 | the camera through a dancer (full-frame flame, white-out) | the eye ≥ 4.2 m from every bone outside the bow (sampled each second), the bow 2.9 to 3.2 m as meant |
+| 2, rows 3 to 9 | the pair by the altar | the lead shot on the open court, side-on, the armada's flame over the water, the moon in the great gate (`9-films-film2-lead.jpg`) |
+| 2, rows 13 to 19 | prism, not steam; the camera in the body; a narrow body against the altar | steam (`9-films-film2-steam.jpg`), the eye 4.4 to 6 m from the nearest bone or the column's edge, the altar 3 m behind |
+| 2, rows 20 to 24 | the bow only a lean | side-on at 3.7 m, a bow (`9-films-film2-bow.jpg`) |
+| 1, row 1 | no asleep heaps | the gems' cairn and the fire smouldering under the crane, the comet at 4.2 s (`9-films-film1-comet.jpg`) |
+| 1, row 2 | violet bars | not seen |
+| 1, row 4 | a full-screen cyan wash at the orbit's end | one aurora body to the last frame (`9-films-film1-aurora.jpg`), the eye 3.8 m from the nearest bone |
+| 1, c-gate (first preview since Report 6) | — | the water's comet in the first frames and an empty meadow at the end, both gone |
+| 1, d-hub (first since Report 6) | — | an ice comet in the first frame, the pair one inside the other for two bars, the closing two-shot cut by the edges: all gone |
+
+Faults I still see: film 2's release (bar 22) bursts fire and water across a good part of the frame for half a second
+even at 6 to 7 m; film 2's steam column is a tall, very white shape with little inside it reading; in film 1 the
+intro's water rise is the hard-edged rectangular column (the water's rise, Report 8 item 5); film 1's crane passes
+close under a bough at 2 s (a dark bar across the top of the frame, the canopy shot, meant); faint diagonal streaks
+across the whole of some film 2 frames (the bow's still shows them), not traced.
 
 ## Weak points
 
@@ -108,3 +144,10 @@ Nothing in `src/play/fusion.ts`, `src/dancer/moves.ts` or the other agents' fold
   dancers asleep; `set: { jogo: { rings: 0 } }` hides the floor rings). A timeline with `form` cues holds the partner's
   own form presses off (`AiPartner.formHeld`)."
 - In the debug flags: "`&hold=S` (a script's room starts S seconds late; bare: at `bend.jogo.start()`)".
+
+## Tests
+
+After the second merge of master: `npm run typecheck` clean; `npm test`: limits, the binding budget, 10 TS test files
+(`src/engine/filmcam.test.ts` new, 4 tests), audio, the gates' checks, and the net tests, of which the real-time
+smoothness test ("B: tracks the source in real time") failed once while the machine was busy and passed when
+`npm run test:net` ran again alone (all 67 net tests).
