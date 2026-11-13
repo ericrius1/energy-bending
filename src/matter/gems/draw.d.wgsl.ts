@@ -138,7 +138,7 @@ export interface Look {
   sparkSize: number;
   crystal: number;
   heart: number;
-  pad0: number;
+  clap: number;
   streak: Vec4;
 }
 export interface Spark {
@@ -311,6 +311,7 @@ export interface VOut {
   lod: number;
   env: number;
   clip: number;
+  clap: number;
 }
 
 declare const shader: Shader<{ Frame: Frame; Joint: Joint; Seg: Seg; Particle: Particle; Home: Home; BodyStep: BodyStep; Sim: Sim; CullView: CullView; Kind: Kind; Minerals: Minerals; Look: Look; Spark: Spark; Geode: Geode; Forest: Forest; Pool: Pool; Temple: Temple; Forge: Forge; FireLight: FireLight; FireLights: FireLights; WorldLight: WorldLight; KeyLight: KeyLight; Seen: Seen; ViewSeen: ViewSeen; Heart: Heart; Hearts: Hearts; VOut: VOut }, 'frame' | 'worldLight' | 'sim' | 'look' | 'minerals' | 'seen' | 'hearts' | 'state' | 'verts' | 'list' | 'homes' | 'homes2Prev' | 'poolWaves' | 'templeWaves' | 'samp_linear' | 'samp_repeat' | 'samp_nearest' | 'samp_shadow'>;

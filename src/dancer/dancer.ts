@@ -19,6 +19,9 @@ export class Dancer {
   world = '';
   /** whether the camera follows and frames it (false for an onlooker: a roda's free dancer round a jogo) */
   framed = true;
+  /** when its hands last met in a clap (FrameCtx.t, s; -Infinity: never): whoever drives it keeps it (src/ai's roda,
+   *  from its palmas), the gems light the hands with it */
+  clapAt = -Infinity;
   constructor(public readonly id: string, public controller: Controller, public loadout: Loadout) {
     this.skeleton = new Skeleton(controller.rig);
   }
