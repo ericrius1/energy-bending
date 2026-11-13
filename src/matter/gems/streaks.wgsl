@@ -28,7 +28,9 @@ struct SOut {
 @vertex fn vs(@builtin(vertex_index) vi: u32, @builtin(instance_index) ii: u32) -> SOut {
   var o: SOut;
   o.pos = vec4f(2.0, 2.0, 2.0, 1.0);
-  if (ii >= sim.count) { return o; }
+  // (spares, the stones nobody wears now, fall and fade without a streak: through another kind's body a falling
+  // dark stone's streak read as a needle)
+  if (ii >= sim.count || ii >= sim.inUse) { return o; }
   let p = state[ii];
   let speed = length(p.vel);
   let fast = smoothstep(1.2, 4.5, speed);

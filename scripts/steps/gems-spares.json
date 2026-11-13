@@ -1,0 +1,46 @@
+[
+ {
+  "name": "g-spares-fire",
+  "query": "play&dress=gems&world=geode",
+  "fps": 10,
+  "seconds": 3,
+  "warm": 240,
+  "setup": "bend.set('camera', { followDist: 3.2, followFov: 44, followPitch: 0.08, followSwing: 0 }); bend.wake(); bend.place(0,0,0,Math.PI/2); await bend.step(120); bend.dress(0,'fire');",
+  "cues": {
+   "1.0": "bend.move(0,'armada')"
+  },
+  "each": "bend.camera({ yaw: 0.3 });",
+  "sheet": {
+   "cols": 6,
+   "rows": 5,
+   "width": 320
+  },
+  "stills": [
+   0.2,
+   1.5,
+   2.8
+  ]
+ },
+ {
+  "name": "g-spares-water",
+  "query": "play&dress=gems&world=geode",
+  "fps": 10,
+  "seconds": 3,
+  "warm": 240,
+  "setup": "bend.set('camera', { followDist: 3.2, followFov: 44, followPitch: 0.08, followSwing: 0 }); bend.wake(); bend.place(0,0,0,Math.PI/2); await bend.step(120); bend.dress(0,'water');",
+  "cues": {
+   "1.0": "bend.move(0,'armada')"
+  },
+  "each": "bend.camera({ yaw: 0.3 });",
+  "sheet": {
+   "cols": 6,
+   "rows": 5,
+   "width": 320
+  },
+  "stills": [
+   0.2,
+   1.5,
+   2.8
+  ]
+ }
+]

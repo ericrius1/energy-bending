@@ -43,5 +43,7 @@ struct BodyStep {
   shatter: f32, scatter: f32,   // how easily a swipe knocks them off, how hard they fly
   noiseAmp: f32, noiseFreq: f32, noiseSpeed: f32,
   spin: f32, order: f32,   // a slow spin on the body; 0 tumbling any which way … 1 facing out from the body
-  pad0: f32, pad1: f32, pad2: f32,
+  hold: f32,         // 0 (every kind but the gems): the plain spring. > 0: fast limbs hold their matter (bodyStep)
+  trailCap: f32,     // with hold: how far (m) matter may trail its home when the limb is slow (less when it's fast)
+  pad0: f32,
 }

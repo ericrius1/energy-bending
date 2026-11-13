@@ -1,0 +1,53 @@
+[
+ {
+  "name": "g-t-classic-pair",
+  "query": "play&two&dress=gems,gems&world=geode",
+  "fps": 30,
+  "seconds": 1,
+  "warm": 400,
+  "setup": "bend.set('camera', { followDist: 4.2, followFov: 46, followPitch: 0.1, followSwing: 0 }); bend.wake(); bend.place(0,-0.6,0.4,Math.PI/2); bend.place(1,0.6,0.4,-Math.PI/2); bend.move(0,'armada');",
+  "sheet": {
+   "cols": 2,
+   "rows": 1,
+   "width": 640
+  },
+  "timings": true,
+  "stills": [
+   0.5
+  ]
+ },
+ {
+  "name": "g-t-monolith-pair",
+  "query": "play&two&dress=monolith,monolith&world=geode",
+  "fps": 30,
+  "seconds": 1,
+  "warm": 400,
+  "setup": "bend.set('camera', { followDist: 4.2, followFov: 46, followPitch: 0.1, followSwing: 0 }); bend.wake(); bend.place(0,-0.6,0.4,Math.PI/2); bend.place(1,0.6,0.4,-Math.PI/2); bend.move(0,'armada');",
+  "sheet": {
+   "cols": 2,
+   "rows": 1,
+   "width": 640
+  },
+  "timings": true,
+  "stills": [
+   0.5
+  ]
+ },
+ {
+  "name": "g-t-mixed-pair",
+  "query": "play&two&dress=mosaic,single&world=geode",
+  "fps": 30,
+  "seconds": 1,
+  "warm": 400,
+  "setup": "bend.set('camera', { followDist: 4.2, followFov: 46, followPitch: 0.1, followSwing: 0 }); bend.wake(); bend.place(0,-0.6,0.4,Math.PI/2); bend.place(1,0.6,0.4,-Math.PI/2); bend.move(0,'armada');",
+  "sheet": {
+   "cols": 2,
+   "rows": 1,
+   "width": 640
+  },
+  "timings": true,
+  "stills": [
+   0.5
+  ]
+ }
+]

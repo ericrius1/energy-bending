@@ -1,0 +1,138 @@
+[
+ {
+  "name": "g-min-amethyst",
+  "query": "play&dress=single&world=geode",
+  "fps": 4,
+  "seconds": 2,
+  "warm": 200,
+  "setup": "bend.set('camera', { followDist: 1.9, followFov: 40, followPitch: 0.08, followSwing: 0 }); bend.wake(); bend.place(0,0,0,Math.PI/2); bend.loadout(0, { layers: [{ kind: 'gems', share: 1, params: { suite: 'amethyst', crystals: 1 } }] }); await bend.step(90);",
+  "each": "bend.camera({ yaw: t * 3.14159 });",
+  "sheet": {
+   "cols": 4,
+   "rows": 2,
+   "width": 360
+  },
+  "stills": [
+   0
+  ]
+ },
+ {
+  "name": "g-min-citrine",
+  "query": "play&dress=single&world=geode",
+  "fps": 4,
+  "seconds": 2,
+  "warm": 200,
+  "setup": "bend.set('camera', { followDist: 1.9, followFov: 40, followPitch: 0.08, followSwing: 0 }); bend.wake(); bend.place(0,0,0,Math.PI/2); bend.loadout(0, { layers: [{ kind: 'gems', share: 1, params: { suite: 'citrine', crystals: 1 } }] }); await bend.step(90);",
+  "each": "bend.camera({ yaw: t * 3.14159 });",
+  "sheet": {
+   "cols": 4,
+   "rows": 2,
+   "width": 360
+  },
+  "stills": [
+   0
+  ]
+ },
+ {
+  "name": "g-min-emerald",
+  "query": "play&dress=single&world=geode",
+  "fps": 4,
+  "seconds": 2,
+  "warm": 200,
+  "setup": "bend.set('camera', { followDist: 1.9, followFov: 40, followPitch: 0.08, followSwing: 0 }); bend.wake(); bend.place(0,0,0,Math.PI/2); bend.loadout(0, { layers: [{ kind: 'gems', share: 1, params: { suite: 'emerald', crystals: 1 } }] }); await bend.step(90);",
+  "each": "bend.camera({ yaw: t * 3.14159 });",
+  "sheet": {
+   "cols": 4,
+   "rows": 2,
+   "width": 360
+  },
+  "stills": [
+   0
+  ]
+ },
+ {
+  "name": "g-min-obsidian",
+  "query": "play&dress=single&world=geode",
+  "fps": 4,
+  "seconds": 2,
+  "warm": 200,
+  "setup": "bend.set('camera', { followDist: 1.9, followFov: 40, followPitch: 0.08, followSwing: 0 }); bend.wake(); bend.place(0,0,0,Math.PI/2); bend.loadout(0, { layers: [{ kind: 'gems', share: 1, params: { suite: 'obsidian', crystals: 1 } }] }); await bend.step(90);",
+  "each": "bend.camera({ yaw: t * 3.14159 });",
+  "sheet": {
+   "cols": 4,
+   "rows": 2,
+   "width": 360
+  },
+  "stills": [
+   0
+  ]
+ },
+ {
+  "name": "g-min-opal",
+  "query": "play&dress=single&world=geode",
+  "fps": 4,
+  "seconds": 2,
+  "warm": 200,
+  "setup": "bend.set('camera', { followDist: 1.9, followFov: 40, followPitch: 0.08, followSwing: 0 }); bend.wake(); bend.place(0,0,0,Math.PI/2); bend.loadout(0, { layers: [{ kind: 'gems', share: 1, params: { suite: 'opal', crystals: 1 } }] }); await bend.step(90);",
+  "each": "bend.camera({ yaw: t * 3.14159 });",
+  "sheet": {
+   "cols": 4,
+   "rows": 2,
+   "width": 360
+  },
+  "stills": [
+   0
+  ]
+ },
+ {
+  "name": "g-min-quartz",
+  "query": "play&dress=single&world=geode",
+  "fps": 4,
+  "seconds": 2,
+  "warm": 200,
+  "setup": "bend.set('camera', { followDist: 1.9, followFov: 40, followPitch: 0.08, followSwing: 0 }); bend.wake(); bend.place(0,0,0,Math.PI/2); bend.loadout(0, { layers: [{ kind: 'gems', share: 1, params: { suite: 'quartz', crystals: 1 } }] }); await bend.step(90);",
+  "each": "bend.camera({ yaw: t * 3.14159 });",
+  "sheet": {
+   "cols": 4,
+   "rows": 2,
+   "width": 360
+  },
+  "stills": [
+   0
+  ]
+ },
+ {
+  "name": "g-min-rose",
+  "query": "play&dress=single&world=geode",
+  "fps": 4,
+  "seconds": 2,
+  "warm": 200,
+  "setup": "bend.set('camera', { followDist: 1.9, followFov: 40, followPitch: 0.08, followSwing: 0 }); bend.wake(); bend.place(0,0,0,Math.PI/2); bend.loadout(0, { layers: [{ kind: 'gems', share: 1, params: { suite: 'rose', crystals: 1 } }] }); await bend.step(90);",
+  "each": "bend.camera({ yaw: t * 3.14159 });",
+  "sheet": {
+   "cols": 4,
+   "rows": 2,
+   "width": 360
+  },
+  "stills": [
+   0
+  ]
+ },
+ {
+  "name": "g-min-iron",
+  "query": "play&dress=single&world=geode",
+  "fps": 4,
+  "seconds": 2,
+  "warm": 200,
+  "setup": "bend.set('camera', { followDist: 1.9, followFov: 40, followPitch: 0.08, followSwing: 0 }); bend.wake(); bend.place(0,0,0,Math.PI/2); bend.loadout(0, { layers: [{ kind: 'gems', share: 1, params: { suite: 'iron', crystals: 1 } }] }); await bend.step(90);",
+  "each": "bend.camera({ yaw: t * 3.14159 });",
+  "sheet": {
+   "cols": 4,
+   "rows": 2,
+   "width": 360
+  },
+  "stills": [
+   0
+  ]
+ }
+]

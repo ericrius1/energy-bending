@@ -82,9 +82,9 @@ export interface BodyStep {
   noiseSpeed: number;
   spin: number;
   order: number;
+  hold: number;
+  trailCap: number;
   pad0: number;
-  pad1: number;
-  pad2: number;
 }
 export interface WaterSim {
   body: BodyStep;

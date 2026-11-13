@@ -5,11 +5,13 @@
 // strongest deep in a geode), polished stone or glass, and metal. Everything that depends on where they are (what
 // they reflect, the light on them, the soft light round them) comes from worlds/light.wgsl, chosen by the WORLD
 // constant this pipeline was made with. A dancer's stones are drawn where this view sees them (engine/seen.wgsl:
-// carried through a gate, cut at its door).
+// carried through a gate, cut at its door). Each mineral's trait is here too (obsidian's glowing fractures, opal's play
+// of colour, iron's rust), and a heart (hearts.wgsl) lights the stones round it.
 #include "weft/frame"
 #include "./gem"
 #include "../../worlds/light"
 #include "../../engine/seen"
+#include "./hearts"
 
 override MIRROR: f32 = 0.0;
 
@@ -22,6 +24,7 @@ override MIRROR: f32 = 0.0;
 @group(1) @binding(6) var<storage, read> homes: array<Home>;
 @group(1) @binding(7) var<storage, read> homes2Prev: array<vec4f>;
 @group(1) @binding(8) var<uniform> seen: ViewSeen;
+@group(1) @binding(9) var<uniform> hearts: Hearts;
 
 fn looksOf(i: u32, p: Particle) -> vec4f {
   if (sim.prevLook > 0.5 && i < sim.envBase && (modeIs(p.mode, RESTING) || (modeIs(p.mode, FLYING) && sim.body.settle > 0.5))) { return homes2Prev[i]; }
@@ -93,6 +96,28 @@ struct VOut {
 }
 
 fn hue(c: vec3f) -> vec3f { return c / max(max(c.r, max(c.g, c.b)), 1e-3); }
+
+/** a mineral's own trait on crystal and polished stone: obsidian's fractures glowing like embers, opal's patches of
+ *  spectral colour that change as it turns */
+fn traits(K: Kind, local: vec3f, N: vec3f, V: vec3f, cosV: f32) -> vec3f {
+  var c = vec3f(0.0);
+  if (K.fx.x > 0.0) {
+    // the lines where a noise crosses its middle read as cracks; they breathe a little
+    let q = local * 3.2;
+    let crack = 1.0 - smoothstep(0.0, 0.035, abs(vnoise(q) - 0.5)) * 1.0;
+    let crack2 = 1.0 - smoothstep(0.0, 0.025, abs(vnoise(q * 2.3 + 11.0) - 0.5));
+    let breathe = 0.75 + 0.25 * sin(frame.time * 1.7 + local.x * 9.0);
+    c += vec3f(1.0, 0.32, 0.06) * (crack + crack2 * 0.5) * K.fx.x * 1.6 * breathe;
+  }
+  if (K.fx.y > 0.0) {
+    // play of colour: cells of one spectral colour each, which shifts with the angle it is seen at
+    let cell = floor(local * 5.0 + vec3f(fbm(local * 2.0)) * 2.0);
+    let h = hash3(cell);
+    let blot = smoothstep(0.35, 0.6, hash3(cell + 7.0));
+    c += thinFilm(h * 3.0 + cosV * 1.6) * blot * K.fx.y * (0.35 + 0.65 * pow(1.0 - cosV, 1.5)) * 0.9;
+  }
+  return c;
+}
 
 /** the soft light round a stone, as bright as the stones take it */
 fn ambient(N: vec3f, ao: f32, p: vec3f) -> vec3f { return worldAmbient(N, ao, p) * look.envIntensity; }
@@ -189,7 +214,7 @@ fn ambient(N: vec3f, ao: f32, p: vec3f) -> vec3f { return worldAmbient(N, ao, p)
       let tilt = normalize(-N + (vec3f(fh, fract(fh * 7.1), fract(fh * 3.3)) - 0.5) * 1.3);
       var inside = vec3f(0.0);
       for (var c = 0; c < 3; c++) {
-        let T = refract(-V, N, 1.0 / (ior + (f32(c) - 1.0) * look.dispersion));
+        let T = refract(-V, N, 1.0 / (ior + (f32(c) - 1.0) * look.dispersion * K.fx.w));
         inside[c] = worldEnv(normalize(reflect(T, tilt)), i.wp)[c];
       }
       inside *= body * look.envIntensity;
@@ -201,19 +226,27 @@ fn ambient(N: vec3f, ao: f32, p: vec3f) -> vec3f { return worldAmbient(N, ao, p)
       col += g * look.glint * glintK * step(0.55, fh) * mix(vec3f(1.0), hue(body), 0.4);
       // the glow: strongest deep in a cavity (low ambient occlusion), faint on points out in the open
       col += hue(body) * K.crystal.w * look.emissive * mix(0.35, 1.0, 1.0 - i.ao) * (0.4 + 0.6 * fh) * 0.5;
+      col += traits(K, i.local, N, V, cosV);
     }
-    // ------------------------------------------------ metal (pyrite)
+    // ------------------------------------------------ metal (pyrite; iron, rusting)
     default: {
-      let m = K.crystal.rgb;
+      let rust = K.fx.z * smoothstep(0.42, 0.62, fbm(i.local * 2.6 + f32(i.kind) * 5.0));
+      let m = mix(K.crystal.rgb, vec3f(0.09, 0.035, 0.012), rust);
       let st = sin(dot(i.local, vec3f(41.0, 3.0, 7.0))) * 0.08;
       let Nb = normalize(N + qrot(i.rot, vec3f(st, 0.0, 0.0)));
       let cosV = max(dot(Nb, V), 0.0);
       let F = m + (vec3f(1.0) - m) * pow(max(1.0 - cosV, 0.0), 5.0);
       let R = reflect(-V, Nb);
       col = worldEnv(R, i.wp) * look.envIntensity * F * 0.9 + m * ambient(Nb, i.ao, i.wp) * 0.15;
-      col += F * pow(max(dot(R, Ld), 0.0), 120.0) * 8.0 * look.glint * glintK;
+      col += F * pow(max(dot(R, Ld), 0.0), 120.0) * 8.0 * look.glint * glintK * (1.0 - rust);
+      // rust is matte and warm, with the odd orange glint where a flake catches the light
+      col = mix(col, m * (ambient(Nb, i.ao, i.wp) + keyCol * max(dot(Nb, Ld), 0.0)) * 2.2, rust);
+      let flake = step(0.93, hash3(floor(i.local * 30.0) + f32(i.kind)));
+      col += vec3f(1.0, 0.45, 0.12) * flake * rust * pow(max(dot(R, Ld), 0.0), 16.0) * 5.0 * look.glint * glintK;
     }
   }
+  // a heart's light on the stones round it (the heart's own stones most of all)
+  if (i.env < 0.5) { col += heartLight(hearts, i.wp) * look.heart * mix(vec3f(0.6), hue(K.crystal.rgb), 0.6) * mix(0.5, 1.0, 1.0 - i.ao); }
   // fast stones run hot
   col += hue(K.crystal.rgb) * i.heat * look.speedGlow * 0.3;
   // a world's own crystals: lit mostly from within, as the world tints them

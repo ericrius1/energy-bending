@@ -82,9 +82,9 @@ export interface BodyStep {
   noiseSpeed: number;
   spin: number;
   order: number;
+  hold: number;
+  trailCap: number;
   pad0: number;
-  pad1: number;
-  pad2: number;
 }
 export interface Sim {
   body: BodyStep;
@@ -105,6 +105,7 @@ export interface Sim {
   cullPx: number;
   envBase: number;
   types: ArrayLike<number> | Vec4[];
+  caps: ArrayLike<number> | Vec4[];
 }
 export interface CullView {
   fixBase: number;
@@ -119,6 +120,7 @@ export interface Kind {
   band2: Vec4;
   crystal: Vec4;
   extra: Vec4;
+  fx: Vec4;
 }
 export interface Minerals {
   k: Partial<Kind>[];
@@ -133,9 +135,9 @@ export interface Look {
   reflect: number;
   sparkle: number;
   sparkSize: number;
+  crystal: number;
+  heart: number;
   pad0: number;
-  pad1: number;
-  pad2: number;
   streak: Vec4;
 }
 export interface Spark {
@@ -275,6 +277,13 @@ export interface ViewSeen {
   pad0: number;
   pad1: number;
 }
+export interface Heart {
+  at: Vec4;
+  glow: Vec4;
+}
+export interface Hearts {
+  h: Partial<Heart>[];
+}
 export interface VOut {
   pos: Vec4;
   wp: Vec3;
@@ -291,5 +300,5 @@ export interface VOut {
   clip: number;
 }
 
-declare const shader: Shader<{ Frame: Frame; Joint: Joint; Seg: Seg; Particle: Particle; Home: Home; BodyStep: BodyStep; Sim: Sim; CullView: CullView; Kind: Kind; Minerals: Minerals; Look: Look; Spark: Spark; Geode: Geode; Forest: Forest; Pool: Pool; Temple: Temple; Forge: Forge; FireLight: FireLight; FireLights: FireLights; WorldLight: WorldLight; KeyLight: KeyLight; Seen: Seen; ViewSeen: ViewSeen; VOut: VOut }, 'frame' | 'worldLight' | 'sim' | 'look' | 'minerals' | 'seen' | 'state' | 'verts' | 'list' | 'homes' | 'homes2Prev' | 'poolWaves' | 'templeWaves' | 'samp_linear' | 'samp_repeat' | 'samp_nearest' | 'samp_shadow'>;
+declare const shader: Shader<{ Frame: Frame; Joint: Joint; Seg: Seg; Particle: Particle; Home: Home; BodyStep: BodyStep; Sim: Sim; CullView: CullView; Kind: Kind; Minerals: Minerals; Look: Look; Spark: Spark; Geode: Geode; Forest: Forest; Pool: Pool; Temple: Temple; Forge: Forge; FireLight: FireLight; FireLights: FireLights; WorldLight: WorldLight; KeyLight: KeyLight; Seen: Seen; ViewSeen: ViewSeen; Heart: Heart; Hearts: Hearts; VOut: VOut }, 'frame' | 'worldLight' | 'sim' | 'look' | 'minerals' | 'seen' | 'hearts' | 'state' | 'verts' | 'list' | 'homes' | 'homes2Prev' | 'poolWaves' | 'templeWaves' | 'samp_linear' | 'samp_repeat' | 'samp_nearest' | 'samp_shadow'>;
 export default shader;
