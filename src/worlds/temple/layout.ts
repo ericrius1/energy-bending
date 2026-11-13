@@ -69,7 +69,9 @@ export function layoutTemple(o: { coarse: boolean; seed?: number }): TempleLayou
   // ---------------------------------------------------------------- the stage (the plane z = STAGE_Z, seen from +z)
   const SZ = STAGE_Z;
   const stumpR = 0.5, stumpH = 1.9;
-  const stumpL = -4.2, stumpRx = 4.3;
+  // (the broken pillars stand at the stage's ends, 3.3 m clear of the altar: nearer, at ±4.2, the pair dancing between
+  // altar and pillar had a pillar 1.9 m tall beside them in every locked frame, lit by the fire, half the frame's height)
+  const stumpL = -5.0, stumpRx = 5.05;
   const altarW = 2.4, altarTop = 1.1;
   const lintel = { x0: 0.35, x1: 3.85, top: 3.1, thick: 0.5, z0: SZ - 1.55, z1: SZ + 0.35 };
   const ledges: Ledge[] = [

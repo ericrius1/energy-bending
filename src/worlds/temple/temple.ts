@@ -147,7 +147,10 @@ export class Temple implements World {
     const L = this.layout.ledges;
     this.stages = [stagePlane({
       id: 'court', origin: [0, 0, STAGE_Z], right: [1, 0, 0], halfWidth: 5.75, ground: 0, ledges: L,
-      spawns: [[-4.2, L[0].y], [4.3, L[2].y]], lens: 19, yaw: 0.14, pitch: 0,
+      // (the seats start on the open flagstones between the altar and the broken pillars, not on the pillars' tops: a
+      // dancer who only dances there stayed up on the left pillar, a third of a take, and the pair met at the court's
+      // left edge with the pillar filling the frame beside them)
+      spawns: [[-2.85, 0], [2.9, 0]], lens: 19, yaw: 0.14, pitch: 0,
     })];
     this.spawns = spawnsOf(this.stages[0]);
     // one gate, back to the geode: on the court to the left of the stage, facing across it, the flagstones clear round it

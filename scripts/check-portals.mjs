@@ -18,7 +18,7 @@ import { dirname, join } from 'node:path';
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const weftSrc = join(root, 'node_modules/@ericrius1/weft/src').replace(/\\/g, '/');
 const out = await build({
-  stdin: { contents: "export * from './src/portals/gate'; export * from './src/portals/camera'; export * from './src/portals/rigid'; export { CameraRig, Solids, boxOn, distTo, cameraParams } from './src/engine/camera';", resolveDir: root, loader: 'ts' },
+  stdin: { contents: "export * from './src/portals/gate'; export * from './src/portals/camera'; export * from './src/portals/rigid'; export { CameraRig, Solids, boxOn, distTo, cameraParams } from './src/engine/camera'; export { layoutTemple, solidsOf as templeSolids } from './src/worlds/temple/layout'; export { clearOf } from './src/worlds/solids'; export { stagePlane } from './src/worlds/stage';", resolveDir: root, loader: 'ts' },
   bundle: true, format: 'esm', write: false, platform: 'node',
   plugins: [{
     name: 'weft-cpu', setup(b) {
@@ -28,7 +28,7 @@ const out = await build({
   }],
 });
 const mod = await import(`data:text/javascript;base64,${Buffer.from(out.outputFiles[0].text).toString('base64')}`);
-const { Gate, GateCamera, setPose, CameraRig, Solids, boxOn, distTo, cameraParams } = mod;
+const { Gate, GateCamera, setPose, CameraRig, Solids, boxOn, distTo, cameraParams, layoutTemple, templeSolids, clearOf, stagePlane } = mod;
 
 let bad = 0, n = 0;
 const ok = (cond, what) => { n++; if (!cond) { bad++; console.error('FAIL', what); } };
@@ -348,6 +348,35 @@ const stepRig = (rig, n, f, each) => { for (let i = 0; i < n; i++) { each?.(i); 
   const steady = walk(true), live = walk(false);
   okc(steady.maxOff < 0.01, `the stick held one way walks a straight line (${steady.maxOff.toFixed(3)} m off it over 5 s; read in the live camera turn: ${live.maxOff.toFixed(2)} m)`);
   okc(steady.behind > 0.95, `and the follow camera ends behind the player (cos ${steady.behind.toFixed(2)})`);
+}
+
+// the temple's lock (9-stage.md): a pair walking the whole court along its stage, past the altar's ends and the broken
+// pillars, in the temple's own solids (World.clear and the dodge read them): the stage's own ledges never pull the
+// lock in (from the look point a turn past the altar's end read as 0 clear: a 2 m eye with a 90° lens, the "dark low
+// angle"), the lens stays the stage's, the eye never comes in faster than 5 m/s nor turns faster than 0.35 rad/s
+{
+  const L = layoutTemple({ coarse: false }), S = templeSolids(L.stones);
+  const plane = stagePlane({ id: 'court', origin: [0, 0, -3.2], right: [1, 0, 0], halfWidth: 5.75, ground: 0, ledges: L.ledges, spawns: [[-2.85, 0], [2.9, 0]], lens: 19, yaw: 0.14, pitch: 0 });
+  const rig = new CameraRig();
+  rig.solids = new Solids(S);
+  rig.clearance = (a, b) => clearOf(S, a, b);
+  rig.lock(plane);
+  const dt = 1 / 60, at = (i) => -5.2 + Math.min(1, i / 1500) * 10.4;   // 25 s from one end of the court to the other
+  const pair = (i) => [body(at(i) - 0.7, 1, -3.2), body(at(i) + 0.7, 1, -3.2)];
+  const f = (i) => ({ ...input(pair(i), 16), maxDist: 18 });
+  stepRig(rig, 120, () => f(0));
+  let widest = 0, fastIn = 0, fastTurn = 0, nearest = Infinity, prevD = rig.lockD, prevDodge = rig.dodge;
+  for (let i = 0; i <= 1500; i++) {
+    rig.update(dt, f(i));
+    widest = Math.max(widest, rig.fovNow);
+    fastIn = Math.max(fastIn, (prevD - rig.lockD) / dt);
+    fastTurn = Math.max(fastTurn, Math.abs(rig.dodge - prevDodge) / dt);
+    nearest = Math.min(nearest, rig.lockD);
+    prevD = rig.lockD; prevDodge = rig.dodge;
+  }
+  okc(widest < 19 * 1.2, `temple lock: across the court the lens stays the stage's (widest ${widest.toFixed(1)}°, the stage's 19°)`);
+  okc(nearest > 6, `temple lock: the eye never comes in close (nearest ${nearest.toFixed(1)} m from what it frames)`);
+  okc(fastIn <= 5.01 && fastTurn <= 0.351, `temple lock: bounded: in at most ${fastIn.toFixed(2)} m/s, turning at most ${fastTurn.toFixed(3)} rad/s`);
 }
 
 // (the camera path API, CameraRig.play, is gone at the integration: the films' camera is engine/filmcam.ts)

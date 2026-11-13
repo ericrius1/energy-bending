@@ -27,15 +27,15 @@ test('temple: a segment toward the altar stops at its face less the margin', () 
   near(z, STAGE_Z + 0.55 + 0.4, 0.02, 'the carved block\'s front plus 40 cm');
 });
 test('temple: a segment through the left broken pillar stops at its side', () => {
-  const t = clearOf(ts, [-4.2, 1.0, 2], [-4.2, 1.0, STAGE_Z]);
+  const t = clearOf(ts, [-5.0, 1.0, 2], [-5.0, 1.0, STAGE_Z]);
   const z = 2 + (STAGE_Z - 2) * t;
   near(z, STAGE_Z + 0.5 + 0.4, 0.02);
 });
 test('temple: over the stump\'s top the segment is clear (the cylinder ends at the top)', () => {
-  near(clearOf(ts, [-4.2, 2.5, 2], [-4.2, 2.5, STAGE_Z]), 1, 1e-9);
+  near(clearOf(ts, [-5.0, 2.5, 2], [-5.0, 2.5, STAGE_Z]), 1, 1e-9);
 });
 test('temple: a look point inside a margin (a dancer on a stump) does not pull the camera in', () => {
-  const t = clearOf(ts, [-4.2, 2.1, STAGE_Z], [-4.2, 2.6, 4]);
+  const t = clearOf(ts, [-5.0, 2.1, STAGE_Z], [-5.0, 2.6, 4]);
   assert(t > 0.99, `clear ${t}`);
 });
 test('temple: the gate\'s columns and the fallen drums are there', () => {
