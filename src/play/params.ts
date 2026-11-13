@@ -27,7 +27,7 @@ export const jogoParams = defineParams('jogo', {
   /** fusion: how far (m) the locked view stands back, and how fast the free camera orbits (rad/s) */
   fusionPad: 0.9,
   fusionOrbit: 0.12,
-  /** how strongly the fusion's vortex turns the air (m/s at its core) */
+  /** how strongly the fusion turns the air: half of it is the field.fuse strength (m/s at the helix) */
   vortex: 4.5,
   /** how strongly a gamepad rumbles (× each exchange's own) */
   rumble: 1,

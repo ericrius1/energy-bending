@@ -211,6 +211,7 @@ export async function startJogo(app: PlayApp, mode: string) {
   const fusion = new Fusion(bodies, {
     glows, rig, field, arcs: plasma?.arcs ?? null, music, ripple, now: () => room.now(), frame: () => kit.frameIndex,
     dancer: (s) => seatDancer[s],
+    slot: (s) => { const d = seatDancer[s]; return d ? show.dancers.indexOf(d) : -1; },
     setLoadout: (s, l) => { const d = seatDancer[s]; const k = d ? show.dancers.indexOf(d) : -1; if (k >= 0) show.setLoadout(k, l); },
   });
   const hud = new Hud(bodies, {

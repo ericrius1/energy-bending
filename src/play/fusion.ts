@@ -3,17 +3,15 @@
 //
 //   gathering  from the moment it is scheduled to its bar line: light drawn out of both bodies toward the middle,
 //              the music's drop rising (music.fusion(kind, t0) lands on the same bar)
-//   the landing a flash and a ring at the shared centre; the field gets a vortex there (field.vortex('fusion')), so
-//              flame, water, steam and spray all start to turn round the pair; each body takes on some of the other's
-//              matter (their loadouts mix: a fire dancer burns with water through it, and back), the camera stands back
-//              (locked: a wider frame; free: it slowly orbits), and the dancers drift together
+//   the landing a flash and a ring at the shared centre; the field's fusion begins (field.fuse: the two matters'
+//              auras wound into a double helix round a vortex at the pair, and the steam it makes takes the kind's
+//              look: steam, prism, storm or aurora; one look per kind, the field's), so flame, water, steam and spray
+//              all turn round the pair; each body takes on some of the other's matter (their loadouts mix), the camera
+//              stands back (locked: a wider frame; free: it slowly orbits), and the dancers drift together
 //   the eight bars  streams of light pour out of each body, round the shared centre and into the other, coloured from
-//              one body into the other through the fusion's own colours; the kind decides what else happens:
-//                steam   (fire + water)   heat and wet poured into the middle: a turning column of steam, lifting
-//                prism   (fire + ice)     glints of every colour round the spiral, a white core, light split
-//                storm   (plasma + water) arcs from the centre to both bodies and through the vortex, falling drops
-//                aurora  (plasma + ice)   curtains of green, teal and violet rising round the pair, waving slowly
-//   release    on the rules' `release`: the matter goes home (the loadouts back), the vortex off, a ring of ripples in
+//              one body into the other through the fusion's own colours, on top of the field's fusion; storm adds arcs
+//              from the centre to both bodies and falling drops
+//   release    on the rules' `release`: the matter goes home (the loadouts back), the field's fusion off, a ring of ripples in
 //              the world's water and of sparks on the air, the air pushed outward, the dancers parted, music.release()
 import type { Dancer } from '../dancer/dancer';
 import type { Loadout } from '../matter/core/kind';
@@ -40,7 +38,11 @@ export interface FusionCtx {
   glows: Glows;
   rig: CameraRig;
   dancer(seat: number): Dancer | null;
-  field?: { vortex(id: string, v: { at: V3; axis?: V3; strength: number; radius: number; inflow?: number; lift?: number; height?: number } | null): void; deposit(d: { p: V3; r: number; heat?: number; wet?: number; wind?: V3 }): void } | null;
+  /** the field: its fusion (matter/field: the helix of both auras round a vortex, and the steam's look per kind),
+   *  and deposits for the landing's and the release's gusts */
+  field?: { fuse(f: { amount: number; kind?: FusionKind; dancers?: [number, number]; strength?: number; tightness?: number } | null): void; deposit(d: { p: V3; r: number; heat?: number; wet?: number; wind?: V3 }): void } | null;
+  /** a seat's dancer's slot in the show (what the field's fusion names) */
+  slot?: (seat: number) => number;
   arcs?: { add(a: ArrayLike<number>, b: ArrayLike<number>, I?: number, frames?: number): void } | null;
   music?: { fusion(kind: FusionKind, at?: number): unknown; release(): unknown } | null;
   ripple?: (x: number, z: number, strength: number, radius: number) => void;
@@ -118,8 +120,12 @@ export class Fusion {
     const u = Math.min(1, (now - this.t0) / Math.max(1, this.tEnd - this.t0));
     // halfway: the bodies at their most mixed
     if (u > 0.4 && this.mixed < 2) this.mix(0.5, 2);
-    const strength = jogoParams.vortex * (0.6 + 0.4 * Math.sin(Math.PI * Math.min(1, u * 1.4)));
-    this.ctx.field?.vortex('fusion', { at: [C[0], C[1] - 0.2, C[2]], axis: [0, 1, 0], strength, radius: 0.9, inflow: 0.8, lift: kind === 'steam' ? 1.6 : 0.7, height: 1.6 });
+    // the field's fusion is the one look of each kind (the helix of both matters round a vortex, steam, prism, storm
+    // or aurora vapour and its fronts); the jogo draws its streams, its arcs and drops, and moves the camera on top
+    const sa = this.ctx.slot?.(0) ?? 0, sb = this.ctx.slot?.(1) ?? 1;
+    const env = smooth(u / 0.08) * (1 - smooth((u - 0.9) / 0.1));
+    const strength = jogoParams.vortex * (0.6 + 0.4 * Math.sin(Math.PI * Math.min(1, u * 1.4))) / 2;
+    if (sa >= 0 && sb >= 0) this.ctx.field?.fuse({ dancers: [sa, sb], kind, amount: env * this.weight, strength, tightness: 1 });
     this.streams(now, u, a, b);
     this.kindFrame(kind, now, u, dt);
   }
@@ -202,24 +208,13 @@ export class Fusion {
     G.dot(C, 0.16, mixRGB(pal[0], [1.4, 1.4, 1.4], 0.5), 0.8 * env, 'soft');
   }
 
-  /** what each kind adds */
+  /** what each kind adds on top of the field's fusion (which makes the vapour, the helix and its colours): storm's
+   *  arcs from the centre and its falling drops; the others are the field's alone */
   private kindFrame(kind: FusionKind, now: number, u: number, dt: number) {
-    const G = this.ctx.glows, C = this.centre, F = this.ctx.field, t = now / 1000, fr = this.ctx.frame();
+    const G = this.ctx.glows, C = this.centre, t = now / 1000, fr = this.ctx.frame();
     const env = smooth(u / 0.08) * (1 - smooth((u - 0.9) / 0.1));
     void dt;
-    if (kind === 'steam') {
-      // heat and wet poured into the middle: the field makes steam, the vortex turns and lifts it
-      F?.deposit({ p: [C[0], C[1] - 0.4, C[2]], r: 0.6, heat: 1.2 * env, wet: 1.2 * env, wind: [0, 2.2, 0] });
-    } else if (kind === 'prism') {
-      // glints of every colour on the spiral, a white core: light split
-      const pal = FUSION_COLOURS.prism;
-      for (let i = 0; i < 60; i++) {
-        const ang = i * 0.7 + t * 1.6, h = ((i * 0.037 + t * 0.15) % 1) * 2.4 - 0.6, R = 0.5 + 0.25 * Math.sin(i + t);
-        G.seg([C[0] + Math.cos(ang) * R, C[1] + h - 0.05, C[2] + Math.sin(ang) * R], [C[0] + Math.cos(ang) * R, C[1] + h + 0.05, C[2] + Math.sin(ang) * R], 0.03, pal[i % pal.length], 1.4 * env, 'gem');
-      }
-      G.seg([C[0], C[1] - 0.9, C[2]], [C[0], C[1] + 1.2, C[2]], 0.05, [1.6, 1.6, 1.6], 0.9 * env, 'soft');
-      F?.deposit({ p: C, r: 0.5, heat: 0.4 * env, wet: 0.2 * env });
-    } else if (kind === 'storm') {
+    if (kind === 'storm') {
       // arcs from the centre to both bodies and through the vortex; drops falling round it
       if (fr % 3 === 0) {
         const A = this.ctx.dancer(0), B = this.ctx.dancer(1);
@@ -233,19 +228,6 @@ export class Fusion {
         const ang = i * 2.39, R = 0.6 + 1.0 * hash(i * 4.1), y = 2.4 - (((t * (1.6 + hash(i)) + hash(i * 7)) % 1) * 3.2);
         G.seg([C[0] + Math.cos(ang) * R, C[1] + y, C[2] + Math.sin(ang) * R], [C[0] + Math.cos(ang) * R, C[1] + y - 0.12, C[2] + Math.sin(ang) * R], 0.008, [0.5, 0.75, 1.6], 1.2 * env, 'soft');
       }
-      F?.deposit({ p: C, r: 0.5, wet: 0.8 * env, heat: 0.5 * env, wind: [0, 1.5, 0] });
-    } else if (kind === 'aurora') {
-      // curtains rising round the pair, waving
-      const pal = FUSION_COLOURS.aurora;
-      for (let c = 0; c < 9; c++) {
-        const ang0 = (c / 9) * Math.PI * 2 + t * 0.15;
-        for (let k = 0; k < 10; k++) {
-          const ang = ang0 + k * 0.05 + Math.sin(t * 0.7 + c + k * 0.3) * 0.08, R = 1.5 + 0.2 * Math.sin(t + c);
-          const y0 = C[1] - 0.6 + Math.sin(t * 0.9 + c * 1.3 + k * 0.2) * 0.15;
-          G.seg([C[0] + Math.cos(ang) * R, y0, C[2] + Math.sin(ang) * R], [C[0] + Math.cos(ang) * R, y0 + 1.8 + 0.4 * Math.sin(t + k), C[2] + Math.sin(ang) * R], 0.05, pal[(c + (k >> 2)) % pal.length], 0.18 * env, 'soft');
-        }
-      }
-      F?.deposit({ p: C, r: 0.6, heat: -0.6 * env, wind: [0, 1.0, 0] });
     }
   }
 
@@ -255,7 +237,7 @@ export class Fusion {
     this.kind = null;
     this.landed = false;
     this.releasedAt = this.ctx.now();
-    this.ctx.field?.vortex('fusion', null);
+    this.ctx.field?.fuse(null);
     this.ctx.music?.release();
     const set = this.ctx.setLoadout;
     for (let s = 0; s < 2; s++) { const w = this.wore[s]; if (set && w) set(s, w); this.wore[s] = null; }
