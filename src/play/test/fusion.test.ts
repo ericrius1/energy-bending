@@ -83,7 +83,7 @@ await (async () => {
   const s = { ...(pool as JogoScript), cues: [...(pool as JogoScript).cues, { at: 27.5, seat: 1, press: 'form' }] } as JogoScript;
   const r = await run(s, 75);
   const verbose = typeof process !== 'undefined' && !!process.env.FUSION_VERBOSE;
-  if (verbose) console.log(r.samples.filter((x, i) => i % 3 === 0).map((x) => `${((x.t - (r.t0 ?? 0)) / 1000).toFixed(1)}s ${x.d.toFixed(2)} ${x.moves}`).join('\n'));
+  if (verbose) console.log(r.samples.filter((_x, i) => i % 3 === 0).map((x) => `${((x.t - (r.t0 ?? 0)) / 1000).toFixed(1)}s ${x.d.toFixed(2)} ${x.moves}`).join('\n'));
   test('the pool script fuses and lets go', () => {
     assert(r.t0 != null && r.released != null, `fusion ${r.t0} release ${r.released}`);
     return `${r.kind}, ${((r.released! - r.t0!) / 1000).toFixed(1)} s`;
