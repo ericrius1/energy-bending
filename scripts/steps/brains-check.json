@@ -1,0 +1,6 @@
+[
+ { "name": "two.0", "query": "play&partner=two&level=0.6", "wake": true, "frames": 360 },
+ { "name": "two.1", "query": "play&partner=two&level=0.6", "frames": 90, "eval2": "console.warn('brains', JSON.stringify(bend.brains().stats, (k, v) => v instanceof Set ? [...v] : v).slice(0, 600))" },
+ { "name": "roda.0", "query": "roda&level=0.6", "wake": true, "frames": 420, "eval2": "console.warn('brains', JSON.stringify(bend.brains().npcs))" },
+ { "name": "npcs.0", "query": "npcs=5&level=0.6", "wake": true, "frames": 420, "eval2": "console.warn('brains', JSON.stringify(bend.brains().npcs))" }
+]
