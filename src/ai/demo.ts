@@ -51,7 +51,7 @@ const SUITES = ['Dawn', 'Ember', 'Forest', 'Blue lace', 'Midnight', 'Violet'];
 class PageBrains {
   readonly scene = new Scene();
   readonly drivers: BrainDriver[] = [];
-  readonly npcs: { c: IntentController; d: Dancer; driver: BrainDriver }[] = [];
+  readonly npcs: { c: IntentController; d: Dancer; driver: BrainDriver; clapped?: number }[] = [];
   referee: JogoReferee | null = null;
   /** the jogo's rules as another referee publishes them (src/play's), in place of this file's own */
   rules: (() => RulesView | null) | null = null;
@@ -115,7 +115,8 @@ class PageBrains {
   claps(f: FrameCtx) {
     for (const n of this.npcs) {
       const m = n.c.character.move;
-      if (m && m.name === 'palmas' && m.t >= PALMAS_MEET * m.dur) n.d.clapAt = f.t - (m.t - PALMAS_MEET * m.dur);
+      // (once a clap: the move's serial)
+      if (m && m.name === 'palmas' && m.t >= PALMAS_MEET * m.dur && n.clapped !== m.serial) { n.clapped = m.serial; n.d.clapAt = f.t - (m.t - PALMAS_MEET * m.dur); }
     }
   }
 
