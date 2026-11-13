@@ -204,7 +204,8 @@ export class Jogo {
     this.events.push({ k: 'move', seat, id: msg.id, move: name, perfect, err, at: [e.x, e.y, e.z ?? 0], local: true });
     // a local attack against the other local seat is watched when its relay arrives (local rooms relay to 'others')
     const b = this.opts.builder, st = this.room.state;
-    if (b && st) {
+    // (building is the jogo's own: not in a fusion, which belongs to the pair)
+    if (b && st && st.phase === 'play') {
       const ev: MoveStart = { id: msg.id, seat, move: e.type === 'jump' ? 'jump' : e.move, perfect, err, x: e.x, y: e.y, z: e.z ?? 0, dir: e.dir ?? 1, yaw: e.yaw ?? 0, t: now };
       const kind = b.wants(seat, ev, st.flow[seat as 0 | 1] ?? 0);
       if (kind) {

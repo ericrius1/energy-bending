@@ -267,10 +267,13 @@ export class Pieces {
     for (let i = 0; i < n; i++) {
       const a = (i / n) * Math.PI * 2 + seed;
       const fl = 0.5 + 0.5 * Math.sin(t * 9 + i * 2.7) * Math.sin(t * 5.3 + i * 1.3);
-      const h = (0.35 + 0.35 * fl) * f;
+      const h = (0.3 + 0.4 * fl) * f;
       const x = c[0] + Math.cos(a) * R, z = c[2] + Math.sin(a) * R;
-      g.seg([x, c[1] + 0.02, z], [x, c[1] + h, z], 0.07, FLAME, 0.7 * f, 'soft');
-      g.dot([x, c[1] + h + 0.08 * fl, z], 0.035, [1.6, 0.9, 0.35], 0.8 * f * fl, 'spark');
+      // a tongue: soft blobs narrowing and cooling as they climb, swaying a little
+      for (let k = 0; k < 5; k++) {
+        const u = k / 4, sway = Math.sin(t * 6 + i * 1.7 + u * 3) * 0.04 * u;
+        g.dot([x + sway, c[1] + 0.04 + u * h, z + sway * 0.5], (0.06 - 0.04 * u) * f, u < 0.5 ? [1.4, 0.75, 0.25] : FLAME, (0.28 - 0.18 * u) * f, 'soft');
+      }
     }
     g.flat([c[0], c[1], c[2]], R, [1.2, 0.4, 0.1], 0.6 * f, 'ring');
     // heat into the field (the air lifts, water near it steams)

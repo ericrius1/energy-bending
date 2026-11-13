@@ -106,7 +106,7 @@ export class Flow {
       if (u < 0) continue;
       const land = Math.min(1, u);
       const y = floor + 0.06 + (1 - land * land) * 4.5 + (land >= 1 ? 0.03 * Math.sin(this.t * 2 + i) : 0);
-      const s = (isBig ? 0.075 : 0.04) * (1 + 0.5 * Math.exp(-(u - 1) * 6) * (u >= 1 ? 1 : 0));
+      const s = (isBig ? 0.08 : 0.06) * (1 + 0.5 * Math.exp(-(u - 1) * 6) * (u >= 1 ? 1 : 0));
       const col = isBig ? [1.6, 1.4, 0.9] as RGB : GEM_COLS[i % GEM_COLS.length];
       const tw = land >= 1 ? 0.75 + 0.35 * Math.sin(this.t * (3 + hash(i * 3) * 4) + i) : 1;
       const p: V3 = round(ang, rr, y);

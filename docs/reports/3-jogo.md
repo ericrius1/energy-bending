@@ -165,7 +165,10 @@ algebra, the net tests. Two notes, honestly: (1) in this worktree `check-portals
 (the worktree has no `node_modules` of its own; it resolves `<worktree>/node_modules/@ericrius1/weft/src`); with a
 junction to the main checkout's `node_modules` it passed (10,012 checks). (2) The net tests' real-time smoothness
 check `B: no discontinuity on unstalled frames` failed once while my film was rendering (the machine was busy; the
-net report describes this test as load-sensitive); the other ten passed. Not re-run on a quiet machine.
+net report describes this test as load-sensitive); the other ten passed. On the final run (other agents rendering) a different real-time check, `B: tracks the source in
+real time (rms < 0.02)`, failed the same way; the rules (21), room (8), codec (5), LocalNet (3) and server (18) tests
+passed. Nothing in src/net's buffer or the server changed here (only `SessionOptions.net`). Not re-run on a quiet
+machine.
 
 ```
 ok  a kick that lands on a stander is reported once, as a hit, by the dancer attacked  (hit at 0.267 s, tension 2)
@@ -198,6 +201,7 @@ ok  geode-ice-bridge: the cartwheel lays a bridge (beat 12)
 | `3-jogo-hit.jpg` | water's meia-lua lands on fire: fire knocked back, the thread and beads, the gold perfect rings | the knock reads; the perfect rings were too big here (made smaller and dimmer since) |
 | `3-jogo-fusion-steam.jpg` | mid-fusion (old take): both bodies wearing both elements, a steam column, ripples | **the strongest image**: the loadout mix really shows (orange through blue); but the two bodies were one blob |
 | `3-jogo-hud-full.jpg`, `3-jogo-hud-results.jpg` | the HUD at rest (a slack dim thread, the feet's arcs) and at tension 86 (bright thread, beads; a dodge trail); results (first version) | the meters read in the locked view and stay small. The first results were broken (the big gems near the camera as gold candles): the ring now lies along the stage, a third as deep, smaller gems, the view stands back. See the re-shot results below |
+| `3-jogo-fusions-results.jpg` | re-shot after the changes: the Pool's steam fusion mid-way (the two apart, each wearing both elements, streaks pouring between them round a steam column); the geode's prism fusion (spectral glints, a white core, water turned to ice); the results (gems landed in a ring along the stage and in the water's reflection, the best streak's ribbon winding round) a second and four seconds in | the fusion now reads as two bodies in one event, not one blob; prism reads as its own kind. The results read but are quiet: the gems are small at this distance. (In the first re-shoot a fire dancer's auto-built rings of flame stood in the frame as a row of gold bars during the fusion: building is now off during a fusion and a ring of flame is drawn as tapering, swaying tongues; that new look is not captured) |
 | `3-jogo-ice-bridge.jpg` | the ice dancer's cartwheel; the arch of set ice laid along it; the water dancer jumping onto it; standing on it (read back: y 1.045 m, grounded) | **lands** |
 | `3-jogo-menus.jpg` | the front (together), the front (online), the lobby with a keyboard joined, an online room waiting (its code top right; no server in that capture) | clean, icons only. The online row showed in every mode (a `hidden` attribute beaten by `display:flex`): fixed, not re-shot |
 | `3-jogo-online-two-pages.jpg` | the two browsers a moment after an exchange: page a (fire, seat 0) and page b (water, seat 1), each with the other through the network | both dancers, the thread, the arcs on both pages. The remote dancer's feet ring floated low on page a (its ground was guessed from the hips): now from its toes, not re-shot |
@@ -224,7 +228,8 @@ loop, so the attack's window passed with no frames; the stills are of that momen
 ## Weak points
 
 - **The fusion is judged on stills and one old take.** The 44 s film predates the changes to the fusion's streams and
-  the dancers' movement in it; a new film was not rendered (the shared GPU lock: long holds were asked to stop).
+  the dancers' movement in it (re-checked in two stills only); a new film was not rendered (the shared GPU lock: long
+  holds were asked to stop). The ring of flame's new look was never captured.
 - The dodge's slow breath slows only the dancers (danceParams.speed): matter and the music go on.
 - The locked view frames the pair closely when they are close (a metre apart the bodies fill the frame); the "game
   screen" (safe areas, a rim) is another agent's task now.
