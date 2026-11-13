@@ -1,13 +1,19 @@
 // The kit, synthesised (the prototype's drums): a sine kick that drops from 170 to 47 Hz with a click of noise (and,
 // hard, a punchier front), a clap of three noise bursts and a tail, closed and open hats, a crash, tuned toms, a rim,
 // a shaker; and the drop's riser and impact, and the fire's crackle bed. Each takes the time it sounds at.
+//
+// Rebalanced from the prototype by measurement (docs/reports/1-audio.md): its groove put 91 % of its energy under
+// 250 Hz, the 2-6 kHz band 31 dB down and the crest factor at 7 dB (the kick driving the limiter). The kick's body is
+// 2 dB lower, the hats 5 dB higher and the clap 2 dB higher than the prototype's.
 import { mtof, type Nodes } from './nodes';
+
+const KICK = 0.8, HAT = 1.8, CLAP = 1.25;
 import type { Mix } from './mix';
 
 export function kick(n: Nodes, m: Mix, t: number, vel: number, hard = false) {
   const o = n.o('sine', 170, t, t + 0.5);
   o.frequency.exponentialRampToValueAtTime(47, t + 0.1);
-  n.link(o, n.envG(t, vel * 0.95, 0.003, 0.4), m.drumBus);
+  n.link(o, n.envG(t, vel * 0.95 * KICK, 0.003, 0.4), m.drumBus);
   n.link(n.noise(t, 0.02), n.bq('highpass', 1800), n.envG(t, vel * 0.18, 0.001, 0.018), m.drumBus);
   if (hard) {
     // a punchier front: a fast high body and a click
@@ -19,6 +25,7 @@ export function kick(n: Nodes, m: Mix, t: number, vel: number, hard = false) {
 }
 
 export function clap(n: Nodes, m: Mix, t: number, vel: number) {
+  vel *= CLAP;
   const g = n.gn(0), p = g.gain;
   p.setValueAtTime(0.0008, t);
   for (const d of [0, 0.011, 0.023]) { p.setValueAtTime(vel * 0.5, t + d); p.exponentialRampToValueAtTime(vel * 0.08, t + d + 0.009); }
@@ -29,7 +36,7 @@ export function clap(n: Nodes, m: Mix, t: number, vel: number) {
 }
 
 export function hat(n: Nodes, m: Mix, t: number, vel: number, open: boolean) {
-  n.link(n.noise(t, open ? 0.3 : 0.06), n.bq('highpass', 7200), n.envG(t, vel * 0.3, 0.002, open ? 0.2 : 0.04), n.pan(0.25), m.drumBus);
+  n.link(n.noise(t, open ? 0.3 : 0.06), n.bq('highpass', 7200), n.envG(t, vel * 0.3 * HAT, 0.002, open ? 0.2 : 0.04), n.pan(0.25), m.drumBus);
 }
 
 export function crash(n: Nodes, m: Mix, t: number, vel: number) {

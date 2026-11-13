@@ -83,8 +83,9 @@ export interface Instrument {
   bass(t: number, midi: number, dur: number, vel: number, cutoff: number): void;
   /** a melodic voice: 0 pluck, 1 kalimba, 2 glass, 3 bell, 4 soft pluck, 5 marimba, 6 reed */
   voice(t: number, palette: number, midi: number, vel: number, dur: number, pan: number, dist: number): void;
-  /** the bed moves to a chord: the new voices swell in (time constant `swell`, s) over the old ones fading */
-  pad(t: number, notes: readonly number[], swell: number): void;
+  /** the bed moves to a chord: the new voices swell in (time constant `swell`, s) over the old ones fading; the sub
+   *  plays `sub` (midi: the chord's root, low) */
+  pad(t: number, notes: readonly number[], swell: number, sub?: number): void;
   /** the bed's colour: its filter, its level and the sub under its root */
   padColour(t: number, cut: number, level: number, sub: number, tau: number): void;
   // ---- the jogo's larger moments

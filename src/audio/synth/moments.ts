@@ -24,7 +24,7 @@ export class Moments {
   /** a fusion begins: its own bus under the duck, its own send to the room */
   fusionOn(t: number, kind: FusionKind) {
     if (this.fus) this.fusionFade(t, 0.15);
-    const bus = this.n.gn(1);
+    const bus = this.n.gn(0.75); // (the prototype's 1 left steam and aurora 1.8 dB louder than the groove)
     bus.connect(this.m.duck);
     this.n.link(bus, this.n.gn(FUSION_REV[kind]), this.m.grooveRev);
     this.fus = bus;

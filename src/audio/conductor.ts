@@ -14,6 +14,7 @@ import type { Harmony } from './harmony';
 import type { Instrument } from './instrument';
 import type { MusicClock } from './clock';
 import { panOf, distOf, type Listener } from './spatial';
+import { Gate } from './gate';
 
 const clamp = (x: number, a: number, b: number) => Math.max(a, Math.min(b, x));
 /** prototype units per metre */
@@ -41,6 +42,7 @@ export class Conductor implements Performer {
   sway = 0;
   /** notes played (the measurements read it) */
   notes = 0;
+  private gate = new Gate(0.02, 0.5);
 
   constructor(public out: Instrument, private h: Harmony, private clock: MusicClock, public listener: Listener) {}
 
@@ -63,7 +65,7 @@ export class Conductor implements Performer {
     }
     for (const id of [...this.players.keys()]) if (!seen.has(id)) this.players.delete(id);
     this.energy = energy; this.lift = lift; this.sway = sway;
-    if (!players.length) for (let i = 0; i < 2; i++) this.out.hand(now, i, 0, 0);
+    if (!players.length) for (let i = 0; i < 2; i++) if (this.gate.pass(`hand${i}`, now, 0, 0)) this.out.hand(now, i, 0, 0);
   }
 
   private updatePlayer(s: PlayerState, now: number, dt: number) {
@@ -102,7 +104,8 @@ export class Conductor implements Performer {
     // a breath of air for each moving hand
     for (let k = 0; k < 2; k++) {
       const j = HANDS[k] * JOINT_FLOATS;
-      this.out.hand(now, k, clamp(sp(HANDS[k]) / 7, 0, 1) * 0.8, panOf(this.listener, w[j], w[j + 1], w[j + 2]));
+      const a = clamp(sp(HANDS[k]) / 7, 0, 1) * 0.8, pan = panOf(this.listener, w[j], w[j + 1], w[j + 2]);
+      if (this.gate.pass(`hand${k}`, now, a, pan)) this.out.hand(now, k, a, pan);
     }
   }
 

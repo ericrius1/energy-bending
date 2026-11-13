@@ -24,7 +24,9 @@ matterVoices.register({
         return {
           set(t, p) {
             const s = Math.min(1, p.speed / 5), f = mtof(p.midi);
-            out.place(t, Math.min(1, p.amount) * (0.07 + 0.08 * s), p.pan, p.dist);
+            // (4 dB over the first design, after the lab measured plasma 5 LU under the other kinds; the segment barely
+            // moved, so it is its zaps that set its level there: the buzz alone was not measured)
+            out.place(t, Math.min(1, p.amount) * (0.11 + 0.13 * s), p.pan, p.dist);
             s1.frequency.setTargetAtTime(f, t, 0.08); s2.frequency.setTargetAtTime(f * 2, t, 0.08);
             band.frequency.setTargetAtTime(400 + 2400 * s, t, 0.1);
           },

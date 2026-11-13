@@ -69,7 +69,7 @@ export class Synth implements Instrument {
   // ---- pitched
   bass(t: number, midi: number, dur: number, vel: number, cutoff: number) { bass(this.n, this.mix, t, midi, dur, vel, cutoff); }
   voice(t: number, palette: number, midi: number, vel: number, dur: number, pan: number, dist: number) { voice(this.n, this.mix, t, palette, midi, vel, dur, pan, dist); }
-  pad(t: number, notes: readonly number[], swell: number) { this.pads.chord(t, notes, swell); }
+  pad(t: number, notes: readonly number[], swell: number, sub?: number) { this.pads.chord(t, notes, swell, sub); }
   padColour(t: number, cut: number, level: number, sub: number, tau: number) { this.pads.colour(t, cut, level, sub, tau); }
   // ---- moments
   fusionOn(t: number, kind: FusionKind) { this.moments.fusionOn(t, kind); }
@@ -112,11 +112,15 @@ export class Synth implements Instrument {
 
 /** play a Recorder's score into an OfflineAudioContext: a stereo buffer of `seconds` (the stones' cap is looser than
  *  live, where it guards a frame budget) */
-export async function renderOffline(rec: Recorder, seconds: number, rate = 48000, seed?: number) {
+export async function renderOffline(rec: Recorder, seconds: number, rate = 48000, seed?: number, timing?: { build: number; render: number }) {
+  const t0 = performance.now();
   const ctx = new OfflineAudioContext(2, Math.ceil(seconds * rate), rate);
   const s = new Synth(ctx, rec.tone, seed);
   s.stones.maxVoices = 96;
   if (rec.room) s.room(0, rec.room, 0.01);
   rec.replay(s);
-  return ctx.startRendering();
+  const t1 = performance.now();
+  const buf = await ctx.startRendering();
+  if (timing) { timing.build = t1 - t0; timing.render = performance.now() - t1; }
+  return buf;
 }

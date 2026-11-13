@@ -15,11 +15,12 @@ const SWEEPS = new Set(['rasteira', 'sweep', 'banda']);
 const RUNS = new Set(['au', 'macaco', 'role', 'cartwheel']);
 const isHot = (el: Element) => el === 'fire' || el === 'plasma';
 
-/** make-up gain per sound, from offline renders of the sfx bus (vel 0.8): moves and exchanges peak at about 0.2-0.3 */
+/** make-up gain per sound, from offline renders of the sfx bus (vel 0.8): moves and exchanges peak at about 0.2-0.3.
+ *  `near` and `esquiva` raised (5 and 2.5 dB) after the lab's sfx-solo render measured them the quietest */
 export const SFX_GAIN: Record<string, number> = {
   'move:kick': 3.6, 'move:martelo': 3.6, 'move:bencao': 5, 'move:sweep': 2, 'move:run': 4,
-  'move:strike': 4.5, 'move:throw:hot': 3.4, 'move:throw:cold': 5, 'move:spin': 7, 'move:jump': 3.5, 'move:esquiva': 2.8,
-  dodge: 3, near: 3.5, clash: 1.1, parry: 1.3, hit: 1.1, land: 1, respawn: 4.5,
+  'move:strike': 4.5, 'move:throw:hot': 3.4, 'move:throw:cold': 5, 'move:spin': 7, 'move:jump': 3.5, 'move:esquiva': 3.7,
+  dodge: 3, near: 6.2, clash: 1.1, parry: 1.3, hit: 1.1, land: 1, respawn: 4.5,
   'formOn:hot': 1, 'formOn:cold': 3.5, 'formOff:hot': 3, 'formOff:cold': 5,
   echo: 6, unison: 1, mergeReady: 2.2, count: 1.3, 'count:final': 0.8, finale: 0.8, results: 3,
 };

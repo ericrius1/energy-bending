@@ -64,7 +64,10 @@ export class Mix {
 
     // the groove, with a sweepable low-pass for the drop's "suck"
     this.musicLP = n.bq('lowpass', 19000, 0.6);
-    this.musicBus = g(1);
+    // the groove into the master 5 dB under the prototype's: at full level it held the compressor and the tanh down
+    // all the time (measured: a 7 dB crest factor, peaks pinned at the ceiling, and level changes inside it barely
+    // moved the output)
+    this.musicBus = g(0.55);
     this.musicBus.connect(this.musicLP).connect(this.master);
     this.duck = g(1); this.duck.connect(this.musicBus);
     this.drumBus = g(0.9); this.drumBus.connect(this.musicBus);
@@ -169,7 +172,8 @@ export class Mix {
     const p = this.n.pan(pan);
     p.connect(bus);
     let r = rev;
-    if (dist > 0) { const [a, b, extra] = this.n.distance(dist); src.connect(a); b.connect(p); r += extra; } else src.connect(p);
+    // (close by, the distance's filter would change nothing: skip its nodes)
+    if (dist > 0.03) { const [a, b, extra] = this.n.distance(dist); src.connect(a); b.connect(p); r += extra; } else src.connect(p);
     if (r > 0) p.connect(this.n.gn(r)).connect(groove ? this.grooveRev : this.revIn);
     if (del > 0) p.connect(this.n.gn(del)).connect(this.delIn);
     return p;

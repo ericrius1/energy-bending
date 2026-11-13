@@ -11,7 +11,7 @@
 // line (a portal crossing), the tempo gliding to the new one. Randomness is seeded: the same inputs, the same music.
 import { mulberry32 } from 'math/random';
 import { MusicClock, type StepHost, type Sync } from './clock';
-import { Harmony, near, notes, MOODS, type Harm } from './harmony';
+import { Harmony, near, notes, pc, MOODS, type Harm } from './harmony';
 import { FUSIONS, SFX, type Instrument, type FusionKind, type SfxName, type Element } from './instrument';
 import type { Tone, Room } from './sound';
 import { defineParams } from '../engine/params';
@@ -141,7 +141,9 @@ export class Engine implements StepHost {
     const ch = this.harmony.chord, key = `${this.harmony.moodIndex}.${this.harmony.transpose}.${ch.pad.join(',')}`;
     if (key === this.padKey) return;
     this.padKey = key;
-    this.out.pad(t, ch.pad, swell);
+    // the sub on the chord's root around 55-100 Hz, where Gem Dancers' bed had it (measured: an octave higher, the
+    // ambient bed lost 19 dB below 60 Hz against the foundation's)
+    this.out.pad(t, ch.pad, swell, near(pc(ch.bass), 38));
   }
 
   // ---------------------------------------------------------------- one step
@@ -239,7 +241,8 @@ export class Engine implements StepHost {
       cut = 520 + 3600 * this.bright + 300 * Math.max(0, L); lvl = L >= 3 ? 0.13 : 0.16; sub = 0.1 * this.depth;
       if (T > 0) cut += 1800 * T; // tension opens the filter
       if (F && fm > 0) {
-        const [fc, fg] = ({ steam: [1500, 0.2], prism: [3200, 0.12], storm: [650, 0.14], aurora: [2400, 0.22] } as const)[F.kind];
+        // (steam's and aurora's pad levels are lower than the prototype's 0.2 and 0.22: they squashed the mix to a 6 dB crest)
+        const [fc, fg] = ({ steam: [1500, 0.15], prism: [3200, 0.12], storm: [650, 0.14], aurora: [2400, 0.16] } as const)[F.kind];
         cut += (fc + (F.kind === 'steam' ? 800 * this.bright : 0) - cut) * fm;
         lvl += (fg - lvl) * fm;
       }

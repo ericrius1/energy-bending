@@ -29,7 +29,7 @@ export class Pad {
   }
 
   /** a new chord: its voices swell in with time constant `swell` while the old ones fade a little slower */
-  chord(t: number, notes: readonly number[], swell: number) {
+  chord(t: number, notes: readonly number[], swell: number, subMidi = notes[0] - 12) {
     const fade = Math.max(0.03, swell * 1.25);
     for (const v of this.voices) {
       v.amp.gain.cancelScheduledValues(t);
@@ -49,8 +49,8 @@ export class Pad {
       });
       return { oscs, amp };
     });
-    // the depth: a sine an octave under the root (it glides to the new root rather than restarting)
-    const f = mtof(notes[0] - 12);
+    // the depth: a sine on the chord's root, low (it glides to the new root rather than restarting)
+    const f = mtof(subMidi);
     if (!this.subOsc) {
       this.subOsc = new OscillatorNode(this.n.ctx, { type: 'sine', frequency: f });
       this.subOsc.connect(this.sub);

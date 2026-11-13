@@ -6,12 +6,14 @@ import { matterVoices, seedOf, type MatterEars, type MatterSound, type MatterHol
 import type { Instrument, HoldPlay } from '../instrument';
 import type { Harmony } from '../harmony';
 import { panOf, distOf, type Listener } from '../spatial';
+import { Gate } from '../gate';
 
 export interface EarsHost { readonly grooving: boolean; place(t: number): number }
 
 export class Ears implements MatterEars {
   private live = new Map<string, { fresh: boolean; last: HoldPlay }>();
   private warned = new Set<string>();
+  private gate = new Gate(0.01, 0.25);
   /** counts by kind.type (the measurements and tests read them) */
   readonly heard: Record<string, number> = {};
 
@@ -41,7 +43,7 @@ export class Ears implements MatterEars {
       midi: v.note ? v.note(this.h, t) : 0, tones: this.h.at(t).chord.tones,
     };
     this.live.set(key, { fresh: true, last: p });
-    this.out.hold(t, key, s.kind, p);
+    if (this.gate.pass(key, t, p.amount, p.speed, p.pan, p.dist, p.midi)) this.out.hold(t, key, s.kind, p);
   }
 
   /** end of a frame: a held sound nobody restated is let go */

@@ -12,6 +12,7 @@ import { near, pc, type Harmony } from './harmony';
 import type { Instrument } from './instrument';
 import type { MusicClock } from './clock';
 import { panOf, distOf, type Listener } from './spatial';
+import { Gate } from './gate';
 
 /** per specimen (in specimens.json order): its voice and register (octaves above the key's root): low, deep in the cave */
 const VOICE_OF: Record<string, [Timbre, number]> = {
@@ -54,6 +55,7 @@ export class Score {
   private budget = 0;
   private flood = 0;
   private order = new Uint32Array(0);
+  private gate = new Gate();
   stoneVoice: [Timbre, number][] = [];
   /** stones a second that ring while nothing much is happening */
   stoneRate = 1.8;
@@ -92,8 +94,9 @@ export class Score {
     const o = this.out, root = this.h.root;
     this.e += (heard.energy - this.e) * Math.min(1, dt * 1.5);
     this.host.bedEnergy = this.e;
-    o.whoosh(when, heard.sweep / 9, heard.sweep / 12);
-    o.drone(when, Math.pow(heard.charge, 1.5), this.chordRoot(when, root + 9) + 2 * heard.charge);
+    const wl = heard.sweep / 9, dl = Math.pow(heard.charge, 1.5), dm = this.chordRoot(when, root + 9) + 2 * heard.charge;
+    if (this.gate.pass('whoosh', when, wl)) o.whoosh(when, wl, heard.sweep / 12);
+    if (this.gate.pass('drone', when, dl, dm)) o.drone(when, dl, dm);
     this.flood = this.flood * Math.exp(-dt * 1.3) + heard.sweep * dt * 3.5;
     this.budget = Math.min(26, this.budget + (this.stoneRate + this.flood) * dt);
 
@@ -120,7 +123,8 @@ export class Score {
             const hard = Math.min(1, this.footFall[k] / 1.6);
             const x = w[o12], yy = w[o12 + 1], z = w[o12 + 2], pan = this.pan(x, yy, z), dist = this.dist(x, yy, z);
             const at = this.place(when);
-            o.strike(at, 'stone', this.chordRoot(at, root - 12), 0.18 + 0.45 * hard, pan, 0.6, false, dist);
+            // (around midi 38, where Gem Dancers' feet fell: measured, an octave higher lost the bed's bottom)
+            o.strike(at, 'stone', this.chordRoot(at, 38), 0.18 + 0.45 * hard, pan, 0.6, false, dist);
             if (hard > 0.55) o.strike(at, 'glass', this.chordRoot(at, root + 9), 0.12 * hard, pan, 1, false, dist);
             this.footAt[k] = when;
           }
@@ -178,7 +182,7 @@ export class Score {
   /** a blast (a released finger, a click, a shatter): a boom and the chord struck upwards */
   blast(when: number, strength: number) {
     const s = Math.min(1, strength / 4), ch = this.h.at(when).chord;
-    this.out.boom(when, this.chordRoot(when, this.h.root - 12), 0.4 + 0.5 * s);
+    this.out.boom(when, this.chordRoot(when, 38), 0.4 + 0.5 * s);
     ch.pad.forEach((m, k) => this.out.strike(when + 0.06 * k, 'glass', m, 0.18 + 0.25 * s, (k / 3) * 1.2 - 0.6, 1));
     this.flood += 14 + 18 * s;
   }
@@ -197,7 +201,7 @@ export class Score {
     ch.pad.forEach((m, k) => {
       this.out.strike(Math.max(when, when + seconds - ringLength('glass', m + 12)), 'glass', m + 12, 0.3, (k / 3) * 1.4 - 0.7, 1.1, true);
     });
-    this.out.boom(when + seconds, this.chordRoot(when + seconds, this.h.root - 12), 0.4);
+    this.out.boom(when + seconds, this.chordRoot(when + seconds, 38), 0.4);
     this.flood += 16;
   }
 }
