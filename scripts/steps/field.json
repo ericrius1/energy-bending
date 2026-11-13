@@ -1,0 +1,9 @@
+[
+  { "name": "field-overlay", "query": "field&aura=fire,water", "params": { "steam": { "density": 0 }, "field": { "overlayGain": 2 } }, "wake": true, "frames": 900, "timings": true },
+  { "name": "steam-geode", "query": "aura=fire,water", "wake": true, "frames": 900, "timings": true },
+  { "name": "geode-no-aura", "query": "", "wake": true, "frames": 900, "timings": true },
+  { "name": "steam-redwoods-night", "query": "aura=fire,water&world=redwoods", "params": { "redwoods": { "hour": 21.6, "dayGoes": false } }, "wake": true, "frames": 900, "timings": true },
+  { "name": "steam-ice-fire", "query": "aura=fire,ice", "wake": true, "frames": 900 },
+  { "name": "vortex-side", "query": "field&vortex=4&aura=fire,water", "params": { "steam": { "density": 0 }, "field": { "overlayGain": 2 } }, "wake": true, "frames": 840 },
+  { "name": "vortex-above", "query": "field&vortex=4&aura=fire,water", "pitch": 1.2, "dist": 6, "idle": 0, "frames": 90, "timings": true }
+]
