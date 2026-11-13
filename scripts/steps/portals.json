@@ -12,7 +12,7 @@
   {"name": "sky-gate", "query": "gates", "frames": 30, "params": {"gates": {"fly": "redwoods.sky", "flyT": -1, "flyLength": 3.0, "flyAngle": 0, "flyRise": -0.5, "flyPitch": 0}}},
   {"name": "halfway-geode", "query": "gates&wander", "wake": true, "frames": 900, "params": {"gates": {"halt": true, "fly": "geode.door", "flyT": -1, "flyLength": 3.0, "flyAngle": 35, "flyRise": 0.05, "flyPitch": 6}}},
   {"name": "halfway-side", "query": "gates&wander", "frames": 30, "params": {"gates": {"fly": "geode.door", "flyT": -1, "flyLength": 2.6, "flyAngle": 72, "flyRise": 0.05, "flyPitch": 6}}},
-  {"name": "halfway-cut", "query": "gates&wander", "frames": 30, "params": {"gates": {"fly": "geode.door", "flyT": -1, "flyLength": 2.4, "flyAngle": 118, "flyRise": 0.05, "flyPitch": 6}}},
+  {"name": "halfway-cut", "query": "gates&wander", "frames": 30, "params": {"gates": {"fly": "geode.door", "flyT": -1, "flyLength": 2.2, "flyAngle": 82, "flyRise": 0.05, "flyPitch": 8}}},
   {"name": "halfway-redwoods", "query": "gates&wander", "frames": 30, "params": {"gates": {"fly": "redwoods.door", "flyT": -1, "flyLength": 3.0, "flyAngle": -35, "flyRise": 0.05, "flyPitch": 6}}},
   {"name": "halfway-redwoods-side", "query": "gates&wander", "frames": 30, "params": {"gates": {"fly": "redwoods.door", "flyT": -1, "flyLength": 2.6, "flyAngle": -72, "flyRise": 0.05, "flyPitch": 6}}}
 ]

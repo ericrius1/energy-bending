@@ -187,11 +187,12 @@ fn screenUv(p: vec3f) -> vec2f {
   let cd = frame.viewProj * vec4f(eye + d * max(t - 0.004, 1e-4), 1.0);
   o.depth = clamp(cd.z / cd.w, 0.0, 1.0);
   // alpha is the distance the air and the depth of field read. Far from the gate it is the gate's own (this world's
-  // air lies over the disc as over a window); at the face it becomes the far view's whole path, so the depth of field
-  // doesn't see the whole screen as a few centimetres away as the eye passes through
+  // air lies over the disc as over a window); at the face it becomes the far view's path, so the depth of field
+  // doesn't see the whole screen as a few centimetres away as the eye passes through. Capped at a few metres (about
+  // where the camera focuses): this world's air over the far world's whole depth would darken it just before the face
   let here = dot(p - eye, frame.camFwd);
   var dist = here;
-  if (slot >= 0 && live > 0.75) { dist = mix(max(here, farDist(slot, suv)), here, calm); }
+  if (slot >= 0 && live > 0.75) { dist = mix(max(here, min(farDist(slot, suv), 3.5)), here, calm); }
   o.col = vec4f(col, dist);
   return o;
 }
