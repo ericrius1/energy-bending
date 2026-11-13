@@ -212,7 +212,10 @@ export type MsgOf<T extends ServerType> = Extract<ServerMsg, { t: T }>;
  */
 export interface PoseLike { p: ArrayLike<number>; root: ArrayLike<number>; yaw: number }
 
-/** a decoded pose frame. `prev` is the sender's previous snapshot, repeated so that one lost frame costs nothing */
+/** an earlier snapshot repeated in a pose frame (so a lost frame costs nothing) */
+export interface PrevSnap { ts: number; root: V3; yaw: number; p: Float64Array }
+
+/** a decoded pose frame */
 export interface PoseFrame {
   slot: number;
   flags: number;
@@ -224,7 +227,8 @@ export interface PoseFrame {
   world: string;
   /** 39 floats, metres */
   p: Float64Array;
-  prev: { ts: number; root: V3; yaw: number; p: Float64Array } | null;
+  /** the sender's previous snapshots, newest first (0 to MAX_PREV of them) */
+  prev: PrevSnap[];
   /** the move in progress: [move id, its start time] */
   move: [string, number] | null;
 }
@@ -238,7 +242,7 @@ export const POSE = {
   HAS_WORLD: 1 << 13,
   /** codec: a move id and start time follow */
   HAS_MOVE: 1 << 14,
-  /** codec: the previous snapshot follows */
+  /** codec: earlier snapshots follow (a count, then each) */
   HAS_PREV: 1 << 15,
   /** the bits the game may set */
   GAME: 0x0fff,
@@ -248,6 +252,8 @@ const POSE_MAGIC = 0x50;          // 'P'
 const HEAD = 28;                  // magic, slot, flags, ts, root, yaw, energy, spare
 const BODY = NLM * 3 * 2;         // 39 × int16 millimetres
 const PREV = 2 + 6 + 2 + BODY;    // dt (0.1 ms), root delta (int16 mm), yaw, landmarks
+/** the most earlier snapshots one frame repeats */
+export const MAX_PREV = 3;
 const I16 = 32767;
 const TURN = 65536 / (2 * Math.PI);
 const enc = new TextEncoder();
@@ -258,9 +264,9 @@ const mm32 = (m: number) => Math.max(-2147483647, Math.min(2147483647, Math.roun
 const turn16 = (a: number) => (Math.round((Number.isFinite(a) ? a : 0) * TURN) % 65536 + 65536) % 65536;
 const fromTurn = (u: number) => { const a = u / TURN; return a > Math.PI ? a - 2 * Math.PI : a; };
 
-/** the size of an encoded pose with these parts */
-export function poseBytes(prev: boolean, world = '', move: string | null = null) {
-  return HEAD + BODY + (prev ? PREV : 0) + (world ? 1 + enc.encode(world).length : 0) + (move != null ? 1 + enc.encode(move).length + 8 : 0);
+/** the size of an encoded pose with `prev` earlier snapshots, a world id and a move */
+export function poseBytes(prev = 0, world = '', move: string | null = null) {
+  return HEAD + BODY + (prev ? 1 + prev * PREV : 0) + (world ? 1 + enc.encode(world).length : 0) + (move != null ? 1 + enc.encode(move).length + 8 : 0);
 }
 
 export interface PoseOut {
@@ -269,24 +275,26 @@ export interface PoseOut {
   flags?: number;
   energy?: number;
   world?: string;
-  prev?: { ts: number; pose: PoseLike } | null;
+  /** earlier snapshots to repeat, newest first (those over 6.5 s old, or past MAX_PREV, are left out) */
+  prev?: { ts: number; pose: PoseLike }[] | null;
   move?: [string, number] | null;
 }
 
 /**
- * One pose into a binary frame: little-endian, 106 bytes, plus 88 for the previous snapshot, plus the world id and
- * the move when given. Landmarks are int16 mm in the dancer's frame (±32 m), the root int32 mm in the world (±2,000 km),
- * the yaw a uint16 fraction of a turn, ts a float64 (server ms to 0.1 ms).
+ * One pose into a binary frame: little-endian, 106 bytes, plus 1 + 88 per earlier snapshot, plus the world id and
+ * the move when given. Landmarks are int16 mm in the dancer's frame (+-32 m), the root int32 mm in the world (+-2,000 km),
+ * the yaw a uint16 fraction of a turn, ts a float64 (server ms to 0.1 ms). An earlier snapshot is its time before
+ * this one (0.1 ms), its root's offset from this root (int16 mm) and its own yaw and landmarks.
  */
 export function encodePose(o: PoseOut): Uint8Array {
   const world = o.world ? enc.encode(o.world.slice(0, NAME_MAX)) : null;
   const moveId = o.move ? enc.encode(String(o.move[0]).slice(0, NAME_MAX)) : null;
-  const prevOk = !!o.prev && o.ts - o.prev.ts > 0 && o.ts - o.prev.ts < 6500;
-  const n = HEAD + BODY + (prevOk ? PREV : 0) + (world ? 1 + world.length : 0) + (moveId ? 1 + moveId.length + 8 : 0);
-  const buf = new Uint8Array(n), v = new DataView(buf.buffer);
-  const flags = ((o.flags ?? 0) & POSE.GAME) | (o.flags ?? 0) & POSE.TELEPORT
-    | (prevOk ? POSE.HAS_PREV : 0) | (world ? POSE.HAS_WORLD : 0) | (moveId ? POSE.HAS_MOVE : 0);
   const ts10 = Math.round(o.ts * 10);
+  const prevs = (o.prev ?? []).filter((q) => { const d = ts10 - Math.round(q.ts * 10); return d > 0 && d < 65000; }).slice(0, MAX_PREV);
+  const n = HEAD + BODY + (prevs.length ? 1 + prevs.length * PREV : 0) + (world ? 1 + world.length : 0) + (moveId ? 1 + moveId.length + 8 : 0);
+  const buf = new Uint8Array(n), v = new DataView(buf.buffer);
+  const flags = ((o.flags ?? 0) & POSE.GAME) | ((o.flags ?? 0) & POSE.TELEPORT)
+    | (prevs.length ? POSE.HAS_PREV : 0) | (world ? POSE.HAS_WORLD : 0) | (moveId ? POSE.HAS_MOVE : 0);
   const { pose } = o;
   v.setUint8(0, POSE_MAGIC); v.setUint8(1, 255); v.setUint16(2, flags, true);
   v.setFloat64(4, ts10 / 10, true);
@@ -295,12 +303,15 @@ export function encodePose(o: PoseOut): Uint8Array {
   v.setUint8(26, Math.max(0, Math.min(255, Math.round(o.energy ?? 0))));
   let at = HEAD;
   for (let j = 0; j < NLM * 3; j++, at += 2) v.setInt16(at, mm16(pose.p[j]), true);
-  if (prevOk) {
-    const q = o.prev!.pose;
-    v.setUint16(at, Math.min(65535, ts10 - Math.round(o.prev!.ts * 10)), true); at += 2;
-    for (let i = 0; i < 3; i++, at += 2) v.setInt16(at, Math.max(-I16, Math.min(I16, mm32(q.root[i]) - mm32(pose.root[i]))), true);
-    v.setUint16(at, turn16(q.yaw), true); at += 2;
-    for (let j = 0; j < NLM * 3; j++, at += 2) v.setInt16(at, mm16(q.p[j]), true);
+  if (prevs.length) {
+    v.setUint8(at++, prevs.length);
+    for (const pr of prevs) {
+      const q = pr.pose;
+      v.setUint16(at, ts10 - Math.round(pr.ts * 10), true); at += 2;
+      for (let i = 0; i < 3; i++, at += 2) v.setInt16(at, Math.max(-I16, Math.min(I16, mm32(q.root[i]) - mm32(pose.root[i]))), true);
+      v.setUint16(at, turn16(q.yaw), true); at += 2;
+      for (let j = 0; j < NLM * 3; j++, at += 2) v.setInt16(at, mm16(q.p[j]), true);
+    }
   }
   if (world) { v.setUint8(at++, world.length); buf.set(world, at); at += world.length; }
   if (moveId) {
@@ -311,7 +322,7 @@ export function encodePose(o: PoseOut): Uint8Array {
 }
 
 /** is this a pose frame of a plausible size? (what the server checks before relaying) */
-export function isPose(b: Uint8Array) { return b.length >= HEAD + BODY && b.length <= 512 && b[0] === POSE_MAGIC; }
+export function isPose(b: Uint8Array) { return b.length >= HEAD + BODY && b.length <= 640 && b[0] === POSE_MAGIC; }
 
 /** the server's one write into a pose: who sent it */
 export function stampSlot(b: Uint8Array, slot: number) { b[1] = slot; }
@@ -326,16 +337,21 @@ export function decodePose(b: Uint8Array): PoseFrame | null {
   const p = new Float64Array(NLM * 3);
   let at = HEAD;
   for (let j = 0; j < NLM * 3; j++, at += 2) p[j] = v.getInt16(at, true) / 1000;
-  let prev: PoseFrame['prev'] = null, world = '', move: PoseFrame['move'] = null;
+  const prev: PrevSnap[] = [];
+  let world = '', move: PoseFrame['move'] = null;
   try {
     if (flags & POSE.HAS_PREV) {
-      const dt = v.getUint16(at, true); at += 2;
-      const pr: V3 = [0, 0, 0];
-      for (let i = 0; i < 3; i++, at += 2) pr[i] = root[i] + v.getInt16(at, true) / 1000;
-      const yaw = fromTurn(v.getUint16(at, true)); at += 2;
-      const pp = new Float64Array(NLM * 3);
-      for (let j = 0; j < NLM * 3; j++, at += 2) pp[j] = v.getInt16(at, true) / 1000;
-      prev = { ts: (Math.round(ts * 10) - dt) / 10, root: pr, yaw, p: pp };
+      const count = v.getUint8(at++);
+      if (count < 1 || count > MAX_PREV) return null;
+      for (let c = 0; c < count; c++) {
+        const dt = v.getUint16(at, true); at += 2;
+        const pr: V3 = [0, 0, 0];
+        for (let i = 0; i < 3; i++, at += 2) pr[i] = root[i] + v.getInt16(at, true) / 1000;
+        const yaw = fromTurn(v.getUint16(at, true)); at += 2;
+        const pp = new Float64Array(NLM * 3);
+        for (let j = 0; j < NLM * 3; j++, at += 2) pp[j] = v.getInt16(at, true) / 1000;
+        prev.push({ ts: (Math.round(ts * 10) - dt) / 10, root: pr, yaw, p: pp });
+      }
     }
     if (flags & POSE.HAS_WORLD) { const n = v.getUint8(at++); world = dec.decode(b.subarray(at, at + n)); at += n; }
     if (flags & POSE.HAS_MOVE) {

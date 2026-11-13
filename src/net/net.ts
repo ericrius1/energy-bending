@@ -12,7 +12,7 @@
 // changes world (or jumps) starts its buffer again instead of sliding across, and tangents and extrapolation use
 // the snapshots' velocities more carefully (see PoseBuffer, and docs/reports/1-net.md for what each change bought).
 import {
-  PROTOCOL, SEATS, SLOTS, NLM, POSE, encodePose, decodePose,
+  PROTOCOL, SEATS, SLOTS, NLM, POSE, MAX_PREV, encodePose, decodePose,
   type ClientMsg, type ServerMsg, type ServerType, type MsgOf, type PublicState, type PoseLike, type PoseFrame, type Role,
 } from '../../shared/protocol.ts';
 import { createSession, tick, setPresent, route, publicState, piecesOf, type Session, type To } from '../../shared/rules.ts';
@@ -27,8 +27,8 @@ export const NET_PARAMS = {
   BACKED_UP: 4096,
   /** reliable messages kept while disconnected */
   QUEUE_CAP: 32,
-  /** repeat the previous snapshot in each pose frame */
-  REDUNDANT: true,
+  /** how many earlier snapshots each pose frame repeats (0..MAX_PREV): a burst of that many lost frames costs nothing */
+  REDUNDANT: 2,
 };
 
 const perf = () => performance.now();
@@ -153,16 +153,16 @@ export interface BufferParams {
 }
 
 export const BUFFER_PARAMS: BufferParams = {
-  EXTRAP_MS: 120, GAP_MS: 300, EASE_MS: 200,
+  EXTRAP_MS: 80, GAP_MS: 300, EASE_MS: 200,
   LEAD: 2, JIT: 2.5, MIN_DELAY: 80, MAX_DELAY: 350,
   MAX_V_ROOT: 0.012, MAX_V_YAW: 0.04, MAX_V_LOCAL: 0.02,
   JUMP_M: 3,
   TANGENT: 'fd',
-  BEND_MS: 0,
+  BEND_MS: 60,
 };
 
 /** the prototype's buffer, for comparison (test/smoothness.test.ts runs both) */
-export const PROTOTYPE_BUFFER: BufferParams = { ...BUFFER_PARAMS, TANGENT: 'span', BEND_MS: 0, MAX_V_ROOT: 0.008, MAX_V_YAW: 0.008, MAX_V_LOCAL: 0.008 };
+export const PROTOTYPE_BUFFER: BufferParams = { ...BUFFER_PARAMS, TANGENT: 'span', BEND_MS: 0, EXTRAP_MS: 120, MAX_V_ROOT: 0.008, MAX_V_YAW: 0.008, MAX_V_LOCAL: 0.008 };
 
 const H = (s: number) => [2 * s * s * s - 3 * s * s + 1, s * s * s - 2 * s * s + s, -2 * s * s * s + 3 * s * s, s * s * s - s * s];
 const dH = (s: number) => [6 * s * s - 6 * s, 3 * s * s - 4 * s + 1, -6 * s * s + 6 * s, 3 * s * s - 2 * s];
@@ -212,6 +212,10 @@ export class PoseBuffer {
   private cap = new Float64Array(DIM);
   /** cuts so far (world changes, teleports, jumps) */
   cuts = 0;
+  /** what the last sample did: between two snapshots ('interp'), across a missing one ('hole'), past the newest
+   *  ('extrap'), across the sender's absence ('gap'), before the first ('hold'); and whether a correction was blending */
+  mode: 'interp' | 'hole' | 'extrap' | 'gap' | 'hold' = 'hold';
+  blending = false;
 
   constructor(params: Partial<BufferParams> = {}) {
     this.P = { ...BUFFER_PARAMS, ...params };
@@ -225,14 +229,18 @@ export class PoseBuffer {
     this.s.length = 0; this.prevT = null; this.blend = null; this.changed = false; this.floor = ts - 1e-6; this.cuts++;
   }
 
-  /** a snapshot (v: DIM floats) taken at server time ts, arriving at `now` */
-  push(ts: number, v: ArrayLike<number>, meta: PoseMeta, now: number) {
+  /**
+   * A snapshot (v: DIM floats) taken at server time ts, arriving at `now`. `fresh` is false for a repeated earlier
+   * snapshot: it fills a hole but says nothing about transit time (it was always one interval late).
+   */
+  push(ts: number, v: ArrayLike<number>, meta: PoseMeta, now: number, fresh = true) {
     if (!fin(ts) || ts > now + 1000 || ts <= this.floor) return;
-    const tr = now - ts;
-    if (this.n++ === 0) this.mean = tr;
-    else { this.mean += (tr - this.mean) * 0.1; this.dev += (Math.abs(tr - this.mean) - this.dev) * 0.1; }
-    const newer = ts > this.newest;
-    if (newer) {
+    if (fresh) {
+      const tr = now - ts;
+      if (this.n++ === 0) this.mean = tr;
+      else { this.mean += (tr - this.mean) * 0.1; this.dev += (Math.abs(tr - this.mean) - this.dev) * 0.1; }
+    }
+    if (ts > this.newest) {
       const iv = ts - this.newest;
       if (iv < this.P.GAP_MS) this.interval += (clamp(iv, 20, 200) - this.interval) * 0.1;
       // a cut: a new world, the sender says it teleported, or the root moved further than anyone can dance
@@ -257,36 +265,54 @@ export class PoseBuffer {
     this.changed = true;
   }
 
-  /** the slope at knot k (per ms) */
+  /**
+   * The slope at knot k (per ms). 'span' (the prototype): the chord across its neighbours, or to the one neighbour it
+   * has. 'fd': the slope at k of the parabola through k and two neighbours, which is exact for a quadratic and stays
+   * right at the newest knot, where a chord to the one neighbour lags by half an interval of curvature (after a lost
+   * frame, that lag is what was on screen).
+   */
   private tangent(k: number, M: Float64Array) {
-    const s = this.s, a = s[k], G = this.P.GAP_MS;
+    const s = this.s, a = s[k], G = this.P.GAP_MS, cap = this.cap;
     const pv = k > 0 && a.ts - s[k - 1].ts <= G ? s[k - 1] : null;
     const nx = k < s.length - 1 && s[k + 1].ts - a.ts <= G ? s[k + 1] : null;
-    if (this.P.TANGENT === 'fd' && pv && nx) {
-      // the derivative at a of the parabola through the three knots: each side's slope weighed by the other's span
-      const h0 = a.ts - pv.ts, h1 = nx.ts - a.ts;
-      for (let j = 0; j < DIM; j++) {
-        const d0 = (a.v[j] - pv.v[j]) / h0, d1 = (nx.v[j] - a.v[j]) / h1;
-        M[j] = clamp((h1 * d0 + h0 * d1) / (h0 + h1), -this.cap[j], this.cap[j]);
+    if (this.P.TANGENT === 'fd') {
+      // the three knots: around k if it has both neighbours, else the two behind it (or ahead of it)
+      const pp = !nx && pv && k > 1 && pv.ts - s[k - 2].ts <= G ? s[k - 2] : null;
+      const nn = !pv && nx && k < s.length - 2 && s[k + 2].ts - nx.ts <= G ? s[k + 2] : null;
+      const [x0, x1, x2] = pv && nx ? [pv, a, nx] : pp ? [pp, pv!, a] : nn ? [a, nx!, nn] : [null, null, null];
+      if (x0) {
+        const h0 = x1!.ts - x0.ts, h1 = x2!.ts - x1!.ts, H2 = h0 + h1;
+        // weights of the three values in the parabola's slope at a (a is x1, x2 or x0)
+        const [w0, w1, w2] = a === x1 ? [-h1 / (h0 * H2), (h1 - h0) / (h0 * h1), h0 / (h1 * H2)]
+          : a === x2 ? [h1 / (h0 * H2), -H2 / (h0 * h1), (2 * h1 + h0) / (h1 * H2)]
+            : [-(2 * h0 + h1) / (h0 * H2), H2 / (h0 * h1), -h0 / (h1 * H2)];
+        for (let j = 0; j < DIM; j++) M[j] = clamp(w0 * x0.v[j] + w1 * x1!.v[j] + w2 * x2!.v[j], -cap[j], cap[j]);
+        return;
       }
-      return;
     }
     const lo = pv || a, hi = nx || a, dt = hi.ts - lo.ts;
-    for (let j = 0; j < DIM; j++) M[j] = dt > 0 ? clamp((hi.v[j] - lo.v[j]) / dt, -this.cap[j], this.cap[j]) : 0;
+    for (let j = 0; j < DIM; j++) M[j] = dt > 0 ? clamp((hi.v[j] - lo.v[j]) / dt, -cap[j], cap[j]) : 0;
   }
 
-  /** From knot k, tau ms on: carry on along the last motion, slowing to rest over EXTRAP_MS, then hold */
+  /**
+   * From knot k, tau ms on: carry on along the motion at k, slowing to rest over EXTRAP_MS, then hold. With 'fd' the
+   * motion is the knot's own tangent (so the curve stays C1 where interpolation hands over); with BEND_MS it also
+   * follows the curve's bend for that long, fading.
+   */
   private extrap(k: number, tau: number, P: Float64Array, V: Float64Array) {
-    const s = this.s, a = s[k], M = this.M0, A = this.A0, G = this.P.GAP_MS, E = this.P.EXTRAP_MS, Bm = this.P.BEND_MS;
+    const s = this.s, a = s[k], M = this.M0, A = this.A0, G = this.P.GAP_MS, E = this.P.EXTRAP_MS, Bm = this.P.BEND_MS, fd = this.P.TANGENT === 'fd';
     const pv = k > 0 && a.ts - s[k - 1].ts <= G ? s[k - 1] : null;
     const pp = pv && k > 1 && pv.ts - s[k - 2].ts <= G ? s[k - 2] : null;
     const dt = pv ? a.ts - pv.ts : 0;
+    if (fd) this.tangent(k, M);
     const t = Math.min(tau, E), x = t - (t * t) / (2 * E), w = 1 - t / E;
-    // the bend: the change of slope across the last three knots, followed for BEND_MS and faded with the speed
-    const tb = Math.min(tau, Bm), xb = Bm > 0 ? (tb * tb) / 2 - (tb * tb * tb) / (6 * Bm) : 0, wb = Bm > 0 ? tb - (tb * tb) / (2 * Bm) : 0;
+    // the bend's own velocity is A·t·(1 - t/Bm): it starts at the curve's acceleration and is back to zero at Bm, so
+    // when it stops the position stops with it (a velocity left over would be integrated by the next correction)
+    const tb = Math.min(tau, Bm), xb = Bm > 0 ? (tb * tb) / 2 - (tb * tb * tb) / (3 * Bm) : 0, wb = Bm > 0 ? tb - (tb * tb) / Bm : 0;
     for (let j = 0; j < DIM; j++) {
-      M[j] = dt > 0 ? clamp((a.v[j] - pv!.v[j]) / dt, -this.cap[j], this.cap[j]) : 0;
-      A[j] = pp && Bm > 0 ? ((a.v[j] - pv!.v[j]) / dt - (pv!.v[j] - pp.v[j]) / (pv!.ts - pp.ts)) / ((a.ts - pp.ts) / 2) : 0;
+      if (!fd) M[j] = dt > 0 ? clamp((a.v[j] - pv!.v[j]) / dt, -this.cap[j], this.cap[j]) : 0;
+      // the parabola's second derivative across the last three knots (per ms²)
+      A[j] = pp && Bm > 0 ? (2 * ((a.v[j] - pv!.v[j]) / dt - (pv!.v[j] - pp.v[j]) / (pv!.ts - pp.ts))) / (a.ts - pp.ts) : 0;
       P[j] = a.v[j] + M[j] * x + A[j] * xb; V[j] = M[j] * w + A[j] * wb;
     }
   }
@@ -303,12 +329,14 @@ export class PoseBuffer {
 
   private evalAt(T: number, P: Float64Array, V: Float64Array) {
     const s = this.s;
-    if (T <= s[0].ts) { P.set(s[0].v); V.fill(0); return; }
+    if (T <= s[0].ts) { this.mode = 'hold'; P.set(s[0].v); V.fill(0); return; }
     const k = this.index(T);
-    if (k === s.length - 1) return this.extrap(k, T - s[k].ts, P, V);
+    if (k === s.length - 1) { this.mode = 'extrap'; return this.extrap(k, T - s[k].ts, P, V); }
     const a = s[k], b = s[k + 1], h = b.ts - a.ts;
+    this.mode = h > 1.5 * this.interval ? 'hole' : 'interp';
     if (h > this.P.GAP_MS) {
       const tb = b.ts - this.P.EASE_MS;
+      this.mode = 'gap';
       if (T <= tb) return this.extrap(k, T - a.ts, P, V);
       this.extrap(k, tb - a.ts, this.eP, this.eV);
       this.tangent(k + 1, this.M1);
@@ -345,6 +373,7 @@ export class PoseBuffer {
     }
     this.changed = false;
     this.evalAt(T, P, V);
+    this.blending = !!this.blend;
     if (this.blend) {
       const { start, dur } = this.blend, u = (T - start) / dur;
       if (u >= 1) this.blend = null;
@@ -359,7 +388,8 @@ export class PoseBuffer {
     this.out.set(P); this.vel.set(V); this.prevT = T;
     out.set(P);
     out[YAW] = wrapPi(P[YAW]);
-    while (s.length > 3 && s[2].ts <= T) s.shift();
+    // keep two knots behind the one playing: the parabola tangents and the bend reach that far back
+    while (s.length > 4 && s[3].ts <= T) s.shift();
     const kn = s[Math.max(0, this.index(T))];
     return { ok: true, age: now - this.newest, flags: kn.flags, energy: kn.energy, world: kn.world, move: kn.move };
   }
@@ -396,9 +426,11 @@ export interface PoseSend {
 }
 
 export type NetEvent = ServerType | 'open' | 'close';
+/** what a sender remembers: when it last sent, and its last few snapshots (newest first) to repeat */
+interface Sent { last: number; sent: { ts: number; pose: PoseLike }[] }
 type Handler = (msg: any) => void;
 export interface OpenInfo { room: string; slot: number; seat: number; player: boolean; stage: string; world: string | null }
-export interface NetOptions extends Partial<Conditions> { buffer?: Partial<BufferParams>; redundant?: boolean }
+export interface NetOptions extends Partial<Conditions> { buffer?: Partial<BufferParams>; redundant?: number }
 
 export interface NetLike {
   readonly slot: number | null;
@@ -426,7 +458,7 @@ abstract class Base implements NetLike {
   protected handlers: Record<string, Handler[]> = {};
   protected bufs: (PoseBuffer | null)[] = new Array(SLOTS).fill(null);
   protected bufParams: Partial<BufferParams>;
-  protected redundant: boolean;
+  protected redundant: number;
   connected = false;
   slot: number | null = null;
   room: string | null = null;
@@ -489,7 +521,7 @@ abstract class Base implements NetLike {
   }
 
   /** the binary frame for this pose if one is due (rate-limited to `interval`), else null */
-  protected poseFrame(pose: PoseLike, o: PoseSend, interval: number, which: { last: number; sent: { ts: number; pose: PoseLike } | null }) {
+  protected poseFrame(pose: PoseLike, o: PoseSend, interval: number, which: Sent) {
     const t = perf();
     if (t - which.last < interval) return null;
     which.last = t - which.last < 2 * interval ? which.last + interval : t;
@@ -497,9 +529,10 @@ abstract class Base implements NetLike {
     const copy: PoseLike = { p: Float64Array.from(pose.p as ArrayLike<number>), root: [pose.root[0], pose.root[1], pose.root[2]], yaw: pose.yaw };
     const frame = encodePose({
       ts, pose: copy, flags: (o.flags ?? 0) | (o.teleport ? POSE.TELEPORT : 0), energy: o.energy, world: o.world ?? this.world ?? '',
-      prev: this.redundant && !o.teleport ? which.sent : null, move: o.move ?? null,
+      prev: o.teleport ? null : which.sent.slice(0, this.redundant), move: o.move ?? null,
     });
-    which.sent = { ts, pose: copy };
+    // after a teleport the earlier snapshots are from somewhere else: never repeat them
+    which.sent = o.teleport ? [{ ts, pose: copy }] : [{ ts, pose: copy }, ...which.sent].slice(0, MAX_PREV);
     return frame;
   }
 
@@ -509,8 +542,8 @@ abstract class Base implements NetLike {
     if (!f || f.slot >= SLOTS || f.slot === this.slot) return;
     const buf = (this.bufs[f.slot] ??= new PoseBuffer(this.bufParams));
     const now = this.now(), meta: PoseMeta = { flags: f.flags, energy: f.energy, world: f.world, move: f.move };
-    // the repeated snapshot first (it's older), so a frame lost just before this one is filled in
-    if (f.prev) buf.push(f.prev.ts, packPose(f.prev, this.tmp), { ...meta, flags: meta.flags & ~POSE.TELEPORT }, now);
+    // the repeated snapshots first (oldest first), so frames lost just before this one are filled in
+    for (let i = f.prev.length - 1; i >= 0; i--) buf.push(f.prev[i].ts, packPose(f.prev[i], this.tmp), { ...meta, flags: meta.flags & ~POSE.TELEPORT }, now, false);
     buf.push(f.ts, packPose(f, this.tmp), meta, now);
     this.onPose?.(f, now);
   }
@@ -541,7 +574,7 @@ export class Net extends Base {
   private pingTimer: ReturnType<typeof setInterval> | null = null;
   private pend: { resolve: (i: OpenInfo) => void; reject: (e: Error) => void } | null = null;
   private want: { room: string | null; create: boolean; stage: string; world: string | null; role: Role } = { room: null, create: false, stage: 'void', world: null, role: 'any' };
-  private mine = { last: -Infinity, sent: null as { ts: number; pose: PoseLike } | null };
+  private mine: Sent = { last: -Infinity, sent: [] };
 
   /** url: ws(s)://host:port/ws; in a browser it defaults to the page's own host */
   constructor(url?: string, opts: NetOptions = {}) {
@@ -714,8 +747,8 @@ export class LocalNet extends Base {
   private lastTick = -Infinity;
   private lastState = -Infinity;
   private pCall = -Infinity;
-  private mine = { last: -Infinity, sent: null as { ts: number; pose: PoseLike } | null };
-  private theirs = { last: -Infinity, sent: null as { ts: number; pose: PoseLike } | null };
+  private mine: Sent = { last: -Infinity, sent: [] };
+  private theirs: Sent = { last: -Infinity, sent: [] };
 
   constructor({ stage = 'void', world = null, partner = null, ...opts }: NetOptions & { stage?: string; world?: string | null; partner?: Partner | null } = {}) {
     super(opts);

@@ -2,7 +2,7 @@
 // ±π, a root far from the origin, the repeated previous snapshot, the world and the move, and refusing what isn't a
 // pose. Run: node test/codec.test.ts
 import assert from 'node:assert/strict';
-import { encodePose, decodePose, poseBytes, isPose, stampSlot, POSE, NLM } from '../shared/protocol.ts';
+import { encodePose, decodePose, poseBytes, isPose, stampSlot, POSE, NLM, MAX_PREV } from '../shared/protocol.ts';
 
 let passed = 0;
 const test = (name: string, fn: () => void) => {
@@ -16,13 +16,15 @@ const pose = (k: number) => ({
   yaw: 3.1 + k * 0.05,
 });
 
-test('sizes: 106 bytes a pose, 194 with the previous snapshot, plus the world and the move', () => {
-  assert.equal(poseBytes(false), 106);
-  assert.equal(poseBytes(true), 194);
-  assert.equal(poseBytes(true, 'redwoods'), 203);
+test('sizes: 106 bytes a pose, 89 more per earlier snapshot, plus the world and the move', () => {
+  assert.equal(poseBytes(0), 106);
+  assert.equal(poseBytes(1), 195);
+  assert.equal(poseBytes(2, 'redwoods'), 106 + 1 + 2 * 88 + 9);
   assert.equal(encodePose({ ts: 1, pose: pose(0) }).length, 106);
-  assert.equal(encodePose({ ts: 100, pose: pose(1), prev: { ts: 50, pose: pose(0) }, world: 'redwoods' }).length, 203);
-  assert.equal(encodePose({ ts: 100, pose: pose(1), move: ['0-12', 99.5] }).length, poseBytes(false, '', '0-12'));
+  assert.equal(encodePose({ ts: 100, pose: pose(1), prev: [{ ts: 50, pose: pose(0) }], world: 'redwoods' }).length, poseBytes(1, 'redwoods'));
+  assert.equal(encodePose({ ts: 100, pose: pose(1), move: ['0-12', 99.5] }).length, poseBytes(0, '', '0-12'));
+  const four = [3, 2, 1, 0].map((k) => ({ ts: 50 * k, pose: pose(k) }));
+  assert.equal(encodePose({ ts: 200, pose: pose(4), prev: four }).length, poseBytes(MAX_PREV), 'at most MAX_PREV');
 });
 
 test('round trip: landmarks and root to half a millimetre, yaw to 1e-4 rad (wrapped to ±π), flags, energy, ts', () => {
@@ -36,18 +38,20 @@ test('round trip: landmarks and root to half a millimetre, yaw to 1e-4 rad (wrap
   const dy = Math.abs(((f.yaw - a.yaw + Math.PI) % (2 * Math.PI) + 2 * Math.PI) % (2 * Math.PI) - Math.PI);
   assert.ok(dy < 1e-4, `yaw ${f.yaw} vs ${a.yaw}`);
   assert.ok(f.yaw <= Math.PI && f.yaw > -Math.PI);
-  assert.equal(f.prev, null);
+  assert.deepEqual(f.prev, []);
 });
 
-test('the previous snapshot: its own ts (to 0.1 ms), root, yaw and landmarks', () => {
-  const a = pose(0), b = pose(1);
-  const f = decodePose(encodePose({ ts: 5000.3, pose: b, prev: { ts: 4950.1, pose: a } }))!;
-  assert.equal(f.prev!.ts, 4950.1);
-  for (let i = 0; i < 3; i++) assert.ok(Math.abs(f.prev!.root[i] - a.root[i]) <= 0.001);
-  for (let j = 0; j < NLM * 3; j++) assert.ok(Math.abs(f.prev!.p[j] - a.p[j]) <= 0.0005);
-  assert.ok(Math.abs(Math.cos(f.prev!.yaw) - Math.cos(a.yaw)) < 1e-4);
+test('earlier snapshots: each its own ts (to 0.1 ms), root, yaw and landmarks, newest first', () => {
+  const a = pose(0), b = pose(1), c = pose(2);
+  const f = decodePose(encodePose({ ts: 5000.3, pose: c, prev: [{ ts: 4950.1, pose: b }, { ts: 4900.2, pose: a }] }))!;
+  assert.deepEqual(f.prev.map((q) => q.ts), [4950.1, 4900.2]);
+  for (const [q, src] of [[f.prev[0], b], [f.prev[1], a]] as const) {
+    for (let i = 0; i < 3; i++) assert.ok(Math.abs(q.root[i] - src.root[i]) <= 0.001);
+    for (let j = 0; j < NLM * 3; j++) assert.ok(Math.abs(q.p[j] - src.p[j]) <= 0.0005);
+    assert.ok(Math.abs(Math.cos(q.yaw) - Math.cos(src.yaw)) < 1e-4);
+  }
   // too old to repeat (over 6.5 s): left out
-  assert.equal(encodePose({ ts: 9000, pose: b, prev: { ts: 1000, pose: a } }).length, 106);
+  assert.equal(encodePose({ ts: 9000, pose: b, prev: [{ ts: 1000, pose: a }] }).length, 106);
 });
 
 test('limits: landmarks clamp at ±32.767 m, NaN becomes 0, a far root survives', () => {
