@@ -24,6 +24,7 @@
 //   LOCO.ginga/run/rise/fall/land/crouch/stagger/reform(out, …): locomotion poses (39 floats, metres).
 //   rig(params, out): the body rig every procedural pose is built with (params in figure units, prototype frame).
 import { LM } from '../skeleton/landmarks';
+import type { HandStyle, FootStyle } from '../skeleton/retarget';
 
 export const J = LM;
 export const NJ = 13;
@@ -317,8 +318,7 @@ export const LOCO = {
 /** what a move is handed: which hand strikes (+1 the right), the aim (the dancer's own frame, x its left; length
  *  0..1), in the air or not, the beat, the groove, time into the move (s) */
 export interface MoveCtx { hand: number; aim: ArrayLike<number> | null; air: boolean; beat: number; groove: number; t: number }
-export type HandStyle = 'relaxed' | 'fist' | 'open' | 'floor';
-export type FootStyle = 'auto' | 'point' | 'flex';
+export type { HandStyle, FootStyle };
 /** hints for the retargeter, [left, right] */
 export interface MoveStyle { hands?: [HandStyle, HandStyle]; feet?: [FootStyle, FootStyle] }
 export interface Hit { a: string; b: string; r: number; stream?: { len: number; speed: number } }
