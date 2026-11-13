@@ -74,7 +74,8 @@ fn main(@builtin(global_invocation_id) gid: vec3u) {
   // the field's cold freezes it all at once (a water dancer beside an ice one). A dancer's own form is cold too (its
   // aura, matter/field/auras.ts, at the form it was set to), so its own cold counts for less: its freeze climbs from
   // the feet (the wave above) instead of setting the whole body at once
-  if (heat < -sim.freezeCold * (1.0 + 4.0 * formOf(sim, d))) { goalIce = 1.0; }
+  // (and a dancer wearing ice hands or feet, tide's, is cold by its own ice: that alone doesn't freeze its water)
+  if (heat < -sim.freezeCold * (1.0 + 4.0 * formOf(sim, d) + 12.0 * coldOf(sim, d))) { goalIce = 1.0; }
   a.was = a.ice;
   let rate = sim.freezeRate * dt * (0.7 + 0.6 * rnd(seed ^ 0x1ceu));
   a.ice = clamp(a.ice + clamp(goalIce - a.ice, -rate, rate), 0.0, 1.0);

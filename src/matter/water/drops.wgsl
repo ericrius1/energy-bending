@@ -65,7 +65,10 @@ fn hidden() -> DOut { var o: DOut; o.pos = vec4f(2.0, 2.0, 2.0, 1.0); return o; 
     var side = cross(ax, toCam);
     side = select(frame.camRight, side / max(length(side), 1e-5), length(side) > 1e-4);
     wp = pos - ax * (sAlong * 0.5) + ax * (c.y * sAlong * 0.5) + side * (c.x * size * 0.5);
-    o.col = (vec3f(0.45, 0.78, 1.0) * 0.12 + key.col * 0.35 * key.glint) * drops.strength;
+    // (clear water: a drop is seen by the light it catches, little of its own; the key's share compressed so a bright
+    // world doesn't turn a fall of drips into rain)
+    let kc = key.col * key.glint;
+    o.col = (vec3f(0.45, 0.78, 1.0) * 0.06 + kc / (1.0 + luma(kc)) * 0.3) * drops.strength;
   } else if (kind == 1u) {
     let s = size * 3.0;
     wp = pos + (frame.camRight * c.x + frame.camUp * c.y) * s;

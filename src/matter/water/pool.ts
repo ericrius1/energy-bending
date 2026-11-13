@@ -238,7 +238,7 @@ export class WaterPool {
       wisp: [P.wisp, P.curl, P.tear, P.wispScale],
       refract: P.refract, dispersion: P.dispersion, glint: P.glint, foam: P.foam, caustic: P.caustic, rise: P.rise,
       reflect: P.reflect, floorY, time, iceGlint: I.glint, edges: I.edges, mirror: P.mirror, distAlpha: P.distAlpha ? 1 : 0,
-      iceOpacity: I.opacity, climb: P.climb, ripple: [P.ripples, P.rippleScale, P.rimSharp, 0],
+      iceOpacity: I.opacity, climb: P.climb, ripple: [P.ripples, P.rippleScale, P.rimSharp, P.depthNormal],
     });
     this.smoothX.set({ dir: [1, 0], radius: P.smooth, falloff: P.falloff, maxPx: 24 });
     this.smoothY.set({ dir: [0, 1], radius: P.smooth, falloff: P.falloff, maxPx: 24 });
@@ -273,6 +273,8 @@ export class WaterPool {
     s.flow = [P.flowSpeed, P.bulge, P.bulgeSpacing, P.peel];
     s.edge = [P.shellCurl, P.shellScale, P.shellClimb, P.streamers];
     s.forms = [[fm[0], fm[1], fm[2], fm[3]], [fm[4], fm[5], fm[6], fm[7]]];
+    const cold = (d: number) => this.layers.ice.reduce((a, l) => a + (l.dancer === d ? l.weight : 0), 0);
+    s.colds = [[cold(0), cold(1), cold(2), cold(3)], [cold(4), cold(5), cold(6), cold(7)]];
     const shatter = this.shatterNow || this.ctx.hand.shatterAll;
     b.dt = dt; b.time = f.t; b.floorY = floorY; b.fill = P.fill;
     b.stiffness = P.stiffness; b.damping = P.damping; b.transition = 0; b.breathe = 0;

@@ -191,6 +191,7 @@ fn edgeAt(uv: vec2f, wdims: vec2i) -> Edge {
   if (surf.wisp.x <= 0.0 && surf.wisp.y <= 0.0) { return e; }
   let W0 = textureLoad(water, q0, 0);
   var d = W0.x;
+  var frost = select(0.0, clamp(W0.w / max(W0.y, 1e-6), 0.0, 1.0), W0.y > 1e-6);
   if (d <= 0.0) {
     // a pixel outside the water: is any near enough for a tongue to reach it? (rings, nearest first)
     let reachPx = f32(wdims.y) * 0.05;
@@ -198,15 +199,14 @@ fn edgeAt(uv: vec2f, wdims: vec2i) -> Edge {
       for (var k = 0; k < 8; k++) {
         let a = f32(k) * 0.785398 + f32(r) * 0.39;
         let s = textureLoad(water, clamp(q0 + vec2i(round(vec2f(cos(a), sin(a)) * reachPx * f32(r) / 3.0)), vec2i(0), wdims - 1), 0);
-        if (s.x > 0.0 && s.y > 0.0) { d = s.x; break; }
+        if (s.x > 0.0 && s.y > 0.0) { d = s.x; frost = max(frost, clamp(s.w / s.y, 0.0, 1.0)); break; }
       }
     }
     if (d <= 0.0) { return e; }
   }
   let amount = W0.y * surf.cover.z;
-  let frost = select(0.0, clamp(W0.w / max(W0.y, 1e-6), 0.0, 1.0), W0.y > 1e-6);
   // how much of an edge this is: outside and in the thin band, not in thick water; ice keeps its own outline
-  let edge = (1.0 - smoothstep(surf.cover.y, surf.cover.y * 7.0, amount)) * (1.0 - smoothstep(0.2, 0.6, frost));
+  let edge = (1.0 - smoothstep(surf.cover.y, surf.cover.y * 7.0, amount)) * (1.0 - smoothstep(0.1, 0.4, frost));
   if (edge <= 0.001) { return e; }
   // the plane at that distance, in metres, fixed to the world as the camera slides (as fire's composite does)
   let th = tan(frame.fovY * 0.5);
@@ -310,7 +310,9 @@ fn shade(q: vec2i, wdims: vec2i, W: vec4f, keep: f32) -> Shade {
   let gx = (xr.y - xl.y) * k;
   let gy = (yd.y - yu.y) * k;
   let Nt = normalize(frame.camRight * (-gx) + frame.camUp * gy + V);
-  var N = normalize(mix(Nt, Nd, smoothstep(0.15, 0.7, Wr)));
+  // (the depth's normal only part of the way in: the narrow-range filter leaves terraces in the depth where an arm
+  // crosses the body, which read as flat rectangles in a surface this glossy; the thickness is blurred plainly)
+  var N = normalize(mix(Nt, Nd, smoothstep(0.15, 0.7, Wr) * surf.ripple.w));
   let wp = frame.camPos + P;
   o.wp = wp;
   // the water's own small waves (in the frame of the bone it runs on, so they ride the body and run down it): they
@@ -322,7 +324,11 @@ fn shade(q: vec2i, wdims: vec2i, W: vec4f, keep: f32) -> Shade {
   let cosV = clamp(dot(N, V), 0.0, 1.0);
   let R = reflect(ray, N);
   let key = worldKey(wp, true, 0.0);
-  let F = 0.02 + 0.98 * pow(1.0 - cosV, 5.0);
+  // Fresnel, but not all the way to grazing at the outline: there every pixel would mirror the same horizon and the
+  // silhouette would be one bright band of constant width (the edge bends what is behind it instead, below); the
+  // noise lets it reach further in places
+  let cosF = max(cosV, 0.32 + 0.35 * vnoise(wp * 23.0 + vec3f(0.0, -surf.time * 0.7, 0.0)));
+  let F = 0.02 + 0.98 * pow(1.0 - cosF, 5.0);
   let env = worldEnv(R, wp) * surf.reflect;
   let frost = clamp(W.w / max(W.y, 1e-5), 0.0, 1.0);
   let fi = smoothstep(0.25, 0.75, frost);
@@ -344,8 +350,11 @@ fn shade(q: vec2i, wdims: vec2i, W: vec4f, keep: f32) -> Shade {
   var wt = exp(-surf.absorb.rgb * Wr) * (1.0 - milk) * (1.0 - F);
   // the light scattered inside is the world's, in the water's colour; its own faint light is the caustic rising
   let rp = fbm(bone.p * surf.caustic - bone.up * (surf.time * surf.rise * surf.caustic));
-  // (water scatters little: most of what it gives is what it reflects)
-  var wc = surf.tint.rgb * lightIn * milk * 0.45;
+  // (water scatters little: most of what it gives is what it reflects. The worlds' ambient is generous, made for
+  // stones and bark; in water only a little of it scatters back, while a key or a fire beside it lights it up)
+  // (and compressed: a world's key or a fire a metre off must tint it, not turn it into a lit solid)
+  let li = amb * 0.06 + keyD * 0.3 + fireD * 0.6 + heartL;
+  var wc = surf.tint.rgb * li / (1.0 + luma(li)) * milk * 0.35;
   wc += surf.glow.rgb * surf.glow.w * (0.3 + 1.6 * rp * rp) * (0.25 + milk);
   // the world reflected, and its lights: the key's highlight (sharp, and a broad sheen), each fire's, the view's fill
   wc += env * F;
@@ -353,7 +362,7 @@ fn shade(q: vec2i, wdims: vec2i, W: vec4f, keep: f32) -> Shade {
            + vec3f(0.85, 0.95, 1.0) * pow(max(dot(N, Lv), 0.0), 80.0) * 0.25;
   wc += spec * surf.glint;
   // a rim only on the side a light comes from: the key's, each fire's
-  let rimL = key.col * rimK * smoothstep(-0.15, 0.6, dot(N, key.dir)) * 1.6 + amb * rimK * 0.35;
+  let rimL = key.col * rimK * smoothstep(-0.15, 0.6, dot(N, key.dir)) * 1.6;
   wc += (rimL * surf.rim.rgb) * surf.rim.w;
   wc += fireSpec(wp, R, N, rimK * surf.rim.w) * surf.glint;
   // foam: churned water turns white and dull where it is thin, lit like anything else
@@ -366,7 +375,11 @@ fn shade(q: vec2i, wdims: vec2i, W: vec4f, keep: f32) -> Shade {
   let vr = voro3(bone.p * surf.iceThin.w);
   let cid = vr.z;
   let tilt = (vec3f(fract(cid * 13.7), fract(cid * 71.3), fract(cid * 37.1)) - 0.5) * 1.1;
-  let fn_ = normalize(N + tilt);
+  // (ice is hard: its outline doesn't round off as water's does, so its facets turn on the depth's normal almost to
+  // the edge; otherwise every facet at the outline would face sideways and the outline would be one bright band)
+  var Ni = normalize(mix(Nt, Nd, smoothstep(0.02, 0.2, Wr)));
+  var fn_ = normalize(Ni + tilt);
+  if (dot(fn_, V) < 0.08) { fn_ = normalize(fn_ + V * (0.08 - dot(fn_, V))); }
   let Rf = reflect(ray, fn_);
   let cf = clamp(dot(fn_, V), 0.0, 1.0);
   let Ff = 0.04 + 0.96 * pow(1.0 - cf, 5.0);
@@ -375,8 +388,10 @@ fn shade(q: vec2i, wdims: vec2i, W: vec4f, keep: f32) -> Shade {
   let envF = worldEnv(Rf, wp) * surf.reflect;
   let keyF = max(dot(fn_, key.dir), 0.0);
   let lit = max(dot(fn_, normalize(Lv + key.dir * 0.4)), 0.0);
-  let litIn = worldAmbient(fn_, 1.0, wp) + key.col * keyF + worldFire(wp, fn_) + heartL;
-  let body = mix(surf.iceThin.rgb, surf.iceThick.rgb, smoothstep(0.18, 0.9, Wr));
+  let litIn = worldAmbient(fn_, 1.0, wp) * 0.6 + key.col * keyF + worldFire(wp, fn_) + heartL;
+  // each cell its own depth of blue (pale ones and navy ones side by side), deeper where the ice is thick: never a
+  // pale band of the same width round the outline
+  let body = mix(surf.iceThin.rgb, surf.iceThick.rgb, clamp(fract(cid * 5.31) * 0.85 + smoothstep(0.1, 0.9, Wr) * 0.35 - 0.1, 0.0, 1.0));
   var ic = body * (litIn * (0.25 + 1.2 * keyF * keyF) + vec3f(0.05 + 0.2 * lit * lit * lit) + surf.glow.rgb * surf.glow.w * 0.3);
   ic += envF * (0.12 + 0.88 * Ff);
   // hairline edges between facets, catching the light that reaches them
@@ -415,7 +430,7 @@ fn shade(q: vec2i, wdims: vec2i, W: vec4f, keep: f32) -> Shade {
     let cp = clamp(dot(Nf, V), 0.0, 1.0);
     let Fp = 0.02 + 0.98 * pow(1.0 - cp, 5.0);
     let envP = worldEnv(Rp, wp) * surf.reflect;
-    let specP = key.col * (pow(max(dot(Rp, key.dir), 0.0), 300.0) * 14.0 + pow(max(dot(Rp, key.dir), 0.0), 30.0) * 0.4) * key.glint;
+    let specP = key.col * (pow(max(dot(Rp, key.dir), 0.0), 900.0) * 5.0 + pow(max(dot(Rp, key.dir), 0.0), 40.0) * 0.1) * key.glint;
     let rimP = key.col * pow(1.0 - cp, 2.0) * menisc * smoothstep(-0.2, 0.6, dot(Nf, key.dir)) * 0.6;
     let fc = envP * Fp * 1.2 + (specP + rimP) * surf.glint + fireSpec(wp, Rp, Nf, menisc * 0.6) * surf.glint
            + surf.glow.rgb * surf.glow.w * 0.15 * (0.4 + rp);
