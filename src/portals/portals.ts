@@ -45,6 +45,7 @@ import { Carried } from './carried';
 import { Rigid, dot, type Q4, type V3 } from './rigid';
 import { portalParams as P } from './params';
 import { budget } from '../engine/perf';
+import { solidsOf } from './solids';
 
 /** something passed through a gate. The network sends this as its `travel` message (who, which gate, which face,
  *  when); `travel(e)` applies one that came from elsewhere */
@@ -339,6 +340,10 @@ export class Portals implements SceneLayer {
     });
     if (moved) this.ctx.bodies.upload(f.dancers, f.t);
     this.lineUp(f.dancers);
+    // the rig's world as the camera needs it: its solid things (portals/solids.ts) and its water
+    const w = this.ctx.worlds.find((x) => x.id === this.rigWorld), rig = this.ctx.rig;
+    rig.solids = w ? solidsOf(w) : null;
+    rig.waterY = w?.waterY ? w.waterY() : null;
   }
 
   /** the dancer the camera goes with: `follow`, or player one while the rig follows a player; null for the director's

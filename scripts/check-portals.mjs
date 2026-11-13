@@ -18,7 +18,7 @@ import { dirname, join } from 'node:path';
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const weftSrc = join(root, 'node_modules/@ericrius1/weft/src').replace(/\\/g, '/');
 const out = await build({
-  stdin: { contents: "export * from './src/portals/gate'; export * from './src/portals/camera'; export * from './src/portals/rigid'; export { CameraRig } from './src/engine/camera';", resolveDir: root, loader: 'ts' },
+  stdin: { contents: "export * from './src/portals/gate'; export * from './src/portals/camera'; export * from './src/portals/rigid'; export { CameraRig, Solids, boxOn, distTo, cameraParams } from './src/engine/camera'; export { samplePath } from './src/engine/shots';", resolveDir: root, loader: 'ts' },
   bundle: true, format: 'esm', write: false, platform: 'node',
   plugins: [{
     name: 'weft-cpu', setup(b) {
@@ -28,7 +28,7 @@ const out = await build({
   }],
 });
 const mod = await import(`data:text/javascript;base64,${Buffer.from(out.outputFiles[0].text).toString('base64')}`);
-const { Gate, GateCamera, setPose, CameraRig } = mod;
+const { Gate, GateCamera, setPose, CameraRig, Solids, boxOn, distTo, cameraParams, samplePath } = mod;
 
 let bad = 0, n = 0;
 const ok = (cond, what) => { n++; if (!cond) { bad++; console.error('FAIL', what); } };
@@ -247,6 +247,136 @@ const stepRig = (rig, n, f, each) => { for (let i = 0; i < n; i++) { each?.(i); 
   }
   okc(worst <= 1, `locked: every joint of both dancers stays inside the frame (furthest ${worst.toFixed(2)} of 1)`);
   okc(smallest >= 0.2, `locked: each dancer is at least a fifth of the frame's height (smallest ${smallest.toFixed(2)})`);
+}
+
+// ---------------------------------------------------------------- the camera and the world's solids (7-cameras.md)
+// the critic's orbit (a follow camera at 8 m, turned at 0.52 rad/s) round two dancers in a court of columns, under a
+// shelf, by a log, over water: the eye never inside a solid, never a jump
+{
+  const solids = new Solids([
+    // a ring of columns at 3 to 6 m, a fallen log, a low shelf (a tipped box), a lantern
+    ...[0, 1, 2, 3, 4, 5, 6, 7].map((k) => { const a = k * 0.785 + 0.3, r = 3 + (k % 3); return { kind: 'capsule', a: [Math.sin(a) * r, 0.5, Math.cos(a) * r], b: [Math.sin(a) * r, 4.5, Math.cos(a) * r], r: 0.5 }; }),
+    { kind: 'capsule', a: [-6, 0.6, -2], b: [-2.5, 0.6, -5], r: 0.8 },
+    boxOn([1.5, 1.6, -4], [3, 0.5, 2.5], 0.4, 0.1),
+    { kind: 'capsule', a: [2.2, 2.6, 2.2], b: [2.2, 2.6, 2.2], r: 0.5 },
+  ]);
+  const rig = new CameraRig();
+  rig.solids = solids;
+  rig.waterY = 0.1;
+  const dancers = [body(-0.8, 1, 0.3), body(0.8, 1, 0.3)];
+  let inside = 0, minD = Infinity, jump = 0, low = Infinity, prev = null, pulled = 0;
+  for (let i = 0; i < 60 * 12; i++) {
+    const t = i / 60;
+    rig.follow = { x: 0, y: 0.95, z: 0.3, yaw: 0, speed: 0, spread: 1.6 };
+    rig.yaw = t * 0.52; rig.lookIdle = 0;
+    cameraParams.followDist = 8; cameraParams.followPitch = 0.18;
+    rig.update(1 / 60, input(dancers, 40));
+    const d = Math.min(...solids.list.map((s) => distTo(s, rig.eye)));
+    minD = Math.min(minD, d);
+    if (d < 0.05) inside++;
+    if (Math.hypot(rig.eye[0], rig.eye[2]) < 6) pulled++;
+    low = Math.min(low, rig.eye[1] - 0.1);
+    if (prev && i > 60) { const s = Math.hypot(rig.eye[0] - prev[0], rig.eye[1] - prev[1], rig.eye[2] - prev[2]); if (s > 0.2) console.log("    step", i, s.toFixed(3)); jump = Math.max(jump, s); }
+    prev = [...rig.eye];
+  }
+  cameraParams.followDist = 4.6; cameraParams.followPitch = 0.22;
+  okc(inside === 0, `orbit at 8 m through a court of columns: the eye never inside a solid (nearest ${minD.toFixed(2)} m from a surface)`);
+  okc(minD > 0.15, `the eye keeps at least 15 cm from every surface (${minD.toFixed(2)} m)`);
+  okc(jump < 0.2, `the eye moves smoothly while the boom comes in and out (largest step ${jump.toFixed(3)} m a frame; the orbit alone moves 0.07, the boom at most 0.08 more)`);
+  okc(low >= 0.24, `the eye stays 25 cm above the water (lowest ${(low).toFixed(2)} m above it)`);
+  okc(pulled > 0, `the boom came in for the columns (${(pulled / 60).toFixed(1)} s of 12 nearer than 6 m)`);
+}
+
+// a dancer standing on a slab (the forge's crown): the boom rising away from it is not pinned by the slab underfoot,
+// one going down through it is
+{
+  const S = new Solids([boxOn([0, 2.6, 0], [2.6, 0.5, 1.7])]);
+  const T = [0, 3.9, 0.3], up = S.sweep(T, [0, 5.3, 8.2], 0.5), down = S.sweep(T, [0.5, 1.0, 1.0], 0.5);
+  okc(up === 1 && down < 0.5, `standing on a slab: a boom rising away is clear (${up.toFixed(2)}), one down through it is not (${down.toFixed(2)})`);
+}
+
+// the locked view sees past a column: one standing between the stage's own angle and the dancers turns the view
+{
+  const plane = { id: 's', origin: [0, 0, 0], right: [1, 0, 0], halfWidth: 5.75, ground: 0, ledges: [], spawns: [[-2, 0], [2, 0]], lens: 20, yaw: 0.1 };
+  const dancers = [body(-0.6, 1, 0), body(0.9, 1, 0)];
+  const rig = new CameraRig();
+  rig.lock(plane);
+  stepRig(rig, 240, () => input(dancers, 30));   // (all the way locked first)
+  // a column on the line from the stage's own eye to the middle of the two, 4 m out
+  const e = rig.eye, c = [0.15, 1, 0], k = 4 / Math.hypot(e[0] - c[0], e[2] - c[2]);
+  const col = { kind: 'capsule', a: [c[0] + (e[0] - c[0]) * k, 0.3, c[2] + (e[2] - c[2]) * k], b: [c[0] + (e[0] - c[0]) * k, 3.5, c[2] + (e[2] - c[2]) * k], r: 0.45 };
+  rig.solids = new Solids([col]);
+  const sees = () => {
+    let n = 0;
+    for (const J of dancers) for (const j of [0, 3, 9, 15, 18]) if (rig.solids.sweep([J[j * 12], J[j * 12 + 1], J[j * 12 + 2]], rig.eye, 0.05) < 0.98) n++;
+    return n;
+  };
+  rig.update(1 / 60, input(dancers, 30));
+  const before = sees();
+  stepRig(rig, 180, () => input(dancers, 30));
+  okc(before > 0 && sees() === 0, `locked: a column across the dancers (${before} of 10 sight lines) is seen past by turning ${rig.dodge.toFixed(2)} rad (${sees()} blocked after 3 s)`);
+  okc(Math.abs(rig.dodge) <= 0.41, `locked: the turn stays within lockDodge (${rig.dodge.toFixed(2)} rad)`);
+  rig.solids = null;
+  stepRig(rig, 300, () => input(dancers, 30));
+  okc(Math.abs(rig.dodge) < 0.02, `locked: with the column gone it turns back to the stage's own angle (${rig.dodge.toFixed(3)})`);
+}
+
+// a scripted player holding the stick one way walks a straight line through a gate, with the follow camera swinging
+// onto the gate and round behind them (stickYaw), where reading the stick in the camera's live turn curves the walk
+{
+  const walk = (steady) => {
+    const rig = new CameraRig(), speed = 1.8, dt = 1 / 60;
+    let P = [1.5, 0, 6], heading = 0, maxOff = 0;
+    rig.yaw = 0.9;   // the camera starts off to one side of the walk
+    // the player faces -z, the gate's disc at z = 0 facing +z; the stick held "into the screen" from the start
+    const stickYaw0 = rig.yaw;
+    for (let i = 0; i < 300; i++) {
+      const sy = steady ? rig.stickYaw(0, 0, 1) : rig.yaw;
+      // Character._moveVec: the stick (0, moveZ 1) read in the turn sy
+      const z = -1, dir = [z * Math.sin(sy), z * Math.cos(sy)];
+      P = [P[0] + dir[0] * speed * dt, 0, P[2] + dir[1] * speed * dt];
+      heading = Math.atan2(dir[0], dir[1]);
+      rig.follow = { x: P[0], y: 1.05, z: P[2], yaw: heading, speed, spread: 0 };
+      rig.approach = P[2] > -0.5 ? { at: [0.9, 1.3, 0], n: [0, 0, 1], right: [1, 0, 0], up: [0, 1, 0], reach: 1.2, side: 1, w: Math.min(1, Math.max(0, (4.5 - P[2]) / 3)) } : null;
+      rig.update(dt, input([body(P[0], 1, P[2])], 40));
+      // how far off the line it started on (straight along the turn the stick was first read in)
+      const along = [-Math.sin(stickYaw0), -Math.cos(stickYaw0)], q = [P[0] - 1.5, P[2] - 6];
+      maxOff = Math.max(maxOff, Math.abs(q[0] * along[1] - q[1] * along[0]));
+    }
+    return { maxOff, behind: Math.cos(rig.yaw - (heading + Math.PI)) };
+  };
+  const steady = walk(true), live = walk(false);
+  okc(steady.maxOff < 0.01, `the stick held one way walks a straight line (${steady.maxOff.toFixed(3)} m off it over 5 s; read in the live camera turn: ${live.maxOff.toFixed(2)} m)`);
+  okc(steady.behind > 0.95, `and the follow camera ends behind the player (cos ${steady.behind.toFixed(2)})`);
+}
+
+// a camera path: keys in the pair's space, blended in from the follow camera, held, released back to it, no jumps
+{
+  const rig = new CameraRig();
+  const dancers = [body(-1, 1, 0), body(1, 1, 0)];
+  const f = () => input(dancers, 40);
+  rig.follow = { x: 0, y: 1, z: 0, yaw: 0, speed: 0, spread: 2 };
+  stepRig(rig, 60, f);
+  const path = { space: { pair: true }, blendIn: 1, blendOut: 1, lag: 0, keys: [
+    { t: 0, orbit: [0.2, 0.15, 5], at: [0, 1, 0], fov: 40 },
+    { t: 2, orbit: [1.2, 0.3, 4], at: [0, 1.1, 0] },
+    { t: 4, orbit: [2.0, 0.1, 6], at: [0, 1, 0], fov: 30, roll: 0.05, focus: 5.5 },
+  ] };
+  rig.play(path);
+  let jump = 0, prev = [...rig.eye];
+  const step = (n) => { for (let i = 0; i < n; i++) { rig.update(1 / 60, f()); jump = Math.max(jump, Math.hypot(rig.eye[0] - prev[0], rig.eye[1] - prev[1], rig.eye[2] - prev[2])); prev = [...rig.eye]; } };
+  step(Math.round(60 * 2));   // t = 2: the second key (the pair's space is the world's here: +x toward dancer 1)
+  const want = [Math.sin(1.2) * Math.cos(0.3) * 4, 1.1 + Math.sin(0.3) * 4, Math.cos(1.2) * Math.cos(0.3) * 4];
+  okc(near(rig.eye, want, 0.02), `path: at its second key the eye is where the key says (${rig.eye.map((x) => x.toFixed(2))})`);
+  step(Math.round(60 * 2.5));
+  okc(rig.path?.done && Math.abs(rig.fovNow - 30) < 1e-3 && Math.abs(rig.focus - 5.5) < 1e-3, `path: held at its last key (lens ${rig.fovNow.toFixed(1)}, focus ${rig.focus.toFixed(2)})`);
+  rig.release();
+  step(90);
+  okc(rig.path === null && Math.abs(rig.fovNow - cameraParams.followFov) < 1e-3, 'path: released, the rig is its own again');
+  okc(jump < 0.25, `path: in, along and out without a jump (largest step ${jump.toFixed(3)} m a frame)`);
+  // samplePath alone: a stop key is passed at rest, the ends are held
+  const s = (t) => samplePath({ keys: [{ t: 0, eye: [0, 1, 0] }, { t: 1, eye: [1, 1, 0], stop: true }, { t: 2, eye: [3, 1, 0] }] }, t).eye[0];
+  okc(Math.abs(s(1.001) - s(0.999)) < 1e-4 && s(-1) === 0 && s(9) === 3, 'path: a stop key is passed at rest; before and after the keys it holds');
 }
 console.log(bad ? `${bad} of ${n} gate checks failed` : `gates check (${n} checks)`);
 process.exit(bad ? 1 : 0);

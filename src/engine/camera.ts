@@ -26,7 +26,7 @@
 // (dancer/character.ts) collides with it when locked; the camera stands on the side `planeNormal` points to.
 import { spring } from 'math/time';
 import type { Camera } from '@ericrius1/weft';
-import { SHOTS, fitSetOf, type Shot } from './shots';
+import { SHOTS, fitSetOf, samplePath, type Shot, type CameraPath, type PathSpace } from './shots';
 import { defineParams } from './params';
 
 type V3 = [number, number, number];
@@ -91,6 +91,144 @@ export interface Through extends Disc { side: number; t: number; depth: number }
 /** a gate the followed player is heading for: its disc, the side the player is on, and how near (0 … 1) */
 export interface Approach extends Disc { side: number; w: number }
 
+// ---------------------------------------------------------------- solids (what the eye keeps out of)
+
+/** a solid thing in a world as the camera sees it, in the rig's coordinates: a capsule (a segment and a radius:
+ *  trunks, columns, boughs, crystal points; a sphere when a = b) or a box (its middle, three unit axes and the half
+ *  extents along them: blocks, slabs, blades). Rough is fine: a proxy a few centimetres fat is better than one thin */
+export type Solid =
+  | { kind: 'capsule'; a: V3; b: V3; r: number }
+  | { kind: 'box'; c: V3; x: V3; y: V3; z: V3; h: V3 };
+
+/** a box standing on `foot` (the middle of its underside), turned `yaw` about up (local x → (cos, 0, −sin), local z →
+ *  (sin, 0, cos), the temple's and the geode's convention), and tipped `pitch` up about its own x */
+export function boxOn(foot: V3, size: V3, yaw = 0, pitch = 0): Solid {
+  const cy = Math.cos(yaw), sy = Math.sin(yaw), cp = Math.cos(pitch), sp = Math.sin(pitch);
+  const x: V3 = [cy, 0, -sy], y: V3 = [-sp * sy, cp, -sp * cy], z: V3 = [cp * sy, sp, cp * cy];
+  const h: V3 = [size[0] / 2, size[1] / 2, size[2] / 2];
+  return { kind: 'box', c: [foot[0] + y[0] * h[1], foot[1] + y[1] * h[1], foot[2] + y[2] * h[1]], x, y, z, h };
+}
+
+/** a world's solids, with a bounding sphere each (x, y, z, r) so a segment far from one costs four multiplies */
+export class Solids {
+  readonly bounds: Float32Array;
+  constructor(readonly list: readonly Solid[]) {
+    this.bounds = new Float32Array(list.length * 4);
+    list.forEach((s, i) => {
+      if (s.kind === 'capsule') {
+        const L = Math.hypot(s.b[0] - s.a[0], s.b[1] - s.a[1], s.b[2] - s.a[2]);
+        this.bounds.set([(s.a[0] + s.b[0]) / 2, (s.a[1] + s.b[1]) / 2, (s.a[2] + s.b[2]) / 2, L / 2 + s.r], i * 4);
+      } else this.bounds.set([...s.c, Math.hypot(...s.h)], i * 4);
+    });
+  }
+  /** how much of the way from a to b (0 … 1) a sphere of radius r moves before it touches a solid (see below for a
+   *  start that is already near one) */
+  sweep(a: V3, b: V3, r: number, hit?: (i: number) => void): number {
+    const dx = b[0] - a[0], dy = b[1] - a[1], dz = b[2] - a[2], L2 = dx * dx + dy * dy + dz * dz;
+    if (L2 < 1e-10) return 1;
+    const B = this.bounds, near: number[] = [];
+    // the solids the segment comes within r of (their bounding spheres), and how near a is to the nearest of them: a
+    // start nearer a solid than r (a dancer standing on a slab of columns, against a column) makes the sphere small
+    // enough to start clear of all of them, so it is caught by moving into one, not by where it began; one a is inside
+    // (or touching) is passed over
+    let r0 = r;
+    for (let i = 0; i < this.list.length; i++) {
+      const o = i * 4, px = B[o] - a[0], py = B[o + 1] - a[1], pz = B[o + 2] - a[2];
+      const t = Math.max(0, Math.min(1, (px * dx + py * dy + pz * dz) / L2));
+      const qx = px - dx * t, qy = py - dy * t, qz = pz - dz * t, R = B[o + 3] + r;
+      if (qx * qx + qy * qy + qz * qz > R * R) continue;
+      const d0 = distTo(this.list[i], a);
+      if (d0 <= 0.02) continue;
+      near.push(i);
+      r0 = Math.min(r0, d0 * 0.9);
+    }
+    let best = 1;
+    for (const i of near) {
+      const s = this.list[i], k = s.kind === 'capsule' ? sweepCapsule(s, a, dx, dy, dz, r0) : sweepBox(s, a, dx, dy, dz, r0);
+      if (k < best) { best = k; hit?.(i); }
+    }
+    return best;
+  }
+  /** whether the point p is within r of a solid (the eye inside one) */
+  inside(p: V3, r: number) {
+    for (let i = 0; i < this.list.length; i++) {
+      const o = i * 4, R = this.bounds[o + 3] + r;
+      if ((p[0] - this.bounds[o]) ** 2 + (p[1] - this.bounds[o + 1]) ** 2 + (p[2] - this.bounds[o + 2]) ** 2 > R * R) continue;
+      if (distTo(this.list[i], p) < r) return true;
+    }
+    return false;
+  }
+}
+
+/** how far p is from a solid's surface (negative inside) */
+export function distTo(s: Solid, p: V3) {
+  if (s.kind === 'capsule') {
+    const bx = s.b[0] - s.a[0], by = s.b[1] - s.a[1], bz = s.b[2] - s.a[2], L2 = bx * bx + by * by + bz * bz;
+    const px = p[0] - s.a[0], py = p[1] - s.a[1], pz = p[2] - s.a[2];
+    const t = L2 > 1e-12 ? Math.max(0, Math.min(1, (px * bx + py * by + pz * bz) / L2)) : 0;
+    return Math.hypot(px - bx * t, py - by * t, pz - bz * t) - s.r;
+  }
+  const px = p[0] - s.c[0], py = p[1] - s.c[1], pz = p[2] - s.c[2];
+  const qx = Math.abs(px * s.x[0] + py * s.x[1] + pz * s.x[2]) - s.h[0];
+  const qy = Math.abs(px * s.y[0] + py * s.y[1] + pz * s.y[2]) - s.h[1];
+  const qz = Math.abs(px * s.z[0] + py * s.z[1] + pz * s.z[2]) - s.h[2];
+  return Math.hypot(Math.max(qx, 0), Math.max(qy, 0), Math.max(qz, 0)) + Math.min(Math.max(qx, qy, qz), 0);
+}
+
+/** a sphere of radius r moving from a by (dx, dy, dz) against a capsule: the first touch (0 … 1), 1 for none or for a
+ *  start already inside (Quílez's ray-capsule with the radii summed) */
+function sweepCapsule(s: Extract<Solid, { kind: 'capsule' }>, a: V3, dx: number, dy: number, dz: number, r: number) {
+  const R = s.r + r;
+  if (distTo(s, a) < r) return 1;
+  const L = Math.hypot(dx, dy, dz), rx = dx / L, ry = dy / L, rz = dz / L;
+  const bax = s.b[0] - s.a[0], bay = s.b[1] - s.a[1], baz = s.b[2] - s.a[2];
+  const oax = a[0] - s.a[0], oay = a[1] - s.a[1], oaz = a[2] - s.a[2];
+  const baba = bax * bax + bay * bay + baz * baz, bard = bax * rx + bay * ry + baz * rz, baoa = bax * oax + bay * oay + baz * oaz;
+  const rdoa = rx * oax + ry * oay + rz * oaz, oaoa = oax * oax + oay * oay + oaz * oaz;
+  let t = -1;
+  const A = baba - bard * bard;
+  if (A > 1e-9) {
+    const b = baba * rdoa - baoa * bard, c = baba * oaoa - baoa * baoa - R * R * baba, h = b * b - A * c;
+    if (h >= 0) {
+      const tt = (-b - Math.sqrt(h)) / A, y = baoa + tt * bard;
+      if (y > 0 && y < baba) t = tt;
+    }
+  }
+  if (t < 0) {
+    // the ends: a sphere at each
+    for (const e of [s.a, s.b]) {
+      const ox = a[0] - e[0], oy = a[1] - e[1], oz = a[2] - e[2], b = rx * ox + ry * oy + rz * oz, h = b * b - (ox * ox + oy * oy + oz * oz - R * R);
+      if (h > 0) { const tt = -b - Math.sqrt(h); if (tt >= 0 && (t < 0 || tt < t)) t = tt; }
+    }
+  }
+  return t >= 0 && t < L ? t / L : 1;
+}
+
+/** the same against a box (grown by r on every side: a little generous at its edges and corners) */
+function sweepBox(s: Extract<Solid, { kind: 'box' }>, a: V3, dx: number, dy: number, dz: number, r: number) {
+  if (distTo(s, a) < r) return 1;
+  const px = a[0] - s.c[0], py = a[1] - s.c[1], pz = a[2] - s.c[2];
+  let t0 = 0, t1 = 1;
+  for (const [ax, h] of [[s.x, s.h[0]], [s.y, s.h[1]], [s.z, s.h[2]]] as const) {
+    const o = px * ax[0] + py * ax[1] + pz * ax[2], d = dx * ax[0] + dy * ax[1] + dz * ax[2], H = h + r;
+    if (Math.abs(d) < 1e-12) { if (Math.abs(o) > H) return 1; continue; }
+    let ta = (-H - o) / d, tb = (H - o) / d;
+    if (ta > tb) { const k = ta; ta = tb; tb = k; }
+    t0 = Math.max(t0, ta); t1 = Math.min(t1, tb);
+    if (t0 > t1) return 1;
+  }
+  // (the box grown by r is a box, square at its edges and corners where the true shape is round: from where the
+  // segment enters it, step on by the true distance until the sphere touches, or the segment leaves)
+  const L = Math.hypot(dx, dy, dz), p: V3 = [0, 0, 0];
+  for (let i = 0, t = t0; i < 32 && t <= t1; i++) {
+    p[0] = a[0] + dx * t; p[1] = a[1] + dy * t; p[2] = a[2] + dz * t;
+    const d = distTo(s, p) - r;
+    if (d < 1e-3) return t;
+    t += d / L;
+  }
+  return 1;
+}
+
 export const cameraParams = defineParams('camera', {
   autoOrbit: true,
   orbitSpeed: 0.07,
@@ -116,6 +254,14 @@ export const cameraParams = defineParams('camera', {
   lockPitch: 0.07,
   /** seconds of a dancer's velocity the locked framing looks ahead by (a leap is framed before it peaks) */
   lockLead: 0.35,
+  /** how far the eye keeps from a world's solids (m): the boom eases in to keep this much clear (with a look ahead along
+   *  the way it is turning), and is stopped hard at `clearHard` if the ease is not quick enough */
+  clearSoft: 0.5,
+  clearHard: 0.22,
+  /** how far ahead (s) of where the eye is turning the boom looks for solids, so it comes in before one reaches it */
+  clearAhead: 0.35,
+  /** how far the locked view may turn off its stage's own angle (rad, either way) to see past a column or a trunk */
+  lockDodge: 0.4,
 }, {
   autoOrbit: { label: 'orbit when idle' },
   orbitSpeed: { min: -0.5, max: 0.5 },
@@ -129,6 +275,10 @@ export const cameraParams = defineParams('camera', {
   lockYaw: { min: -0.5, max: 0.5, label: 'lock turn (rad)' },
   lockPitch: { min: -0.2, max: 0.4, label: 'lock look down (rad)' },
   lockLead: { min: 0, max: 1 },
+  clearSoft: { min: 0, max: 1.5, label: 'keep off solids (m)' },
+  clearHard: { min: 0, max: 0.6 },
+  clearAhead: { min: 0, max: 1 },
+  lockDodge: { min: 0, max: 0.8, label: 'lock turns past occluders (rad)' },
 });
 
 /** what the rig needs to know about the frame */
@@ -161,6 +311,13 @@ const smooth01 = (x: number) => { const k = Math.max(0, Math.min(1, x)); return 
 const wrap = (a: number) => Math.atan2(Math.sin(a), Math.cos(a));
 /** what the locked view frames of each body: hips, knees, feet, toes, head (and its top), elbows, hands, fingertips */
 const LOCK_JOINTS = [0, 3, 4, 6, 9, 10, 12, 18, 19, 22, 23, 26, 31, 32, 35];
+/** the fastest the boom comes in for a solid (m/s), and the times ahead (s, at clearAhead 0.35) it looks along its turn */
+const PULL_SPEED = 5;
+const AHEAD = [0.12, 0.25, 0.4, 0.6, 0.8];
+/** how far the free boom may tilt (rad) to see over something low (or under a bough) */
+const LIFTS = [0.15, 0.3, 0.45, 0.6, -0.12, -0.24];
+/** what the locked view must see past solids: hips, knees, chest, head */
+const SIGHT_JOINTS = [0, 3, 9, 15, 18];
 
 export class CameraRig {
   mode: 'free' | 'locked' = 'free';
@@ -221,9 +378,46 @@ export class CameraRig {
   through: Through | null = null;
   /** the gate the followed player is heading for, or null (the portals set it each frame) */
   approach: Approach | null = null;
+  /** the solid things of the world the rig is in (the portals set them each frame, from World.solids or their own
+   *  reading of the world's layout), or null: the eye keeps out of them, the lock looks past them */
+  solids: Solids | null = null;
+  /** the height of that world's water, if it has any (the eye stays above it, as above the ground) */
+  waterY: number | null = null;
+  /** what the world may fade so nothing solid stands in the way (a request to the worlds and the post chain: see
+   *  docs/extending/camera.md, "The near fade"): the eye, the middle of what is framed, and the solids that stood
+   *  across the sight lines this frame (indices into `solids.list`) after the rig did what it could */
+  readonly sight = { eye: [0, 0, 0] as V3, at: [0, 0, 0] as V3, near: 0.6, blocking: [] as number[] };
+  /** the turn the lock has taken off its stage's angle to see past a solid (rad, eased), and its wish */
+  dodge = 0;
+  private dodgeWant = 0;
+  private dodgeWait = 0;
+  /** the boom's turn about up last frame and how fast it turns (rad/s): the clearance looks ahead along it */
+  private boomYaw = 0;
+  private boomRate = 0;
+  /** per player: the turn their camera-relative stick is read in, while held (see `stickYaw`) */
+  private sticks: { yaw: number; held: boolean }[] = [];
+  /** a camera path playing (see `play`): its pose this frame, its weight, its own boom */
+  private run: PathRun | null = null;
+  private roll = 0;
+  private focusAt: number | null = null;
 
-  /** the distance in focus: from the eye to what it looks at (the stage plane, locked) */
-  get focus() { return Math.hypot(this.look[0] - this.eye[0], this.look[1] - this.eye[1], this.look[2] - this.eye[2]); }
+  /** the distance in focus: from the eye to what it looks at (the stage plane, locked), or a path's own */
+  get focus() {
+    const d = Math.hypot(this.look[0] - this.eye[0], this.look[1] - this.eye[1], this.look[2] - this.eye[2]);
+    return this.focusAt === null ? d : this.focusAt;
+  }
+
+  /** the turn player `p`'s camera-relative stick (moveX, moveZ) is read in. While the stick is held it keeps the turn
+   *  it had when the push began: the camera's own swings (behind a runner, onto a gate, the director's drift) don't
+   *  steer the player, so a stick held one way walks a straight line. The player's own look input (`lookBy`) and a
+   *  gate's carry turn it with the camera. Let go, and it is the camera's again */
+  stickYaw(p: number, moveX: number, moveZ: number) {
+    const s = (this.sticks[p] ??= { yaw: this.yaw, held: false });
+    const held = Math.hypot(moveX, moveZ) > 0.2;
+    if (!held || !s.held) s.yaw = this.yaw;
+    s.held = held;
+    return s.yaw;
+  }
 
   /** turn the orbit by a drag (pixels) */
   orbit(dx: number, dy: number) {
@@ -245,7 +439,11 @@ export class CameraRig {
     const y0 = this.target[1];
     for (const p of [this.target, this.freeEye, this.freeLook, this.lockC, this.lockEye, this.eye, this.look]) pt(p);
     this.height += this.target[1] - y0;
-    this.yaw += Math.atan2(m[8], m[10]);
+    const turn = Math.atan2(m[8], m[10]);
+    this.yaw += turn;
+    this.boomYaw += turn;
+    for (const s of this.sticks) if (s) s.yaw += turn;
+    if (this.run) this.run.carry(m);
     this.approach = null;
   }
 
@@ -253,6 +451,7 @@ export class CameraRig {
   lookBy(x: number, y: number, dt: number) {
     if (Math.abs(x) + Math.abs(y) < 1e-3) return;
     this.yaw -= x * 2.6 * dt;
+    for (const s of this.sticks) if (s?.held) s.yaw -= x * 2.6 * dt;
     this.pitch = Math.max(-0.1, Math.min(1.1, this.pitch - y * 1.6 * dt));
     this.lookIdle = 0;
     this.idle = 0;
@@ -290,17 +489,18 @@ export class CameraRig {
     if (Math.abs(want - this.lockW) < 1e-4) this.lockW = want;
     if (this.plane && this.lockW > 0) this.updateLocked(dt, f);
     const e = smooth01(this.lockW);
-    if (e <= 0) {
-      this.eye[0] = this.freeEye[0]; this.eye[1] = this.freeEye[1]; this.eye[2] = this.freeEye[2];
-      this.look[0] = this.freeLook[0]; this.look[1] = this.freeLook[1]; this.look[2] = this.freeLook[2];
-      this.fovNow = this.freeFov;
-      return;
-    }
     for (let a = 0; a < 3; a++) {
       this.eye[a] = this.freeEye[a] + (this.lockEye[a] - this.freeEye[a]) * e;
       this.look[a] = this.freeLook[a] + (this.lockC[a] - this.freeLook[a]) * e;
     }
     this.fovNow = this.freeFov + (this.lockFov - this.freeFov) * e;
+    this.roll = 0;
+    this.focusAt = null;
+    // a camera path over all that, by its weight (blending in and out of whatever the rig was doing)
+    if (this.run) this.playPath(dt, f);
+    this.sight.eye[0] = this.eye[0]; this.sight.eye[1] = this.eye[1]; this.sight.eye[2] = this.eye[2];
+    this.sight.at[0] = this.look[0]; this.sight.at[1] = this.look[1]; this.sight.at[2] = this.look[2];
+    if (e <= 0 && !this.run) this.sight.blocking.length = 0;
   }
 
   /** the pose into weft's camera (and its matrices for this render size) */
@@ -310,8 +510,64 @@ export class CameraRig {
     // weft: yaw 0 looks down -z, positive yaw turns left; pitch up is positive
     c.yaw = Math.atan2(-dx, -dz);
     c.pitch = Math.atan2(dy, Math.hypot(dx, dz));
+    c.roll = this.roll;
     c.fovY = (this.fovNow * Math.PI) / 180;
     c.update(width, height);
+  }
+
+  // ---------------------------------------------------------------- camera paths (engine/shots.ts: CameraPath)
+  /** play a camera path (docs/extending/camera.md): from `at` seconds into it, blending in over its `blendIn` from
+   *  whatever the rig is doing (free, follow, locked). Its keys are in its `space` (the world, a dancer, the pair, a
+   *  stage), resolved every frame, so a path relative to a dancer goes where they go. Another play replaces it,
+   *  blending from where the camera is */
+  play(path: CameraPath, at = 0) {
+    if (!path.keys.length) throw new Error('camera path: no keys');
+    const was = this.run && this.run.w > 0 ? { eye: [...this.eye] as V3, look: [...this.look] as V3, fov: this.fovNow, roll: this.roll } : null;
+    this.run = new PathRun(path, at, was);
+  }
+  /** let go of the path: blend back to the rig over `blend` seconds (default: the path's `blendOut`) */
+  release(blend?: number) { if (this.run) this.run.release(blend ?? this.run.path.blendOut ?? 1); }
+  /** the path playing: its time (s), its weight (0 … 1), whether it has reached its last key; null when none */
+  get path() { const r = this.run; return r ? { t: r.t, w: r.w, done: r.t >= r.end, path: r.path } : null; }
+
+  private playPath(dt: number, f: RigInput) {
+    const r = this.run!;
+    r.step(dt);
+    if (r.gone) { this.run = null; return; }
+    const pose = r.pose(dt, f, this.plane, this.fovNow);
+    // its own boom kept off the solids, when it asks
+    if (r.path.avoid && this.solids) {
+      const C = cameraParams, S = this.solids, T = pose.look, E = pose.eye;
+      const want = Math.max(Math.min(1, 0.6 / Math.max(1e-3, Math.hypot(E[0] - T[0], E[1] - T[1], E[2] - T[2]))), S.sweep(T, E, C.clearSoft));
+      r.pull += (want - r.pull) * (r.fresh ? 1 : 1 - Math.exp(-dt * (want < r.pull ? 8 : 1.6)));
+      for (let a = 0; a < 3; a++) E[a] = T[a] + (E[a] - T[a]) * r.pull;
+      const h = S.sweep(T, E, C.clearHard);
+      if (h < 1) { for (let a = 0; a < 3; a++) E[a] = T[a] + (E[a] - T[a]) * h; r.pull *= h; }
+      this.keepAbove(E, f);
+    }
+    r.fresh = false;
+    const w = smooth01(r.w), from = r.from;
+    for (let a = 0; a < 3; a++) {
+      const e0 = from ? from.eye[a] : this.eye[a], l0 = from ? from.look[a] : this.look[a];
+      this.eye[a] = e0 + (pose.eye[a] - e0) * w;
+      this.look[a] = l0 + (pose.look[a] - l0) * w;
+    }
+    const f0 = from ? from.fov : this.fovNow, r0 = from ? from.roll : 0;
+    this.fovNow = f0 + (pose.fov - f0) * w;
+    this.roll = r0 + (pose.roll - r0) * w;
+    if (pose.focus !== null) {
+      const d = Math.hypot(this.look[0] - this.eye[0], this.look[1] - this.eye[1], this.look[2] - this.eye[2]);
+      this.focusAt = d + (pose.focus - d) * w;
+    }
+    // (blending in from another path: once it is all this one, the rig's own pose is what it leaves to)
+    if (r.w >= 1) r.from = null;
+  }
+
+  /** the eye above the ground and the water (25 cm) */
+  private keepAbove(E: V3, f: RigInput) {
+    let floor = this.waterY ?? -Infinity;
+    if (f.groundAt) floor = Math.max(floor, f.groundAt(E[0], E[2]));
+    if (E[1] < floor + 0.25) E[1] = floor + 0.25;
   }
 
   /** how locked it is (0 free … 1 locked), for anything that should follow the lock (wave 1: constraining dancers) */
@@ -435,27 +691,111 @@ export class CameraRig {
     this.freeLook[0] = t[0]; this.freeLook[1] = t[1]; this.freeLook[2] = t[2];
   }
 
-  /** the boom (look point to eye) shortened to what is clear: the world's room and ground for a follow camera, and
-   *  `clearance` (gates' discs, trunks) for any free camera. It comes in quickly and goes back out slowly, so a trunk
-   *  passing is a short dolly, not a jump. Then, after a carry, the way through the disc (`passThrough`) */
+  /** the boom (look point to eye) shortened to what is clear: the world's room for a follow camera; for any free
+   *  camera `clearance` (gates' discs, World.clear) and the world's `solids`, swept as a sphere (`clearSoft`) along the
+   *  boom where it is now and where it is turning to (`clearAhead` seconds on), so it comes in before a column reaches
+   *  it. It comes in quickly and goes back out slowly, so a trunk passing is a short dolly, not a jump; if the ease is
+   *  ever too slow, a hard stop (`clearHard`) keeps the eye out of the solid. Above the ground and the water. Then,
+   *  after a carry, the way through the disc (`passThrough`) */
   private settleEye(dt: number, f: RigInput) {
-    const T = this.freeLook, E = this.freeEye;
+    const T = this.freeLook, E = this.freeEye, C = cameraParams, S = this.solids;
+    // (while the eye is still behind the disc it came after its player through, the disc rules it; once it is on the
+    // player's side, or was turned there, the world's solids do again)
+    const behind = this.behindThrough(E);
+    if (S && !behind) this.liftOver(dt, T, E, f);
     const dx = E[0] - T[0], dy = E[1] - T[1], dz = E[2] - T[2], len = Math.hypot(dx, dy, dz);
+    // how fast the boom turns about up (smoothed; a carry turns boomYaw with the rig)
+    const yawNow = Math.atan2(dx, dz);
+    if (dt > 0) {
+      const rate = Math.max(-3, Math.min(3, wrap(yawNow - this.boomYaw) / dt));
+      this.boomRate += (rate - this.boomRate) * (1 - Math.exp(-dt * 8));
+    }
+    this.boomYaw = yawNow;
     let want = 1;
-    if (!this.through) {
+    if (!behind) {
       if (this.follow) {
         // the room: a circle about the world's middle, as far as the eye may stand
         const a = dx * dx + dz * dz, b = T[0] * dx + T[2] * dz, c = T[0] * T[0] + T[2] * T[2] - f.room * f.room;
         if (a > 1e-9 && c < 0) want = Math.min(want, (-b + Math.sqrt(Math.max(0, b * b - a * c))) / a);
       }
       if (this.clearance) want = Math.min(want, this.clearance(T, E));
+      if (S && C.clearSoft > 0) {
+        // where the boom is and where it will be as it turns: the boom must be in to what is clear there by then, and
+        // comes in no faster than PULL_SPEED, so it starts early enough for a column it will meet (a plan, not a jump)
+        const v = PULL_SPEED / Math.max(len, 1e-3);
+        want = Math.min(want, S.sweep(T, E, C.clearSoft));
+        for (const h of AHEAD) {
+          const turn = this.boomRate * h * C.clearAhead / 0.35;
+          if (Math.abs(turn) < 0.01) break;
+          const c = Math.cos(turn), s = Math.sin(turn);
+          want = Math.min(want, S.sweep(T, [T[0] + dx * c + dz * s, E[1], T[2] - dx * s + dz * c], C.clearSoft) + v * h);
+        }
+      }
       // (never closer than a body's width: a camera inside the player is worse than one behind a leaf)
       want = Math.max(want, Math.min(1, 0.9 / Math.max(len, 1e-3)));
     }
-    this.pull += (want - this.pull) * (1 - Math.exp(-dt * (want < this.pull ? 16 : 1.6)));
+    // in quickly (but no faster than PULL_SPEED along the boom), out slowly
+    const step = (want - this.pull) * (1 - Math.exp(-dt * (want < this.pull ? 10 : 1.6))), most = (PULL_SPEED * dt) / Math.max(len, 1e-3);
+    this.pull += behind ? step : Math.max(-most, step);
     E[0] = T[0] + dx * this.pull; E[1] = T[1] + dy * this.pull; E[2] = T[2] + dz * this.pull;
     if (this.through) this.passThrough(dt, T, E, len);
-    else if (this.follow && f.groundAt) E[1] = Math.max(E[1], f.groundAt(E[0], E[2]) + 0.25);
+    if (this.behindThrough(E)) return;
+    this.keepAbove(E, f);
+    if (S && C.clearHard > 0) {
+      const h = S.sweep(T, E, C.clearHard);
+      if (h < 1) {
+        for (let a = 0; a < 3; a++) E[a] = T[a] + (E[a] - T[a]) * h;
+        this.pull *= h;
+      }
+      // (what the sweep can't see: the look point itself inside a solid, a dancer falling through a slab. Then the eye
+      // still must not be: along the boom in toward the look point, or else out past where it was, the first point clear)
+      if (S.inside(E, 0.05)) {
+        const D: V3 = [E[0] - T[0], E[1] - T[1], E[2] - T[2]], p: V3 = [0, 0, 0];
+        for (const k of [0.9, 0.8, 0.7, 0.6, 0.5, 0.4, 0.3, 1.2, 1.4, 1.7, 2]) {
+          p[0] = T[0] + D[0] * k; p[1] = T[1] + D[1] * k; p[2] = T[2] + D[2] * k;
+          if (!S.inside(p, 0.15)) { E[0] = p[0]; E[1] = p[1]; E[2] = p[2]; break; }
+        }
+      }
+    }
+  }
+
+  /** a boom blocked by something low (a fallen log, a bough, a shelf at knee height) would come right in to the
+   *  dancers; tilted up a little it may clear it. Try a few tilts up to `LIFTS` and take the one that leaves the boom
+   *  longest (each step up must win half a metre, so it doesn't hunt), easing there and back slowly */
+  private lift = 0;
+  private liftOver(dt: number, T: V3, E: V3, f: RigInput) {
+    const S = this.solids!, C = cameraParams;
+    const dx = E[0] - T[0], dy = E[1] - T[1], dz = E[2] - T[2], h = Math.hypot(dx, dz), len = Math.hypot(dx, dy, dz);
+    if (h < 1e-4 || len < 1e-3) return;
+    const up = Math.atan2(dy, h);
+    const at = (l: number): V3 => {
+      const e = Math.min(1.3, up + l), k = (len * Math.cos(e)) / h;
+      return [T[0] + dx * k, T[1] + len * Math.sin(e), T[2] + dz * k];
+    };
+    // (what is clear of the solids and of the gates' discs alike: a tilt can see over either)
+    const clear = (p: V3) => Math.min(S.sweep(T, p, C.clearSoft), this.clearance ? this.clearance(T, p) : 1) * len;
+    let best = 0, bestLen = clear(at(0));
+    if (bestLen < len - 0.05) {
+      for (const l of LIFTS) {
+        // (a tilt down only where it keeps the eye 40 cm over the floor: under a bough, never into the ground)
+        const p = at(l);
+        if (l < 0) {
+          // (and only over ground as high as what it looks at stands on: never down past a floating slab's edge)
+          const gp = f.groundAt ? f.groundAt(p[0], p[2]) : 0, gt = f.groundAt ? f.groundAt(T[0], T[2]) : 0;
+          if (gp < gt - 0.5 || p[1] < Math.max(this.waterY ?? -Infinity, gp, gt) + 0.4) continue;
+        }
+        const L = clear(p);
+        if (L > bestLen + 0.5) { best = l; bestLen = L; }
+      }
+    }
+    this.lift += (best - this.lift) * (1 - Math.exp(-dt * (Math.abs(best) > Math.abs(this.lift) ? 2.5 : 0.8)));
+    if (Math.abs(this.lift) > 1e-3) { const p = at(this.lift); E[0] = p[0]; E[1] = p[1]; E[2] = p[2]; }
+  }
+
+  /** whether p is behind the disc the eye has still to come through (on the far side from its player) */
+  private behindThrough(p: V3) {
+    const g = this.through;
+    return !!g && ((p[0] - g.at[0]) * g.n[0] + (p[1] - g.at[1]) * g.n[1] + (p[2] - g.at[2]) * g.n[2]) * g.side < 0;
   }
 
   /** after a carry the eye is still behind the disc its player came out of. Keep it on lines through the disc (the
@@ -574,14 +914,38 @@ export class CameraRig {
       X[2] += (v0 - X[2]) * (v0 < X[2] ? out : back); X[3] += (v1 - X[3]) * (v1 > X[3] ? out : back);
     }
     const uc = (X[0] + X[1]) / 2, vc = (X[2] + X[3]) / 2;
-    // the composed angle: turned a little about up from square-on, and looking a little down
-    const ya = P.yaw ?? C.lockYaw, pa = P.pitch ?? C.lockPitch, cyw = Math.cos(ya), syw = Math.sin(ya);
+    const c: V3 = [ox + P.right[0] * uc, oy + vc, oz + P.right[2] * uc];
+    // the composed angle (the plane's own), turned further when a solid stands between the eye and the dancers
+    const base = P.yaw ?? C.lockYaw;
+    this.dodgeFor(dt, f, c, base);
+    const { back, D, fov } = this.lockPose(f, c, base + this.dodge);
+    // a light ease on top (the extent already eases), so nothing jitters
+    const k = this.lockFresh ? 1 : 1 - Math.exp(-dt * 6);
+    this.lockFresh = false;
+    for (let a = 0; a < 3; a++) {
+      this.lockC[a] += (c[a] - this.lockC[a]) * k;
+      this.lockBack[a] += (back[a] - this.lockBack[a]) * k;
+    }
+    this.lockD += (D - this.lockD) * k;
+    this.lockFov += (fov - this.lockFov) * k;
+    for (let a = 0; a < 3; a++) this.lockEye[a] = this.lockC[a] + this.lockBack[a] * this.lockD;
+    // (kept from drifting when unlocked: the free yaw takes over from wherever the lock left it facing)
+    if (this.mode === 'locked' && this.lockW > 0.98) this.yaw += wrap(Math.atan2(N[0], N[2]) - this.yaw) * Math.min(1, dt * 2);
+  }
+  private lockBack: V3 = [0, 0, 1];
+
+  /** where the locked eye stands for the framed extent about `c`, turned `ya` about up off square-on: the direction
+   *  toward the eye, how far back it holds the four corners in the safe area, and the lens it needs to */
+  private lockPose(f: RigInput, c: V3, ya: number) {
+    const P = this.plane!, C = cameraParams, N = planeNormal(P), X = this.lockExt;
+    const ox = P.origin[0], oy = P.origin[1], oz = P.origin[2];
+    // turned a little about up from square-on, and looking a little down
+    const pa = P.pitch ?? C.lockPitch, cyw = Math.cos(ya), syw = Math.sin(ya);
     const hx = N[0] * cyw + P.right[0] * syw, hz = N[2] * cyw + P.right[2] * syw;   // toward the eye, level
     const cp = Math.cos(pa), sp = Math.sin(pa);
     const back: V3 = [hx * cp, sp, hz * cp];                                        // toward the eye
     const rt: V3 = [hz, 0, -hx];                                                    // the screen's right
     const up: V3 = [-sp * hx, cp, -sp * hz];                                        // the screen's up
-    const c: V3 = [ox + P.right[0] * uc, oy + vc, oz + P.right[2] * uc];
     // how far back to hold the four corners inside the safe area (93 % across, 86 % up and down)
     const lens = P.lens ?? C.lockLens, tanP = Math.tan((lens * Math.PI) / 360), asp = Math.max(f.aspect, 0.2);
     const corners: V3[] = [];
@@ -608,19 +972,136 @@ export class CameraRig {
       for (const [x, y, z] of corners) t = Math.max(t, Math.abs(x) / (SX * asp * Math.max(0.5, D - z)), Math.abs(y) / (SY * Math.max(0.5, D - z)));
       fov = Math.min(WIDEST, (Math.atan(t) * 360) / Math.PI);
     }
-    // a light ease on top (the extent already eases), so nothing jitters
-    const k = this.lockFresh ? 1 : 1 - Math.exp(-dt * 6);
-    this.lockFresh = false;
-    for (let a = 0; a < 3; a++) {
-      this.lockC[a] += (c[a] - this.lockC[a]) * k;
-      this.lockBack[a] += (back[a] - this.lockBack[a]) * k;
-    }
-    this.lockD += (D - this.lockD) * k;
-    this.lockFov += (fov - this.lockFov) * k;
-    for (let a = 0; a < 3; a++) this.lockEye[a] = this.lockC[a] + this.lockBack[a] * this.lockD;
-    // (kept from drifting when unlocked: the free yaw takes over from wherever the lock left it facing)
-    if (this.mode === 'locked' && this.lockW > 0.98) this.yaw += wrap(Math.atan2(N[0], N[2]) - this.yaw) * Math.min(1, dt * 2);
+    return { back, D, fov, eye: [c[0] + back[0] * D, c[1] + back[1] * D, c[2] + back[2] * D] as V3 };
   }
-  private lockBack: V3 = [0, 0, 1];
 
+  /** the lock's dodge: while a solid (a column, a trunk, a shelf) stands across the sight lines from the eye to the
+   *  dancers, look for the turn within `lockDodge` of the stage's angle that sees them best (fewest lines blocked, the
+   *  eye in no solid, the smallest turn), at most twice a second, and ease there; when the stage's own angle is clear
+   *  again, ease back. What still stands across is left in `sight.blocking` for a world that can fade it */
+  private dodgeFor(dt: number, f: RigInput, c: V3, base: number) {
+    const S = this.solids, C = cameraParams, B = this.sight.blocking;
+    B.length = 0;
+    if (!S || !f.dancers.length || C.lockDodge <= 0) { this.dodge += (0 - this.dodge) * (1 - Math.exp(-dt * 2)); return; }
+    this.dodgeWait -= dt;
+    const score = (off: number, hits?: number[]) => {
+      const eye = this.lockPose(f, c, base + off).eye;
+      return this.blocked(eye, f, hits) + (S.inside(eye, 0.4) ? 2 : 0) + (Math.abs(off) / Math.max(1e-3, C.lockDodge)) * 0.15;
+    };
+    const now = score(this.dodgeWant);
+    if (this.dodgeWait <= 0 && (now > 0.15 || this.dodgeWant !== 0) || this.lockFresh) {
+      this.dodgeWait = 0.5;
+      // (the stage's own angle first, then the turns nearest it: a tie keeps the smaller turn)
+      let best = this.dodgeWant, bestS = now - 0.05;
+      for (let k = 0; k <= 16; k++) {
+        const off = (k === 0 ? 0 : (k % 2 ? 1 : -1) * Math.ceil(k / 2) / 8) * C.lockDodge, s = score(off);
+        if (s < bestS - 1e-3) { best = off; bestS = s; }
+      }
+      this.dodgeWant = best;
+    }
+    this.dodge += (this.dodgeWant - this.dodge) * (this.lockFresh ? 1 : 1 - Math.exp(-dt * 2.2));
+    this.blocked(this.lockPose(f, c, base + this.dodge).eye, f, B);
+  }
+
+  /** the share of the sight lines from `eye` to the framed dancers (hips, chest, head, knees) that a solid crosses;
+   *  `hits` collects which solids */
+  private blocked(eye: V3, f: RigInput, hits?: number[]) {
+    const S = this.solids!;
+    let n = 0, m = 0;
+    for (let d = 0; d < Math.min(2, f.dancers.length); d++) {
+      const w = f.dancers[d];
+      for (const j of SIGHT_JOINTS) {
+        const o = j * 12;
+        m++;
+        if (S.sweep([w[o], w[o + 1], w[o + 2]], eye, 0.12, hits ? (i) => { if (!hits.includes(i)) hits.push(i); } : undefined) < 0.98) n++;
+      }
+    }
+    return m ? n / m : 0;
+  }
+}
+
+/** a camera path being played: its clock and weight, its space resolved and eased, the gates it was carried through */
+class PathRun {
+  t: number;
+  readonly end: number;
+  /** the weight before easing (0 … 1), rising over blendIn, falling over a release */
+  w: number;
+  gone = false;
+  /** its own boom (when it avoids solids), and whether this is its first frame */
+  pull = 1;
+  fresh = true;
+  private out = 0;
+  private M: Float32Array | null = null;
+  private O: V3 = [0, 0, 0];
+  private th = 0;
+  private placed = false;
+
+  constructor(readonly path: CameraPath, at: number, public from: { eye: V3; look: V3; fov: number; roll: number } | null) {
+    this.t = at;
+    this.end = path.keys[path.keys.length - 1].t;
+    this.w = (path.blendIn ?? 1) > 0 ? 0 : 1;
+  }
+
+  release(blend: number) { this.out = Math.max(1e-3, blend); if (blend <= 0) this.gone = true; }
+
+  step(dt: number) {
+    this.t += dt;
+    const P = this.path;
+    if (P.end === 'loop' && this.end > 0 && this.t > this.end) this.t -= this.end;
+    if (this.out > 0) { this.w -= dt / this.out; if (this.w <= 0) this.gone = true; return; }
+    const bi = P.blendIn ?? 1;
+    this.w = bi > 0 ? Math.min(1, this.w + dt / bi) : 1;
+    if (P.end === 'release' && this.t >= this.end) this.release(P.blendOut ?? 1);
+  }
+
+  /** a gate carried the rig: a path in world space goes with it (one in a dancer's space goes with the dancer) */
+  carry(m: Float32Array) {
+    if (this.path.space && this.path.space !== 'world') return;
+    if (!this.M) { this.M = new Float32Array(m); return; }
+    const a = this.M, o = new Float32Array(16);
+    for (let c = 0; c < 4; c++) for (let r = 0; r < 4; r++) o[c * 4 + r] = m[r] * a[c * 4] + m[4 + r] * a[c * 4 + 1] + m[8 + r] * a[c * 4 + 2] + m[12 + r] * a[c * 4 + 3];
+    this.M = o;
+  }
+
+  /** the pose now in the rig's coordinates */
+  pose(dt: number, f: RigInput, plane: StagePlane | null, fov: number) {
+    const P = this.path, local = samplePath(P, this.t);
+    // the space: an origin and a turn about up (local x → (cos, 0, −sin), local z → (sin, 0, cos))
+    let O: V3 | null = [0, 0, 0], th = 0;
+    const S: PathSpace = P.space ?? 'world';
+    // (a dancer's place: under their hips, on the ground there, so a jump doesn't lift the shot)
+    const hips = (i: number) => { const w = f.dancers[i]; return w ? ([w[0], f.groundAt ? f.groundAt(w[0], w[2]) : 0, w[2]] as V3) : null; };
+    if (S === 'world') { /* the origin */ }
+    else if ('dancer' in S) {
+      O = hips(S.dancer);
+      const w = f.dancers[S.dancer];
+      if (w && S.turn) {
+        // the hips' forward (+z turned by their rotation, x y z w at 4 … 7)
+        const x = w[4], y = w[5], z = w[6], q = w[7];
+        th = Math.atan2(2 * (x * z + q * y), 1 - 2 * (x * x + y * y));
+      }
+    } else if ('pair' in S) {
+      const a = hips(0), b = hips(1) ?? a;
+      O = a && b ? [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2, (a[2] + b[2]) / 2] : null;
+      if (a && b && Math.hypot(b[0] - a[0], b[2] - a[2]) > 0.05) th = Math.atan2(-(b[2] - a[2]), b[0] - a[0]);
+      else th = this.th;
+    } else {
+      const pl = S.stage === true ? plane : S.stage;
+      if (pl) { O = [...pl.origin] as V3; th = Math.atan2(-pl.right[2], pl.right[0]); }
+    }
+    // (a dancer that isn't there: the space stays where it was)
+    if (O) {
+      const lag = P.lag ?? 0.25, k = !this.placed || lag <= 0 || S === 'world' ? 1 : 1 - Math.exp(-dt / lag);
+      for (let a = 0; a < 3; a++) this.O[a] += (O[a] - this.O[a]) * k;
+      this.th += wrap(th - this.th) * k;
+      this.placed = true;
+    }
+    const c = Math.cos(this.th), s = Math.sin(this.th), Og = this.O, M = this.M;
+    const put = (p: V3): V3 => {
+      const x = Og[0] + p[0] * c + p[2] * s, y = Og[1] + p[1], z = Og[2] - p[0] * s + p[2] * c;
+      if (!M) return [x, y, z];
+      return [M[0] * x + M[4] * y + M[8] * z + M[12], M[1] * x + M[5] * y + M[9] * z + M[13], M[2] * x + M[6] * y + M[10] * z + M[14]];
+    };
+    return { eye: put(local.eye), look: put(local.look), fov: local.fov ?? fov, roll: local.roll, focus: local.focus };
+  }
 }

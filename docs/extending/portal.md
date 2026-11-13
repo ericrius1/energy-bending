@@ -107,4 +107,9 @@ A kind that ignores `seen` still works, but its particles show in every world an
 The camera crossing a disc carries the camera rig (its target, its turn, its height; a tilt or roll the orbit can't
 hold is eased out over `settle` seconds) and the main view goes to the other world. Anything else that moves the
 camera (a fly path, a cut scene) should do the same: compute the pose in its own coordinates and multiply by the
-carry. `?fly` (portalParams.fly…) is an example.
+carry. `?fly` (portalParams.fly…) is an example. A camera path played on the rig (`CameraRig.play`, in world space)
+is carried with it; one in a dancer's or the pair's space follows them through.
+
+Each frame (end of the `travel` phase) the portals hand the rig the solids and the water of the world it works in
+(`rig.solids`, `rig.waterY`: `portals/solids.ts`, from `World.solids()` when a world gives it, else read from the
+world's own layout), next to the clearance from the discs (`rig.clearance`). See `docs/extending/camera.md`.
