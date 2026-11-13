@@ -14,6 +14,11 @@ import { defineParams } from './params';
 
 type V3 = [number, number, number];
 
+/** a ledge on a stage plane, in the plane's coordinates (m): its top `y` from x0 to x1. One-way (jump up through it,
+ *  drop down) unless `solid`; `thick` how deep it is under its top; `bob` how far it rides up and down with the bass
+ *  (worlds/stage.ts `ledgeY` gives its height at a beat, for physics and drawing alike) */
+export interface Ledge { id: string; x0: number; x1: number; y: number; solid?: boolean; thick?: number; bob?: number }
+
 /** a vertical plane in a world that the view can lock to. Its 2D coordinates are (along `right`, up) from `origin`;
  *  `normal` points to the side the camera stands on. Ledges are in those 2D coordinates (wave 1 adds collision). */
 export interface StagePlane {
@@ -26,7 +31,11 @@ export interface StagePlane {
   /** how much of the plane is stage (m, either side of the origin and up from it) */
   halfWidth: number;
   height: number;
-  ledges: { x0: number; x1: number; y: number }[];
+  /** the stage's floor height in plane coordinates, or null for none (fall and be caught) */
+  ground: number | null;
+  ledges: Ledge[];
+  /** where seat 0 and seat 1 start, in plane coordinates (x, y) */
+  spawns: [number, number][];
   /** the lens it prefers (degrees, top to bottom) and the furthest the camera may stand from the plane (m): a lens
    *  widens past it instead (inside the geode the wall is 7.4 m out) */
   lens: number;

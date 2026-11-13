@@ -186,9 +186,55 @@ export interface Forest {
   clock: Vec4;
   rim: Vec4;
   march: Vec4;
+  stageLog: Vec4;
+  stagePlate: Vec4;
   lamps: ArrayLike<number> | Vec4[];
   anchors: ArrayLike<number> | Vec4[];
   trunks: ArrayLike<number> | Vec4[];
+}
+export interface Pool {
+  zenith: Vec4;
+  horizon: Vec4;
+  glow: Vec4;
+  glowDir: Vec4;
+  key: Vec4;
+  keyCol: Vec4;
+  water: Vec4;
+  waves: Vec4;
+  deep: Vec4;
+  march: Vec4;
+}
+export interface Temple {
+  zenith: Vec4;
+  dusk: Vec4;
+  duskDir: Vec4;
+  horizon: Vec4;
+  moon: Vec4;
+  moonCol: Vec4;
+  water: Vec4;
+  waves: Vec4;
+  sea: Vec4;
+  stone: Vec4;
+  fire: Vec4;
+  march: Vec4;
+  lights: ArrayLike<number> | Vec4[];
+  glow: ArrayLike<number> | Vec4[];
+  cols: ArrayLike<number> | Vec4[];
+}
+export interface Forge {
+  zenith: Vec4;
+  horizon: Vec4;
+  fire: Vec4;
+  cloud: Vec4;
+  aurora: Vec4;
+  aurora2: Vec4;
+  key: Vec4;
+  heat: Vec4;
+  seam: Vec4;
+  stone: Vec4;
+  bob: ArrayLike<number> | Vec4[];
+  lights: ArrayLike<number> | Vec4[];
+  glow: ArrayLike<number> | Vec4[];
 }
 export interface KeyLight {
   dir: Vec3;
@@ -211,5 +257,5 @@ export interface VOut {
   env: number;
 }
 
-declare const shader: Shader<{ Frame: Frame; Joint: Joint; Seg: Seg; Particle: Particle; Home: Home; BodyStep: BodyStep; Sim: Sim; CullView: CullView; Kind: Kind; Minerals: Minerals; Look: Look; Spark: Spark; Geode: Geode; Forest: Forest; KeyLight: KeyLight; VOut: VOut }, 'frame' | 'geode' | 'forest' | 'sim' | 'look' | 'minerals' | 'state' | 'verts' | 'list' | 'homes' | 'homes2Prev' | 'samp_linear' | 'samp_repeat' | 'samp_nearest' | 'samp_shadow'>;
+declare const shader: Shader<{ Frame: Frame; Joint: Joint; Seg: Seg; Particle: Particle; Home: Home; BodyStep: BodyStep; Sim: Sim; CullView: CullView; Kind: Kind; Minerals: Minerals; Look: Look; Spark: Spark; Geode: Geode; Forest: Forest; Pool: Pool; Temple: Temple; Forge: Forge; KeyLight: KeyLight; VOut: VOut }, 'frame' | 'geode' | 'forest' | 'pool' | 'temple' | 'forge' | 'sim' | 'look' | 'minerals' | 'state' | 'verts' | 'list' | 'homes' | 'homes2Prev' | 'poolWaves' | 'templeWaves' | 'samp_linear' | 'samp_repeat' | 'samp_nearest' | 'samp_shadow'>;
 export default shader;

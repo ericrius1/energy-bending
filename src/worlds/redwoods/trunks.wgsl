@@ -3,6 +3,9 @@
 // wrapped round it a whole number of times and the furrows pushed in. A grid of rings Ã— sides made from the vertex
 // index, one instance per log (forest.ts lays them out): the ring round the clearing in detail, the wood beyond and the
 // limbs in less. Moss on the shaded foot, an old fire scar on some, lost up in the dark of the canopy.
+// The stage's logs (stage.ts: the fallen giant, its root plate, the two boughs) are chains of tapered capsules in the
+// same bark (vs_stage), their ends round, cut flat, broken or torn: a broken end shows the red heartwood and its
+// rings, the root plate's face the earth it tore up.
 #include "weft/frame"
 #include "../light"
 
@@ -20,6 +23,15 @@ struct Log {
 @group(1) @binding(1) var barkTex: texture_2d<f32>;
 @group(1) @binding(2) var barkH: texture_2d<f32>;
 
+struct StageLog {
+  a: vec4f,      // one end; w: its radius
+  b: vec4f,      // the other; w: its radius
+  ends: vec4f,   // x, y: each end round (0), flat (1), broken (2) or torn (3); z: how far along its chain it starts (m); w: a seed
+  kind: vec4f,   // x: 0 bark, 1 a root plate (earth on its faces)
+}
+@group(1) @binding(3) var<storage, read> stage: array<StageLog>;
+override CAPR: u32 = 4u;
+
 struct VOut {
   @builtin(position) pos: vec4f,
   @location(0) wp: vec3f,
@@ -29,6 +41,7 @@ struct VOut {
   @location(4) ang: f32,
   @location(5) @interpolate(flat) seed: f32,
   @location(6) @interpolate(flat) limb: f32,
+  @location(7) end: vec2f,   // x: 0 bark, 1 a cut or broken end (heartwood), 2 a root plate's face (earth); y: out from the middle (0 … 1)
 }
 
 // metres of bark the texture spans round a trunk, and up it
@@ -81,6 +94,79 @@ fn profile(s: f32, len: f32, r0: f32, sh: vec4f, a: f32) -> f32 {
   o.ang = a;
   o.seed = L.shape.w;
   o.limb = select(1.0, 0.0, trunk);
+  o.end = vec2f(0.0);
+  o.pos = frame.viewProj * vec4f(wp, 1.0);
+  return o;
+}
+
+/** a stage log: rings from the middle of one end (round as a ball, or a flat disc), along the side, to the middle of
+ *  the other. Its frame turns about its axis; a broken end is pushed in and out by noise, a torn plate's rim too */
+@vertex fn vs_stage(@builtin(vertex_index) vi: u32, @builtin(instance_index) ii: u32) -> VOut {
+  var o: VOut;
+  let quad = vi / 6u;
+  let c = array<vec2u, 6>(vec2u(0u, 0u), vec2u(1u, 0u), vec2u(1u, 1u), vec2u(0u, 0u), vec2u(1u, 1u), vec2u(0u, 1u))[vi % 6u];
+  let side = quad % SIDES + c.x;
+  let ring = quad / SIDES + c.y;
+  let ringQ = quad / SIDES;
+  let L = stage[ii];
+  let ax = L.b.xyz - L.a.xyz;
+  let len = length(ax);
+  let dir = ax / max(len, 1e-4);
+  let helper = select(vec3f(0.0, 1.0, 0.0), vec3f(1.0, 0.0, 0.0), abs(dir.y) > 0.9);
+  let b1 = normalize(cross(dir, helper));
+  let b2 = cross(dir, b1);
+  let a = f32(side) / f32(SIDES) * 6.2831853;
+  let radial = b1 * cos(a) + b2 * sin(a);
+  let last = CAPR * 2u + RINGS - 1u;
+  // where this ring is: across the first end, along the side, across the other end
+  var s = 0.0;          // along the axis (m)
+  var rf = 1.0;         // of the radius there
+  var bulge = 0.0;      // how far a round end bulges past its point (m)
+  var endN = 0.0;       // -1 the first end's face, 1 the other's, 0 the side
+  var r0 = L.a.w;
+  var cap = L.ends.x;
+  if (ring <= CAPR) {
+    let u = f32(ring) / f32(CAPR);
+    if (cap < 0.5) { let ph = u * 1.5707963; rf = sin(ph); bulge = -cos(ph) * r0; } else { rf = u; }
+    endN = -1.0;
+  } else if (ring < CAPR + RINGS - 1u) {
+    s = len * f32(ring - CAPR) / f32(RINGS - 1u);
+  } else {
+    let u = f32(last - ring) / f32(CAPR);
+    s = len;
+    r0 = L.b.w;
+    cap = L.ends.y;
+    if (cap < 0.5) { let ph = u * 1.5707963; rf = sin(ph); bulge = cos(ph) * r0; } else { rf = u; }
+    endN = 1.0;
+  }
+  // the side's quads are the side; each end's are its face
+  var part = 0.0;
+  if (ringQ < CAPR) { part = -1.0; } else if (ringQ >= CAPR + RINGS - 1u) { part = 1.0; }
+  let k = clamp(s / max(len, 1e-4), 0.0, 1.0);
+  var r = select(r0, mix(L.a.w, L.b.w, k), endN == 0.0) * rf;
+  // a torn plate's rim is ragged all round; a broken end is pushed in and out
+  let torn = max(step(2.5, L.ends.x), step(2.5, L.ends.y));
+  r *= 1.0 + torn * (0.22 * (vnoise2(vec2f(a * 2.0, L.ends.w * 50.0)) - 0.5) + 0.12 * (vnoise2(vec2f(a * 6.0, 3.0)) - 0.5));
+  if (cap > 1.5 && cap < 2.5 && endN != 0.0) {
+    bulge += endN * r0 * (0.6 * (vnoise2(vec2f(a * 1.7 + L.ends.w * 30.0, rf * 3.0)) - 0.35) * (1.0 - rf * 0.4));
+  }
+  let wp = L.a.xyz + dir * (s + bulge) + radial * r;
+  var n = radial;
+  if (part != 0.0) {
+    if (cap < 0.5) { n = normalize(radial * rf + dir * (bulge / max(r0, 1e-3))); } else { n = dir * part; }
+  } else {
+    n = normalize(radial - dir * (L.b.w - L.a.w) / max(len, 1e-3));
+  }
+  let tiles = max(1.0, round(6.2831853 * max(L.a.w, 0.05) / BARK_W));
+  o.uv = vec2f(f32(side) / f32(SIDES) * tiles + L.ends.w * 7.0, -(L.ends.z + s) / BARK_H + L.ends.w * 3.0);
+  o.wp = wp;
+  o.n = n;
+  o.around = -b1 * sin(a) + b2 * cos(a);
+  o.ang = a;
+  o.seed = L.ends.w;
+  o.limb = 1.0;
+  let cut = select(0.0, 1.0, cap > 0.5 && part != 0.0);
+  o.end = vec2f(select(cut, 2.0, L.kind.x > 0.5 && part != 0.0), rf);
   o.pos = frame.viewProj * vec4f(wp, 1.0);
   return o;
 }
@@ -107,6 +193,16 @@ fn profile(s: f32, len: f32, r0: f32, sh: vec4f, a: f32) -> f32 {
     let tall = 1.6 + 2.6 * fract(i.seed * 3.7);
     let scar = smoothstep(0.75, 0.45, toward + vnoise(i.wp * 2.3) * 0.25) * smoothstep(tall, tall * 0.55, y + toward * 1.4);
     albedo = mix(albedo, vec3f(0.018, 0.016, 0.015) * (0.6 + 0.9 * hs.r), scar);
+  }
+  // a stage log's end: the heartwood, red and ringed, darker where it's rotted; a root plate's face: torn earth and roots
+  if (i.end.x > 0.5) {
+    let rings = 0.5 + 0.5 * sin(i.end.y * 70.0 + vnoise(i.wp * 3.0) * 4.0);
+    if (i.end.x < 1.5) {
+      albedo = mix(vec3f(0.36, 0.13, 0.06), vec3f(0.22, 0.07, 0.035), rings) * (0.55 + 0.45 * vnoise(i.wp * 9.0));
+      albedo = mix(albedo, vec3f(0.06, 0.035, 0.02), smoothstep(0.2, 0.0, i.end.y) * 0.7);
+    } else {
+      albedo = mix(vec3f(0.07, 0.05, 0.03), vec3f(0.16, 0.1, 0.06), vnoise(i.wp * 5.0)) * (0.6 + 0.4 * smoothstep(0.6, 0.8, vnoise(i.wp * 14.0)));
+    }
   }
   let L = forest.key.xyz;
   let vis = keyLight(i.wp + N0 * 0.06);

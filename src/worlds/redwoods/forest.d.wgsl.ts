@@ -20,6 +20,8 @@ export interface Forest {
   clock: Vec4;
   rim: Vec4;
   march: Vec4;
+  stageLog: Vec4;
+  stagePlate: Vec4;
   lamps: ArrayLike<number> | Vec4[];
   anchors: ArrayLike<number> | Vec4[];
   trunks: ArrayLike<number> | Vec4[];

@@ -1,0 +1,9 @@
+[
+  { "name": "pool-empty", "query": "world=pool", "params": { "gems": { "scale": 0.0001 }, "camera": { "shots": false, "autoOrbit": false } }, "yaw": 0.3, "pitch": 0.22, "dist": 9, "height": 1.2, "frames": 60 },
+  { "name": "pool-dance", "query": "world=pool", "params": { "gems": { "scale": 1 }, "camera": { "shots": true } }, "wake": true, "frames": 900, "timings": true },
+  { "name": "pool-lock", "query": "world=pool", "lock": true, "frames": 200 },
+  { "name": "temple-empty", "query": "world=temple", "params": { "gems": { "scale": 0.0001 }, "camera": { "shots": false, "autoOrbit": false } }, "yaw": 0.4, "pitch": 0.25, "dist": 14, "height": 1.5, "frames": 60 },
+  { "name": "temple-lock", "query": "world=temple", "params": { "gems": { "scale": 1 } }, "wake": true, "lock": true, "frames": 600, "timings": true },
+  { "name": "forge-empty", "query": "world=forge", "params": { "gems": { "scale": 0.0001 }, "camera": { "shots": false, "autoOrbit": false } }, "yaw": 0.5, "pitch": 0.2, "dist": 16, "height": 1.5, "frames": 60 },
+  { "name": "forge-lock", "query": "world=forge", "params": { "gems": { "scale": 1 } }, "wake": true, "lock": true, "frames": 600, "timings": true }
+]

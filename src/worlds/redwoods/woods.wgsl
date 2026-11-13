@@ -28,6 +28,10 @@ fn groundAt(p: vec3f, uv: vec2f, dx: vec2f, dy: vec2f) -> vec3f {
     ao *= mix(0.4, 1.0, smoothstep(-0.2, 2.8, gap));
     duff = max(duff, smoothstep(5.0, 0.3, gap));
   }
+  // the fallen log's shade on the ground along its sides, and the duff it has gathered
+  let off = offLog(p.xz);
+  ao *= mix(0.35, 1.0, smoothstep(-0.1, 1.2, off));
+  duff = max(duff, smoothstep(1.0, 0.0, off) * 0.7);
   albedo = mix(albedo, albedo * vec3f(0.85, 0.6, 0.45), duff * 0.55);
   let open = smoothstep(forest.clock.w * 0.85, forest.clock.w * 0.3, length(p.xz));
   albedo *= mix(vec3f(1.0), vec3f(0.9, 1.08, 0.82), open * 0.5);

@@ -6,8 +6,8 @@
 // `override WORLD` constant, and each world's `light` is the number of its case there. A matter kind declares one
 // draw per world with `constants: { WORLD: world.light }` (engine/scene.ts asks it once per world and view). The
 // worlds' light uniforms are one shared bind group (group 2) that every shader including worlds/light.wgsl sees.
-import type { Kit, UniformBuffer } from '@ericrius1/weft';
-import type { FrameCtx } from '../engine/frame';
+import type { Kit, Texture, UniformBuffer } from '@ericrius1/weft';
+import type { FrameBuilder, FrameCtx } from '../engine/frame';
 import type { ScenePass } from '../engine/scene';
 import type { StagePlane } from '../engine/camera';
 import type { Tone } from '../audio/sound';
@@ -16,7 +16,8 @@ import type { BodyBuffers } from '../matter/core/bodies';
 
 type V3 = [number, number, number];
 
-/** a gate to another world (wave 1, src/portals, fills these in and draws them) */
+/** a gate to another world: where its disc's centre stands, which way it faces (the side you walk in from), how big
+ *  it is. The world chooses the site (a clear, flat approach); src/portals draws it and makes the crossing */
 export interface PortalDef { id: string; at: V3; normal: V3; radius: number; to: { world: string; portal: string } }
 
 /** matter a world is built of, placed once: { kind: 'gems', ...that kind's own fields } */
@@ -32,6 +33,8 @@ export interface WorldCtx {
   coarse: boolean;
   /** rendering a film (more detail, its own clock) */
   film: boolean;
+  /** the frame: a world with a simulation of its own (the pool's ripples) adds its compute steps under 'sim' */
+  frame: FrameBuilder;
 }
 
 export interface World {
@@ -40,8 +43,9 @@ export interface World {
   readonly light: number;
   /** its emotional temperature, -1 (still, cool) … 1 (bright, warm), for the music and brains to read */
   readonly mood: number;
-  /** its uniforms in the shared light group (worlds/light.wgsl's binding names), made in the constructor */
-  readonly shared: Record<string, UniformBuffer<any>>;
+  /** its uniforms (and textures: the water's height field) in the shared light group (worlds/light.wgsl's binding
+   *  names), made in the constructor */
+  readonly shared: Record<string, UniformBuffer<any> | Texture>;
   /** stage planes the view can lock to, portals, where dancers may start */
   readonly stages: StagePlane[];
   readonly portals: PortalDef[];

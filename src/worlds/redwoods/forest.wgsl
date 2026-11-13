@@ -25,6 +25,8 @@ struct Forest {
   clock: vec4f,     // x: seconds (the wind, the flicker), y: flowers' size, z: grass height, w: the ring's radius
   rim: vec4f,       // the rim light on matter here: the light under the trees; w how strong
   march: vec4f,     // x: the steps the air is marched in
+  stageLog: vec4f,  // the fallen log on the stage: its axis on the ground (x0, z0, x1, z1)
+  stagePlate: vec4f,// x: its radius; yzw: its root plate (x, z, radius)
   lamps: array<vec4f, MAXLAMP>,     // each lantern: its centre, w: how brightly it's lit
   anchors: array<vec4f, MAXLAMP>,   // where its cord is tied, w: its radius
   trunks: array<vec4f, MAXTRUNK>,   // each trunk (the nearest first): xz of its foot, its radius above the flare, its height
@@ -105,8 +107,19 @@ fn onScreen(p: vec3f, r: f32) -> bool {
   return c.w > -r && abs(c.x) < c.w + pad && abs(c.y) < c.w + pad;
 }
 
-/** whether xz is clear of the trunks' feet (by `room` past their flare); only the ring and its neighbours can be near */
+/** how far xz is from the fallen log's side (negative under it) and from its root plate's */
+fn offLog(xz: vec2f) -> f32 {
+  let a = forest.stageLog.xy;
+  let ba = forest.stageLog.zw - a;
+  let h = clamp(dot(xz - a, ba) / max(dot(ba, ba), 1e-4), 0.0, 1.0);
+  let side = length(xz - a - ba * h) - forest.stagePlate.x;
+  return min(side, length(xz - forest.stagePlate.yz) - forest.stagePlate.w * 0.5);
+}
+
+/** whether xz is clear of the trunks' feet (by `room` past their flare) and of the fallen log; only the ring and its
+ *  neighbours can be near */
 fn clearOfTrunks(xz: vec2f, room: f32) -> bool {
+  if (offLog(xz) < room * 0.5) { return false; }
   if (length(xz) < forest.clock.w - 4.5) { return true; }
   let n = min(u32(forest.air.w), MAXTRUNK);
   for (var k = 0u; k < n; k++) {

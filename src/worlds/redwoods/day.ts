@@ -78,7 +78,7 @@ export class Woods {
     key: [0, 1, 0, 0], keyCol: [1, 1, 1, CANOPY], zenith: [0, 0, 0, 0], horizon: [0, 0, 0, 0], glow: [0, 0, 0, 0],
     sunDisc: [0, 1, 0, 0], moonDisc: [0, 1, 0, 0], shade: [0, 0, 0, GAP], mist: [0, 0, 0, 0], air: [3.8, 1, 0.5, 24],
     lampCol: [3.2, 1.75, 0.7, 0], clock: [0, 1, 1, RING],
-    rim: [0, 0, 0, 0], march: [15, 0.008, 0, 0],
+    rim: [0, 0, 0, 0], march: [15, 0.008, 0, 0], stageLog: [0, 0, 0, 0], stagePlate: [0, 0, 0, 0],
     lamps: this.lamps, anchors: this.anchors, trunks: new Float32Array(MAXTRUNK * 4),
   };
 

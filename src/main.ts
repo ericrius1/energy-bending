@@ -59,7 +59,7 @@ const frame = new FrameBuilder();
 const bodies = new BodyBuffers(kit);
 const rig = new CameraRig();
 const field = new Field();
-const worldCtx: WorldCtx = { kit, base, bodies, coarse, film: FILM };
+const worldCtx: WorldCtx = { kit, base, bodies, coarse, film: FILM, frame };
 const worlds: World[] = worldDefs.all().map((d) => d.make(worldCtx));
 const worldOf = (id: string) => worlds.find((w) => w.id === id) ?? worlds[0];
 shareWorldLight(kit, worlds);
