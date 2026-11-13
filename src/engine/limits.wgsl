@@ -10,3 +10,4 @@ const SPARKS: u32 = 65536u;       // LIMITS.sparks
 const MAXEV: u32 = 1024u;         // LIMITS.soundEvents
 const MAXLAMP: u32 = 16u;         // LIMITS.lanterns
 const MAXTRUNK: u32 = 48u;        // LIMITS.trunks
+const MAX_GATES: u32 = 8u;        // LIMITS.gates

@@ -12,8 +12,9 @@ import drawShader from './draw.wgsl';
 import streakShader from './streaks.wgsl';
 import sparkSimShader from './sparks_sim.wgsl';
 import sparkDrawShader from './sparks_draw.wgsl';
+import carryShader, { type Carry as CarryU } from './carry.wgsl';
 import type { Look } from './draw.wgsl';
-import type { MatterCtx, MatterLayer, MatterPasses, Budget, MatterActs } from '../core/kind';
+import type { MatterCtx, MatterLayer, MatterPasses, Budget, MatterActs, Carry } from '../core/kind';
 import type { ScenePass } from '../../engine/scene';
 import type { FrameCtx } from '../../engine/frame';
 import type { ViewCtx } from '../../engine/views';
@@ -124,6 +125,14 @@ export class GemPasses implements MatterPasses {
       bind: { sim: this.sim, minerals: this.minerals, homes: this.homes, state: this.state, sparks: this.sparks, counter: this.events.counter, events: this.events.events },
     });
     const sparkStep = kit.compute(sparkSimShader, { label: 'gems.sparks', threads: [LIMITS.sparks], bind: { sim: this.sim, sparks: this.sparks } });
+    // a dancer carried through a gate this frame: its stones first, then the step (src/portals)
+    this.carryU = kit.uniforms(carryShader.structs.Carry, 'gems.carry');
+    const carryStep = kit.compute(carryShader, {
+      label: 'gems.carry', threads: () => [this.stoneCount], enabled: () => this.carrying,
+      bind: { carry: this.carryU, homes: this.homes, state: this.state },
+    });
+    ctx.frame.add('sim', carryStep, 'gems');
+    ctx.frame.after(() => { this.carrying = false; }, 'gems: the carry is done');
     ctx.frame.add('sim', step, 'gems');
     ctx.frame.add('sim', this.events.copy, 'gems');
     ctx.frame.add('sim', sparkStep, 'gems');
@@ -142,6 +151,25 @@ export class GemPasses implements MatterPasses {
       settle: (on) => { this.settling = on; },
       dancing: (on) => { this.dancing = on; },
     };
+  }
+
+  private carryU: UniformBuffer<CarryU>;
+  private carrying = false;
+  private carryData = { m: Array.from({ length: LIMITS.dancers }, () => new Float32Array(16)), q: Array.from({ length: LIMITS.dancers }, () => [0, 0, 0, 1]), mask: 0, count: 0 };
+
+  /** dancers carried through a gate this frame (src/portals): their stones go with them before the step */
+  carry(moves: readonly Carry[]) {
+    const c = this.carryData;
+    if (!this.carrying) c.mask = 0;
+    for (const { dancer, move } of moves) {
+      if (dancer < 0 || dancer >= LIMITS.dancers) continue;
+      c.m[dancer].set(move);
+      c.q[dancer] = quatOf(move);
+      c.mask |= 1 << dancer;
+    }
+    c.count = this.stoneCount;
+    this.carryU.set(c as unknown as Parameters<typeof this.carryU.set>[0]);
+    this.carrying = true;
   }
 
   /** the sound events still being read back (a stepped capture waits for them) */
@@ -177,7 +205,7 @@ export class GemPasses implements MatterPasses {
   declareView(s: ScenePass) {
     const v = this.listsFor(s.view);
     const { pass, world, on } = s, { K, L } = this;
-    const bind = { sim: this.sim, look: this.look, minerals: this.minerals, state: this.state, verts: this.verts, homes: this.homes, homes2Prev: this.homes2Prev };
+    const bind = { sim: this.sim, look: this.look, minerals: this.minerals, state: this.state, verts: this.verts, homes: this.homes, homes2Prev: this.homes2Prev, seen: s.view.seen };
     if (s.phase === 'opaque') {
       if (world.mirrorFloor) {
         pass.draw(drawShader, {
@@ -193,7 +221,7 @@ export class GemPasses implements MatterPasses {
       });
     } else if (s.phase === 'glow') {
       pass.draw(streakShader, {
-        label: `gems.streaks.${world.id}`, bind: { sim: this.sim, look: this.look, minerals: this.minerals, state: this.state, homes: this.homes, homes2Prev: this.homes2Prev },
+        label: `gems.streaks.${world.id}`, bind: { sim: this.sim, look: this.look, minerals: this.minerals, state: this.state, homes: this.homes, homes2Prev: this.homes2Prev, seen: s.view.seen },
         count: 6, instances: () => this.stoneCount, blend: 'add', depthWrite: false, cull: 'none', enabled: () => on() && gemParams.streakGlow > 0,
       });
       pass.draw(sparkDrawShader, { label: `gems.sparkles.${world.id}`, bind: { look: this.look, sparks: this.sparks }, count: 6, instances: LIMITS.sparks, blend: 'add', depthWrite: false, cull: 'none', enabled: on });
@@ -219,7 +247,7 @@ export class GemPasses implements MatterPasses {
     const cull = kit.compute(cullShader, {
       label: `gems.cull${id}`, view: view.id === 'main' ? undefined : view.view,
       threads: () => [this.stoneCount + (this.fixturesOf(view.world)?.count ?? 0)],
-      bind: { sim: this.sim, cview, state: this.state, args, list, argsR, listR, homes: this.homes, homes2Prev: this.homes2Prev },
+      bind: { sim: this.sim, cview, state: this.state, args, list, argsR, listR, homes: this.homes, homes2Prev: this.homes2Prev, seen: view.seen },
     });
     const enabled = view.on;
     this.ctx.frame.add('cull', Object.assign(reset, { enabled }) as RunEntry, 'gems');
@@ -346,4 +374,17 @@ export class GemPasses implements MatterPasses {
 
   /** the main view's draw arguments (for a probe: how many of each specimen at each detail were drawn) */
   args(view = 'main') { return this.views.get(view)?.args; }
+}
+
+/** a rigid move's rotation (column-major 4×4) as a quaternion (x, y, z, w) */
+function quatOf(m: Float32Array): number[] {
+  const m00 = m[0], m01 = m[4], m02 = m[8], m10 = m[1], m11 = m[5], m12 = m[9], m20 = m[2], m21 = m[6], m22 = m[10];
+  const tr = m00 + m11 + m22;
+  let q: number[];
+  if (tr > 0) { const s = Math.sqrt(tr + 1) * 2; q = [(m21 - m12) / s, (m02 - m20) / s, (m10 - m01) / s, 0.25 * s]; }
+  else if (m00 > m11 && m00 > m22) { const s = Math.sqrt(1 + m00 - m11 - m22) * 2; q = [0.25 * s, (m01 + m10) / s, (m02 + m20) / s, (m21 - m12) / s]; }
+  else if (m11 > m22) { const s = Math.sqrt(1 + m11 - m00 - m22) * 2; q = [(m01 + m10) / s, 0.25 * s, (m12 + m21) / s, (m02 - m20) / s]; }
+  else { const s = Math.sqrt(1 + m22 - m00 - m11) * 2; q = [(m02 + m20) / s, (m12 + m21) / s, 0.25 * s, (m10 - m01) / s]; }
+  const n = Math.hypot(q[0], q[1], q[2], q[3]) || 1;
+  return q.map((x) => x / n);
 }

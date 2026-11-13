@@ -4,10 +4,12 @@
 // matte, a few mica glints), a polished cut face (banded agate), crystal (refraction with fire, glints, a glow
 // strongest deep in a geode), polished stone or glass, and metal. Everything that depends on where they are (what
 // they reflect, the light on them, the soft light round them) comes from worlds/light.wgsl, chosen by the WORLD
-// constant this pipeline was made with.
+// constant this pipeline was made with. A dancer's stones are drawn where this view sees them (engine/seen.wgsl:
+// carried through a gate, cut at its door).
 #include "weft/frame"
 #include "./gem"
 #include "../../worlds/light"
+#include "../../engine/seen"
 
 override MIRROR: f32 = 0.0;
 
@@ -19,6 +21,7 @@ override MIRROR: f32 = 0.0;
 @group(1) @binding(5) var<storage, read> list: array<u32>;
 @group(1) @binding(6) var<storage, read> homes: array<Home>;
 @group(1) @binding(7) var<storage, read> homes2Prev: array<vec4f>;
+@group(1) @binding(8) var<uniform> seen: ViewSeen;
 
 fn looksOf(i: u32, p: Particle) -> vec4f {
   if (sim.prevLook > 0.5 && i < sim.envBase && (modeIs(p.mode, RESTING) || (modeIs(p.mode, FLYING) && sim.body.settle > 0.5))) { return homes2Prev[i]; }
@@ -38,6 +41,7 @@ struct VOut {
   @location(8) @interpolate(flat) heat: f32,
   @location(9) @interpolate(flat) lod: u32,
   @location(10) @interpolate(flat) env: f32,
+  @location(11) clip: f32,
 }
 
 @vertex fn vs(@builtin(vertex_index) vi: u32, @builtin(instance_index) ii: u32) -> VOut {
@@ -52,28 +56,33 @@ struct VOut {
   let base = u32(sim.types[t].x);
   if (MIRROR > 0.5) { pid = list[base + ii]; } else { pid = list[base * LODS + lod * u32(sim.types[t].y) + ii]; }
   let p = state[pid];
+  let env = pid >= sim.envBase;
+  var sd = seen.d[0];
+  var pos = p.pos;
+  var rot = p.rot;
+  if (!env) { sd = seen.d[min(dancerOf(homes[pid]), MAX_DANCERS - 1u)]; pos = seenPos(sd, p.pos); rot = seenRot(sd, p.rot); }
   let floorY = sim.body.floorY;
   // the floor only shows what's near it
-  if (MIRROR > 0.5 && p.pos.y - floorY > 0.8) { o.pos = vec4f(2.0, 2.0, 2.0, 1.0); return o; }
-  let env = pid >= sim.envBase;
+  if (MIRROR > 0.5 && pos.y - floorY > 0.8) { o.pos = vec4f(2.0, 2.0, 2.0, 1.0); return o; }
   let h2 = looksOf(pid, p);
   var s = h2.y;
   if (!env) {
-    s = stoneSize(pid, h2.y, sim.gemScale * sim.types[t].z, sim.sizeVar) * spareScale(pid, sim.inUse, sim.spareFade);
+    s = stoneSize(pid, h2.y, sim.gemScale * sim.types[t].z, sim.sizeVar) * spareScale(pid, sim.inUse, sim.spareFade) * seen.grow;
     if (sim.body.returnMode > 0.5) {
       if (p.mode < 0.5) { s *= smoothstep(0.0, 0.6, p.life); }
       else if (p.mode < 1.5) { s *= smoothstep(0.0, 0.5, p.life); }
     }
   }
-  var wp = p.pos + qrot(p.rot, a.xyz * s);
-  var n = qrot(p.rot, b.xyz);
+  var wp = pos + qrot(rot, a.xyz * s);
+  var n = qrot(rot, b.xyz);
+  o.clip = select(seenClip(sd, wp), 1.0, env);
   if (MIRROR > 0.5) { wp.y = 2.0 * floorY - wp.y; n.y = -n.y; }
   o.pos = frame.viewProj * vec4f(wp, 1.0);
   o.wp = wp;
   o.n = n;
   o.local = a.xyz;
   o.ao = floor(a.w) / 15.0;
-  o.rot = p.rot;
+  o.rot = rot;
   o.kind = t;
   o.mat = code % 8u;
   o.facet = fract(a.w) + rnd(pid * 2246822519u + 7u);
@@ -89,6 +98,8 @@ fn hue(c: vec3f) -> vec3f { return c / max(max(c.r, max(c.g, c.b)), 1e-3); }
 fn ambient(N: vec3f, ao: f32, p: vec3f) -> vec3f { return worldAmbient(N, ao, p) * look.envIntensity; }
 
 @fragment fn fs(i: VOut, @builtin(front_facing) front: bool) -> @location(0) vec4f {
+  // past the door this view's dancer has gone through (or is coming out of)
+  if (i.clip < 0.0) { discard; }
   let K = minerals.k[i.kind];
   let floorY = sim.body.floorY;
   var cam = frame.camPos;

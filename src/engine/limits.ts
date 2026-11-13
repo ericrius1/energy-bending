@@ -33,6 +33,9 @@ export const LIMITS = {
   /** Extra views drawn in a frame besides the main one (a portal's destination, the ?pip inset). Each has its own
    *  scene targets, its own LOD cull and its own draw lists (about 5 MB at 300k stones). */
   views: 3,
+  /** Gates open in all the worlds at once (src/portals). Each is a row of a small uniform per view (208 bytes), and a
+   *  ray test in the pixels its disc covers; eight is a few doors per world. */
+  gates: 8,
 } as const;
 
 export type Limits = typeof LIMITS;

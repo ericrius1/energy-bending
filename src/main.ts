@@ -28,6 +28,9 @@ import { CameraController, Eyes } from './dancer/camera';
 import { landmarksDemo, wanderDemo } from './dancer/demos';
 import { JOINT } from './skeleton/rig';
 import type { GemPasses } from './matter/gems/gems';
+import { Portals } from './portals/portals';
+import { gatesDebug } from './portals/debug';
+import { LIMITS } from './engine/limits';
 
 import.meta.glob(['./matter/*/index.ts', './worlds/*/index.ts'], { eager: true });
 
@@ -66,7 +69,13 @@ shareWorldLight(kit, worlds);
 const start = query.get('world') ?? (query.get('scene') === 'forest' ? 'redwoods' : 'geode');
 const main = makeView(kit, 'main', { world: worldOf(start).id, main: true });
 const pip = query.has('pip') ? makePip(kit, worlds.find((w) => w.id !== main.world)?.id ?? main.world) : null;
-const views: ViewCtx[] = pip ? [main, pip.view] : [main];
+// the gates between worlds (src/portals): their views join the frame's (drawn before the main one, in 'gates')
+const gates = new Portals({
+  kit, frame, worlds, main, rig, bodies, coarse, slots: LIMITS.views - (pip ? 1 : 0),
+  load: (id) => worldOf(id).load(worldCtx), entered: () => music?.retone(),
+});
+const drawn: ViewCtx[] = pip ? [main, pip.view] : [main];
+const views: ViewCtx[] = [...drawn, ...gates.views];
 
 let music: Music | null = null;
 const hand = new Hand(bodies, rig, {
@@ -83,9 +92,10 @@ for (const k of matterKinds.all()) {
 const gems = kinds.find((k) => k.id === 'gems') as GemPasses | undefined;
 
 // ---------------------------------------------------------------- the scene, per view, and the post chain
-for (const v of views) { declareScene(v, worlds, kinds); frame.add('scene', v.scene, `view ${v.id}`); }
+for (const v of drawn) { declareScene(v, worlds, kinds); frame.add('scene', v.scene, `view ${v.id}`); }
 const post = new PostChain(kit, frame, main, worlds, { film: filmSize, coarse });
 if (pip) { post.declareAir(pip.view, worlds); post.inset(pip.view, pip.rect); }
+gates.declare(kinds, post);
 
 // ---------------------------------------------------------------- the show and its sound
 music = new Music(FILM, () => worldOf(main.world), gems?.ids ?? []);
@@ -103,6 +113,7 @@ const show = new Show(motion, kinds, bodies, rig, {
 }, coarse);
 if (query.has('landmarks')) show.castOverride = landmarksDemo();
 if (query.has('wander')) { const t = await travelling; show.castOverride = wanderDemo(motion, t); }
+gatesDebug(gates, frame, query, () => show.dancers);
 const beat = new BeatClock();
 
 function wake() {
@@ -136,21 +147,19 @@ frame.tick('dancers', (f) => {
   f.dancers = show.dancers;
   for (const d of show.dancers) d.update(f);
   bodies.upload(show.dancers, f.t);
-  let x = 0, z = 0;
-  for (const d of show.dancers) { x += d.skeleton.world[0]; z += d.skeleton.world[2]; }
-  const D = Math.max(1, show.dancers.length);
-  Object.assign(centre, { x: x / D, z: z / D, ring: !!show.program.ring, dancers: show.dancers.length });
+  const seen = gates.seen(main.world, show.dancers);
+  Object.assign(centre, { x: seen.x, z: seen.z, ring: !!show.program.ring, dancers: show.dancers.length });
   field.update(f);
 }, 'show: the programme, every dancer posed, joints to the GPU');
 
 frame.tick('camera', (f) => {
-  const [w, h] = kit.size.render, world = worldOf(main.world), D = show.dancers.length;
+  const [w, h] = kit.size.render, world = worldOf(main.world), here = gates.seen(main.world, show.dancers).joints, D = here.length;
   const crowd = show.program.ring ? 1 : D >= 3 ? 1.35 : D === 2 ? 1.1 : 1;
   // what a locked view frames: every dancer's hips, head, hands and feet
   let n = 0;
-  for (const d of show.dancers) for (const j of FRAMED) { if (n < 56) { framing.set(d.skeleton.world.subarray(j * 12, j * 12 + 3), n * 3); n++; } }
+  for (const J of here) for (const j of FRAMED) { if (n < 56) { framing.set(J.subarray(j * 12, j * 12 + 3), n * 3); n++; } }
   rig.framing = framing; rig.framingCount = n;
-  rig.update(f.dt, { aspect: w / Math.max(h, 1), dancers: show.dancers.map((d) => d.skeleton.world), aimX: centre.x, aimZ: centre.z, crowd, ring: !!show.program.ring, awake: show.awake, room: world.room, maxDist: world.maxDist });
+  rig.update(f.dt, { aspect: w / Math.max(h, 1), dancers: here, aimX: centre.x, aimZ: centre.z, crowd, ring: !!show.program.ring, awake: show.awake, room: world.room, maxDist: world.maxDist });
   rig.apply(kit.camera, w, h);
   pip?.update(f.t, worlds.find((x) => x.id !== main.world)?.id ?? main.world, [centre.x, centre.z]);
   hand.update(f.dt, kit.camera);
@@ -233,6 +242,7 @@ const bend = installHooks({
   pending: () => gems?.pending ?? null,
   grabYuv: () => post.grabYuv(),
 });
+Object.assign(bend, { gates });
 if (FILM) {
   kit.manual = true;
   kit.renderScale = Number(query.get('scale') ?? 1);

@@ -85,9 +85,16 @@ export interface MatterPasses {
   update(f: FrameCtx): void;
   resize?(budget: Budget): void;
   acts?: MatterActs;
+  /** dancers carried through a gate this frame (src/portals): move each one's particles (positions, velocities,
+   *  orientations) by its rigid move before this frame's simulation, so they arrive with the body. `move` is a
+   *  column-major 4×4. Kinds whose particles live on the body should implement it (docs/extending/portal.md) */
+  carry?(moves: readonly Carry[]): void;
   /** numbers for bend.stats() */
   stats?(): Record<string, number | string>;
 }
+
+/** one dancer's particles carried by a rigid move (a column-major 4×4) */
+export interface Carry { dancer: number; move: Float32Array }
 
 export interface MatterKind {
   readonly id: string;

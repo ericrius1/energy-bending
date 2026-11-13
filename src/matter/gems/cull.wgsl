@@ -4,8 +4,12 @@
 // LODS × its count from LODS × (stones before it), one run per detail. Threads past the dancers' stones take the
 // fixtures of the view's world (view.fixBase …). Stones near a mirroring floor count their reflection too.
 // It runs once per view (weft's `view` option gives it that view's camera in `frame`), into that view's lists.
+// A dancer's stones are where the view sees them (engine/seen.wgsl): not at all in a world the dancer isn't in,
+// carried through a gate while it is part way through one, and not past the door's plane; a gate's view draws a
+// share of them (seen.keep), a little bigger.
 #include "weft/frame"
 #include "./gem"
+#include "../../engine/seen"
 
 @group(1) @binding(0) var<uniform> sim: Sim;
 @group(1) @binding(1) var<uniform> cview: CullView;
@@ -16,6 +20,7 @@
 @group(1) @binding(6) var<storage, read_write> listR: array<u32>;
 @group(1) @binding(7) var<storage, read> homes: array<Home>;
 @group(1) @binding(8) var<storage, read> homes2Prev: array<vec4f>;
+@group(1) @binding(9) var<uniform> seen: ViewSeen;
 
 // a stone still down from the last dance (resting, or falling between dances) wears that dance's stone until it rises
 fn looksOf(i: u32, p: Particle) -> vec4f {
@@ -42,13 +47,21 @@ fn main(@builtin(global_invocation_id) gid: vec3u) {
   let h2 = looksOf(i, p);
   let t = u32(h2.x);
   var r = h2.y * 1.2;
-  if (i < sim.envBase) { r = stoneSize(i, h2.y, sim.gemScale * sim.types[t].z, sim.sizeVar) * 1.2 * spareScale(i, sim.inUse, sim.spareFade); }
+  var pos = p.pos;
+  if (i < sim.envBase) {
+    r = stoneSize(i, h2.y, sim.gemScale * sim.types[t].z, sim.sizeVar) * 1.2 * spareScale(i, sim.inUse, sim.spareFade);
+    let sd = seen.d[min(dancerOf(homes[i]), MAX_DANCERS - 1u)];
+    pos = seenPos(sd, p.pos);
+    if (seenClip(sd, pos) < -r) { return; }
+    if (seen.keep < 1.0 && rnd(i * 2654435761u + 17u) > seen.keep) { return; }
+    r *= seen.grow;
+  }
   let floorY = sim.body.floorY;
-  if (cview.reflectOn > 0.5 && p.pos.y - floorY < 0.8 + r && pixels(vec3f(p.pos.x, 2.0 * floorY - p.pos.y, p.pos.z), r) > sim.cullPx) {
+  if (cview.reflectOn > 0.5 && pos.y - floorY < 0.8 + r && pixels(vec3f(pos.x, 2.0 * floorY - pos.y, pos.z), r) > sim.cullPx) {
     let rs = atomicAdd(&argsR[(t * LODS + 2u) * 4u + 1u], 1u);
     listR[u32(sim.types[t].x) + rs] = i;
   }
-  let px = pixels(p.pos, r);
+  let px = pixels(pos, r);
   if (px < sim.cullPx) { return; }
   var lod = 2u;
   if (px > sim.lod0) { lod = 0u; } else if (px > sim.lod1) { lod = 1u; }

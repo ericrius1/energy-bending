@@ -1,8 +1,12 @@
 // Views: a camera, weft's View for it (its own Frame uniform), the world it shows, and its scene targets. The main
 // view is the canvas's; others (the ?pip inset now, a portal's destination later) are drawn into smaller targets in
 // the same frame. Everything that draws into a scene is declared once per view (worlds' `declareScene`, matter kinds'
-// `declareView`), so a second view is the same code pointed at another camera.
-import { Camera, type Kit, type RenderPass, type Texture, type View } from '@ericrius1/weft';
+// `declareView`), so a second view is the same code pointed at another camera. Each view also has a small uniform
+// saying what it sees of each dancer (`seen`, engine/seen.wgsl): which dancers are in its world, and where a dancer
+// half way through a gate is cut at the door; matter kinds bind it in their culls and draws.
+import { Camera, type Kit, type RenderPass, type Texture, type UniformBuffer, type View } from '@ericrius1/weft';
+import seenShader, { type ViewSeen } from './seen.wgsl';
+import { LIMITS } from './limits';
 
 /** what a scene pass draws into: MSAA colour (alpha carries the view distance) resolved to `hdr`, and depth */
 export interface SceneTargets {
@@ -27,12 +31,22 @@ export interface ViewCtx {
   readonly scene: RenderPass;
   /** whether it's drawn this frame */
   readonly on: () => boolean;
+  /** what it sees of each dancer (engine/seen.wgsl): bind as `seen` in every cull and draw of a dancer's matter */
+  readonly seen: UniformBuffer<ViewSeen>;
+  /** 'world': only the dancers in the world it shows (the main view, a gate's); 'all': every dancer (the ?pip proof) */
+  readonly cast: 'world' | 'all';
+}
+
+/** every dancer drawn where it stands, nothing cut: what a view sees before the portals say otherwise */
+export function seenEveryone(): ViewSeen {
+  const one = { x: [1, 0, 0, 0], y: [0, 1, 0, 0], z: [0, 0, 1, 0], q: [0, 0, 0, 1], clip: [0, 0, 0, 1] } as ViewSeen['d'][number];
+  return { d: Array.from({ length: LIMITS.dancers }, () => one), keep: 1, grow: 1, pad0: 0, pad1: 0 } as ViewSeen;
 }
 
 /** a view and its scene targets and pass. The main view uses the kit's camera and canvas size (scale 1) */
-export function makeView(kit: Kit, id: string, o: { world: string; scale?: number; main?: boolean; on?: () => boolean; samples?: 1 | 4 }): ViewCtx {
+export function makeView(kit: Kit, id: string, o: { world: string; scale?: number; main?: boolean; on?: () => boolean; samples?: 1 | 4; camera?: Camera; cast?: 'world' | 'all' }): ViewCtx {
   const scale = o.scale ?? 1;
-  const camera = o.main ? kit.camera : new Camera();
+  const camera = o.main ? kit.camera : o.camera ?? new Camera();
   const view = o.main ? kit.mainView : kit.view(camera, scale, `view.${id}`);
   const samples = o.samples ?? 4;
   const tex = (label: string, format: GPUTextureFormat, s = 1) =>
@@ -52,5 +66,6 @@ export function makeView(kit: Kit, id: string, o: { world: string; scale?: numbe
     view: o.main ? undefined : view,
     enabled: on,
   });
-  return { id, view, camera, world: o.world, scale, targets, scene, on };
+  const seen = kit.uniforms(seenShader.structs.ViewSeen, `${id}.seen`).set(seenEveryone());
+  return { id, view, camera, world: o.world, scale, targets, scene, on, seen, cast: o.cast ?? 'world' };
 }

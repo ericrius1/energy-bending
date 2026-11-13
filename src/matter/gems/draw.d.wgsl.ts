@@ -196,6 +196,20 @@ export interface KeyLight {
   plain: Vec3;
   glint: number;
 }
+export interface Seen {
+  x: Vec4;
+  y: Vec4;
+  z: Vec4;
+  q: Vec4;
+  clip: Vec4;
+}
+export interface ViewSeen {
+  d: Partial<Seen>[];
+  keep: number;
+  grow: number;
+  pad0: number;
+  pad1: number;
+}
 export interface VOut {
   pos: Vec4;
   wp: Vec3;
@@ -209,7 +223,8 @@ export interface VOut {
   heat: number;
   lod: number;
   env: number;
+  clip: number;
 }
 
-declare const shader: Shader<{ Frame: Frame; Joint: Joint; Seg: Seg; Particle: Particle; Home: Home; BodyStep: BodyStep; Sim: Sim; CullView: CullView; Kind: Kind; Minerals: Minerals; Look: Look; Spark: Spark; Geode: Geode; Forest: Forest; KeyLight: KeyLight; VOut: VOut }, 'frame' | 'geode' | 'forest' | 'sim' | 'look' | 'minerals' | 'state' | 'verts' | 'list' | 'homes' | 'homes2Prev' | 'samp_linear' | 'samp_repeat' | 'samp_nearest' | 'samp_shadow'>;
+declare const shader: Shader<{ Frame: Frame; Joint: Joint; Seg: Seg; Particle: Particle; Home: Home; BodyStep: BodyStep; Sim: Sim; CullView: CullView; Kind: Kind; Minerals: Minerals; Look: Look; Spark: Spark; Geode: Geode; Forest: Forest; KeyLight: KeyLight; Seen: Seen; ViewSeen: ViewSeen; VOut: VOut }, 'frame' | 'geode' | 'forest' | 'sim' | 'look' | 'minerals' | 'seen' | 'state' | 'verts' | 'list' | 'homes' | 'homes2Prev' | 'samp_linear' | 'samp_repeat' | 'samp_nearest' | 'samp_shadow'>;
 export default shader;
