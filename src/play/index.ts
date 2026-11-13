@@ -55,6 +55,7 @@ import { PRESETS, type PresetName } from '../ai/partner';
 import { ScriptRunner, type JogoScript } from './script';
 import { jogoParams } from './params';
 import { Lobby, Waiting, showFront, escapeToFront, hrefOf } from './menu';
+import { roomServer } from '../net/where';
 
 type V3 = [number, number, number];
 
@@ -147,7 +148,7 @@ export async function startJogo(app: PlayApp, mode: string, opts: { joined?: Joi
   escapeToFront();
 
   // ---------------------------------------------------------------- the room
-  const server = q.get('server') ?? `${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.hostname}:5417/ws`;
+  const server = roomServer(q);
   const cond = { lag: num(q.get('lag')), jitter: num(q.get('jitter')), loss: num(q.get('loss')) };
   const room = new Room(online
     ? { mode: 'online', world: world().id, url: server, room: (q.get('room') ?? 'DEMO').toUpperCase(), create: q.has('create') || !q.has('room'), role: q.has('watch') ? 'guest' : 'player', ...cond }

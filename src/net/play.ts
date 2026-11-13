@@ -4,7 +4,7 @@
 // page or ?dress says. The room's set pieces of ice in this world are laid as set ice (the water kind's SetIce), so
 // both players stand on the same bridges. FrameCtx.beat follows the room's clock, as in the ?net demo.
 //
-// The room server: &server=ws://host:port/ws, else this page's host on port 5417 (npm start). If it can't be reached
+// The room server: &server=ws://host:port/ws, else src/net/where.ts (VITE_ROOMS, the page's own host when built, 5417 in development: npm start). If it can't be reached
 // the game plays on alone and the other dancer stands where it would come in.
 import type { FrameBuilder } from '../engine/frame';
 import type { Show } from '../dancer/show';
@@ -15,6 +15,7 @@ import type { SetPiece } from '../../shared/protocol.ts';
 import { Dancer } from '../dancer/dancer';
 import { dressed } from '../matter/core/presets';
 import { Session } from './session';
+import { roomServer } from './where';
 
 /** the loadout preset each jogo seat wears (matter/core/presets.ts) */
 export const SEAT_DRESS = ['fire', 'water'];
@@ -32,7 +33,7 @@ export interface NetPlayCtx {
 export async function netPlay(ctx: NetPlayCtx) {
   const { show, play, frame, query } = ctx;
   const room = (query.get('net') || 'DEMO').toUpperCase();
-  const url = query.get('server') ?? `${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.hostname}:5417/ws`;
+  const url = roomServer(query);
   const session = new Session({ url, room, create: true, stage: ctx.world().id, world: ctx.world().id });
   try {
     const info = await Promise.race([session.connect(), new Promise<never>((_, no) => setTimeout(() => no(new Error('timed out')), 6000))]);
