@@ -39,6 +39,8 @@ export interface JogoStats {
   /** names of every move started, by seat (with refused ones: named flourishes the rules don't know) */
   names: [Record<string, number>, Record<string, number>];
   refused: number;
+  /** tension earned by kind (the rules' nominal amounts, before the cap): exchanges, echoes, unisons */
+  tensionFrom: { xch: number; echo: number; unison: number };
 }
 
 export class JogoReferee {
@@ -62,7 +64,7 @@ export class JogoReferee {
     this.events = setPresent(this.session, 1, true, nowMs);
     this.stats = {
       moves: [0, 0], perfect: [0, 0], errors: [], distinct: [new Set(), new Set()], xch: [{}, {}], echoes: 0, unisons: 0,
-      fusions: 0, mergeReady: 0, tensionMax: 0, maxGap: 0, names: [{}, {}], refused: 0,
+      fusions: 0, mergeReady: 0, tensionMax: 0, maxGap: 0, names: [{}, {}], refused: 0, tensionFrom: { xch: 0, echo: 0, unison: 0 },
     };
   }
 
@@ -120,8 +122,8 @@ export class JogoReferee {
     ev.push(...tick(s, nowMs));
     // book-keeping
     for (const e of ev) {
-      if (e.k === 'echo') this.stats.echoes++;
-      else if (e.k === 'unison') this.stats.unisons++;
+      if (e.k === 'echo') { this.stats.echoes++; this.stats.tensionFrom.echo += RULES.echo.tension; }
+      else if (e.k === 'unison') { this.stats.unisons++; this.stats.tensionFrom.unison += RULES.unison.tension; }
       else if (e.k === 'mergeReady') this.stats.mergeReady++;
     }
     this.stats.fusions = s.fusions;
@@ -151,6 +153,7 @@ export class JogoReferee {
     this.onXch?.(target, res, id);
     const x = this.stats.xch[target];
     x[res] = (x[res] ?? 0) + 1;
+    this.stats.tensionFrom.xch += RULES.xch[res].tension;
     ev.push(...r.events);
     if (res === 'hit') {
       // knocked back, away from the attacker, and a moment's stagger

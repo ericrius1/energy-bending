@@ -6,6 +6,7 @@
 import type { Character } from '../dancer/character';
 import { MOVES } from '../dancer/moves';
 import type { MusicView, Other, RulesView, SeenMove, Sight, StageView, V3 } from './brain';
+import type { Direction } from './direct';
 import { moveEventOf } from './body';
 
 /** how long a seen move is remembered (s): long enough to echo it a bar later, or notice a pattern */
@@ -60,6 +61,13 @@ export class Scene {
 
   witness(id: string) { let w = this.seen.get(id); if (!w) this.seen.set(id, (w = new Witness())); return w; }
 
+  /** a director's intentions per dancer (direct.ts), handed to its brain as Sight.direction */
+  private directions = new Map<string, Direction>();
+  /** direct a dancer (by its scene id: 'seat.0', 'seat.1', an NPC's id) from a timeline; null lets it be */
+  direct(id: string, d: Direction | null) {
+    if (d) this.directions.set(id, { ...d, cues: [...d.cues] }); else this.directions.delete(id);
+  }
+
   /** once per frame, before any brain thinks */
   update(f: SceneFrame) {
     this.beatPrev = this.beatPrev == null ? f.beat - (f.dt * f.bpm) / 60 : this.frame.beat;
@@ -88,9 +96,12 @@ export class Scene {
       others.push(o);
       if (self.seat >= 0 && self.seat < 2 && b.seat === 1 - self.seat) partner = o;
     }
+    // (a direction with no origin starts where it is first seen)
+    const dir = this.directions.get(self.id) ?? null;
+    if (dir && dir.origin == null) dir.origin = Math.round(f.beat);
     return {
       t: f.t, dt: f.dt, beat: f.beat, beatPrev: this.beatPrev ?? f.beat, bpm: f.bpm, music: f.music,
-      self: self.character, seat: self.seat, id: self.id, others, partner, stage, rules: f.rules,
+      self: self.character, seat: self.seat, id: self.id, others, partner, stage, rules: f.rules, direction: dir,
     };
   }
 }

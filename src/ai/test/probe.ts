@@ -9,6 +9,7 @@ import { reachOf } from '../read';
 import { ATTACKS } from '../body';
 import { MOVES } from '../../dancer/moves';
 import { AttackerBrain, PatternBrain, StillBrain, summary } from './scripted';
+import { measure, line } from './measure';
 
 declare const process: { argv: string[] };
 const [mode = 'two', secs = '180', pa = 'playful', pb = 'playful', seed = '11'] = process.argv.slice(2).filter((x) => !x.startsWith('-'));
@@ -16,6 +17,18 @@ const plane = stagePlane({ id: 'centre', origin: [0, 0, 0], right: [1, 0, 0], ha
 const human: Brain = mode === 'attacker' ? new AttackerBrain() : mode === 'still' ? new StillBrain() : mode === 'pattern' ? new PatternBrain('spin') : new PartnerBrain({ preset: pa as PresetName, seed: Number(seed) });
 if (mode === 'reach') {
   for (const n of ATTACKS) { const r = reachOf(n); console.log(n.padEnd(9), 'touch', r.touch?.map((x) => x.toFixed(2)).join('-'), 'near to', r.near.toFixed(2), 'windup', MOVES[n].windup.toFixed(2), 'active', MOVES[n].active!.map((u) => (u * MOVES[n].dur).toFixed(2)).join('-')); }
+  throw 0;
+}
+if (mode === 'measure') {
+  // the report's numbers: three seeded three-minute sessions locked on the geode's stage and three free on the floor
+  for (const free of [false, true]) for (const sd of [11, 12, 13]) {
+    const s = measure({ plane: free ? null : plane, stage: plane, seats: [new PartnerBrain({ preset: pa as PresetName, seed: sd }), new PartnerBrain({ preset: pb as PresetName, seed: sd * 3 + 1 })], seconds: Number(secs) });
+    console.log(`${free ? 'free  ' : 'locked'} seed ${sd}: ${line(s)}`);
+  }
+  for (const [nm, h] of [['attacker', new AttackerBrain()], ['still', new StillBrain()]] as const) {
+    const s = measure({ plane: null, stage: plane, seats: [h, new PartnerBrain({ seed: 31 })], seconds: 120 });
+    console.log(`free vs ${nm}: ${line(s)}`);
+  }
   throw 0;
 }
 const t0 = Date.now();
