@@ -260,6 +260,9 @@ fn carving(kind: f32, u: f32, v: f32, hw: f32, height: f32, seed: f32) -> f32 {
   // (the normals are made outward; the stones are drawn from both sides)
   var N = normalize(i.n);
   let geomN = normalize(cross(dpdx(i.wp), dpdy(i.wp)));
+  // how big a pixel is on the stone (m): the carving's relief is taken over at least two of them and fades where its
+  // detail is finer than that (at a distance an egg-and-dart's lips would shimmer and ghost into a doubled outline)
+  let foot = length(fwidth(i.wp));
   var groove = 0.0;
   var relief = 0.0;
   var chip = 0.0;
@@ -280,13 +283,13 @@ fn carving(kind: f32, u: f32, v: f32, hw: f32, height: f32, seed: f32) -> f32 {
     across = u + seed * 13.0;
     below = i.info.w - L.y;
     if (face != 2u && face != 3u && kind > 0.5) {
-      let e = 0.004;
+      let e = max(0.004, foot * 2.0);
       let h0 = carving(kind, u, L.y, hw, i.info.w, seed);
       let hu = carving(kind, u + e, L.y, hw, i.info.w, seed);
       let hv = carving(kind, u, L.y + e, hw, i.info.w, seed);
       relief = h0;
       groove = max(-h0, 0.0);
-      let depth = 0.016;
+      let depth = 0.016 * smoothstep(0.035, 0.012, foot);
       let T = normalize(cross(vec3f(0.0, 1.0, 0.0), N) + vec3f(1e-5));
       N = normalize(N - (T * (hu - h0) + vec3f(0.0, 1.0, 0.0) * (hv - h0)) / e * depth);
       // (stains run from the carved band too)
@@ -349,6 +352,19 @@ fn carving(kind: f32, u: f32, v: f32, hw: f32, height: f32, seed: f32) -> f32 {
   let streakN = vnoise2(vec2f(across * 9.0, wp.y * 0.6 + seed * 5.0)) * 0.7 + vnoise2(vec2f(across * 23.0, wp.y * 1.3)) * 0.3;
   let run = smoothstep(0.5, 0.8, streakN) * exp(-below / 1.1) * (1.0 - abs(N.y));
   albedo = mix(albedo, albedo * vec3f(0.42, 0.44, 0.4), run * (1.0 - chip) * 0.85);
+  // the side that faces the sea and the moon takes the weather: a mottled crust, grey-brown in blotches, rust-ochre
+  // stains here and there, more of the rain's streaks; so seen against the afterglow, lit by the moon behind the eye,
+  // the stone is as weathered as its fronts are, not a pale block
+  let seaSide = smoothstep(0.35, -0.6, N.z) * worldLight.temple.tide2.w;
+  if (seaSide > 0.001) {
+    // (the large mottle is the stone's own, n1, sharpened; one more noise for the rust: the fronts pay nothing)
+    let blot = smoothstep(0.42, 0.62, n1) * (0.75 + 0.25 * grain);
+    albedo = mix(albedo, albedo * vec3f(0.6, 0.58, 0.54), blot * seaSide * 0.8);
+    let rust = smoothstep(0.62, 0.8, vnoise(wp * 1.3 + seed * 3.0 + 11.0)) * (0.6 + 0.4 * grain);
+    albedo = mix(albedo, albedo * vec3f(1.12, 0.92, 0.7), rust * seaSide * 0.6);
+    albedo = mix(albedo, albedo * vec3f(0.5, 0.52, 0.48), smoothstep(0.42, 0.72, streakN) * exp(-below / 2.2) * (1.0 - abs(N.y)) * seaSide * 0.6);
+    albedo *= 1.0 - 0.18 * seaSide * (grain - 0.5);
+  }
   // grime in the hollows of the carving, and the relief's crowns rubbed paler
   albedo *= 1.0 + 0.12 * max(relief, 0.0) - 0.25 * max(-relief, 0.0);
   // the tide: lichen only where the sea never reaches; a white line of salt at the high water's mark; weed and the
@@ -380,7 +396,8 @@ fn carving(kind: f32, u: f32, v: f32, hw: f32, height: f32, seed: f32) -> f32 {
   // and the moonlit sky over the court: a cool fill from above and in front, so the fronts are blue-grey stone in the
   // night, the warmth only where the afterglow or a dancer's fire touches them
   let skyFill = worldLight.temple.moonCol.rgb * worldLight.temple.moonCol.w * worldLight.temple.tide2.y * (0.45 + 0.35 * N.y + 0.2 * N.z);
-  var col = albedo * (moon * diff + after * max(dot(N, La), 0.0) * ao + skyFill * ao + templeAmbient(N, ao, wp, 1.0) * ao);
+  // (the moon's direct light on stone is held down so a face turned square to it reads as stone, not white)
+  var col = albedo * (moon * diff * worldLight.temple.tide2.z + after * max(dot(N, La), 0.0) * ao + skyFill * ao + templeAmbient(N, ao, wp, 1.0) * ao);
   // the moon behind it lights its edges (the light grazing round the sides toward us)
   // (round the sides only: a top seen at a glance isn't lit from behind)
   let edgeOn = pow(1.0 - max(dot(N, V), 0.0), 3.0) * max(dot(-V, Ld), 0.0) * (1.0 - abs(N.y));

@@ -19,7 +19,8 @@ import type { FrameCtx } from '../../engine/frame';
 import { defineParams, hex, onParams } from '../../engine/params';
 import { Ripples } from '../water/ripples';
 import { stagePlane, spawnsOf, type StagePlane } from '../stage';
-import { layoutTemple, packStones, STAGE_Z, type TempleLayout } from './layout';
+import { layoutTemple, MOON_BEARING, packStones, solidsOf, STAGE_Z, type TempleLayout } from './layout';
+import { clearOf, type Solid } from '../solids';
 import { JOINT } from '../../skeleton/rig';
 
 export const templeParams = defineParams('temple', {
@@ -45,6 +46,10 @@ export const templeParams = defineParams('temple', {
   afterglow: 0.16,
   /** the moonlit sky's cool fill on the stone */
   skyFill: 0.05,
+  /** how much of the moon's direct light the stone takes (a face square to it would go white at 1), and how weathered
+   *  the side facing the sea and the moon is */
+  moonStone: 0.5,
+  weather: 1,
   /** how quickly the stone dries once the tide has left it (per cycle of the tide) */
   dry: 4,
   /** the moon's path on the water: how bright, how wide (the facets' slope), how fine its sparkle (per m) */
@@ -105,6 +110,8 @@ export class Temple implements World {
   readonly room = 16;
   readonly maxDist = 18;
   readonly layout: TempleLayout;
+  /** the stones as simple shapes for the camera (World.solids): boxes and cylinders, from the layout */
+  readonly solids: readonly Solid[];
   /** the tide now (m over the floor), as last set by update */
   tide = 0;
   private u: LightSlot<TempleU>;
@@ -126,6 +133,7 @@ export class Temple implements World {
     const { kit, frame, coarse } = ctx;
     this.layout = layoutTemple({ coarse });
     this.packed = packStones(this.layout.stones);
+    this.solids = solidsOf(this.layout.stones);
     this.buf = kit.storage({ label: 'temple.stones', data: this.packed.data, usage: ['storage'] });
     this.u = lightSlot(kit, 'temple');
     this.waves = new Ripples(kit, frame, {
@@ -137,7 +145,7 @@ export class Temple implements World {
     const L = this.layout.ledges;
     this.stages = [stagePlane({
       id: 'court', origin: [0, 0, STAGE_Z], right: [1, 0, 0], halfWidth: 5.75, ground: 0, ledges: L,
-      spawns: [[-4.2, L[0].y], [4.3, L[2].y]], lens: 19,
+      spawns: [[-4.2, L[0].y], [4.3, L[2].y]], lens: 19, yaw: 0.14, pitch: 0,
     })];
     this.spawns = spawnsOf(this.stages[0]);
     // one gate, back to the geode: on the court to the left of the stage, facing across it, the flagstones clear round it
@@ -155,12 +163,12 @@ export class Temple implements World {
 
   private upload() {
     const P = templeParams;
-    const el = (P.moonHeight * Math.PI) / 180, az = 0.05;
+    const el = (P.moonHeight * Math.PI) / 180, az = MOON_BEARING;
     this.u.set({
       zenith: [...hex(P.zenith), P.stars], horizon: [...hex(P.horizon), 0], dusk: [...hex(P.dusk), P.duskAmt], duskDir: [0, 0, 1, 2.2],
       moon: [Math.sin(az) * Math.cos(el), Math.sin(el), -Math.cos(az) * Math.cos(el), (P.moonSize * Math.PI) / 360],
       moonCol: [...hex(P.moonCol), P.moonLight], sea: [...hex(P.sea), P.depthDim], stone: [...hex(P.stone), P.wetGloss],
-      glitter: [P.glitter, P.glitterWidth, P.sparkle, P.veil], tide2: [P.afterglow, P.skyFill, 0, 0],
+      glitter: [P.glitter, P.glitterWidth, P.sparkle, P.veil], tide2: [P.afterglow, P.skyFill, P.moonStone, P.weather],
     });
     this.march[2] = P.haze;
     this.u.set({ march: this.march });
@@ -216,9 +224,11 @@ export class Temple implements World {
     }
   }
 
-  /** the floor, or the top of a solid stone standing there (the altar, a stump) */
   /** the tide (fire's mirror copy reflects about it) */
   waterY() { return this.tide; }
+  /** the camera's clearance (World.clear): the segment against every stone (a 40 cm margin) */
+  clear(a: [number, number, number], b: [number, number, number]) { return clearOf(this.solids, a, b); }
+  /** the floor, or the top of a solid stone standing there (the altar, a stump) */
   groundAt(x: number, z: number) {
     for (const [x0, x1, z0, z1, top] of this.layout.tops) if (x >= x0 && x <= x1 && z >= z0 && z <= z1) return top;
     return 0;

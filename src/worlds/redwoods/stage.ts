@@ -10,6 +10,7 @@
 // and tapers to a lifting tip. The big pieces (the log, its root plate and roots) come first in `pieces`, the boughs'
 // after them (`big` says where), because they are drawn at two levels of detail.
 import type { Ledge } from '../stage';
+import type { Solid } from '../solids';
 
 type V3 = [number, number, number];
 
@@ -66,6 +67,21 @@ export function smoothPath(pts: Pt[], step = 0.3): [number, number, number, numb
   }
   line(from, P[n - 1]);
   return out;
+}
+
+/** the lanterns hung low between the stage and the locked camera (on its side of the plane, 3 to 8 m out, within 4 m
+ *  of the middle along it) hang higher, their bottoms at `clear` m or more: from the lock's distance one hung large and
+ *  blurred across the top of the frame. They keep their limbs and their light; only their cords are shorter */
+export function liftLanterns(lanterns: { anchor: V3; cord: number }[], right: V3, clear = 6.4) {
+  const lifted: number[] = [];
+  lanterns.forEach((L, k) => {
+    const along = L.anchor[0] * right[0] + L.anchor[2] * right[2], across = -L.anchor[0] * right[2] + L.anchor[2] * right[0];
+    if (across > 3 && across < 8 && Math.abs(along) < 4 && L.anchor[1] - L.cord < clear) {
+      L.cord = Math.max(0.6, L.anchor[1] - clear);
+      lifted.push(k);
+    }
+  });
+  return lifted;
 }
 
 /** trunks: the light's trunk list (x, z, radius, height per trunk, nearest first) */
@@ -145,4 +161,10 @@ export function packPieces(pieces: Piece[]) {
     along += len;
   });
   return out;
+}
+
+/** the stage's logs as the camera's solids (World.solids): every piece of the chains a capsule of its wider radius
+ *  (the fallen giant, its root plate and roots, every piece of both boughs) */
+export function solidsOfStage(pieces: Piece[]): Solid[] {
+  return pieces.map((p) => ({ kind: 'capsule' as const, a: [...p.a] as V3, b: [...p.b] as V3, r: Math.max(p.ra, p.rb) }));
 }

@@ -3,6 +3,7 @@
 // clearing, paper lanterns hung from them on cords. Laid out once from a seed (Gem Dancers' forest.ts).
 import { mulberry32 } from 'math/random';
 import { LIMITS } from '../../engine/limits';
+import { cylinder, type Solid } from '../solids';
 
 /** the fairy ring's radius (m) */
 export const RING = 12.6;
@@ -85,4 +86,22 @@ export function layoutWoods(seed = 7): Layout {
     }
   }
   return { logs, near, far, limbs: limbs.length, trunks: light, lanterns };
+}
+
+/** the trees as the camera's solids (World.solids), from the logs they're drawn from: each trunk a tall cylinder of its
+ *  radius and a short fat one round its flared foot (the buttresses), each limb two capsules following its droop */
+export function solidsOfWoods(L: Layout): Solid[] {
+  const out: Solid[] = [];
+  const g = L.logs;
+  for (let i = 0; i < L.near + L.far; i++) {
+    const o = i * LOG, x = g[o], y = g[o + 1], z = g[o + 2], R = g[o + 3], len = g[o + 7];
+    out.push(cylinder([x, y, z], [x + g[o + 4] * len, y + g[o + 5] * len, z + g[o + 6] * len], R));
+    out.push(cylinder([x, y, z], [x, 1.6, z], R * (1 + g[o + 9] * 0.75)));
+  }
+  for (let i = L.near + L.far; i < L.near + L.far + L.limbs; i++) {
+    const o = i * LOG, R = g[o + 3], len = g[o + 7], droop = g[o + 10];
+    const at = (u: number): [number, number, number] => [g[o] + g[o + 4] * len * u, g[o + 1] + g[o + 5] * len * u - droop * u * u, g[o + 2] + g[o + 6] * len * u];
+    out.push({ kind: 'capsule', a: at(0), b: at(0.5), r: R }, { kind: 'capsule', a: at(0.5), b: at(1), r: R * 0.7 });
+  }
+  return out;
 }

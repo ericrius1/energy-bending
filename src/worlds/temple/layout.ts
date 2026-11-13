@@ -8,6 +8,7 @@
 // section), drawn by stones.wgsl.
 import { mulberry32 } from 'math/random';
 import type { Ledge } from '../stage';
+import { cylinder, type Solid } from '../solids';
 
 type V3 = [number, number, number];
 
@@ -24,6 +25,12 @@ export const STONE_FLOATS = 12;
 /** the stage plane's place: z = STAGE_Z, behind the middle of the court (where the dancers dance when nobody plays,
  *  clear of the altar), seen from the front (+z) */
 export const STAGE_Z = -3.2;
+
+/** the moon's bearing (rad from straight behind the stage, -z, toward -x): a little to the left, so that from the low
+ *  side-on camera of film 2's lead shot (the critic's dolly, a little to the right of the stage's middle) the moon clears
+ *  the lintel and stands in the great gate, its path on the water running between the two dancers. The great gate and
+ *  the drowned court beyond are laid out along it (they are turned about the court's middle by it) */
+export const MOON_BEARING = -0.22;
 
 /** the court's floor (the backdrop's flagstones): x from -X to X, z from Z0 to Z1, its top at 0 */
 export const COURT = { X: 12.5, Z0: -10.8, Z1: 11.6, sea: -2.6 };
@@ -96,7 +103,8 @@ export function layoutTemple(o: { coarse: boolean; seed?: number }): TempleLayou
     const d = 0.62;
     block([0, COURT.sea, COURT.Z1 + d * (k + 0.5)], [COURT.X * 2 - k * 1.2, -COURT.sea - 0.42 * (k + 1), d], { seed: r() });
   }
-  // the great gate behind the stage: two tall columns and a lintel, the moon rising in it
+  // the great gate behind the stage: two tall columns and a lintel, the moon rising in it (turned onto its bearing below)
+  const gate0 = stones.length, gatePillars = pillars.length;
   const gz = -9.4;
   for (const x of [-2.7, 2.7]) {
     block([x, 0, gz], [1.6, 0.35, 1.6]);
@@ -104,6 +112,7 @@ export function layoutTemple(o: { coarse: boolean; seed?: number }): TempleLayou
     block([x, 5.75, gz], [1.6, 0.4, 1.6], { carve: 1 });
   }
   block([0.25, 6.15, gz], [7.9, 0.95, 1.5], { carve: 2, broken: 0.25, yaw: 0.02 });
+  const gate1 = stones.length;
   // colonnades down both sides: some standing whole, some snapped, one fallen in drums across the floor
   const sides = o.coarse ? [-6.8, -0.4, 6.0] : [-7.2, -3.6, 0, 3.6, 7.2];
   for (const sx of [-11.2, 11.2]) {
@@ -167,6 +176,7 @@ export function layoutTemple(o: { coarse: boolean; seed?: number }): TempleLayou
   // side of the moon's path, some whole, most snapped; a far gate under the moon; walls. In less detail, and fewer on a
   // phone
   const far = { far: true } as const;
+  const far0 = stones.length;
   const rows = o.coarse ? [-19, -28] : [-18, -24, -30, -38, -46];
   for (const z of rows) {
     for (const x of [-9.5, -5.2, 5.4, 9.8]) {
@@ -194,7 +204,38 @@ export function layoutTemple(o: { coarse: boolean; seed?: number }): TempleLayou
       block([x, COURT.sea, z], [w, h, 1.0], { broken: 0.7, yaw: (r() - 0.5) * 0.2, ...far });
     }
   }
+  // the great gate and the drowned court beyond turned about the court's middle onto the moon's bearing
+  const th = -MOON_BEARING, c = Math.cos(th), sn = Math.sin(th);
+  const turn = (x: number, z: number): [number, number] => [x * c + z * sn, -x * sn + z * c];
+  for (let i = 0; i < stones.length; i++) {
+    if ((i < gate0 || i >= gate1) && i < far0) continue;
+    const st = stones[i], [x, z] = turn(st.at[0], st.at[2]);
+    st.at = [x, st.at[1], z];
+    st.yaw += th;
+  }
+  for (let i = gatePillars; i < pillars.length && i < gatePillars + 2; i++) [pillars[i][0], pillars[i][1]] = turn(pillars[i][0], pillars[i][1]);
   return { ledges, stones, pillars, tops };
+}
+
+/** the stones as the camera's solids (World.solids), from the same description they're drawn from: a block a box, a
+ *  drum standing or lying a cylinder (a capsule with its ends cut to the drum's), a capital or base by its wider end.
+ *  The platform under the floor is left out (the floor is the ground, groundAt's) */
+export function solidsOf(stones: Stone[]): Solid[] {
+  const out: Solid[] = [];
+  const turn = (s: Stone, q: V3): V3 => {
+    const c = Math.cos(s.yaw), sn = Math.sin(s.yaw);
+    return [s.at[0] + q[0] * c + q[2] * sn, s.at[1] + q[1], s.at[2] - q[0] * sn + q[2] * c];
+  };
+  for (const s of stones) {
+    if (s.open) continue;
+    if (s.kind === 'block') out.push({ kind: 'box', c: [s.at[0], s.at[1] + s.size[1] / 2, s.at[2]], half: [s.size[0] / 2, s.size[1] / 2, s.size[2] / 2], yaw: s.yaw });
+    else {
+      const R = s.size[0], H = s.size[1], r = Math.max(R, s.size[2] || R);
+      if (s.tilt) out.push(cylinder(turn(s, [0, R, -H / 2]), turn(s, [0, R, H / 2]), r));
+      else out.push(cylinder(s.at, [s.at[0], s.at[1] + H, s.at[2]], r));
+    }
+  }
+  return out;
 }
 
 /** the stones as stones.wgsl reads them: blocks first, then the court's drums, then the far drums (`blocks` says where

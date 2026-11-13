@@ -43,7 +43,8 @@ struct VOut {
   @location(4) ang: f32,
   @location(5) @interpolate(flat) seed: f32,
   @location(6) @interpolate(flat) limb: f32,
-  @location(7) end: vec2f,   // x: 0 bark, 1 a cut or broken end (heartwood), 2 a root plate's face (earth); y: out from the middle (0 to 1)
+  @location(7) end: vec2f,   // x: 0 bark, 1 a cut or broken end (heartwood), 2 a root plate's face (earth); y: out from the middle
+                             // (0 to 1), or down a hollow (minus how deep, 0 to -1)
   @location(8) @interpolate(flat) stageP: f32,   // 1 a stage log (moss on its top), 0 a tree
 }
 
@@ -146,19 +147,38 @@ fn profile(s: f32, len: f32, r0: f32, sh: vec4f, a: f32) -> f32 {
   // the side's quads are the side; each end's are its face
   var part = 0.0;
   if (ringQ < CAPR) { part = -1.0; } else if (ringQ >= CAPR + RINGS - 1u) { part = 1.0; }
-  let k = clamp(s / max(len, 1e-4), 0.0, 1.0);
-  var r = select(r0, mix(L.a.w, L.b.w, k), endN == 0.0) * rf;
-  // a torn plate's rim is ragged all round; a broken end is pushed in and out
-  let torn = max(step(2.5, L.ends.x), step(2.5, L.ends.y));
-  r *= 1.0 + torn * (0.22 * (vnoise2(vec2f(a * 2.0, L.ends.w * 50.0)) - 0.5) + 0.12 * (vnoise2(vec2f(a * 6.0, 3.0)) - 0.5));
+  // how far out across an end face this is (0 its middle, 1 its rim), or down a hollow (minus how deep, 0 … 1)
+  var endU = rf;
   if (cap > 1.5 && cap < 2.5 && endN != 0.0) {
-    bulge += endN * r0 * (0.6 * (vnoise2(vec2f(a * 1.7 + L.ends.w * 30.0, rf * 3.0)) - 0.35) * (1.0 - rf * 0.4));
-    // a big log's heart has rotted out: a hollow running back into it, its mouth ragged
     if (r0 > 0.5) {
-      let mouth = 0.62 + 0.06 * (vnoise2(vec2f(a * 2.5, 7.0)) - 0.5);
-      bulge -= endN * r0 * 1.6 * smoothstep(mouth, mouth * 0.25, rf);
+      // a big log broken off: its bark (the outer seventh) snapped a little short of the wood; the wood inside standing
+      // out in splinters, longest midway between the bark and the heart; the heart rotted out into a hollow that runs
+      // back into the log, its walls a little narrower as they go and closed at the bottom. (A flat end's rf is how far
+      // out its ring is, so it is the place across the face here)
+      let u = rf;
+      let mouth = 0.32 + 0.1 * (vnoise2(vec2f(a * 2.5, 7.0)) - 0.5) + 0.05 * (vnoise2(vec2f(a * 9.0, 3.0)) - 0.5);
+      let spl = vnoise2(vec2f(a * 5.0 + L.ends.w * 30.0, 1.3)) * 0.75 + vnoise2(vec2f(a * 11.0, u * 3.0 + 2.0)) * 0.25;
+      var stand = 0.0;
+      if (u >= 0.86) {
+        stand = -0.04 * r0 * (0.5 + vnoise2(vec2f(a * 9.0, 4.0)));
+      } else if (u >= mouth) {
+        stand = r0 * (0.02 + 0.16 * pow(spl, 2.0) * smoothstep(0.86, 0.74, u) * smoothstep(mouth, mouth + 0.12, u));
+      } else {
+        let t = 1.0 - u / mouth;
+        rf = mouth * (0.95 - 0.12 * t) * (1.0 - smoothstep(0.8, 1.0, t));
+        stand = -r0 * 1.8 * smoothstep(0.0, 0.8, t);
+        endU = -t;
+      }
+      bulge += endN * stand;
+    } else {
+      bulge += endN * r0 * (0.6 * (vnoise2(vec2f(a * 1.7 + L.ends.w * 30.0, rf * 3.0)) - 0.35) * (1.0 - rf * 0.4));
     }
   }
+  let k = clamp(s / max(len, 1e-4), 0.0, 1.0);
+  var r = select(r0, mix(L.a.w, L.b.w, k), endN == 0.0) * rf;
+  // a torn plate's rim is ragged all round
+  let torn = max(step(2.5, L.ends.x), step(2.5, L.ends.y));
+  r *= 1.0 + torn * (0.22 * (vnoise2(vec2f(a * 2.0, L.ends.w * 50.0)) - 0.5) + 0.12 * (vnoise2(vec2f(a * 6.0, 3.0)) - 0.5));
   let wp = L.a.xyz + dir * (s + bulge) + radial * r;
   var n = radial;
   if (part != 0.0) {
@@ -177,7 +197,7 @@ fn profile(s: f32, len: f32, r0: f32, sh: vec4f, a: f32) -> f32 {
   o.limb = 1.0;
   o.stageP = 1.0;
   let cut = select(0.0, 1.0, cap > 0.5 && part != 0.0);
-  o.end = vec2f(select(cut, 2.0, L.kind.x > 0.5 && part != 0.0), rf);
+  o.end = vec2f(select(cut, 2.0, L.kind.x > 0.5 && part != 0.0), endU);
   o.pos = frame.viewProj * vec4f(wp, 1.0);
   return o;
 }
@@ -193,12 +213,18 @@ fn profile(s: f32, len: f32, r0: f32, sh: vec4f, a: f32) -> f32 {
 
 fn bark(i: VOut) -> vec4f {
   let V = normalize(frame.camPos - i.wp);
-  let N0 = normalize(i.n);
+  // (an end's face takes the mesh's own facets, turned to the eye: splinters and the hollow's walls are in the mesh; and
+  // how quickly the place across it changes per pixel, for its rings. Both here, where every pixel runs them)
+  let gn = normalize(cross(dpdx(i.wp), dpdy(i.wp)));
+  let fwU = fwidth(i.end.y);
+  let face = i.end.x > 0.5 && i.end.x < 1.5;
+  var N0 = normalize(i.n);
+  if (face) { let n0 = normalize(i.n); N0 = normalize(select(-gn, gn, dot(gn, V) > 0.0) * 0.45 + n0 * sign(dot(n0, V))); }
   let T = normalize(i.around - N0 * dot(i.around, N0));
   let B = cross(N0, T);
   let hs = textureSample(barkH, samp_repeat, i.uv);
   var albedo = textureSample(barkTex, samp_repeat, i.uv).rgb;
-  let N = normalize(N0 + (T * (hs.g * 2.0 - 1.0) + B * (hs.b * 2.0 - 1.0)) * 1.3);
+  let N = select(normalize(N0 + (T * (hs.g * 2.0 - 1.0) + B * (hs.b * 2.0 - 1.0)) * 1.3), N0, face);
   let y = i.wp.y;
   // each tree its own shade, some redder, some greyer with age
   albedo *= mix(vec3f(0.9, 0.74, 0.66), vec3f(0.74, 0.66, 0.64), fract(i.seed * 17.3));
@@ -211,11 +237,12 @@ fn bark(i: VOut) -> vec4f {
   // tips; on the fallen giant, grey-green lichen down its sides and dark rot where it lies in the wet
   if (i.stageP > 0.5 && i.end.x < 0.5) {
     let patchy = vnoise(i.wp * 3.1) * 0.6 + vnoise(i.wp * 11.0) * 0.4;
-    let top = smoothstep(0.35, 0.85, N0.y + (patchy - 0.5) * 0.7);
-    let moss = mix(vec3f(0.03, 0.06, 0.012), vec3f(0.09, 0.14, 0.025), smoothstep(0.4, 0.9, vnoise(i.wp * 23.0))) * (0.6 + 0.6 * hs.r);
-    albedo = mix(albedo, moss, top * 0.9);
-    let side = smoothstep(0.55, 0.75, vnoise(i.wp * 5.3 + 3.0)) * (1.0 - abs(N0.y)) * step(0.5, y + 0.5) * step(y, 1.6);
-    albedo = mix(albedo, vec3f(0.12, 0.13, 0.1) * (0.7 + 0.5 * hs.r), side * 0.25);
+    // (in patches on the crown, the warm bark showing between them and down the flank: the dusk light is on the bark)
+    let top = smoothstep(0.6, 0.95, N0.y + (patchy - 0.5) * 0.8);
+    let moss = mix(vec3f(0.05, 0.08, 0.016), vec3f(0.13, 0.17, 0.03), smoothstep(0.4, 0.9, vnoise(i.wp * 23.0))) * (0.6 + 0.6 * hs.r);
+    albedo = mix(albedo, moss, top * 0.8);
+    let side = smoothstep(0.62, 0.8, vnoise(i.wp * 5.3 + 3.0)) * (1.0 - abs(N0.y)) * step(0.5, y + 0.5) * step(y, 1.6);
+    albedo = mix(albedo, vec3f(0.12, 0.13, 0.1) * (0.7 + 0.5 * hs.r), side * 0.15);
     albedo *= 1.0 - 0.5 * smoothstep(0.35, 0.05, y) * smoothstep(0.0, -0.5, N0.y);
   }
   // an old fire scar, blackened, up one side of some of the trunks
@@ -225,16 +252,36 @@ fn bark(i: VOut) -> vec4f {
     let scar = smoothstep(0.75, 0.45, toward + vnoise(i.wp * 2.3) * 0.25) * smoothstep(tall, tall * 0.55, y + toward * 1.4);
     albedo = mix(albedo, vec3f(0.018, 0.016, 0.015) * (0.6 + 0.9 * hs.r), scar);
   }
-  // a stage log's end: the heartwood, red and ringed, darker where it's rotted; a root plate's face: torn earth and roots
+  // a stage log's end. Broken off (a big log): the bark a band round the rim, dark and fibrous; inside it a thin pale
+  // sapwood, then the red heartwood in its rings (as many as the eye can resolve: they fade where they're finer than a
+  // pixel), split by a few radial checks, the old broken wood weathered grey in places; round the hollow's mouth punky
+  // brown rot, and down the hollow dark, darker the deeper (the light doesn't get in). A cut end (a bough): the same
+  // wood, plainly. A root plate's face: torn earth and roots
+  var hollowDark = 1.0;
   if (i.end.x > 0.5) {
-    let rings = 0.5 + 0.5 * sin(i.end.y * 70.0 + vnoise(i.wp * 3.0) * 4.0);
+    let u = i.end.y;
     if (i.end.x < 1.5) {
-      albedo = mix(vec3f(0.36, 0.13, 0.06), vec3f(0.22, 0.07, 0.035), rings) * (0.55 + 0.45 * vnoise(i.wp * 9.0));
-      albedo = mix(albedo, vec3f(0.06, 0.035, 0.02), smoothstep(0.2, 0.0, i.end.y) * 0.7);
-      // a hollow end: punky brown rot round its mouth, darkening to black down it (the light doesn't get in)
-      let hollow = smoothstep(0.66, 0.5, i.end.y) * step(0.5, i.stageP);
-      albedo = mix(albedo, vec3f(0.07, 0.035, 0.018) * (0.6 + 0.8 * vnoise(i.wp * 17.0)), hollow);
-      albedo *= mix(1.0, 0.05, smoothstep(0.55, 0.15, i.end.y) * step(0.5, i.stageP));
+      if (u < 0.0) {
+        let t = -u;
+        albedo = mix(vec3f(0.09, 0.045, 0.025), vec3f(0.045, 0.024, 0.014), smoothstep(0.0, 0.25, t)) * (0.6 + 0.8 * vnoise(i.wp * 17.0));
+        hollowDark = mix(0.7, 0.02, smoothstep(0.0, 0.45, t));
+      } else {
+        let K = 46.0;
+        let ring = 0.5 + 0.5 * sin(u * K * 6.2831853 + vnoise(i.wp * 3.0) * 3.0);
+        let resolve = smoothstep(0.45, 0.12, fwU * K);
+        let heart = mix(vec3f(0.38, 0.16, 0.075), vec3f(0.18, 0.068, 0.033), mix(0.5, ring, resolve)) * (0.75 + 0.35 * vnoise(i.wp * 9.0));
+        let sap = vec3f(0.36, 0.23, 0.14) * (0.85 + 0.25 * vnoise(i.wp * 13.0));
+        let fibres = 0.55 + 0.6 * vnoise2(vec2f(i.ang * 70.0, u * 30.0));
+        let barkC = vec3f(0.12, 0.06, 0.035) * fibres;
+        albedo = mix(mix(heart, sap, smoothstep(0.77, 0.81, u)), barkC, smoothstep(0.85, 0.87, u));
+        // radial checks across the wood, and its grey weathering
+        let check = smoothstep(0.84, 0.9, vnoise2(vec2f(i.ang * 38.0 + i.seed * 9.0, u * 1.5))) * step(u, 0.85);
+        albedo *= 1.0 - 0.75 * check;
+        albedo = mix(albedo, vec3f(0.2, 0.17, 0.15) * (0.8 + 0.3 * vnoise(i.wp * 21.0)), 0.6 * smoothstep(0.4, 0.8, vnoise(i.wp * 4.0 + 7.0)) * step(u, 0.85));
+        // rot round the hollow's mouth (a stage log's: a bough's cut end is sound) and the dark of the heart
+        albedo = mix(albedo, vec3f(0.12, 0.06, 0.03) * (0.6 + 0.8 * vnoise(i.wp * 17.0)), smoothstep(0.5, 0.36, u) * step(0.5, i.stageP));
+        albedo = mix(albedo, vec3f(0.06, 0.035, 0.02), smoothstep(0.2, 0.0, u) * 0.7);
+      }
     } else {
       albedo = mix(vec3f(0.07, 0.05, 0.03), vec3f(0.16, 0.1, 0.06), vnoise(i.wp * 5.0)) * (0.6 + 0.4 * smoothstep(0.6, 0.8, vnoise(i.wp * 14.0)));
     }
@@ -248,6 +295,7 @@ fn bark(i: VOut) -> vec4f {
   // the bark's fibres catch a low sun behind the trunk: a glowing edge
   let back = pow(max(dot(-V, L), 0.0), 3.0) * pow(1.0 - max(dot(N0, V), 0.0), 2.0);
   col += lit * back * albedo * 1.6;
+  col *= hollowDark;
   // high up, the trunk goes into the dark of the canopy
   col *= mix(1.0, 0.18, smoothstep(worldLight.forest.keyCol.w * 0.45, worldLight.forest.keyCol.w * 0.9, y));
   return vec4f(col, dot(i.wp - frame.camPos, frame.camFwd));

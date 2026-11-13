@@ -15,6 +15,7 @@ import type { StagePlane } from '../engine/camera';
 import type { Tone } from '../audio/sound';
 import { Registry } from '../engine/registry';
 import type { BodyBuffers } from '../matter/core/bodies';
+import type { Solid } from './solids';
 
 type V3 = [number, number, number];
 
@@ -89,6 +90,9 @@ export interface World {
   /** how much of the segment a → b (0 … 1, from a) is clear of the world's big solid things (trunks, pillars), for a
    *  camera that must not stand inside one; left out, the world says nothing (the camera only avoids gates' discs) */
   clear?(a: [number, number, number], b: [number, number, number]): number;
+  /** the same big solid things as simple shapes (capsules and boxes, src/worlds/solids.ts), built from the description
+   *  the world draws them from, for a camera that wants more than `clear` (a near fade, a path planned round them) */
+  readonly solids?: readonly Solid[];
   /** how far from the middle the camera may stand, and the furthest it may dolly out */
   readonly room: number;
   readonly maxDist: number;
