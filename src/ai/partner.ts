@@ -58,7 +58,7 @@ export const PRESETS: Record<'playful' | 'calm' | 'fierce' | 'mirror', PartnerPa
   playful: {
     skill: 0.88, reaction: 0.22, dodge: 1, parry: 0.45, clash: 0.6, flair: 1.8, counter: 0.7,
     generosity: 0.8, likes: LIKES_ALL, flurry: 2,
-    echo: 0.15, unison: 0.5, call: 0.12, initiative: 0.65, stage: 0.8, formFlow: 40, circle: 0.28, feint: 0.15, pause: 0.25,
+    echo: 0.15, unison: 0.5, call: 0.12, initiative: 0.65, stage: 0.8, formFlow: 40, circle: 0.33, feint: 0.15, pause: 0.25,
   },
   calm: {
     skill: 0.88, reaction: 0.24, dodge: 1, parry: 0.9, clash: 0.3, flair: 0.7, counter: 0.5,

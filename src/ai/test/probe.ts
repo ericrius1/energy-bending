@@ -8,7 +8,7 @@ import type { Brain } from '../brain';
 import { reachOf } from '../read';
 import { ATTACKS } from '../body';
 import { MOVES } from '../../dancer/moves';
-import { AttackerBrain, PatternBrain, StillBrain, summary } from './scripted';
+import { AttackerBrain, PatternBrain, PresserBrain, StillBrain, summary } from './scripted';
 import { measure, line } from './measure';
 
 declare const process: { argv: string[] };
@@ -24,7 +24,7 @@ if (mode === 'diary') {
   const A = new PartnerBrain({ seed: Number(seed) }), B = new PartnerBrain({ seed: Number(seed) * 3 + 1 });
   const free = process.argv.includes('-f');
   let shown = [0, 0];
-  simulate({ plane: free ? null : plane, stage: plane, seats: [process.argv.includes('-s') ? new StillBrain() : A, B], seconds: Number(secs), each: (f) => {
+  simulate({ plane: free ? null : plane, stage: plane, seats: [process.argv.includes('-s') ? new StillBrain() : process.argv.includes('-p') ? new PresserBrain() : A, B], seconds: Number(secs), each: (f) => {
     if (Math.abs(f.t % 1) > 1 / 120) return;
     const [a, b] = f.bodies;
     console.log(`${f.t.toFixed(0).padStart(3)}s b${f.beat.toFixed(1)} ${f.ref.session.phase} T${f.ref.session.tension.toFixed(0)} d ${Math.hypot(a.x - b.x, a.z - b.z).toFixed(2)} ang ${(Math.atan2(b.z - a.z, b.x - a.x) * 57.3).toFixed(0)} A(${a.x.toFixed(1)},${a.z.toFixed(1)}) ${a.move?.name ?? ''} B(${b.x.toFixed(1)},${b.z.toFixed(1)}) ${b.move?.name ?? ''}`);
@@ -58,7 +58,7 @@ if (mode === 'measure') {
     const s = measure({ plane: free ? null : plane, stage: plane, seats: [new PartnerBrain({ preset: pa as PresetName, seed: sd }), new PartnerBrain({ preset: pb as PresetName, seed: sd * 3 + 1 })], seconds: Number(secs) });
     console.log(`${free ? 'free  ' : 'locked'} seed ${sd}: ${line(s)}`);
   }
-  for (const [nm, h] of [['attacker', new AttackerBrain()], ['still', new StillBrain()]] as const) {
+  for (const [nm, h] of [['attacker', new AttackerBrain()], ['still', new StillBrain()], ['presser', new PresserBrain()]] as const) {
     const s = measure({ plane: null, stage: plane, seats: [h, new PartnerBrain({ seed: 31 })], seconds: 120 });
     console.log(`free vs ${nm}: ${line(s)}`);
   }

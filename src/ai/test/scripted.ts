@@ -64,3 +64,23 @@ export function summary(S: JogoStats) {
 }
 const fmt = (r: Record<string, number>) => Object.entries(r).sort((a, b) => b[1] - a[1]).map(([k, v]) => `${k} ${v}`).join(', ');
 export const known = (name: string) => !!MOVES[name];
+
+/** the films' stand-in for a person: a move from a list every `every` seconds wherever it stands, never walking (as
+ *  `bend.move` presses in the step files) */
+export class PresserBrain implements Brain {
+  readonly name = 'script.presser';
+  readonly body = newHints();
+  private m = new Mind(9);
+  private next = 4;
+  private i = 0;
+  constructor(private every = 1.6, private list = ['meia-lua', 'esquiva', 'armada', 'spin', 'martelo', 'au', 'block', 'meia-lua', 'role', 'armada']) {}
+  think(s: Sight) {
+    const o = s.partner!, ax = jogoAxis(s, o);
+    if (s.t >= this.next) {
+      const name = this.list[this.i++ % this.list.length];
+      this.m.plan({ move: name, line: startBeat(s.beatPrev, s.beat), late: 0.5, toward: [ax.dir[0], ax.dir[1]], prio: 1, why: 'press' });
+      this.next += this.every;
+    }
+    return this.m.act(s, this.body);
+  }
+}

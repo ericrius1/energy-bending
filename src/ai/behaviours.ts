@@ -237,7 +237,9 @@ function options(s: Sight, m: Mind, o: Other, mv: SeenMove, t: Threat, th: Threa
   // (the answer the named exchange calls for is the one a capoeirista falls into: liked well above the rest)
   const xc = exchangeFor(mv.name), named = (n: string) => (xc && xc.answer.find(has) === n ? 2.5 : 1);
   const lv = (n: string) => (levelOf(n) === 'low' ? lean.low : levelOf(n) === 'inverted' ? lean.inverted : lean.standing) * named(n);
-  const dodges: [string, number, [number, number]][] = [['esquiva', pressed ? 2 : 1, back], ['role', flair, back], ['macaco', flair * 0.6, back]];
+  // (free, straight back is the least of them: the side ones below carry the pair round the ring)
+  const fb = c.plane ? 1 : 0.7;
+  const dodges: [string, number, [number, number]][] = [['esquiva', (pressed ? 2 : 1) * fb, back], ['role', flair * fb, back], ['macaco', flair * 0.6, back]];
   // aú toward the partner goes over the attack and comes down on the other side (only from close enough to pass);
   // close, the rolê goes under it and through them the same way
   if (away.dist < 1.7 && c.grounded) dodges.push(['au', flair * 0.9, at]);
@@ -246,7 +248,7 @@ function options(s: Sight, m: Mind, o: Other, mv: SeenMove, t: Threat, th: Threa
   // free: round it, to the side the pair is turning (the game moves round the roda)
   if (!c.plane) {
     const sg = lean.side ?? 1, side: [number, number] = [-away.dir[1] * sg, away.dir[0] * sg], sideB: [number, number] = [side[0] * 0.7 + back[0] * 0.7, side[1] * 0.7 + back[1] * 0.7];
-    dodges.push(['role', flair * 1.2, side], ['au', flair * 0.8, [side[0] * 0.8 + at[0] * 0.6, side[1] * 0.8 + at[1] * 0.6]], ['esquiva', 0.6, sideB]);
+    dodges.push(['role', flair * 1.6, side], ['au', flair * 0.8, [side[0] * 0.8 + at[0] * 0.6, side[1] * 0.8 + at[1] * 0.6]], ['esquiva', pressed ? 2.4 : 1.4, sideB]);
   }
   // the low and inverted answers the library may have (requested from src/dancer: used once registered)
   for (const n of [OPTIONAL.negativa, OPTIONAL.cocorinha]) if (has(n)) dodges.push([n, flair * 0.9, back]);
@@ -484,7 +486,8 @@ export function merge(s: Sight, m: Mind, o: Other): boolean {
     m.cancel((p) => p.prio < 3);
     const close = a.dist < RULES.MERGE_DIST * 0.7;
     if (!close) m.claim({ x: a.dir[0], z: a.dir[1], k: clamp(a.dist * 0.5, 0.15, 0.6), walk: false, prio: 5, why: 'merge: come together', merge: a.dist < 1.5 });
-    else m.claim({ x: 0, z: 0, k: 0, walk: false, prio: 5, why: 'merge: hold', merge: true });
+    // (holding, the two keep turning about each other, slowly: free, a step to the side; locked that is no step at all)
+    else m.claim({ x: -a.dir[1], z: a.dir[0], k: s.self.plane ? 0 : 0.05, walk: false, prio: 5, why: 'merge: hold', merge: true });
     return true;
   }
   if (r.phase === 'fusion' || (r.phase === 'finale' && r.fusion)) {

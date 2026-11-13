@@ -170,6 +170,8 @@ export async function brainsPlay(ctx: BrainsCtx & { play: PlayHandle }) {
     if (query.has('roda')) {
       const n = Math.min(Number(query.get('roda') || 5) || 5, LIMITS.dancers - 2);
       const ring = rodaOf(n), w = ctx.world(), p = w.stages[0];
+      // (they wear their own gems: the show's dress names the two seats, and its last name would serve them too)
+      while (ctx.show.dress.length < Math.max(2, play.dancers.length) + n) ctx.show.dress.push('');
       for (let k = 0; k < n; k++) {
         // (they start a little out from their places and walk in)
         const spot = p ? rodaSpot(p, ring[k], 0, w.room) : [Math.cos(k) * 5, Math.sin(k) * 3] as [number, number];

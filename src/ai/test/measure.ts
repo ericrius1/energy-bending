@@ -64,7 +64,7 @@ export function measure(o: SimOptions & { stagePlane?: StagePlane | null }): Ses
             while (d < -Math.PI) d += 2 * Math.PI;
             // (only the smooth turning of two bodies apart: one passing over or through the other flips the line by
             // half a turn in a few frames, which is a crossing, counted as a side change, not circling)
-            if (Math.hypot(b.x - a.x, b.z - a.z) > 0.7 && Math.abs(d) < 0.05) { total += Math.abs(d); net += d; }
+            if (Math.hypot(b.x - a.x, b.z - a.z) > 0.35 && Math.abs(d) < 0.05) { total += Math.abs(d); net += d; }
             else if (Math.abs(d) > 0.5) sides++;
           }
           prevA = ang;
