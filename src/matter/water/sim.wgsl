@@ -1,5 +1,7 @@
 // One step for every water (and ice) particle. The body's mode machine (matter/core/body.wgsl) does the motion, with
-// its settings blended per particle between liquid and frozen: water hangs loosely on its home and ripples, sheds
+// its settings blended per particle between liquid and frozen: water runs along the body (its home slides down its
+// capsule and comes round again at the top) under swells that travel down it, hangs loosely and ripples, peels off the
+// trailing side of a fast limb in sheets, sheds
 // drops as it moves and more where a limb is fast (a kick throws a sheet of them, a spin a spiral, because a shed drop
 // keeps the limb's velocity), falls, splashes on the floor and flies home again, so the figure is always pouring and
 // re-forming; ice holds its place and doesn't shed. What is the water's own here: the change of state (a dancer's
@@ -21,12 +23,40 @@ fn main(@builtin(global_invocation_id) gid: vec3u) {
   let b = sim.body;
   let dt = b.dt;
   if (dt <= 0.0) { return; }
-  let home = homes[i];
+  var home = homes[i];
   var p = state[i];
   var a = aux[i];
   bodyBegin(&p, i, false, b);
-  let H = homeOf(home, i, b);
   let seed = pcg(i * 9781u + 17u);
+
+  // ---------------------------------------------------------------- the body runs
+  // Liquid water slides along its capsule (toward the hands and feet on the limbs, down the torso and the head) and
+  // wraps round to the top of the capsule, where the joints overlap and hide the jump, so a still dancer is always
+  // pouring. A particle arriving back at the top is put there at once (its home is everywhere at the same density, so
+  // the surface doesn't change: only what travels on it shows). Ice doesn't run: it eases back to its own home.
+  let slot = u32(home.place.x);
+  let len = max(segs[slot].off.w, 0.05);
+  let t0 = home.place.y;
+  let liquid = 1.0 - smoothstep(0.3, 0.7, a.ice);
+  var wrapped = false;
+  if (t0 >= 0.0 && t0 <= 1.0 && sim.flow.x > 0.0) {
+    let dir = select(1.0, -1.0, (slot % SEGS) < 5u);
+    let rate = sim.flow.x * (0.75 + 0.5 * rnd(seed ^ 0xf10u)) / len;
+    let tNow = fract(t0 + dir * b.time * rate);
+    let tWas = fract(t0 + dir * (b.time - dt) * rate);
+    wrapped = abs(tNow - tWas) > 0.5;
+    home.place.y = mix(t0, tNow, liquid);
+  }
+  let H = homeOf(home, i, b);
+  // travelling bulges: narrow swells a few centimetres high that run down the body faster than the water, in
+  // rivulets round it, so the highlights slide; only the outer shell swells
+  let along = home.place.y * len;
+  let dirB = select(1.0, -1.0, (slot % SEGS) < 5u);
+  let phase = 6.2831853 * (along - dirB * sim.flow.x * 1.6 * b.time) / max(sim.flow.z, 0.02) + 1.3 * sin(home.place.z * 2.0 + f32(slot));
+  let bump = pow(max(0.0, sin(phase)), 3.0);
+  let rivulet = 0.5 + 0.5 * sin(home.place.z * 3.0 + along * 5.0 + f32(slot % SEGS) * 1.7);
+  let swell = sim.flow.y * bump * rivulet * smoothstep(0.6, 1.0, home.place.w);
+  let outW = qrot(H.rot, H.out);
   let rn = pcg(i ^ (sim.frameNo * 2654435761u));
   let d = dancerOf(home);
 
@@ -38,7 +68,10 @@ fn main(@builtin(global_invocation_id) gid: vec3u) {
   var goalIce = max(home.look.x, wave);
   let heat = fieldHeat(p.pos);
   if (heat > sim.meltHeat) { goalIce = 0.0; }
-  if (heat < -sim.freezeCold) { goalIce = 1.0; }
+  // the field's cold freezes it all at once (a water dancer beside an ice one). A dancer's own form is cold too (its
+  // aura, matter/field/auras.ts, at the form it was set to), so its own cold counts for less: its freeze climbs from
+  // the feet (the wave above) instead of setting the whole body at once
+  if (heat < -sim.freezeCold * (1.0 + 4.0 * formOf(sim, d))) { goalIce = 1.0; }
   a.was = a.ice;
   let rate = sim.freezeRate * dt * (0.7 + 0.6 * rnd(seed ^ 0x1ceu));
   a.ice = clamp(a.ice + clamp(goalIce - a.ice, -rate, rate), 0.0, 1.0);
@@ -52,7 +85,10 @@ fn main(@builtin(global_invocation_id) gid: vec3u) {
   bb.stiffness = mix(b.stiffness, sim.iceStiff, ice);
   bb.damping = mix(b.damping, sim.iceDamp, ice);
   bb.shedRate = b.shedRate * (1.0 - ice);
-  bb.speedShed = b.speedShed * (1.0 - ice);
+  // a fast limb peels sheets off its trailing side, more where a swell is passing
+  let trailing = dot(outW, -H.vel / max(length(H.vel), 1e-3));
+  let peel = mix(1.0, (0.15 + 2.2 * smoothstep(-0.1, 0.6, trailing)) * (0.4 + 1.4 * bump), sim.flow.w);
+  bb.speedShed = b.speedShed * (1.0 - ice) * peel;
   bb.noiseAmp = b.noiseAmp * (1.0 - ice);
   bb.bounce = mix(b.bounce, 0.2, ice);
   bb.friction = mix(b.friction, 0.15, ice);
@@ -65,7 +101,9 @@ fn main(@builtin(global_invocation_id) gid: vec3u) {
   // the surface ripples: waves running along the body, out along each home's normal
   let ripple = sin(dot(H.pos, vec3f(0.3, 1.0, 0.2)) * sim.wobbleFreq - b.time * 5.0 + rnd(seed) * 1.5)
              + 0.6 * sin(dot(H.pos, vec3f(-0.8, 0.4, 0.5)) * sim.wobbleFreq * 1.7 + b.time * 3.7);
-  let goal = goalOf(H, seed, bb) + H.out * (ripple * sim.wobble * (1.0 - ice));
+  let goal = goalOf(H, seed, bb) + outW * ((ripple * sim.wobble + swell) * (1.0 - ice));
+  // back at the top of its capsule: there at once
+  if (wrapped && liquid > 0.5 && modeIs(p.mode, ON_BODY)) { p.pos = goal; p.vel = H.vel; }
   var T = touchAt(p.pos);
   // the field's wind pushes water (spray most: on the body the spring holds it)
   T.force += fieldWind(p.pos) * (sim.wind / 60.0) * (1.0 - 0.8 * ice);

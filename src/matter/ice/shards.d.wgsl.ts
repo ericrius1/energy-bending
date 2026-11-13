@@ -29,6 +29,7 @@ export interface Frame {
   prevViewProjRel: Mat4;
   camLo: Vec3;
   _relPad: number;
+  jitterNdc: Vec4;
 }
 export interface Joint {
   pos: Vec4;
@@ -105,6 +106,7 @@ export interface WaterSim {
   wobble: number;
   wobbleFreq: number;
   forms: ArrayLike<number> | Vec4[];
+  flow: Vec4;
 }
 export interface Aux {
   ice: number;
@@ -260,6 +262,14 @@ export interface SetShard {
   info: Vec4;
   more: Vec4;
 }
+export interface SetNow {
+  centre: Vec3;
+  size: number;
+  rot: Vec4;
+  fresh: number;
+  wet: number;
+  broken: unknown;
+}
 export interface VOut {
   pos: Vec4;
   wp: Vec3;
@@ -272,5 +282,5 @@ export interface VOut {
   clip: number;
 }
 
-declare const shader: Shader<{ Frame: Frame; Joint: Joint; Seg: Seg; Particle: Particle; Home: Home; BodyStep: BodyStep; WaterSim: WaterSim; Aux: Aux; Geode: Geode; Forest: Forest; Pool: Pool; Temple: Temple; Forge: Forge; FireLight: FireLight; FireLights: FireLights; WorldLight: WorldLight; KeyLight: KeyLight; Seen: Seen; ViewSeen: ViewSeen; IceLook: IceLook; SetShard: SetShard; VOut: VOut }, 'frame' | 'worldLight' | 'sim' | 'look' | 'seen' | 'state' | 'aux' | 'homes' | 'sets' | 'poolWaves' | 'templeWaves' | 'samp_linear' | 'samp_repeat' | 'samp_nearest' | 'samp_shadow'>;
+declare const shader: Shader<{ Frame: Frame; Joint: Joint; Seg: Seg; Particle: Particle; Home: Home; BodyStep: BodyStep; WaterSim: WaterSim; Aux: Aux; Geode: Geode; Forest: Forest; Pool: Pool; Temple: Temple; Forge: Forge; FireLight: FireLight; FireLights: FireLights; WorldLight: WorldLight; KeyLight: KeyLight; Seen: Seen; ViewSeen: ViewSeen; IceLook: IceLook; SetShard: SetShard; SetNow: SetNow; VOut: VOut }, 'frame' | 'worldLight' | 'sim' | 'look' | 'seen' | 'state' | 'aux' | 'homes' | 'sets' | 'poolWaves' | 'templeWaves' | 'samp_linear' | 'samp_repeat' | 'samp_nearest' | 'samp_shadow'>;
 export default shader;

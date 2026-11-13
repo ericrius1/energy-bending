@@ -11,7 +11,8 @@
 //   update(f)        each frame, in the 'matter' phase: its uniforms (from its parameters, the hand, the world);
 //   resize(budget)   how many particles to run (a programme, the device, the panel).
 // The shared body buffers (joints, capsules, the hand) are bind group 3: include matter/core/body.wgsl and use them.
-import type { Kit } from '@ericrius1/weft';
+import type { Kit, Texture } from '@ericrius1/weft';
+import type { ViewCtx } from '../../engine/views';
 import type { FrameBuilder, FrameCtx } from '../../engine/frame';
 import type { ScenePass } from '../../engine/scene';
 import type { World } from '../../worlds/world';
@@ -94,6 +95,7 @@ export interface MatterPasses {
    *  focused image, tested against the scene's view distance by hand (post.sceneTex's alpha). Called once, after the
    *  post chain is built (main.ts); the main view only */
   declarePost?(post: PostChain): void;
+  focus?(view: ViewCtx): Texture | null;
   /** numbers for bend.stats() */
   stats?(): Record<string, number | string>;
 }

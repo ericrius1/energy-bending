@@ -1,5 +1,7 @@
 // Ice, drawn as shards. One shard hangs on every n-th particle of the water pool (matter/water/pool.ts) and grows as
-// that particle freezes (and shrinks as it melts), so the same matter changes state where it is; with SET = 1 the
+// that particle freezes (and shrinks as it melts), so the same matter changes state where it is. The body of ice is
+// the water's surface, faceted (water/surface.wgsl): on the body only the shards at the silhouette are drawn (the
+// outline's crystals), and all of them once ice breaks off and flies. With SET = 1 the
 // same pipeline draws the pieces of set ice (ice/setice.ts), which grow along their path and melt or shatter.
 // A shard is a jagged hexagonal crystal built from the vertex index (24 flat triangles, no mesh buffer), pointing out
 // of the body. What makes it read as ice and not as blue gems or water: flat facets with a steep light curve (some
@@ -13,30 +15,9 @@
 #include "../water/water"
 #include "../../worlds/light"
 #include "../../engine/seen"
+#include "./set"
 
 override SET: u32 = 0u;
-
-/** how ice looks (ice/params.ts) */
-struct IceLook {
-  size: f32,          // a shard's size, × its particle's home size × √(particles per shard)
-  frost: f32,         // the frosted rim
-  glint: f32,         // facet glints and the key's sparkle
-  edges: f32,         // the bright facet edges
-  tint: vec4f,        // rgb: thin ice; w: refraction index
-  deep: vec4f,        // rgb: thick ice; w: dispersion
-  time: f32,          // seconds (the glints' clock, and set ice's)
-  setTime: f32,       // set ice's clock (ice/setice.ts SetIce.now)
-  inside: f32,        // how much of the world is seen refracted inside
-  pad0: f32,
-}
-
-/** a shard of set ice (ice/setice.ts writes these) */
-struct SetShard {
-  pos: vec4f,         // xyz, w its size (m)
-  rot: vec4f,
-  info: vec4f,        // when it starts to grow, when it ends (0: never), how melted (0 … 1), when it shattered (0: not)
-  more: vec4f,        // x its seed, yzw the way it flies when shattered
-}
 
 @group(1) @binding(0) var<uniform> sim: WaterSim;
 @group(1) @binding(1) var<uniform> look: IceLook;
@@ -95,24 +76,16 @@ fn hidden() -> VOut { var o: VOut; o.pos = vec4f(2.0, 2.0, 2.0, 1.0); return o; 
   var body = false;
   if (SET == 1u) {
     let sh = sets[ii];
-    let t = look.setTime;
     seed = u32(sh.more.x);
-    // it grows in along its path, wanes at the end of its life, shrinks as it melts, and flies apart when shattered
-    var grow = smoothstep(sh.info.x, sh.info.x + 0.35, t);
-    if (sh.info.y > 0.0) { grow *= 1.0 - smoothstep(sh.info.y - 1.0, sh.info.y, t); }
-    grow *= 1.0 - sh.info.z;
-    centre = sh.pos.xyz;
-    rot = sh.rot;
-    if (sh.info.w > 0.0) {
-      let k = max(t - sh.info.w, 0.0);
-      centre += sh.more.yzw * k + vec3f(0.0, -4.9 * k * k, 0.0);
-      centre.y = max(centre.y, sim.body.floorY + 0.01);
-      rot = qmul(qaxis(normalize(sh.more.yzw + vec3f(0.01)), k * 9.0), rot);
-      grow *= 1.0 - smoothstep(0.6, 1.4, k);
-    }
-    size = sh.pos.w * grow;
-    fresh = 1.0 - smoothstep(sh.info.x + 0.2, sh.info.x + 1.2, t);
-    wet = sh.info.z;
+    let n = setShardNow(sh, look.setTime, sim.body.floorY);
+    // the slab itself is the water's surface, faceted (water/splat.wgsl splats set ice): shards are its icicles, a few
+    // crystals standing out of it (the jagged top), and every piece once it is shattered
+    if (!(n.broken || setHangs(sh) || rnd(seed ^ 0x5e7u) < 0.18)) { return hidden(); }
+    centre = n.centre;
+    rot = n.rot;
+    size = n.size;
+    fresh = n.fresh;
+    wet = n.wet;
   } else {
     let pid = ii * sim.shardEvery;
     if (pid >= sim.count) { return hidden(); }
@@ -124,6 +97,12 @@ fn hidden() -> VOut { var o: VOut; o.pos = vec4f(2.0, 2.0, 2.0, 1.0); return o; 
     sd = seen.d[min(dancerOf(h), MAX_DANCERS - 1u)];
     body = true;
     centre = seenPos(sd, p.pos);
+    // on the body the surface is the ice (water/surface.wgsl draws its facets); a shard stands only where the body
+    // turns away from the eye, so the outline bristles with real crystals. Broken off, every shard is drawn
+    if (modeIs(p.mode, ON_BODY)) {
+      let outW = qrot(seenRot(sd, p.rot), vec3f(0.0, 1.0, 0.0));
+      if (abs(dot(outW, normalize(frame.camPos - centre))) > 0.3) { return hidden(); }
+    }
     // a little tilt of its own, so the shards bristle rather than stand in rows
     let tilt = qaxis(normalize(vec3f(rnd(seed ^ 1u) - 0.5, 0.0, rnd(seed ^ 2u) - 0.5) + vec3f(1e-3, 0.0, 0.0)), (rnd(seed ^ 3u) - 0.2) * 1.4);
     rot = qmul(seenRot(sd, p.rot), tilt);
@@ -171,10 +150,12 @@ fn hidden() -> VOut { var o: VOut; o.pos = vec4f(2.0, 2.0, 2.0, 1.0); return o; 
   let R = reflect(-V, N);
 
   // the facet: a steep light curve so the planes read as planes (some dark, some lit)
-  let diff = max(dot(N, key.dir), 0.0);
+  // (lit as the faceted surface is: the key, and the reference's light fixed to the view, so shards and surface match)
+  let Lv = normalize(frame.camRight * -0.45 + frame.camUp * 0.65 + V * 1.6);
+  let diff = max(dot(N, normalize(Lv + key.dir * 0.4)), 0.0);
   let deepness = smoothstep(0.2, 0.9, fh * 0.6 + (1.0 - cosV) * 0.2 + 0.25);
   let body = mix(look.tint.rgb, look.deep.rgb, deepness);
-  var col = body * (worldAmbient(N, 1.0, i.wp) * 0.6 + key.col * (0.25 + 1.3 * diff * diff * diff));
+  var col = body * (worldAmbient(N, 1.0, i.wp) * 0.3 + 0.25 + 1.3 * diff * diff * diff);
 
   // inside: the world refracted through the crystal, bent off a tilted inner face, a little apart in colour
   let tiltN = normalize(-N + (vec3f(fh, fract(fh * 7.1), fract(fh * 3.3)) - 0.5) * 1.2);

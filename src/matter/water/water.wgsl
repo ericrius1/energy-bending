@@ -15,6 +15,7 @@ struct WaterSim {
   meltHeat: f32, freezeCold: f32, boilHeat: f32, wind: f32,   // field heat above which ice melts, cold below which water freezes, heat that boils it away; how much the field's wind pushes
   splash: f32, spray: f32, wobble: f32, wobbleFreq: f32,      // how high a landing splashes, how hard a shed drop is flung, the surface's ripple (m) and its waves along the body (1/m)
   forms: array<vec4f, 2>,   // each dancer's form, 0 water … 1 ice (dancer d: forms[d / 4][d % 4])
+  flow: vec4f,         // the body running: x how fast it runs along its capsules (m/s), y the travelling bulges' height (m), z their spacing (m), w how much fast limbs peel off their trailing side
 }
 
 /** a particle's state of matter: x how frozen (0 water … 1 ice), y foam (spray, splashes), z gone (boiled away:
@@ -24,10 +25,14 @@ struct Aux { ice: f32, foam: f32, gone: f32, was: f32 }
 /** a dancer's form */
 fn formOf(sim: WaterSim, d: u32) -> f32 { return sim.forms[min(d, 7u) / 4u][d % 4u]; }
 
-/** a water particle's splat radius (0 once frozen or boiled away: ice is drawn as shards) */
+/** a particle's splat radius in the surface (0 once boiled away). Ice on the body splats too (the surface shades it as
+ *  faceted crystal); ice that has broken off and flies is drawn as shards instead (ice/shards.wgsl) */
 fn splatRadius(h: Home, a: Aux, p: Particle, scale: f32) -> f32 {
-  var r = h.look.y * scale * (1.0 - smoothstep(0.45, 0.85, a.ice)) * (1.0 - a.gone);
-  // flying drops are a little smaller than the body's water (spray, not blobs)
-  if (modeIs(p.mode, FLYING)) { r *= 0.8; }
+  var r = h.look.y * scale * (1.0 - a.gone);
+  let loose = modeIs(p.mode, FLYING) || modeIs(p.mode, FROZEN);
+  if (loose && a.ice > 0.5) { return 0.0; }
+  // flying water is smaller than the body's: a lone drop is too thin to cover a pixel once smoothed (it is drawn as a
+  // stretched drop, drops.wgsl), while a sheet of them still adds up to a surface
+  if (loose) { r *= 0.55; }
   return r;
 }

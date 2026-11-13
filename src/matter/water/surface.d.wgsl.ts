@@ -29,6 +29,7 @@ export interface Frame {
   prevViewProjRel: Mat4;
   camLo: Vec3;
   _relPad: number;
+  jitterNdc: Vec4;
 }
 export interface FullscreenOut {
   pos: Vec4;
@@ -150,18 +151,158 @@ export interface KeyLight {
   plain: Vec3;
   glint: number;
 }
+export interface Joint {
+  pos: Vec4;
+  rot: Vec4;
+  vel: Vec4;
+}
+export interface Seg {
+  off: Vec4;
+  b1: Vec4;
+  b2: Vec4;
+  info: Vec4;
+}
+export interface Particle {
+  pos: Vec3;
+  life: number;
+  vel: Vec3;
+  mode: number;
+  rot: Vec4;
+}
+export interface Home {
+  place: Vec4;
+  look: Vec4;
+}
+export interface BodyStep {
+  dt: number;
+  time: number;
+  floorY: number;
+  fill: number;
+  stiffness: number;
+  damping: number;
+  transition: number;
+  breathe: number;
+  shedRate: number;
+  speedShed: number;
+  fallTime: number;
+  gravity: number;
+  bounce: number;
+  friction: number;
+  drag: number;
+  current: number;
+  returnMode: number;
+  settle: number;
+  trail: number;
+  trailHold: number;
+  wake: number;
+  wakeSpread: number;
+  shatter: number;
+  scatter: number;
+  noiseAmp: number;
+  noiseFreq: number;
+  noiseSpeed: number;
+  spin: number;
+  order: number;
+  pad0: number;
+  pad1: number;
+  pad2: number;
+}
+export interface Bodies {
+  dancers: number;
+  floorY: number;
+  time: number;
+  pad: number;
+}
+export interface Touch {
+  rayOrigin: Vec3;
+  radius: number;
+  rayDir: Vec3;
+  push: number;
+  pointerVel: Vec3;
+  swirl: number;
+  burst: Vec4;
+  dragAmt: number;
+  attract: number;
+  hoverOn: number;
+  pad: number;
+  finger: Vec4;
+  fingerPrev: Vec4;
+}
+export interface Goal {
+  pos: Vec3;
+  vel: Vec3;
+  rot: Vec4;
+  out: Vec3;
+}
+export interface Touched {
+  force: Vec3;
+  w: number;
+  bdir: Vec3;
+  bw: number;
+  swipe: number;
+}
+export interface Stepped {
+  ev: number;
+  impact: number;
+  knock: number;
+  slide: number;
+}
+export interface Seen {
+  x: Vec4;
+  y: Vec4;
+  z: Vec4;
+  q: Vec4;
+  clip: Vec4;
+}
+export interface ViewSeen {
+  d: Partial<Seen>[];
+  keep: number;
+  grow: number;
+  pad0: number;
+  pad1: number;
+}
 export interface Surf {
-  absorb: Vec4;
+  thin: Vec4;
   deep: Vec4;
+  rim: Vec4;
+  iceThin: Vec4;
+  iceThick: Vec4;
+  cover: Vec4;
   refract: number;
   dispersion: number;
   glint: number;
   foam: number;
-  edge: number;
-  frost: number;
+  caustic: number;
+  rise: number;
   reflect: number;
+  floorY: number;
+  time: number;
+  iceGlint: number;
+  edges: number;
+  mirror: number;
+  distAlpha: number;
   pad0: number;
+  pad1: number;
+  pad2: number;
+}
+export interface Bone {
+  p: Vec3;
+  up: Vec3;
+  n: Vec3;
+}
+export interface Shade {
+  col: Vec3;
+  opac: number;
+  cover: number;
+  dist: number;
+  wp: Vec3;
+  N: Vec3;
+  amount: number;
+}
+export interface SceneOut {
+  c: Vec4;
+  depth: number;
 }
 
-declare const shader: Shader<{ Frame: Frame; FullscreenOut: FullscreenOut; Geode: Geode; Forest: Forest; Pool: Pool; Temple: Temple; Forge: Forge; FireLight: FireLight; FireLights: FireLights; WorldLight: WorldLight; KeyLight: KeyLight; Surf: Surf }, 'frame' | 'worldLight' | 'surf' | 'poolWaves' | 'templeWaves' | 'scene' | 'water' | 'samp_linear' | 'samp_repeat' | 'samp_nearest' | 'samp_shadow'>;
+declare const shader: Shader<{ Frame: Frame; FullscreenOut: FullscreenOut; Geode: Geode; Forest: Forest; Pool: Pool; Temple: Temple; Forge: Forge; FireLight: FireLight; FireLights: FireLights; WorldLight: WorldLight; KeyLight: KeyLight; Joint: Joint; Seg: Seg; Particle: Particle; Home: Home; BodyStep: BodyStep; Bodies: Bodies; Touch: Touch; Goal: Goal; Touched: Touched; Stepped: Stepped; Seen: Seen; ViewSeen: ViewSeen; Surf: Surf; Bone: Bone; Shade: Shade; SceneOut: SceneOut }, 'frame' | 'worldLight' | 'bodies' | 'touch' | 'surf' | 'seen' | 'joints' | 'segs' | 'poolWaves' | 'templeWaves' | 'scene' | 'water' | 'raw' | 'samp_linear' | 'samp_repeat' | 'samp_nearest' | 'samp_shadow'>;
 export default shader;

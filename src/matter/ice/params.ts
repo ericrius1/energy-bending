@@ -9,15 +9,20 @@ export const SET_SHARDS_MAX = 16_384;
 export const MOTES = 24_576;
 
 export const iceParams = defineParams('ice', {
-  /** one shard on every n-th particle (fewer, bigger facets as it rises) */
-  shardEvery: 14,
+  /** one shard on every n-th particle; on the body only those at the silhouette are drawn (the body itself is the
+   *  water's surface, faceted: water/surface.wgsl); every one is drawn once it has broken off and flies */
+  shardEvery: 10,
+  /** the surface's facets: voronoi cells per metre (in each bone's own frame), the frosted rim's strength */
+  facets: 11,
+  rim: 1,
   size: 1.5,
   frost: 0.6,
   edges: 1,
   glint: 1,
   inside: 0.35,
-  thin: '#6f9fcc',
-  thick: '#0c2246',
+  /** thin ice (0.20, 0.46, 0.70) and thick (0.025, 0.09, 0.26), the reference's steel blue to navy */
+  thin: '#7bb3d9',
+  thick: '#30558a',
   ior: 1.31,
   dispersion: 0.04,
   /** mist and dust */
@@ -35,6 +40,7 @@ export const iceParams = defineParams('ice', {
   demo: '',
 }, {
   shardEvery: { min: 1, max: 40, step: 1, label: 'particles per shard' },
+  facets: { min: 3, max: 30, label: 'facets per metre' },
   size: { min: 0.3, max: 4, label: 'shard size' },
   frost: { min: 0, max: 3, label: 'frost' },
   glint: { min: 0, max: 4 },

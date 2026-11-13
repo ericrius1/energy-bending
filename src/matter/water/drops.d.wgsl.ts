@@ -29,6 +29,7 @@ export interface Frame {
   prevViewProjRel: Mat4;
   camLo: Vec3;
   _relPad: number;
+  jitterNdc: Vec4;
 }
 export interface Joint {
   pos: Vec4;
@@ -105,6 +106,7 @@ export interface WaterSim {
   wobble: number;
   wobbleFreq: number;
   forms: ArrayLike<number> | Vec4[];
+  flow: Vec4;
 }
 export interface Aux {
   ice: number;
@@ -245,13 +247,15 @@ export interface ViewSeen {
 export interface Drops {
   strength: number;
   size: number;
-  pad0: number;
-  pad1: number;
+  glints: number;
+  foam: number;
 }
 export interface DOut {
   pos: Vec4;
   uv: Vec2;
   col: Vec3;
+  kind: number;
+  seed: number;
 }
 
 declare const shader: Shader<{ Frame: Frame; Joint: Joint; Seg: Seg; Particle: Particle; Home: Home; BodyStep: BodyStep; WaterSim: WaterSim; Aux: Aux; Geode: Geode; Forest: Forest; Pool: Pool; Temple: Temple; Forge: Forge; FireLight: FireLight; FireLights: FireLights; WorldLight: WorldLight; KeyLight: KeyLight; Seen: Seen; ViewSeen: ViewSeen; Drops: Drops; DOut: DOut }, 'frame' | 'worldLight' | 'sim' | 'drops' | 'seen' | 'state' | 'aux' | 'homes' | 'poolWaves' | 'templeWaves' | 'samp_linear' | 'samp_repeat' | 'samp_nearest' | 'samp_shadow'>;

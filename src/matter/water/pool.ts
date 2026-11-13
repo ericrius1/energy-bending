@@ -16,6 +16,7 @@ import dropsShader from './drops.wgsl';
 import type { MatterCtx, MatterLayer, Budget, MatterActs, MatterPasses, Carry } from '../core/kind';
 import type { ScenePass } from '../../engine/scene';
 import type { FrameCtx } from '../../engine/frame';
+import type { ViewCtx } from '../../engine/views';
 import { layoutHomes } from '../core/layout';
 import { hex, onParams } from '../../engine/params';
 import { LIMITS } from '../../engine/limits';
@@ -60,6 +61,7 @@ export class WaterPool {
   private formTarget = new Float32Array(LIMITS.dancers);
   private formNow = new Float32Array(LIMITS.dancers);
   private surfaces = new Map<string, WaterSurface>();
+  private mirrors = new Map<string, WaterSurface>();
   private declared = new Set<string>();
   private f = { body: {} } as WaterSim;
   // the show's moments
@@ -168,27 +170,41 @@ export class WaterPool {
     const key = `${s.view.id}.${s.world.id}.${s.phase}`;
     if (this.declared.has(key)) return;
     this.declared.add(key);
-    let surface = this.surfaces.get(s.view.id);
-    // A gate's view (src/portals) has no water surface: its scene and air run in the 'gates' stage, but the surface's
-    // splats, smoothing and composite are in 'cull' and 'air', so they would land after the gate was already shown.
-    // Through a gate a water body is its drops and its ice only (an open item: docs/reports/2-integration.md)
-    const gateView = s.view.id.startsWith('gate');
-    if (!surface && !gateView) {
-      surface = new WaterSurface(this.kit, this.ctx.frame, s.view, {
-        sim: this.sim, state: this.state, aux: this.aux, homes: this.homes, surf: this.surf, smoothX: this.smoothX, smoothY: this.smoothY,
-        count: () => this._count, liquid: () => this._count > 0,
-      });
-      this.surfaces.set(s.view.id, surface);
+    const view = s.view;
+    const pool = {
+      sim: this.sim, state: this.state, aux: this.aux, homes: this.homes, surf: this.surf, smoothX: this.smoothX, smoothY: this.smoothY,
+      count: () => this._count, liquid: () => this._count > 0,
+    };
+    // a gate's view (src/portals) draws its surface inside its own scene pass (its scene runs in the 'gates' stage,
+    // before the 'air' stage where the main view's composite is), at a lower resolution
+    let surface = this.surfaces.get(view.id);
+    if (!surface) {
+      const gate = view.id.startsWith('gate');
+      surface = new WaterSurface(this.kit, this.ctx.frame, view, pool, gate ? 'scene' : 'air', () => view.on() && this._count > 0, gate ? 0.7 : 1);
+      this.surfaces.set(view.id, surface);
     }
-    surface?.addWorld(s.world);
+    surface.addWorld(s);
+    // a mirroring floor (the geode's) shows the bodies reflected: the same splats flipped, at half resolution
+    if (s.world.mirrorFloor) {
+      let mirror = this.mirrors.get(view.id);
+      if (!mirror) {
+        const mirrorWorld = () => this.ctx.worlds.find((w) => w.id === view.world)?.mirrorFloor ?? false;
+        mirror = new WaterSurface(this.kit, this.ctx.frame, view, pool, 'mirror', () => view.on() && this._count > 0 && waterParams.mirror > 0 && mirrorWorld(), 0.5);
+        this.mirrors.set(view.id, mirror);
+      }
+      mirror.addWorld(s);
+    }
     this.ice.declareView(s);
     if (s.phase === 'glow') {
       s.pass.draw(dropsShader, {
-        label: `water.drops.${s.world.id}`, bind: { sim: this.sim, drops: this.drops, state: this.state, aux: this.aux, homes: this.homes, seen: s.view.seen }, constants: { WORLD: s.world.light },
+        label: `water.drops.${s.world.id}`, bind: { sim: this.sim, drops: this.drops, state: this.state, aux: this.aux, homes: this.homes, seen: view.seen }, constants: { WORLD: s.world.light },
         count: 6, instances: () => this._count, blend: 'add', depthWrite: false, cull: 'none', enabled: () => s.on() && this._count > 0 && waterParams.drops > 0,
       });
     }
   }
+
+  /** the surface's view distance in this view for the lens (MatterPasses.focus), or null */
+  focus(view: ViewCtx) { return this.surfaces.get(view.id)?.focus ?? null; }
 
   // ---------------------------------------------------------------- the show's moments
   readonly acts: MatterActs = {
@@ -204,15 +220,19 @@ export class WaterPool {
   };
 
   // ---------------------------------------------------------------- each frame
-  private uploadLook() {
-    const P = waterParams;
+  /** the surface's and the drops' look, from both kinds' parameters (each frame: it carries the clock and the floor) */
+  private uploadLook(time = 0, floorY = 0) {
+    const P = waterParams, I = iceParams;
     this.surf.set({
-      absorb: [P.absorbR, P.absorbG, P.absorbB, P.thickness], deep: [...hex(P.deep), P.glow],
-      refract: P.refract, dispersion: P.dispersion, glint: P.glint, foam: P.foam, edge: P.edge, frost: P.frost, reflect: P.reflect,
+      thin: [...hex(P.thin), P.glow], deep: [...hex(P.deep), P.opacity], rim: [...hex(P.rim), P.rimStrength],
+      iceThin: [...hex(I.thin), I.facets], iceThick: [...hex(I.thick), I.rim],
+      cover: [P.coverLo, P.coverHi, P.thickness, P.amount],
+      refract: P.refract, dispersion: P.dispersion, glint: P.glint, foam: P.foam, caustic: P.caustic, rise: P.rise,
+      reflect: P.reflect, floorY, time, iceGlint: I.glint, edges: I.edges, mirror: P.mirror, distAlpha: P.distAlpha ? 1 : 0,
     });
-    this.smoothX.set({ dir: [1, 0], radius: P.smooth, falloff: P.falloff, maxPx: 32 });
-    this.smoothY.set({ dir: [0, 1], radius: P.smooth, falloff: P.falloff, maxPx: 32 });
-    this.drops.set({ strength: P.drops, size: P.dropSize });
+    this.smoothX.set({ dir: [1, 0], radius: P.smooth, falloff: P.falloff, maxPx: 24 });
+    this.smoothY.set({ dir: [0, 1], radius: P.smooth, falloff: P.falloff, maxPx: 24 });
+    this.drops.set({ strength: P.drops, size: P.dropSize, glints: P.dropGlints, foam: P.foamDrops });
   }
 
   update(f: FrameCtx) {
@@ -240,6 +260,7 @@ export class WaterPool {
     s.radius = P.radius; s.iceStiff = P.iceStiffness; s.iceDamp = P.iceDamping; s.freezeRate = P.freezeRate;
     s.meltHeat = P.meltHeat; s.freezeCold = P.freezeCold; s.boilHeat = P.boilHeat; s.wind = P.wind;
     s.splash = P.splash; s.spray = P.spray; s.wobble = P.wobble; s.wobbleFreq = P.wobbleFreq;
+    s.flow = [P.flowSpeed, P.bulge, P.bulgeSpacing, P.peel];
     s.forms = [[fm[0], fm[1], fm[2], fm[3]], [fm[4], fm[5], fm[6], fm[7]]];
     const shatter = this.shatterNow || this.ctx.hand.shatterAll;
     b.dt = dt; b.time = f.t; b.floorY = floorY; b.fill = P.fill;
@@ -252,7 +273,9 @@ export class WaterPool {
     this.sim.set(s);
     const shattered = this.shatterNow;
     this.shatterNow = false;
+    this.uploadLook(f.t, floorY);
     this.ice.update(f, dt, floorY);
+    this.footfalls(f, floorY);
     this.voice(f, floorY, shattered);
     // set ice belongs to the world it was laid in: the main view's when its first piece appeared
     const si = this.ice.setIce;
@@ -266,6 +289,31 @@ export class WaterPool {
 
   // ---------------------------------------------------------------- its voices (audio/matter/water.ts, ice.ts)
   private ears: MatterEars | null = null;
+  /** feet that came down on the floor this frame: x, z, dancer; and how hard (0 … ~1.2 before the body's share) */
+  private landed: [number, number, number][] = [];
+  private landedHow: number[] = [];
+
+  /** a liquid foot coming down onto the floor: it was well above it last frame, now it's on it. Its splash is heard
+   *  (voice) and, where the world has water of its own (the Pool's, the temple's: a world with `ripple`), rings out
+   *  on it */
+  private footfalls(f: FrameCtx, floorY: number) {
+    this.landed.length = 0;
+    this.landedHow.length = 0;
+    f.dancers.forEach((dn, d) => {
+      if (d >= LIMITS.dancers) return;
+      const wet = this.layers.water.reduce((a, l) => a + (l.dancer === d ? l.weight : 0), 0) * (1 - this.formNow[d]) * dn.presence;
+      [JOINT.LeftFoot, JOINT.RightFoot].forEach((j, k) => {
+        const p = jointAt(dn, j), key = d * 2 + k, prev = this.feetY[key] ?? p[1];
+        this.feetY[key] = p[1];
+        if (wet < 0.02 || !(prev > floorY + 0.16 && p[1] <= floorY + 0.12)) return;
+        const how = 0.4 + (prev - p[1]) * 8;
+        this.landed.push([p[0], p[2], d]);
+        this.landedHow.push(how);
+        const w = this.ctx.worlds.find((x) => x.id === (dn.world || f.views[0]?.world)) as { ripple?: (x: number, z: number, s: number, r: number) => void } | undefined;
+        w?.ripple?.(p[0], p[2], Math.min(1.5, how * wet), 0.25);
+      });
+    });
+  }
   private lastForm = new Float32Array(LIMITS.dancers);
   private feetY: number[] = [];
   /** both faces forward here; the first call wins (docs/extending/sound.md) */
@@ -290,13 +338,8 @@ export class WaterPool {
       if (liquid >= 0.02) {
         E.hold({ kind: 'water', type: 'pour', key: `dancer${d}`, x: at[0], y: at[1], z: at[2], amount: liquid, speed: limb.speed });
         if (seeded(f.frame, d, 11) < liquid * 1.5 * f.dt) E.event({ kind: 'water', type: 'drip', x: at[0], y: at[1] - 0.4, z: at[2], strength: 0.3 + 0.4 * seeded(f.frame, d, 12) });
-        // a foot coming down onto the floor: it was well above it last frame, now it's on it
-        [JOINT.LeftFoot, JOINT.RightFoot].forEach((j, k) => {
-          const p = jointAt(dn, j), key = d * 2 + k, prev = this.feetY[key] ?? p[1];
-          this.feetY[key] = p[1];
-          if (prev > floorY + 0.16 && p[1] <= floorY + 0.12) {
-            E.event({ kind: 'water', type: 'splash', x: p[0], y: floorY, z: p[2], strength: Math.min(1.2, liquid * (0.4 + (prev - p[1]) * 8)) });
-          }
+        this.landed.forEach(([x, z, k], n) => {
+          if (k === d) E.event({ kind: 'water', type: 'splash', x, y: floorY, z, strength: Math.min(1.2, liquid * this.landedHow[n]) });
         });
       }
       if (frozen >= 0.02) {
@@ -338,6 +381,8 @@ export class WaterPasses implements MatterPasses {
   get setIce() { return this.pool.ice.setIce; }
   formOf(d: number) { return this.pool.formOf(d); }
   declareView(s: ScenePass) { this.pool.declareView(s); }
+  /** (both faces answer: the one surface holds water and ice) */
+  focus(view: ViewCtx) { return this.pool.primary === this.id ? this.pool.focus(view) : null; }
   layout(layers: MatterLayer[]) { this.pool.setLayers(this.id, layers); }
   update(f: FrameCtx) { if (this.pool.primary === this.id) this.pool.update(f); }
   hear(ears: MatterEars) { this.pool.hear(ears); }

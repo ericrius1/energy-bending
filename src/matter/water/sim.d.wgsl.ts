@@ -76,6 +76,7 @@ export interface WaterSim {
   wobble: number;
   wobbleFreq: number;
   forms: ArrayLike<number> | Vec4[];
+  flow: Vec4;
 }
 export interface Aux {
   ice: number;
@@ -151,6 +152,7 @@ export interface Frame {
   prevViewProjRel: Mat4;
   camLo: Vec3;
   _relPad: number;
+  jitterNdc: Vec4;
 }
 export interface FieldBox {
   origin: Vec3;
