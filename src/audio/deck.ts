@@ -100,9 +100,12 @@ export class Deck {
     }
     const te = s.t0 + (L.end - s.p0) / s.rate;   // when this segment reaches the loop's end
     // drift: a little ahead of now, if this segment is still playing then
+    // (a segment not started yet is where it was put; places compare round the loop, so a seam's two sides agree)
     const tc = cur + 0.05;
-    if (!s.handed && tc < te - 0.05) {
-      const err = s.p0 + (tc - s.t0) * s.rate - this.where(T, tc);
+    if (!s.handed && tc >= s.t0 && tc < te - 0.05) {
+      let err = s.p0 + (tc - s.t0) * s.rate - this.where(T, tc);
+      const len = L.end - L.start;
+      if (Math.abs(err) > len / 2) err -= Math.round(err / len) * len;
       this.counts.lastErrMs = err * 1000;
       if (Math.abs(err) > 0.012 || Math.abs(s.rate - r) > 0.0005) {
         const big = Math.abs(err) > 0.3, ts = cur + 0.03;

@@ -61,7 +61,7 @@ try {
         const t = ctx.currentTime;
         // FrameCtx.beat as the frame read it, the clock's beat now, and where the clock puts the track now
         beats.push({ t, frame: B.stats ? null : null, beat: M.clock.beatAt(t), place: M.trackPlace(t), deck: M.deck.positionAt(t) });
-        if (switchTo && switchAt == null && t > tStart + 10) { switchAt = t; void B.setWorld(switchTo); }
+        if (switchTo && switchAt == null && t > tStart + 10) { switchAt = t; void B.world(switchTo); }
       }
       node.disconnect();
       // a second at a time: where the recorded audio is in the file, against where the clock says
@@ -96,7 +96,7 @@ try {
     const worst = errs[errs.length - 1] ?? NaN, med = errs[Math.floor(errs.length / 2)] ?? NaN;
     if (!(worst < 5)) bad++;
     console.log(`${world}: ${r.id0} at ${r.bpm.toFixed(3)} bpm, decoded ${r.decodeWaitMs} ms after the page was ready, context ${r.sampleRate} Hz`);
-    console.log(`  ${good.length} of ${r.res.length} half-seconds placed (correlation > 0.5): the recorded audio is ${med.toFixed(2)} ms (median), ${worst.toFixed(2)} ms (worst) from where the clock puts it`);
+    console.log(`  ${good.length} of ${r.res.length} seconds placed (half a second each, correlation > 0.5): the recorded audio is ${med.toFixed(2)} ms (median), ${worst.toFixed(2)} ms (worst) from where the clock puts it`);
     console.log(`  deck: ${JSON.stringify(r.stats)}${r.switchAt != null ? `; switched to ${r.track} at ${r.switchAt.toFixed(2)} s, the new track from ${r.trackAt.toFixed(3)} s` : ''}`);
     if (opt.verbose) console.log('  ' + r.res.map((x) => `${x.t}:${x.id}:${x.quiet ? 'quiet' : `${x.errMs}/${x.r}`}`).join(' '));
     if (r.switchAt != null) {
