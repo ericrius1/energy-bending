@@ -9,7 +9,9 @@ one of them can buy the game.
 Branch: `worktree-agent-a6b5e800c71beb6cf` (commits on it; not pushed or merged).
 
 **Measured:** `npm run typecheck`, `npm run build`, `npm test` (all of it: limits, bindings, every TS test file with the
-brains' 16 checks, audio, gates, the net tests) clean. Simulated play in Node (three seeded three-minute sessions locked
+brains' 16 checks, audio, gates, the net tests) clean, except that the net's wall-clock smoothness check ("B: tracks
+the source in real time") failed once on the final full run (rms 0.038) and passed when run again alone, as in every
+earlier report (code I did not touch). Simulated play in Node (three seeded three-minute sessions locked
 on the geode's stage and three free, plus scripted "humans"). Contact sheets at 5 fps on the RTX 5090 from a production
 build served by `vite preview` on port 5457, one take per `critic-cap.mjs` run, each holding the shared render lock
 about 20 s (most of the wall time was waiting for other projects' holds).
