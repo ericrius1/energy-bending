@@ -110,7 +110,7 @@ export const cameraParams = defineParams('camera', {
   /** how far ahead of a travelling player the follow camera aims (seconds of their speed) */
   followLead: 0.3,
   /** how hard the follow camera lines up behind a player heading for a gate (rad/s at the face) */
-  gateAlign: 2.4,
+  gateAlign: 0.9,
   /** the locked view's default turn off square-on and look down (rad; a stage plane may say its own) */
   lockYaw: 0.1,
   lockPitch: 0.07,
