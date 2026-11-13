@@ -27,7 +27,7 @@ fn flagAt(xz: vec2f) -> Flag {
   f.id = vec2f(col, row);
   let hs = hash2i(vec2i(i32(col), i32(row)));
   // each flag sits a little proud or sunk, and tilts a touch
-  f.h = (hs - 0.55) * 0.03 + (cu - 0.5) * (hash2i(vec2i(i32(col), i32(row) + 77)) - 0.5) * 0.02;
+  f.h = (hs - 0.55) * 0.05 + (cu - 0.5) * (hash2i(vec2i(i32(col), i32(row) + 77)) - 0.5) * 0.02;
   f.edge = min(min(cu, 1.0 - cu) * w, min(rv, 1.0 - rv) * rowH);
   return f;
 }
@@ -69,7 +69,7 @@ fn flagAt(xz: vec2f) -> Flag {
     let n = normalize(vec3f((hash2i(vec2i(f.id) + vec2i(1, 1)) - 0.5) * 0.04, 1.0, (hash2i(vec2i(f.id) + vec2i(2, 2)) - 0.5) * 0.04));
     let R = reflect(d, n);
     let fres = 0.03 + 0.97 * pow(1.0 - max(-d.y, 0.0), 5.0);
-    col += templeSky(normalize(vec3f(R.x, abs(R.y), R.z)), 0.0) * fres * 0.25 * (1.0 - groove) * temple.stone.w;
+    col += templeSky(normalize(vec3f(R.x, abs(R.y), R.z)), 0.0) * fres * 0.1 * (1.0 - groove) * temple.stone.w;
     col += moonL * pow(max(dot(R, temple.moon.xyz), 0.0), 120.0) * 0.8 * shadow * (1.0 - groove) * temple.stone.w;
     col = templeUnder(col, p, albedo * moonL * diff * shadow);
   } else {

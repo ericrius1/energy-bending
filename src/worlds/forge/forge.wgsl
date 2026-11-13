@@ -42,7 +42,7 @@ fn forgeAurora(d: vec3f) -> vec3f {
     let above = el - hem;
     if (above < -0.03) { continue; }
     // the folds: brighter where the sheet turns edge on to us
-    let fold = 0.35 + 0.65 * pow(abs(sin(az * (3.0 + fk * 2.0) + 1.5 * sin(az * 1.3 + t * 0.04) + fk * 4.0)), 3.0);
+    let fold = 0.15 + 0.85 * pow(abs(sin(az * (3.0 + fk * 2.0) + 1.5 * sin(az * 1.3 + t * 0.04) + fk * 4.0)), 6.0);
     let rays = 0.2 + 0.8 * pow(vnoise2(vec2f(az * 60.0 + fk * 17.0, el * 1.5 - t * 0.25)), 1.5);
     let hemGlow = smoothstep(-0.03, 0.01, above) * exp(-max(above, 0.0) / (0.12 + 0.08 * fk));
     let col = mix(forge.aurora.rgb, forge.aurora2.rgb, smoothstep(0.0, 0.25, above));

@@ -96,8 +96,8 @@ fn toWorld(b: Blade, q: vec3f) -> vec3f {
   if (dot(N, V) < 0.0) { N = -N; }
   let T = i.axis;
   // the fibres: fine streaks along the blade, a few cloudier bands
-  let across = i.local.x + i.local.y;
-  let fib = 0.5 + 0.5 * sin(across * 70.0 + vnoise(vec3f(across * 6.0, i.local.z * 0.4, i.seed * 20.0)) * 9.0);
+  // (fine across the blade, long along it: streaks down its faces, a speckle on its ends)
+  let fib = 0.35 + 0.3 * vnoise(vec3f(i.local.x * 22.0, i.local.y * 22.0, i.local.z * 0.35 + i.seed * 20.0)) + 0.35 * vnoise(vec3f(i.local.x * 7.0, i.local.y * 7.0, i.local.z * 0.15 + i.seed * 9.0));
   let cloud = vnoise(vec3f(i.local.x * 3.0, i.local.y * 3.0, i.local.z * 0.8 + i.seed * 7.0));
   let body = mix(vec3f(0.78, 0.72, 0.62), vec3f(0.92, 0.84, 0.74), fib) * (0.75 + 0.35 * cloud);
   let key = worldKey(i.wp, true, 0.0);

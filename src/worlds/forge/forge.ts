@@ -23,7 +23,7 @@ export const forgeParams = defineParams('forge', {
   fire: '#ff6a1c',
   fireLight: 1.6,
   cloud: '#2a0d08',
-  aurora: '#2bff9a',
+  aurora: '#3de0a0',
   aurora2: '#a04dff',
   auroraAmt: 0.6,
   stars: 0.9,

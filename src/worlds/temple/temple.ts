@@ -22,7 +22,7 @@ import { JOINT } from '../../skeleton/rig';
 
 export const templeParams = defineParams('temple', {
   /** the tide: its lowest and highest (m over the floor), and over how many bars it comes in and goes out */
-  tideLow: -0.004,
+  tideLow: -0.02,
   tideHigh: 0.45,
   tideBars: 8,
   /** hold the tide at a point of its cycle (0 low … 0.5 high … 1 low), or follow the music (< 0) */

@@ -107,7 +107,7 @@ export function layoutTemple(o: { coarse: boolean; seed?: number }): TempleLayou
         const a = Math.atan2(-zz * 0.3, -sx) + (r() - 0.5) * 0.6;
         for (let k = 0; k < 3; k++) {
           const s = 1.0 + k * 1.05 + r() * 0.2;
-          drum([sx + Math.cos(a) * s, 0, zz + Math.sin(a) * s], 0.48, 0.96, { tilt: 1, yaw: -a + Math.PI / 2 + (r() - 0.5) * 0.3, broken: k === 2 ? 0.2 : 0 });
+          drum([sx + Math.cos(a) * s, 0, zz + Math.sin(a) * s], 0.48, 0.96, { tilt: 1, yaw: -a + Math.PI / 2 + (r() - 0.5) * 0.3 });
         }
       }
     }
@@ -134,7 +134,7 @@ export function layoutTemple(o: { coarse: boolean; seed?: number }): TempleLayou
     }
     // a few drums lying loose on the floor
     for (const [x, z, a] of [[-7.6, 3.2, 0.4], [7.9, -4.6, 2.1], [-2.6, -5.8, 1.2], [8.6, 6.2, -0.7]] as const) {
-      drum([x, 0, z], 0.46, 0.92, { tilt: 1, yaw: a, broken: 0.12 });
+      drum([x, 0, z], 0.46, 0.92, { tilt: 1, yaw: a });
     }
   }
   return { ledges, stones, pillars, tops };
