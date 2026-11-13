@@ -6,7 +6,9 @@
 // a view whose glow pass was skipped can bind a cleared 1×1 texture). Translucent kinds may also hand over focus
 // textures (MatterPasses.focus: r16float, any size, the view distance where the matter is dense enough to focus on,
 // 1e5 elsewhere), bound here as focus0..2. Each slot is a body's (water, ice: matter that hides what is behind it) or a
-// light's (fire, plasma: light added into the glow target); `airv.bodies` says which (src/post/post.ts fills it).
+// light's (fire, plasma: light added into the glow target); `airv.bodies` says which (src/post/post.ts fills it). A
+// third sort is a window's (`airv.windows`: a live gate's disc, PostChain.focusFrom): where it holds a distance, the
+// depth of field takes it in place of the opaque one (what is seen through the gate is that far), the fog never does.
 //
 // Surfaces, reflections and the fog test against the opaque distance: the world's scene step (worldScene: the pool's
 // and the temple's water, the forge's heat) and its air (worldAir) see the opaque scene, never the glow, so a flame
@@ -51,6 +53,7 @@ struct AirView {
   through: f32,     // without one: how much of a light behind a body shows through it (0 … 1)
   bend: f32,        // how much fire's mirror copy on the water is bent by the waves (0: a still mirror, 1: as the march)
   tint: vec4f,      // rgb: the colour a body lays over the light behind it
+  windows: u32,     // bit k set: focus slot k is a window's (a gate's far view, portals/focus.wgsl), neither of the above
 }
 
 @group(1) @binding(0) var src: texture_2d<f32>;
@@ -86,7 +89,7 @@ fn focusOf(uv: vec2f, mask: u32, o: vec2i) -> f32 {
   if ((mask & 4u) != 0u) { n = min(n, focusAt(focus2, uv, o)); }
   return n;
 }
-fn focusNear(uv: vec2f) -> f32 { return focusOf(uv, 7u, vec2i(0)); }
+fn focusNear(uv: vec2f) -> f32 { return focusOf(uv, 7u & ~airv.windows, vec2i(0)); }
 /** the nearest body (water, ice) at uv: its own texture's distance if it hands one over, else its focus slot */
 fn bodyNear(uv: vec2f) -> f32 {
   var n = focusOf(uv, airv.bodies, vec2i(0));
@@ -96,7 +99,7 @@ fn bodyNear(uv: vec2f) -> f32 {
 /** the nearest light (fire) at uv and round it: a thin flame's edge, too faint to focus on, takes the distance of the
  *  dense flame beside it (the nearest wins, so the edge of a flame in front of a body stays in front) */
 fn lightNear(uv: vec2f) -> f32 {
-  let m = 7u & ~airv.bodies;
+  let m = 7u & ~(airv.bodies | airv.windows);
   var n = focusOf(uv, m, vec2i(0));
   for (var k = 0; k < 6; k++) {
     let a = f32(k) * 1.0471976;
@@ -108,7 +111,7 @@ fn lightNear(uv: vec2f) -> f32 {
  *  round it (two rings, so the half-resolution focus texture's blocks blend into a soft edge); a tap with no light
  *  dense enough to focus on doesn't vote. Where none does (thin flame all round), `unsure` */
 fn lightBehind(uv: vec2f, bodyD: f32, unsure: f32) -> f32 {
-  let m = 7u & ~airv.bodies;
+  let m = 7u & ~(airv.bodies | airv.windows);
   var vote = 0.0;
   var n = 0.0;
   for (var k = 0; k < 13; k++) {
@@ -224,7 +227,9 @@ fn air(i: FullscreenOut) -> Air {
   let gc = glowSeen(g.rgb, s, i.uv, d);
   var o: Air;
   o.opaque = s.a;
-  o.focus = fd;
+  // (through a live gate's disc the lens focuses as far as what is seen there; the air above fogs to the disc)
+  let win = focusOf(i.uv, airv.windows, vec2i(0));
+  o.focus = min(select(s.a, win, win < FAR_FOCUS), near);
   if (dot(gc, gc) <= 0.0 || fd >= s.a * 0.98) {
     // the glow as far as the surface behind it (the air is affine in the colour: one call)
     o.col = worldAir(vec4f(s.rgb + gc, s.a), px, d);

@@ -149,5 +149,5 @@ export interface FieldSample {
   b: Vec4;
 }
 
-declare const shader: Shader<{ Joint: Joint; Seg: Seg; Particle: Particle; Home: Home; BodyStep: BodyStep; WaterSim: WaterSim; Aux: Aux; Mist: Mist; Mote: Mote; Frame: Frame; FieldBox: FieldBox; FieldSample: FieldSample }, 'frame' | 'fieldBox' | 'mist' | 'state' | 'aux' | 'motes' | 'fieldA' | 'fieldB' | 'samp_linear' | 'samp_repeat' | 'samp_nearest' | 'samp_shadow'>;
+declare const shader: Shader<{ Joint: Joint; Seg: Seg; Particle: Particle; Home: Home; BodyStep: BodyStep; WaterSim: WaterSim; Aux: Aux; Mist: Mist; Mote: Mote; Frame: Frame; FieldBox: FieldBox; FieldSample: FieldSample }, 'frame' | 'fieldBox' | 'mist' | 'state' | 'aux' | 'motes' | 'fieldA' | 'fieldB' | 'fieldC' | 'samp_linear' | 'samp_repeat' | 'samp_nearest' | 'samp_shadow'>;
 export default shader;

@@ -183,10 +183,11 @@ export interface FieldSim {
   wake: number;
   dryDecay: number;
   helix: Helix;
+  unowned: ArrayLike<number> | Vec4[];
   auras: ArrayLike<number> | Vec4[];
   deposit: Partial<Deposit>[];
   vortex: Partial<Vortex>[];
 }
 
-declare const shader: Shader<{ Joint: Joint; Seg: Seg; Particle: Particle; Home: Home; BodyStep: BodyStep; Bodies: Bodies; Touch: Touch; Goal: Goal; Touched: Touched; Stepped: Stepped; Frame: Frame; FieldBox: FieldBox; FieldSample: FieldSample; Deposit: Deposit; Vortex: Vortex; Helix: Helix; FieldSim: FieldSim }, 'bodies' | 'touch' | 'frame' | 'fieldBox' | 'sim' | 'joints' | 'segs' | 'nextA' | 'nextB' | 'fieldA' | 'fieldB' | 'samp_linear' | 'samp_repeat' | 'samp_nearest' | 'samp_shadow'>;
+declare const shader: Shader<{ Joint: Joint; Seg: Seg; Particle: Particle; Home: Home; BodyStep: BodyStep; Bodies: Bodies; Touch: Touch; Goal: Goal; Touched: Touched; Stepped: Stepped; Frame: Frame; FieldBox: FieldBox; FieldSample: FieldSample; Deposit: Deposit; Vortex: Vortex; Helix: Helix; FieldSim: FieldSim }, 'bodies' | 'touch' | 'frame' | 'fieldBox' | 'sim' | 'joints' | 'segs' | 'nextA' | 'nextB' | 'nextC' | 'fieldA' | 'fieldB' | 'fieldC' | 'samp_linear' | 'samp_repeat' | 'samp_nearest' | 'samp_shadow'>;
 export default shader;

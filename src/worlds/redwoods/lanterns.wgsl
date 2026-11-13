@@ -104,6 +104,7 @@ fn flameAt(k: u32) -> vec3f {
   // (the derivatives first, while every pixel of the quad is still here)
   let dLat = fwidth(i.lat);
   let dAround = fwidth(i.around);
+  if (sightDrop(i.wp, i.pos.xy)) { discard; }   // the near fade (worlds/fade.ts)
   let V = normalize(frame.camPos - i.wp);
   var N = normalize(i.n);
   let l = worldLight.forest.lamps[i.k];

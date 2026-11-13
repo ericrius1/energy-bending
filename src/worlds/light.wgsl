@@ -14,7 +14,13 @@
 // that file below, add its struct as the next member of WorldLight, and add its case to each function. (WGSL has no
 // registry, so this file is the one place outside a world's folder that a new world touches. The TypeScript side needs
 // nothing outside the folder: the world takes its slot with `lightSlot(kit, 'name')`, the member's name.)
+//
+// The near fade rides here too (`sight`, filled by worlds/fade.ts): a world's solid draws call `sightDrop(p, px)` and
+// discard, so a column, a trunk, a stub or a blade near the eye or standing between it and the dancers is dissolved,
+// pixel by pixel, instead of filling the frame. Opaque stays opaque: what is left is drawn whole, with its distance
+// in alpha (the depth contract), and what is dropped shows what stands behind it. No binding of its own.
 #include "weft/frame"
+#include "weft/lodfade"
 #include "../engine/limits"
 #include "../engine/util"
 #include "./water/water"
@@ -35,7 +41,17 @@ struct WorldLight {
   pool: Pool,
   temple: Temple,
   forge: Forge,
+  /** what the main view may fade (worlds/fade.ts): not a world's */
+  sight: Sight,
 }
+
+/** a body the camera frames, as the near fade sees it: an upright capsule from `lo` (its feet: below this height
+ *  nothing fades, it is the floor it stands on) to `hi` (its top) of radius lo.w; hi.w how strongly what stands
+ *  between the eye and it is faded now (0 … 1, eased by the CPU; 0: this one is off) */
+struct SightBody { lo: vec4f, hi: vec4f }
+/** the near fade: the framed bodies; k.x: fade within this of the eye (m), k.y: the height below which nothing fades
+ *  near the eye, k.z: how strongly (0 … 1), k.w: 1 while anything may fade (0: the draws skip it all) */
+struct Sight { body: array<SightBody, 2>, k: vec4f }
 
 @group(2) @binding(0) var<uniform> worldLight: WorldLight;
 // the ripples' height fields of the worlds with water (each world's own texture, in its World.shared)
@@ -149,4 +165,46 @@ fn worldScene(src: texture_2d<f32>, px: vec2i, d: vec3f) -> vec4f {
   if (WORLD == 3u) { return templeScene(src, px, d); }
   if (WORLD == 4u) { return forgeScene(src, px, d); }
   return textureLoad(src, px, 0);
+}
+
+/** how much of a world's solid thing at p the camera fades away (0 … 1): what is near the eye, and what stands well in
+ *  front of a framed body across the line of sight to it. Only in the view that `sight` describes (the main view sets
+ *  frame.user.x to 1, worlds/fade.ts; a gate's view, the inset leave it 0), and only while worlds/fade.ts finds
+ *  something to fade (k.w), so most frames it costs one uniform branch */
+fn sightFade(p: vec3f) -> f32 {
+  let S = worldLight.sight;
+  if (frame.user.x < 0.5 || S.k.w <= 0.0) { return 0.0; }
+  let e = fromEye(p);
+  let dist = length(e);
+  // near the eye (above the floor under it)
+  var f = select(0.0, (1.0 - smoothstep(S.k.x * 0.5, S.k.x, dist)) * S.k.z, p.y > S.k.y);
+  let d = e / max(dist, 1e-4);
+  for (var k = 0u; k < 2u; k++) {
+    let b = S.body[k];
+    if (b.hi.w <= 0.0 || p.y < b.lo.y + 0.12) { continue; }
+    // the ray from the eye through p at its closest to the body's axis: within its radius, and p well before it
+    let A = b.lo.xyz - frame.camPos - frame.camLo;
+    let u = b.hi.xyz - b.lo.xyz;
+    let bu = dot(d, u);
+    let uu = max(dot(u, u), 1e-6);
+    let den = uu - bu * bu;
+    var t = 0.5;
+    if (den > 1e-6) { t = clamp((bu * dot(d, A) - dot(u, A)) / den, 0.0, 1.0); }
+    let q = A + u * t;
+    let s = dot(d, q);
+    let off = length(q - d * max(s, 0.0));
+    let r = b.lo.w;
+    let across = 1.0 - smoothstep(r * 0.45, r * 1.1, off);
+    let before = 1.0 - smoothstep(s - r * 0.5 - 0.55, s - r * 0.5 - 0.15, dist);
+    f = max(f, across * before * b.hi.w);
+  }
+  return f;
+}
+
+/** whether a solid draw's fragment at p (pixel px) is dropped by the near fade: a dither (weft/lodfade's interleaved
+ *  noise), so a half-faded column is half its pixels, and MSAA's resolve softens the dots. Call it first in the
+ *  fragment shader: `if (sightDrop(i.wp, i.pos.xy)) { discard; }` */
+fn sightDrop(p: vec3f, px: vec2f) -> bool {
+  let f = sightFade(p);
+  return f > 0.0 && f > ign(px) * 0.98 + 0.01;
 }

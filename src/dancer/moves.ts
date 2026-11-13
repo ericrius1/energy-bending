@@ -437,13 +437,15 @@ const negativaT = track([
     lf: [-0.13, 0, 0.04], rf: [0.13, 0, 0] }],
   [1.00, base()],
 ]);
-// the bow: the feet drawn together, the hands meet before the chest, the torso and head bow, held, then up
+// the bow: the feet drawn together, the hands meet before the chest; then a deep bow from the hips (the torso near
+// level, the hips back over the heels, the head tucked), the right hand to the belly and the left arm swept out and
+// back: a silhouette that reads as a bow from a film's distance, not a lean; held, then up
 const bowT = track([
   [0.00, base()],
   [0.22, { hip: [0, 0.32, 0], pitch: 0.0, lf: [-0.06, 0, 0], rf: [0.06, 0, 0], lh: [-0.015, 0.47, 0.11], rh: [0.015, 0.47, 0.11], head: [0, 0, 0] }],
-  [0.42, { hip: [0, 0.31, -0.03], pitch: 0.62, head: [0, -0.02, 0.01], lh: [-0.015, 0.4, 0.15], rh: [0.015, 0.4, 0.15] }],
-  [0.68, { hip: [0, 0.31, -0.03], pitch: 0.64, head: [0, -0.022, 0.012] }],
-  [0.86, { hip: [0, 0.32, 0], pitch: 0.02, head: [0, 0, 0], lh: [-0.1, 0.4, 0.1], rh: [0.1, 0.42, 0.12] }],
+  [0.42, { hip: [0, 0.345, -0.06], pitch: 1.2, head: [0, -0.07, -0.03], lh: [-0.2, 0.46, -0.01], rh: [0.02, 0.33, 0.06] }],
+  [0.68, { hip: [0, 0.345, -0.065], pitch: 1.25, head: [0, -0.075, -0.032], lh: [-0.21, 0.47, -0.02], rh: [0.02, 0.325, 0.06] }],
+  [0.86, { hip: [0, 0.32, 0], pitch: 0.04, head: [0, 0, 0], lh: [-0.1, 0.4, 0.1], rh: [0.1, 0.42, 0.12] }],
   [1.00, base()],
 ]);
 const blockT = track([
@@ -733,16 +735,23 @@ const MOVE_DEFS: Record<string, Omit<MoveInput, 'name'>> = {
     cancelInto: ['compasso', 'meia-lua', 'au', 'jump'],
     style: (u) => { const on = u > 0.18 && u < 0.84; return { hands: [on ? 'floor' : 'relaxed', 'open'], feet: ['point', 'point'] }; },
     pose(u, _ctx, out) {
-      const w = smooth(u / 0.28), e = smooth((u - 0.74) / 0.26), on = w * (1 - e);
-      const P = base({ hip: [0, mix(0.3, 0.2, on), 0], pitch: mix(0.12, 0.55, on), crunch: mix(1, 0.88, on),
-        rotZ: 1.25 * on, pivot: [-0.06, 0.12 * on, 0.04] });
-      // the left elbow into the hip, its hand under the shoulder; the right arm out for balance
-      P.lhB = mix3([-0.06, -0.14, 0.12], [-0.02, -0.17, 0.05], on); P.rhB = mix3([0.06, -0.14, 0.12], [0.16, 0.04, 0.12], on);
-      P.lep = [-1, -0.3, -0.5];
+      // the body turns its left side to the way it goes (a quarter turn), then tips over that way about the hips, head
+      // down past level, so the side the camera sees (square to the facing) is the whole balanced figure: the head and
+      // both hands low ahead, the left elbow in the hip under it, the legs bent together and raised high behind
+      const turn = smooth(u / 0.2) * (1 - smooth((u - 0.8) / 0.2));
+      const w = smooth((u - 0.06) / 0.26), e = smooth((u - 0.72) / 0.24), on = w * (1 - e);
+      // (balanced: the legs keep moving a little in the air while the body holds)
+      const sway = Math.sin(Math.PI * clamp((u - 0.3) / 0.42, 0, 1));
+      const P = base({ hip: [0, mix(0.3, 0.26, on), 0], yaw: (Math.PI / 2) * turn, pitch: mix(0.12, 0, on), crunch: mix(1, 0.9, on),
+        rotX: 2.05 * on, pivot: [0, 0.27, 0], head: [0, 0, 0] });
+      // both hands to the floor on the left side (down, once tipped) a little toward the head: the left elbow bent back
+      // into the hip (its pole toward the hips), the right hand planted a hand's width further ahead
+      P.lhB = mix3([-0.06, -0.14, 0.12], [-0.12, 0.03, 0.02], on); P.rhB = mix3([0.06, -0.14, 0.12], [-0.15, 0.1, 0.07], on);
+      P.lep = mix3([-0.5, -0.6, -0.45], [0, -1, 0.1], on); P.rep = mix3([0.5, -0.6, -0.45], [0.2, -1, 0.3], on);
       delete P.lh; delete P.rh;
-      // the legs tucked up and together, then let out in the air
-      const tuck = Math.sin(Math.PI * clamp((u - 0.15) / 0.7, 0, 1));
-      P.lfB = mix3([-0.1, -0.3, 0], [-0.06, -0.1, 0.14 - 0.08 * tuck], on); P.rfB = mix3([0.1, -0.3, 0], [0.05, -0.08, 0.16 - 0.1 * tuck], on);
+      // the legs together, bent, raised toward the right side (up, once tipped); they open a little in the hold
+      P.lfB = mix3([-0.1, -0.3, 0], [0.13 - 0.03 * sway, -0.17, 0.08 + 0.04 * sway], on); P.rfB = mix3([0.1, -0.3, 0], [0.19 + 0.03 * sway, -0.12, 0.04 - 0.04 * sway], on);
+      P.lkp = mix3([-0.3, 0, 1], [0.3, 0.2, 1], on); P.rkp = mix3([0.3, 0, 1], [0.6, 0.3, 1], on);
       delete P.lf; delete P.rf;
       rig(P, out);
       // whatever is lowest on the floor: the feet on the way in and out, the hand and the head (its middle 0.1 m above

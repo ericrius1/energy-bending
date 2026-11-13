@@ -96,6 +96,7 @@ fn toWorld(b: Blade, q: vec3f) -> vec3f {
 
 
 @fragment fn fs(i: VOut) -> @location(0) vec4f {
+  if (sightDrop(i.wp, i.pos.xy)) { discard; }   // the near fade (worlds/fade.ts)
   let L = worldLight.geode;
   let V = normalize(frame.camPos - i.wp);
   var N = normalize(cross(dpdx(i.wp), dpdy(i.wp)));

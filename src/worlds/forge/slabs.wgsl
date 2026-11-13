@@ -114,6 +114,7 @@ fn corner(k: u32, r: f32) -> vec2f {
 }
 
 @fragment fn fs(i: VOut) -> @location(0) vec4f {
+  if (sightDrop(i.wp, i.pos.xy)) { discard; }   // the near fade (worlds/fade.ts)
   let wp = i.wp;
   let part = i.local.x;
   let below = i.local.y;

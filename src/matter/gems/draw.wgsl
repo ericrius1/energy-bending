@@ -6,7 +6,8 @@
 // they reflect, the light on them, the soft light round them) comes from worlds/light.wgsl, chosen by the WORLD
 // constant this pipeline was made with. A dancer's stones are drawn where this view sees them (engine/seen.wgsl:
 // carried through a gate, cut at its door). Each mineral's trait is here too (obsidian's glowing fractures, opal's play
-// of colour, iron's rust), and a heart (hearts.wgsl) lights the stones round it.
+// of colour, iron's rust), and a heart (hearts.wgsl) lights the stones round it. A clap lights the hands that met (the
+// flash per capsule rides in the Sim uniform's caps, so it costs no binding).
 #include "weft/frame"
 #include "./gem"
 #include "../../worlds/light"
@@ -45,6 +46,7 @@ struct VOut {
   @location(9) @interpolate(flat) lod: u32,
   @location(10) @interpolate(flat) env: f32,
   @location(11) clip: f32,
+  @location(12) @interpolate(flat) clap: f32,
 }
 
 @vertex fn vs(@builtin(vertex_index) vi: u32, @builtin(instance_index) ii: u32) -> VOut {
@@ -69,8 +71,11 @@ struct VOut {
   if (MIRROR > 0.5 && pos.y - floorY > 0.8) { o.pos = vec4f(2.0, 2.0, 2.0, 1.0); return o; }
   let h2 = looksOf(pid, p);
   var s = h2.y;
+  // a clap: the stones of the hands that met, on the body, flash and swell a little (Sim.caps' w, set per capsule)
+  var clap = 0.0;
+  if (!env && modeIs(p.mode, ON_BODY)) { clap = sim.caps[min(u32(homes[pid].place.x), MAX_DANCERS * SEGS - 1u)].w; }
   if (!env) {
-    s = stoneSize(pid, h2.y, sim.gemScale * sim.types[t].z, sim.sizeVar) * spareScale(pid, sim.inUse, sim.spareFade) * seen.grow;
+    s = stoneSize(pid, h2.y, sim.gemScale * sim.types[t].z, sim.sizeVar) * spareScale(pid, sim.inUse, sim.spareFade) * seen.grow * (1.0 + 0.3 * clap);
     if (sim.body.returnMode > 0.5) {
       if (p.mode < 0.5) { s *= smoothstep(0.0, 0.6, p.life); }
       else if (p.mode < 1.5) { s *= smoothstep(0.0, 0.5, p.life); }
@@ -92,6 +97,7 @@ struct VOut {
   o.heat = smoothstep(1.0, 5.0, length(p.vel));
   o.lod = lod;
   o.env = select(0.0, 1.0, env);
+  o.clap = clap;
   return o;
 }
 
@@ -119,6 +125,9 @@ fn traits(K: Kind, local: vec3f, N: vec3f, V: vec3f, cosV: f32) -> vec3f {
   return c;
 }
 
+/** a clap's light in a stone: a warm white tinted by the stone's own crystal (× the flash, 1 at the meeting) */
+fn clapLight(K: Kind) -> vec3f { return mix(vec3f(1.0, 0.93, 0.8), hue(K.crystal.rgb), 0.4) * look.clap; }
+
 /** the soft light round a stone, as bright as the stones take it */
 fn ambient(N: vec3f, ao: f32, p: vec3f) -> vec3f { return worldAmbient(N, ao, p) * look.envIntensity; }
 
@@ -143,6 +152,7 @@ fn ambient(N: vec3f, ao: f32, p: vec3f) -> vec3f { return worldAmbient(N, ao, p)
     var c = base * (ambient(N, i.ao, i.wp) + key.plain * max(dot(N, key.dir), 0.0));
     if (i.mat >= 2u && i.mat < 4u) { c += hue(K.crystal.rgb) * K.crystal.w * look.emissive * mix(0.35, 1.0, 1.0 - i.ao) * 0.35; }
     if (i.env > 0.5) { c *= worldFixtureTint(i.wp, false); }
+    c += clapLight(K) * i.clap * 0.5;
     // the floor mirrors more at a glance along it than looking down into it (Fresnel)
     let glance = 1.0 - abs(normalize(i.wp - frame.camPos).y);
     let fres = 0.25 + 0.75 * pow(max(glance, 0.0), 3.0);
@@ -249,6 +259,8 @@ fn ambient(N: vec3f, ao: f32, p: vec3f) -> vec3f { return worldAmbient(N, ao, p)
   if (i.env < 0.5) { col += heartLight(hearts, i.wp) * look.heart * mix(vec3f(0.6), hue(K.crystal.rgb), 0.6) * mix(0.5, 1.0, 1.0 - i.ao); }
   // fast stones run hot
   col += hue(K.crystal.rgb) * i.heat * look.speedGlow * 0.3;
+  // a clap lights the hands from within
+  col += clapLight(K) * i.clap;
   // a world's own crystals: lit mostly from within, as the world tints them
   if (i.env > 0.5) { col *= worldFixtureTint(i.wp, true); }
   // alpha: the distance along the view, for the light in the air and the depth of field

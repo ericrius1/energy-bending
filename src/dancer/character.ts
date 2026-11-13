@@ -11,7 +11,9 @@
 //   c.plane         a StagePlane locks movement to it (s along plane.right) with its ground and ledges (plus
 //                   `extraLedges()`, e.g. set ice); null = free 3D movement on terrain.groundAt(x, z). setPlane()
 //                   eases a dancer onto a new plane rather than snapping.
-//   c.env           { updraft 0..1, slick 0..1, carryX (m/s), blink } set by the game each frame (element perks).
+//   c.env           { updraft 0..1, slick 0..1, carryX (m/s), blink, still? } set by the game each frame (element
+//                   perks; `still`: a fusion holds the pair as one body, so moves play where they start and the stick
+//                   turns the body without walking it).
 //   c.lookAt        null | [x,y,z]: the partner. The dancer faces it when not running away from it.
 //   c.inputYaw      free mode: the camera's yaw, so moveX/moveZ are camera-relative (0 = the camera at +z).
 //   c.update(dt, intent, beat)   beat = a beat position or { pos, bpm }. Writes pose, vel, root, yaw; pushes events:
@@ -149,7 +151,11 @@ export class Character {
   terrain: Terrain;
   /** more ledges for the locked plane, asked each step (set ice, a partner's building) */
   extraLedges: (() => readonly Ledge[]) | null = null;
-  env = { updraft: 0, slick: 0, carryX: 0, blink: false };
+  /** what the game lays on the body each frame: the elements' perks, and `still` while a fusion holds the pair as one
+   *  body (play/fusion.ts): a move started then plays where it starts (its travel and the slide it starts with
+   *  absorbed: the start event carries fdir [0, 0] and no ground velocity, so Character.shapesAt replays it the same),
+   *  and the stick turns the body but does not walk it */
+  env: { updraft: number; slick: number; carryX: number; blink: boolean; still?: boolean } = { updraft: 0, slick: 0, carryX: 0, blink: false };
   lookAt: ArrayLike<number> | null = null;
   inputYaw = 0;
   bpm: number | null = null;
@@ -364,7 +370,9 @@ export class Character {
     else yaw = opts.yaw ?? this.yaw;
     if (!this.plane && opts.dirVec) yaw = yawOf(opts.dirVec[0], opts.dirVec[1]);
     // travel direction (unit, world x/z): along the plane, or the body's facing when free
-    const f: [number, number] = this.plane ? [this.plane.right[0] * this.dir, this.plane.right[2] * this.dir] : fwdOf(yaw);
+    // (held still by a fusion: no travel direction, so the move plays where it starts)
+    const still = !!this.env.still;
+    const f: [number, number] = still ? [0, 0] : this.plane ? [this.plane.right[0] * this.dir, this.plane.right[2] * this.dir] : fwdOf(yaw);
     const aimW = this._aimWorld(opts.aim);
     const c = Math.cos(-yaw), s = Math.sin(-yaw);
     const aim3: V3 = [aimW[0] * c + aimW[2] * s, aimW[1], -aimW[0] * s + aimW[2] * c];
@@ -373,7 +381,7 @@ export class Character {
     const l = Math.hypot(aimW[0], aimW[1], aimW[2]) || 1;
     const m: MoveState = {
       def, name: def.name, t: 0, dur: def.dur * tempoScale(bpm), serial: ++this.serial, yaw, f,
-      p0: [this.root[0], this.root[1], this.root[2]], v0: air ? [this.v[0], this.v[1], this.v[2]] : [this.v[0], 0, this.v[2]], air, aim3, aimW,
+      p0: [this.root[0], this.root[1], this.root[2]], v0: still ? [0, air ? this.v[1] : 0, 0] : air ? [this.v[0], this.v[1], this.v[2]] : [this.v[0], 0, this.v[2]], air, aim3, aimW,
       aimN: [aimW[0] / l, aimW[1] / l, aimW[2] / l], hand: this.aimHand, bpm, startTime: this.time, limb: opts.limb || null, camera: !!opts.camera,
       ground: !air, perfect: false,
     };
@@ -647,13 +655,13 @@ export class Character {
       // a move that left its ledge coasts
     } else {
       const crouch = this.grounded && it.moveY < -0.5;
-      const target = crouch ? 0 : clamp(it.moveX, -1, 1) * PHYS.runSpeed;
+      const target = crouch || env.still ? 0 : clamp(it.moveX, -1, 1) * PHYS.runSpeed;
       if (this.grounded) {
         const grip = 1 - PHYS.slickGrip * (env.slick || 0);
         const a = (Math.abs(target) > Math.abs(vs) && sgn(target) === sgn(vs)) || Math.abs(vs) < 1e-4 ? PHYS.groundAccel : sgn(target) !== sgn(vs) && Math.abs(target) > 0.01 ? PHYS.turnAccel : PHYS.groundDecel;
         vs += clamp(target - vs, -a * grip * h, a * grip * h);
       } else {
-        if (Math.abs(it.moveX) > 0.1) vs += clamp(target - vs, -PHYS.airAccel * h, PHYS.airAccel * h);
+        if (Math.abs(it.moveX) > 0.1 && !env.still) vs += clamp(target - vs, -PHYS.airAccel * h, PHYS.airAccel * h);
         else vs -= sgn(vs) * Math.min(Math.abs(vs), PHYS.airDrag * h);
       }
     }
@@ -661,7 +669,7 @@ export class Character {
     if (!this.grounded && !(kin && m!.air)) vy = this._gravity(h, vy, it, m);
     // horizontal
     s += vs * h;
-    if (this.grounded && env.carryX && !kin) s += env.carryX * h;
+    if (this.grounded && env.carryX && !kin && !env.still) s += env.carryX * h;
     const surf = this._surfaces(beat), surfPrev = this._surfaces(beatPrev);
     for (const S of surf) {
       if (!S.L || !S.solid) continue;
@@ -742,7 +750,7 @@ export class Character {
       const mv = this._moveVec(it);
       const crouch = this.grounded && it.moveY < -0.5;
       let tx = mv[0], tz = mv[1]; const l = Math.hypot(tx, tz); if (l > 1) { tx /= l; tz /= l; }
-      const sp = crouch ? 0 : it.walk ? PHYS.walkSpeed : PHYS.runSpeed;
+      const sp = crouch || env.still ? 0 : it.walk ? PHYS.walkSpeed : PHYS.runSpeed;
       tx *= sp; tz *= sp;
       const a = (this.grounded ? PHYS.groundAccel * (1 - PHYS.slickGrip * (env.slick || 0)) : PHYS.airAccel) * h * (l > 0.05 ? 1 : 1.3);
       const dx = tx - vx, dz = tz - vz, dl = Math.hypot(dx, dz);
