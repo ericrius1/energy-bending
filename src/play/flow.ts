@@ -25,6 +25,8 @@ export interface FlowCtx {
   rise?: (spread: number) => void;
   /** a local seat's body re-forms at its spawn */
   respawn(seat: number, c: Character): void;
+  /** the stage the jogo is locked to: the results' ring lies along it (flattened across it, so the side view holds it) */
+  plane?(): { right: [number, number, number] } | null;
 }
 
 /** how many gems the results rain for an axé (a gem per 40, at least 6, at most 140) */
@@ -89,7 +91,10 @@ export class Flow {
   /** gems falling into a ring and staying there, twinkling; fusions as larger gems; the best streak as a ribbon */
   private drawResults(R: { r: Results; at: number; centre: V3 }) {
     const G = this.ctx.glows, age = this.t - R.at, C = R.centre, floor = C[1] - 1.05;
-    const n = gemsFor(R.r.axe), big = Math.min(8, R.r.fusions), ring = 1.7;
+    const n = gemsFor(R.r.axe), big = Math.min(8, R.r.fusions), ring = 1.5;
+    // round the ring: along the stage, and a third as deep across it
+    const rt = this.ctx.plane?.()?.right ?? [1, 0, 0], nt = [-rt[2], 0, rt[0]];
+    const round = (ang: number, r: number, y: number): V3 => [C[0] + (rt[0] * Math.cos(ang) + nt[0] * Math.sin(ang) * 0.35) * r, y, C[2] + (rt[2] * Math.cos(ang) + nt[2] * Math.sin(ang) * 0.35) * r];
     const total = n + big;
     for (let i = 0; i < total; i++) {
       const isBig = i >= n, k = isBig ? i - n : i;
@@ -101,11 +106,11 @@ export class Flow {
       if (u < 0) continue;
       const land = Math.min(1, u);
       const y = floor + 0.06 + (1 - land * land) * 4.5 + (land >= 1 ? 0.03 * Math.sin(this.t * 2 + i) : 0);
-      const s = (isBig ? 0.12 : 0.045) * (1 + 0.5 * Math.exp(-(u - 1) * 6) * (u >= 1 ? 1 : 0));
+      const s = (isBig ? 0.075 : 0.04) * (1 + 0.5 * Math.exp(-(u - 1) * 6) * (u >= 1 ? 1 : 0));
       const col = isBig ? [1.6, 1.4, 0.9] as RGB : GEM_COLS[i % GEM_COLS.length];
       const tw = land >= 1 ? 0.75 + 0.35 * Math.sin(this.t * (3 + hash(i * 3) * 4) + i) : 1;
-      const p: V3 = [C[0] + Math.cos(ang) * rr, y, C[2] + Math.sin(ang) * rr];
-      G.seg([p[0], p[1] - s * 0.5, p[2]], [p[0], p[1] + s * 0.5, p[2]], s * 0.6, col, 1.3 * tw, 'gem');
+      const p: V3 = round(ang, rr, y);
+      G.seg([p[0], p[1] - s * 0.5, p[2]], [p[0], p[1] + s * 0.5, p[2]], s * 0.6, col, (isBig ? 0.85 : 1.1) * tw, 'gem');
       if (u < 1) G.seg([p[0], p[1] + s, p[2]], [p[0], p[1] + s + 0.35, p[2]], s * 0.25, col, 0.3, 'soft');
       else if (u < 1.3) G.flat([p[0], floor + 0.01, p[2]], 0.05 + (u - 1) * 0.8, col, 1.2 * (1.3 - u) / 0.3, 'ring');
     }
@@ -115,8 +120,8 @@ export class Flow {
     let prev: V3 | null = null;
     for (let i = 0; i <= steps * L; i++) {
       const u = i / steps, ang = u * Math.PI * 2 * turns - Math.PI / 2;
-      const p: V3 = [C[0] + Math.cos(ang) * (ring + 0.35), floor + 0.15 + u * 1.6, C[2] + Math.sin(ang) * (ring + 0.35)];
-      if (prev) G.seg(prev, p, 0.012, [1.5, 1.3, 0.8], 0.9, 'soft');
+      const p: V3 = round(ang, ring + 0.3, floor + 0.15 + u * 1.6);
+      if (prev) G.seg(prev, p, 0.01, [1.5, 1.3, 0.8], 0.55, 'soft');
       prev = p;
     }
   }

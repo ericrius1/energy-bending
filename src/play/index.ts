@@ -219,7 +219,7 @@ export async function startJogo(app: PlayApp, mode: string) {
   });
   const flow = new Flow(bodies, {
     glows, sfx, now: () => room.now(), rise: (s) => show.rise(s),
-    respawn: (_s, c) => c.spawn(),
+    respawn: (_s, c) => c.spawn(), plane: () => play.plane(),
   });
 
   // the characters stand on the pieces too (set ice's tops, the crystal ledges), on the locked stage
@@ -389,6 +389,8 @@ export async function startJogo(app: PlayApp, mode: string) {
   frame.tick('camera', (f) => {
     if (!started) return;
     fusion.camera(f.dt);
+    // the results stand back to hold their ring
+    if (room.state?.phase === 'over') rig.framePad = Math.max(rig.framePad, 1.1);
     // online: this page's dancer to the room (20 Hz on the wire), with its state for the others' exchanges
     if (online) {
       const c = play.controllers[0].character;

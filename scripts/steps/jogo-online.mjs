@@ -64,18 +64,23 @@ try {
       seats: J.stats().seats, history: J.history.filter((h) => h.e.k === 'xch').map((h) => ({ t: h.t, res: h.e.res, by: h.e.by, target: h.e.target, mine: h.e.mine, id: h.e.id })) };
   });
   const grab = async (p, file) => {
-    const url = await p.evaluate(async () => { const u = await window.bend.grab('image/jpeg', 0.9); window.bend.kit.manual = false; return u; });
+    const url = await p.evaluate(async () => window.bend.grab('image/jpeg', 0.9));
     writeFileSync(join(OUT, file), Buffer.from(url.split(',')[1], 'base64'));
   };
-  const exchange = async (n, attacker, defender, move, dodge) => {
+  // (a grab steps the page by hand, which stops its live loop: only the last exchange is grabbed, at the end)
+  const exchange = async (n, attacker, defender, move, dodge, still = false) => {
     const t0 = Date.now();
     await Promise.all([
       attacker.evaluate((m) => window.bend.move(0, m), move),
       dodge ? (async () => { await sleep(110); await defender.evaluate(() => window.bend.intent(0, { dodge: true, moveY: -1 })); await sleep(500); await defender.evaluate(() => window.bend.intent(0, { moveY: 0 })); })() : null,
     ]);
-    await sleep(Math.max(0, 700 - (Date.now() - t0)));
-    await Promise.all([grab(a, `online-${n}-a.jpg`), grab(b, `online-${n}-b.jpg`)]);
-    await sleep(900);
+    if (still) {
+      await sleep(Math.max(0, 650 - (Date.now() - t0)));
+      await Promise.all([grab(a, `online-${n}-a.jpg`), grab(b, `online-${n}-b.jpg`)]);
+      // then a second more of frames by hand on each, so what the room says next is heard
+      await sleep(400);
+      await Promise.all([a, b].map((p) => p.evaluate(() => window.bend.step(60))));
+    } else await sleep(1600);
     const A = await look(a), B = await look(b);
     report.exchanges.push({ n, move, dodge, a: A, b: B });
     console.log(`exchange ${n} (${move}${dodge ? ', dodged' : ''}):`);
@@ -86,6 +91,10 @@ try {
   await b.evaluate(() => window.bend.place(0, 0.5, 0));
   await sleep(2000);
   await exchange(2, b, a, 'martelo', true);
+  await a.evaluate(() => window.bend.place(0, -0.5, 0));
+  await b.evaluate(() => window.bend.place(0, 0.5, 0));
+  await sleep(2000);
+  await exchange(3, a, b, 'meia-lua', false, true);
   const clocks = await Promise.all([a, b].map((p) => p.evaluate(() => Math.round(window.bend.jogo.room.now()))));
   report.clockGap = Math.abs(clocks[0] - clocks[1]);
   console.log(`the two pages' room clocks (read one after the other): ${clocks.join(', ')}`);
