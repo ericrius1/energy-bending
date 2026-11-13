@@ -1,6 +1,6 @@
 {
   "name": "film1",
-  "title": "Energy Bending (the whole idea), from docs/reports/6-critique.md's revised shot list (rows 3 to 9; the heaps and the gems' comet of rows 1 and 2 wait for a hold before the jogo's intro); no text appears in the film",
+  "title": "Energy Bending (the whole idea), from docs/reports/6-critique.md's revised shot list (rows 1 to 9); no text appears in the film",
   "bpm": 112,
   "size": "1920x1080",
   "fps": 60,
@@ -9,18 +9,21 @@
   "shots": [
     {
       "id": "ab-jogo",
-      "note": "rows 1 to 7, one page: the jogo's intro (the bodies rising at their spawns) under a crane down from the canopy, then the jogo in the redwoods: seat 0 (water, scripted) against src/ai's partner (fire, playful); ginga side-on, the forms shift close up, the lock swings in, across the ledges, then the fusion from high",
+      "note": "rows 1 to 7, one page: a hold of 9 s before the jogo's room starts (the shot's hold): the crane down from the canopy onto the heaps asleep (seat 0 in gems: their cairn at the clearing's middle; the fire smouldering), the dancers woken at 4.2 s so the gems stream in to seat 0 as a comet and stand up, then the jogo's intro and seat 0 dressed in water as it rises; then the jogo in the redwoods: seat 0 (water, scripted) against src/ai's partner (fire, playful; its own form presses held off: the timeline sets the forms); ginga side-on, the forms shift close up, the lock swings in, across the ledges, then the aurora fusion from a 5.4 to 6 m orbit at pitch 0.32 to 0.36, turning away from the fallen log (yaw falling from 0.4: the other way the log comes between the camera and the pair, the boom shortened into the column)",
       "mode": "jogo",
       "world": "redwoods",
       "hour": 19.4,
       "set": { "redwoods": { "dayGoes": false }, "jogo": { "rings": 0 } },
-      "cast": [{ "dress": "water" }, { "dress": "fire", "brain": "playful", "seed": 11 }],
+      "cast": [{ "dress": "gems" }, { "dress": "fire", "brain": "playful", "seed": 11 }],
       "from": "start",
       "preroll": 0.2,
-      "bars": 18,
+      "hold": 9,
+      "bars": 23,
       "yawBase": "stage",
       "music": { "level": 1 },
       "cues": [
+        { "at": 4.2, "wake": true },
+        { "at": 9.3, "seat": 0, "dress": "water" },
         { "at": "1.1", "music": { "level": 2 } },
         { "at": "1.3", "seat": 0, "move": "meia-lua" },
         { "at": "2.1", "seat": 0, "press": "dodge", "hold": { "moveY": -1 }, "for": 0.6 },
@@ -47,7 +50,9 @@
       ],
       "camera": [
         { "at": 0, "around": "pair", "yaw": 0.9, "pitch": -0.5, "dist": 7.6, "height": 5.6, "fov": 56, "lag": 0.8, "focus": "pair", "handheld": 0.4 },
-        { "at": 3.6, "yaw": 0.35, "pitch": 0.12, "dist": 5.0, "height": 1.0, "fov": 40, "lag": 0.5 },
+        { "at": 3.8, "yaw": 0.35, "pitch": 0.16, "dist": 5.2, "height": 0.7, "fov": 40, "lag": 0.5 },
+        { "at": 7.5, "yaw": 0.3, "pitch": 0.12, "dist": 4.6, "height": 0.9 },
+        { "at": 9.2, "yaw": 0.35, "pitch": 0.12, "dist": 5.0, "height": 1.0 },
         { "at": "1.1", "orbit": 0.0 },
         { "at": "1.2", "yaw": 0.18, "pitch": 0.08, "dist": 4.2, "height": 1.0, "fov": 40, "orbit": 0.03, "handheld": 0.6 },
         { "at": "4.4", "yaw": 0.05, "dist": 3.9 },
@@ -55,19 +60,19 @@
         { "at": "7.4", "focus": "d1", "dist": 3.2 },
         { "at": "8.1", "mode": "lock", "blend": 1.1, "orbit": 0 },
         { "at": "13.1", "mode": "free", "blend": 2.0, "around": "pair", "yaw": 0.4, "pitch": 0.25, "dist": 4.6, "height": 0.9, "fov": 40, "orbit": 0.0, "focus": "pair", "lag": 0.6, "handheld": 0.3 },
-        { "at": "14.1", "pitch": 0.72, "dist": 4.4, "height": 0.7, "orbit": 0.08 },
-        { "at": "17.1", "pitch": 0.78, "dist": 4.6 }
+        { "at": "14.1", "pitch": 0.32, "dist": 5.4, "height": 1.0, "orbit": -0.06 },
+        { "at": "17.1", "pitch": 0.36, "dist": 6.0 }
       ]
     },
     {
       "id": "c-gate",
-      "note": "rows 8 and 9: they walk to the gate, followed from behind; the geode seen live inside the disc as they step in (the cut on the beat goes through it)",
+      "note": "rows 8 and 9: they walk to the gate, followed from behind; the geode seen live inside the disc as they step in (the cut on the beat goes through it: 4 beats, cut before the camera is left behind in the redwoods looking at an empty meadow; placed 4.5 s before the in-point so the water has arrived)",
       "mode": "play",
       "world": "redwoods",
       "hour": 19.4,
       "cast": [{ "dress": "fire" }, { "dress": "water" }],
-      "beats": 4.5,
-      "preroll": 2.5,
+      "beats": 4,
+      "preroll": 4.5,
       "music": { "level": 1 },
       "cues": [
         { "at": -9, "seat": 0, "place": [-6.70, 2.97] },
@@ -83,20 +88,21 @@
     },
     {
       "id": "d-hub",
-      "note": "rows 10 and 11: out of the geode's gate into the hub, a last exchange on the floor, then face to face as the light falls",
+      "note": "rows 10 and 11: out of the geode's gate into the hub (the pair placed 4.5 s before the in-point so their matter has arrived), a last exchange on the floor (an armada answered by an esquiva, meia-luas: no aú, which carried the ice dancer into the plasma one), then face to face as the light falls",
       "mode": "play",
       "world": "geode",
       "cast": [{ "dress": "plasma" }, { "dress": "ice" }],
       "bars": 9,
-      "preroll": 2.5,
+      "preroll": 4.5,
       "music": { "level": 2 },
       "cues": [
         { "at": -9, "seat": 0, "place": [3.04, 5.60] },
         { "at": -9, "seat": 1, "place": [2.34, 5.94] },
-        { "at": 0, "seat": 0, "walk": [0.7, 1.2], "speed": 0.5 },
-        { "at": 0, "seat": 1, "walk": [-0.5, 1.6], "speed": 0.5 },
+        { "at": 0, "seat": 0, "walk": [1.0, 1.1], "speed": 0.5 },
+        { "at": 0, "seat": 1, "walk": [-0.9, 1.7], "speed": 0.5 },
         { "at": "4.1", "seat": 0, "move": "armada" },
-        { "at": "4.3", "seat": 1, "move": "au" },
+        { "at": "4.2", "seat": 1, "press": "dodge", "hold": { "moveY": -1 }, "for": 0.8 },
+        { "at": "5.1", "seat": 1, "move": "meia-lua" },
         { "at": "5.3", "seat": 0, "move": "meia-lua" },
         { "at": "6.1", "music": { "level": 0 } },
         { "at": "6.2", "seat": 0, "walk": [0.6, 1.1], "speed": 0.3 },
@@ -106,8 +112,8 @@
         { "at": 0, "around": "pair", "yaw": -2.69, "pitch": 0.12, "dist": 3.6, "height": 1.1, "fov": 44, "lag": 0.5, "focus": "pair", "handheld": 0.5 },
         { "at": "3.1", "yaw": -2.4, "pitch": 0.3, "dist": 4.6, "height": 0.9 },
         { "at": "6.1", "pitch": 0.22, "dist": 4.0, "height": 1.0 },
-        { "at": "6.3", "cut": true, "around": "pair", "yaw": 0.15, "pitch": 0.06, "dist": 2.9, "height": 1.3, "fov": 34, "lag": 0.5, "focus": "pair", "handheld": 0.5 },
-        { "at": "10.1", "dist": 2.6, "height": 1.35 }
+        { "at": "6.3", "cut": true, "around": "pair", "yaw": 0.15, "pitch": 0.06, "dist": 3.4, "height": 1.3, "fov": 34, "lag": 0.5, "focus": "pair", "handheld": 0.5 },
+        { "at": "10.1", "dist": 3.1, "height": 1.35 }
       ]
     }
   ]

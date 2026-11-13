@@ -7,7 +7,9 @@
 // its director's shots, its crossing through a gate), blended over `blend` seconds. Values between keys are a
 // Catmull-Rom spline with the time warped by each key's `ease` (inOut, in, out, linear, spline: no stop at the key,
 // hold: a cut), so a move eases in and out, and several keys make one smooth path. The horizon is level by
-// construction: the pose is an eye and a point looked at, and weft's camera has no roll. Pure arithmetic over what the
+// construction: the pose is an eye and a point looked at, and weft's camera has no roll. The eye keeps clear of the
+// dancers' bones and a fusion's column (`near`, eased round them), of the gates' discs and a world's solids (the boom
+// shortened to the rig's clearance). Pure arithmetic over what the
 // scene says each frame (`FilmScene`), stepped with the film's dt: the same keys give the same path.
 // docs/extending/film.md says how to add a primitive.
 
@@ -46,7 +48,12 @@ export interface CamKey {
   focus?: Anchor | 'look' | number;
   /** a handheld drift (0 off … 1 a gentle hand … 3 a nervous one) */
   handheld?: number;
+  /** how far (m) the eye keeps from every dancer's bones and outside a fusion's column (default 1.2; 0 lets it in) */
+  near?: number;
 }
+
+/** something the eye keeps clear of: a segment and its own radius (a dancer's bone, a fusion's column) */
+export interface Capsule { a: V3; b: V3; r: number }
 
 /** what the camera can ask of the shot each frame (film.ts answers from the page) */
 export interface FilmScene {
@@ -57,14 +64,54 @@ export interface FilmScene {
   /** how much of the segment from the point looked at to the eye is clear (0 … 1): the gates' discs, a world's trunks
    *  (the rig's own `clearance`); the boom shortens to it, quickly in and slowly out */
   clear?(from: V3, to: V3): number;
+  /** the bodies the eye keeps `near` metres from: the dancers' bones, a fusion's column (film.ts reads them each frame) */
+  bodies?(): Capsule[];
   aspect: number;
 }
 
 export interface CamPose { eye: V3; look: V3; fov: number; focus: number; rigW: number }
 
-const SCALARS = ['yaw', 'pitch', 'dist', 'height', 'orbit', 'fov', 'lag', 'lead', 'handheld', 'frameX', 'frameY'] as const;
+const SCALARS = ['yaw', 'pitch', 'dist', 'height', 'orbit', 'fov', 'lag', 'lead', 'handheld', 'frameX', 'frameY', 'near'] as const;
 type Scalar = typeof SCALARS[number];
-const DEFAULTS: Record<Scalar, number> = { yaw: 0.35, pitch: 0.15, dist: 5.4, height: 1.0, orbit: 0, fov: 38, lag: 0.35, lead: 0, handheld: 0, frameX: 0, frameY: 0 };
+const DEFAULTS: Record<Scalar, number> = { yaw: 0.35, pitch: 0.15, dist: 5.4, height: 1.0, orbit: 0, fov: 38, lag: 0.35, lead: 0, handheld: 0, frameX: 0, frameY: 0, near: 1.2 };
+
+/** the nearest point of segment ab to p */
+const nearestOn = (p: V3, a: V3, b: V3): V3 => {
+  const ab: V3 = [b[0] - a[0], b[1] - a[1], b[2] - a[2]], L = ab[0] * ab[0] + ab[1] * ab[1] + ab[2] * ab[2];
+  const u = L > 1e-9 ? Math.max(0, Math.min(1, ((p[0] - a[0]) * ab[0] + (p[1] - a[1]) * ab[1] + (p[2] - a[2]) * ab[2]) / L)) : 0;
+  return [a[0] + ab[0] * u, a[1] + ab[1] * u, a[2] + ab[2] * u];
+};
+
+/** how far the eye must move to stand `near` metres outside every capsule, out of each one it is inside on the side
+ *  `from` stands (where the camera was last frame: so an eye whose path runs through a body keeps going round it on
+ *  the side it came in on, not flipped across; default the eye's own side, else along the boom, away from what it
+ *  looks at), a few rounds so that a push out of one body into another settles */
+export function clearOfBodies(eye: V3, look: V3, caps: readonly Capsule[], near: number, from?: V3): V3 {
+  const P: V3 = [0, 0, 0];
+  if (near <= 0 || !caps.length) return P;
+  const bl = Math.hypot(eye[0] - look[0], eye[1] - look[1], eye[2] - look[2]) || 1;
+  const boom: V3 = [(eye[0] - look[0]) / bl, (eye[1] - look[1]) / bl, (eye[2] - look[2]) / bl];
+  for (let round = 0; round < 8; round++) {
+    let moved = false;
+    for (const c of caps) {
+      const X: V3 = [eye[0] + P[0], eye[1] + P[1], eye[2] + P[2]];
+      const q = nearestOn(X, c.a, c.b), R = c.r + near;
+      const d = Math.hypot(X[0] - q[0], X[1] - q[1], X[2] - q[2]);
+      if (d >= R - 1e-6) continue;
+      // the side: from the bone toward where the camera was (else where the eye is, else back along the boom)
+      let v: V3 = from ? [from[0] - q[0], from[1] - q[1], from[2] - q[2]] : [X[0] - q[0], X[1] - q[1], X[2] - q[2]];
+      if (Math.hypot(...v) < 1e-4) v = [X[0] - q[0], X[1] - q[1], X[2] - q[2]];
+      const vl = Math.hypot(...v);
+      const n: V3 = vl > 1e-4 ? [v[0] / vl, v[1] / vl, v[2] / vl] : boom;
+      // along that side until the eye stands R out on it (the part across the side only adds distance)
+      const along = (X[0] - q[0]) * n[0] + (X[1] - q[1]) * n[1] + (X[2] - q[2]) * n[2];
+      for (let a = 0; a < 3; a++) P[a] += n[a] * (R - along);
+      moved = true;
+    }
+    if (!moved) break;
+  }
+  return P;
+}
 
 export const smooth01 = (x: number) => { const k = Math.max(0, Math.min(1, x)); return k * k * (3 - 2 * k); };
 const EASES: Record<Ease, (u: number) => number> = {
@@ -109,10 +156,14 @@ export class FilmCamera {
   /** the first key's time: before it the anchor isn't lagged (the shot starts with its subject where it is) */
   private firstT = 0;
   private pull = 1;
+  /** the eye's eased push out of the bodies (m), and whether it starts afresh (the first frame, a cut) */
+  private push: V3 = [0, 0, 0];
+  private pushFresh = true;
   /** carry on from another camera's state (the same shot, its keys timed again: a jogo's grid became known) */
   adopt(o: FilmCamera) {
     this.S = o.S ? [...o.S] as V3 : null; this.V = [...o.V] as V3; this.orbitAngle = o.orbitAngle; this.lastT = o.lastT;
     this.yawBase = o.yawBase; this.pull = o.pull;
+    this.push = [...o.push] as V3; this.pushFresh = o.pushFresh;
     return this;
   }
 
@@ -128,7 +179,7 @@ export class FilmCamera {
         if (!tr) this.tracks.set(s, (tr = { t: [], v: [], e: [] }));
         tr.t.push(k.t); tr.v.push(v); tr.e.push(e);
       };
-      for (const s of ['yaw', 'pitch', 'dist', 'height', 'orbit', 'lag', 'lead', 'handheld'] as const) put(s, k[s]);
+      for (const s of ['yaw', 'pitch', 'dist', 'height', 'orbit', 'lag', 'lead', 'handheld', 'near'] as const) put(s, k[s]);
       put('fov', k.fov ?? (k.mm ? fovOfMm(k.mm) : undefined));
       if (k.frame) { put('frameX', k.frame[0]); put('frameY', k.frame[1]); }
       if (k.around !== undefined) this.anchors.push({ t: k.t, a: k.around, e });
@@ -204,7 +255,7 @@ export class FilmCamera {
     const raw = this.pointTrack(this.anchors, t, (a) => this.where(a, s)) ?? [0, 0, 0];
     const lag = g('lag');
     // (a cut since the last frame: the operator starts again where the new shot is)
-    if (this.lastT !== null && this.cuts.some((c) => c > this.lastT! && c <= t)) { this.S = null; this.V = [0, 0, 0]; this.orbitAngle = 0; }
+    if (this.lastT !== null && this.cuts.some((c) => c > this.lastT! && c <= t)) { this.S = null; this.V = [0, 0, 0]; this.orbitAngle = 0; this.pushFresh = true; }
     this.lastT = t;
     if (!this.S || t <= this.firstT) { this.S = [...raw] as V3; this.V = [0, 0, 0]; }
     const k = lag > 1e-3 ? 1 - Math.exp(-dt / lag) : 1;
@@ -245,6 +296,20 @@ export class FilmCamera {
       look[0] = eye[0] + nx; look[2] = eye[2] + nz; look[1] = eye[1] + d[1] + pitchJ * D;
       for (let a = 0; a < 3; a++) eye[a] += w(2 + a) * 0.012 * hh;
     }
+    // clear of the bodies: the eye kept `near` metres from every dancer's bones and outside a fusion's column. The push
+    // keeps to the side the camera is on (a body crossing the boom is gone round, never through), lets go slowly once
+    // it isn't needed, and moves at most 3 m/s, so a body passing close turns the camera aside rather than jerking it
+    if (s.bodies) {
+      const was: V3 = [eye[0] + this.push[0], eye[1] + this.push[1], eye[2] + this.push[2]];
+      const relax = this.pushFresh ? 0 : Math.exp(-dt * 1.2);
+      const Y: V3 = [eye[0] + this.push[0] * relax, eye[1] + this.push[1] * relax, eye[2] + this.push[2] * relax];
+      const P = clearOfBodies(Y, look, s.bodies(), g('near'), this.pushFresh ? undefined : was);
+      const want: V3 = [Y[0] + P[0] - eye[0], Y[1] + P[1] - eye[1], Y[2] + P[2] - eye[2]];
+      const step = Math.hypot(want[0] - this.push[0], want[1] - this.push[1], want[2] - this.push[2]), cap = 3 * dt;
+      const k = this.pushFresh || step <= cap ? 1 : cap / step;
+      this.pushFresh = false;
+      for (let a = 0; a < 3; a++) { this.push[a] += (want[a] - this.push[a]) * k; eye[a] += this.push[a]; }
+    }
     // the focus: on an anchor's chest, on the point looked at, or at a distance
     const focusOf = (a: Anchor | 'look' | number): number | null => {
       if (typeof a === 'number') return a;
@@ -262,10 +327,19 @@ export class FilmCamera {
         focus = A + (B - A) * EASES[this.focuses[i + 1].e]((t - this.focuses[i].t) / Math.max(1e-6, this.focuses[i + 1].t - this.focuses[i].t));
       } else focus = A;
     }
-    // the boom shortened to what is clear (never closer than a body's width)
+    // the boom shortened to what is clear (never closer than a body's width), but never into the bodies: a solid across
+    // the boom with a fusion's column or a dancer between it and the eye would pull the eye into them (film 1's
+    // fusion orbit, a log behind it: a full-frame aurora); the solid wins only as far as the bodies' clearance
     if (s.clear) {
       const D = Math.hypot(eye[0] - look[0], eye[1] - look[1], eye[2] - look[2]) || 1;
-      const want = Math.max(Math.min(1, s.clear(look, eye)), Math.min(1, 0.9 / D));
+      let floor = Math.min(1, 0.9 / D);
+      const caps = s.bodies?.(), near = g('near');
+      if (caps?.length && near > 0) {
+        const at = (p: number): V3 => [look[0] + (eye[0] - look[0]) * p, look[1] + (eye[1] - look[1]) * p, look[2] + (eye[2] - look[2]) * p];
+        const inside = (p: number) => caps.some((c) => { const X = at(p), q = nearestOn(X, c.a, c.b); return Math.hypot(X[0] - q[0], X[1] - q[1], X[2] - q[2]) < c.r + near; });
+        if (!inside(1)) { let p = 1; while (p > floor && !inside(p - 0.02)) p -= 0.02; floor = Math.max(floor, p); }
+      }
+      const want = Math.max(Math.min(1, s.clear(look, eye)), floor);
       this.pull += (want - this.pull) * (1 - Math.exp(-dt * (want < this.pull ? 16 : 1.6)));
       for (let a = 0; a < 3; a++) eye[a] = look[a] + (eye[a] - look[a]) * this.pull;
     }

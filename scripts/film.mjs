@@ -2,6 +2,7 @@
 //   node scripts/film.mjs films/<name>.json [--preview] [--shot 3 | --shot s03,s04] [--sheet] [--force]
 //        [--url http://127.0.0.1:5435/energybending/] [--port 5436] [--take 10] [--only-take 2] [--hevc] [--av1]
 //        [--no-encode] [--out docs/reports/media/film] [--prefix 6 (the contact sheets' name: <prefix>-film-…)]
+//        [--no-score (the pictures alone, silence under them: a quick look while working on a timeline)]
 //   (anything else as the first argument is the older path, a cut of src/engine/film.ts: scripts/film-cut.mjs)
 // Each shot is one page (?film&cut=timeline, src/engine/film-shot.ts) that plays the shot from its first frame; the
 // frames from its in-point are read back as YUV 4:2:0 and posted here. A shot is cut into takes (`--take` seconds,
@@ -81,6 +82,8 @@ function pageQuery(s) {
     if (s.lock === false) q.set('free', '');
     // the film's tempo: the jogo's local room plays at it (src/play/index.ts &bpm; the rules' 112 otherwise)
     if (s.bpm && s.bpm !== 112) q.set('bpm', String(s.bpm));
+    // a hold before the jogo's room starts (src/play/index.ts &hold): the dancers asleep in their heaps until then
+    if (s.hold != null) q.set('hold', String(s.hold));
   } else if (s.mode === 'play') { q.set('play', ''); q.set('two', ''); }
   // (mode 'show': the plain page, Gem Dancers' programme: its dancers in heaps until they wake)
   q.set('world', s.world ?? 'redwoods');
@@ -171,7 +174,7 @@ await new Promise((ok) => server.listen(PORT, '127.0.0.1', ok));
 // ---------------------------------------------------------------- the lock
 let release = null, heldAt = 0;
 const holds = [];
-async function lock() { release = await takeLock({ say: log }); heldAt = Date.now(); }
+async function lock() { release = await takeLock({ say: log, waitMs: 1000 }); heldAt = Date.now(); }
 function unlock(what) {
   if (!release) return;
   const s = (Date.now() - heldAt) / 1000;
@@ -236,7 +239,9 @@ async function renderShot(s, k0, k1, audio) {
           res.end('go');
           return;
         }
-        if (path === '/end') { await finishTake(); info = JSON.parse(body.toString()); unlock(`${s.id} done`); res.end('ok'); if (!audio) resolve(); return; }
+        // (the page always posts /done after /end, its score or not: the shot ends there, or the next shot's sink
+        // would take this page's /done for its own and end before it began)
+        if (path === '/end') { await finishTake(); info = JSON.parse(body.toString()); unlock(`${s.id} done`); res.end('ok'); return; }
         if (path === '/audio') { writeFileSync(join(s.dir, 'score.wav'), body); res.end('ok'); return; }
         if (path === '/done') { info = JSON.parse(body.toString()); res.end('ok'); resolve(); return; }
         if (path === '/error') { res.end(); reject(new Error(`the page: ${body.toString()}`)); return; }
@@ -262,7 +267,7 @@ for (const s of pick) {
   const only = opts['only-take'] != null ? Number(opts['only-take']) : null;
   const missing = [];
   for (let k = 0; k < s.takes; k++) if ((only == null || k === only) && (!existsSync(s.takePath(k)) || only != null)) missing.push(k);
-  const needScore = only == null && !existsSync(join(s.dir, 'score.wav'));
+  const needScore = only == null && !opts['no-score'] && !existsSync(join(s.dir, 'score.wav'));
   if (!missing.length && !needScore) { log(`${s.id}: cached`); continue; }
   if (!missing.length) { await renderShot(s, s.takes, s.takes, true); continue; }   // the score alone: every frame stepped, none read back
   const k0 = missing[0], k1 = missing[missing.length - 1] + 1;

@@ -31,7 +31,8 @@ node scripts/film-seams.mjs films/test-seam.json --take 3  # prove the seams are
 
 Options: `--url` (default `http://127.0.0.1:5435/energybending/`), `--port` (the sink, default 5436), `--take <s>`
 (take length: 10 s master, 20 s preview; `0` for one take), `--force` (render again), `--only-take <k>` (one take in a
-fresh page, for checks), `--no-encode`, `--variant <name>` (a separate cache), `--out <dir>`
+fresh page, for checks), `--no-encode`, `--no-score` (pictures only, silence under them: the offline score is the slow
+part, about 8× real time, so leave it off while working on a timeline), `--variant <name>` (a separate cache), `--out <dir>`
 (default `docs/reports/media/film`, git-ignored). Files: `<out>/<film>-master.mp4`, `-web.mp4`, `-preview.mp4`,
 `<out>/cache/<quality>/<film>-<shot>-<key>/take-NNN.mkv` (lossless x264, the takes), `score.wav` and `info.json` (the
 shot's in-point, its page frames, the jogo's state at the end, the page's warnings), `<out>/work/<film>-<quality>/`
@@ -45,8 +46,10 @@ any code change renders everything again.
 ## Review
 
 Look at every shot's sheet (`--sheet`; `--sheet-n 30` for a denser one), then the preview with sound. A sheet is
-twelve frames evenly through the shot. What to look for: a subject out of frame or cut by the edge, the camera inside
-something (a crystal, a bough: the film camera stays clear of gates' discs and a world's `clear`, nothing else), a
+twelve frames evenly through the shot. The page logs a line a second of film (`film: <shot> frame k/n … beat b seats
+x,y,z | x,y,z eye x,y,z nearest body d m`): where the jogo's beat is, where each seat stands and how far the eye is
+from the nearest body, which is how to find which cue put a dancer behind the other or the camera in a body. What to look for: a subject out of frame or cut by the edge, the camera inside
+something (a crystal, a bough: the film camera stays clear of gates' discs, a world's `clear` and, by `near`, the dancers and a fusion's column), a
 cut that jumps the axis, bodies inside each other, a known bug from `docs/reports/3-critique.md`. Write what the game
 can't do yet down for the critic rather than working round it in the film.
 
@@ -83,6 +86,22 @@ with its `seed`, on seat 1. `dress` is a preset (matter/core/presets.ts).
 **Lead-in.** A jogo shot's page runs its intro (the bodies re-forming at their spawns, about four seconds) before
 play; frames before the in-point are stepped and not kept. A `play` or `show` shot keeps frames from `preroll`
 seconds (default 0.5).
+
+**A hold.** `"hold": 9` on a jogo shot starts the jogo's room nine seconds late (the page's `&hold=9`,
+src/play/index.ts): until then the dancers lie asleep in their heaps (the gems in their cairn at the world's middle),
+and a `{ "at": 4.2, "wake": true }` cue wakes them early (a gem dancer streams in from the cairn as a comet). Use it
+with `"from": "start"`; a `dress` cue during the hold changes what a seat wears before the intro (film 1: gems, then
+water as the intro begins).
+
+**Free jogo, placed.** `"lock": false` plays the jogo free (`&free`); a `place` given as a point, `[x, z]`, is the
+film's own even in a jogo (bend.place), so `{ "at": -9, "seat": 0, "place": [-1.2, 0.3] }` stands a seat there before
+the intro (which re-forms it there). Times of -9 or less fire on the first frame in any shot. A seat's `goto` in a
+free jogo is along x (its z kept).
+
+**Forms.** A timeline with any `form` cue owns the forms for its duration: src/ai's partner's own presses of the form
+button are dropped (`AiPartner.formHeld`), so a form the timeline turns off stays off and the fusion is the kind the
+timeline meant. `bend.jogo.partner.home = [x, z]` moves the middle a free partner's ginga drifts back to (the stage's
+middle otherwise).
 
 ## Cues
 
@@ -124,6 +143,7 @@ eased per key (`"ease"`: `inOut` the default, `in`, `out`, `linear`, `spline` fo
 | `handheld` | a slow seeded drift (0 … 1 gentle; the shot's `seed`); no roll |
 | `mode`, `blend` | `free` (these keys), `lock` (the rig's locked game screen), `rig` (the rig's own: its follow camera, its crossing of a gate), blended over `blend` s |
 | `cut` | jump here: a cut on the beat inside the shot (the take goes on: dancers, matter, music) |
+| `near` | metres the eye keeps from every dancer's bones and outside a fusion's column (default 1.2; 0 lets it in) |
 
 The horizon is always level (an eye and a point looked at; weft's camera has no roll). The film camera is laid over
 the rig's pose in the rig's `apply`, and its focus replaces the rig's for the depth of field; the rig keeps running

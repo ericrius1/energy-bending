@@ -166,6 +166,12 @@ export class AiPartner implements Brain {
 
   /** a director's loose intentions for the partner (src/ai/direct.ts: a film timeline's cues), or null for its own */
   direct(d: Direction | null) { this.scene.direct(`seat.${this.seat}`, d); }
+  /** the forms are someone else's (a film timeline that sets them owns them for its duration): the brain's own presses
+   *  of the form button are dropped, so a form the timeline set off stays off (and the fusion is the kind it meant) */
+  formHeld = false;
+  /** where the pair's ginga drifts back to when free ([x, z]; null: the stage's middle). A film that stages the jogo
+   *  away from the stage (the temple's open court in front of the altar) sets it, or the brain walks the pair home */
+  home: [number, number] | null = null;
 
   think(v: PartnerView): Intent {
     const it = makeIntent();
@@ -192,13 +198,21 @@ export class AiPartner implements Brain {
       this.driver = new BrainDriver(this.brain, me, this.scene, () => this.stage(v.me));
       this.driver.defaultFlourish = 'pirueta';
     }
-    return this.driver.think();
+    const out = this.driver.think();
+    if (this.formHeld) out.form = false;
+    return out;
+  }
+
+  /** the stage as the brain sees it: moved to `home` when a film set one (only its middle is read, as the roda's) */
+  private homeStage(st: StagePlane | null): StagePlane | null {
+    const h = this.home;
+    return h && st ? { ...st, origin: [h[0], st.origin[1], h[1]] } : st;
   }
 
   private stage(c: Character): StageView {
     const w = this.ctx.world();
     return {
-      plane: c.plane, stage: w.stages[0] ?? null, terrain: { groundAt: (x, z) => w.groundAt(x, z) },
+      plane: c.plane, stage: this.homeStage(w.stages[0] ?? null), terrain: { groundAt: (x, z) => w.groundAt(x, z) },
       gates: w.portals.map((p) => ({ id: p.id, at: p.at, normal: p.normal, radius: p.radius })), room: w.room, solids: w.solids,
     };
   }
