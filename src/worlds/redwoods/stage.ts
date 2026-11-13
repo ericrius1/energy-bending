@@ -10,6 +10,7 @@
 // and tapers to a lifting tip. The big pieces (the log, its root plate and roots) come first in `pieces`, the boughs'
 // after them (`big` says where), because they are drawn at two levels of detail.
 import type { Ledge } from '../stage';
+import type { Solid } from '../solids';
 
 type V3 = [number, number, number];
 
@@ -145,4 +146,10 @@ export function packPieces(pieces: Piece[]) {
     along += len;
   });
   return out;
+}
+
+/** the stage's logs as the camera's solids (World.solids): every piece of the chains a capsule of its wider radius
+ *  (the fallen giant, its root plate and roots, every piece of both boughs) */
+export function solidsOfStage(pieces: Piece[]): Solid[] {
+  return pieces.map((p) => ({ kind: 'capsule' as const, a: [...p.a] as V3, b: [...p.b] as V3, r: Math.max(p.ra, p.rb) }));
 }

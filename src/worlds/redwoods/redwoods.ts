@@ -26,7 +26,9 @@ import type { StagePlane } from '../../engine/camera';
 import { Woods } from './day';
 import { fillTexture } from './textures';
 import { defineParams } from '../../engine/params';
-import { layoutStage, packPieces, type RedwoodsStage } from './stage';
+import { layoutStage, packPieces, solidsOfStage, type RedwoodsStage } from './stage';
+import { solidsOfWoods } from './layout';
+import { clearOf, type Solid } from '../solids';
 import { stagePlane, spawnsOf, toPlane } from '../stage';
 import { JOINT } from '../../skeleton/rig';
 
@@ -76,6 +78,8 @@ export class Redwoods implements World {
   readonly room = ROOM;
   readonly maxDist = ROOM;
   readonly woods: Woods;
+  /** the trees, the fallen log and the boughs as simple shapes for the camera (World.solids), from their layouts */
+  readonly solids: readonly Solid[];
   private forest: LightSlot<Forest>;
   private tex: { bark: Texture; barkH: Texture; ground: Texture };
   private loading: Promise<void> | null = null;
@@ -95,6 +99,7 @@ export class Redwoods implements World {
     this.stage = layoutStage(this.woods.layout.trunks);
     this.woods.values.stageLog = [...this.stage.log];
     this.woods.values.stagePlate = [...this.stage.plate];
+    this.solids = [...solidsOfStage(this.stage.pieces), ...solidsOfWoods(this.woods.layout)];
     this.stages = [stagePlane({
       id: 'clearing', origin: [0, 0, 0], right: this.stage.right, halfWidth: 5.75, ground: 0, ledges: this.stage.ledges,
       spawns: [[-1.2, 0], [1.2, 0]], lens: 22,
@@ -227,25 +232,10 @@ export class Redwoods implements World {
   private piecesBuf: ReturnType<Kit['storage']> | null = null;
   private pieces() { return (this.piecesBuf ??= this.ctx.kit.storage({ label: 'redwoods.stage', data: packPieces(this.stage.pieces), usage: ['storage'] })); }
 
+  /** the camera's clearance (World.clear): the segment against the trunks, the limbs, the fallen log and the boughs
+   *  (a 40 cm margin) */
+  clear(a: [number, number, number], b: [number, number, number]) { return clearOf(this.solids, a, b); }
   /** the meadow, or the fallen log's top where it lies */
-  /** the camera's clearance (World.clear): the segment against the nearest trunks as upright cylinders (a 40 cm margin) */
-  clear(a: [number, number, number], b: [number, number, number]) {
-    const T = this.woods.layout.trunks, dx = b[0] - a[0], dz = b[2] - a[2], L2 = dx * dx + dz * dz;
-    let best = 1;
-    if (L2 < 1e-6) return best;
-    for (let i = 0; i + 3 < T.length && i < 4 * 24; i += 4) {
-      const x = T[i], z = T[i + 1], R = T[i + 2] + 0.4;
-      if (R <= 0.4) continue;
-      // where the segment first comes within R of the trunk's axis (a quadratic in t along it)
-      const fx = a[0] - x, fz = a[2] - z, B = fx * dx + fz * dz, C = fx * fx + fz * fz - R * R;
-      if (C <= 0) return 0;
-      const disc = B * B - L2 * C;
-      if (disc < 0) continue;
-      const t = (-B - Math.sqrt(disc)) / L2;
-      if (t >= 0 && t < best) best = t;
-    }
-    return best;
-  }
   groundAt(x: number, z: number) {
     const [px, , across] = toPlane(this.stages[0], [x, 0, z]);
     const log = this.stage.ledges[0], R = this.stage.plate[0], cy = log.y - R;

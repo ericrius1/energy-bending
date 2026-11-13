@@ -8,6 +8,7 @@
 // section), drawn by stones.wgsl.
 import { mulberry32 } from 'math/random';
 import type { Ledge } from '../stage';
+import { cylinder, type Solid } from '../solids';
 
 type V3 = [number, number, number];
 
@@ -195,6 +196,27 @@ export function layoutTemple(o: { coarse: boolean; seed?: number }): TempleLayou
     }
   }
   return { ledges, stones, pillars, tops };
+}
+
+/** the stones as the camera's solids (World.solids), from the same description they're drawn from: a block a box, a
+ *  drum standing or lying a cylinder (a capsule with its ends cut to the drum's), a capital or base by its wider end.
+ *  The platform under the floor is left out (the floor is the ground, groundAt's) */
+export function solidsOf(stones: Stone[]): Solid[] {
+  const out: Solid[] = [];
+  const turn = (s: Stone, q: V3): V3 => {
+    const c = Math.cos(s.yaw), sn = Math.sin(s.yaw);
+    return [s.at[0] + q[0] * c + q[2] * sn, s.at[1] + q[1], s.at[2] - q[0] * sn + q[2] * c];
+  };
+  for (const s of stones) {
+    if (s.open) continue;
+    if (s.kind === 'block') out.push({ kind: 'box', c: [s.at[0], s.at[1] + s.size[1] / 2, s.at[2]], half: [s.size[0] / 2, s.size[1] / 2, s.size[2] / 2], yaw: s.yaw });
+    else {
+      const R = s.size[0], H = s.size[1], r = Math.max(R, s.size[2] || R);
+      if (s.tilt) out.push(cylinder(turn(s, [0, R, -H / 2]), turn(s, [0, R, H / 2]), r));
+      else out.push(cylinder(s.at, [s.at[0], s.at[1] + H, s.at[2]], r));
+    }
+  }
+  return out;
 }
 
 /** the stones as stones.wgsl reads them: blocks first, then the court's drums, then the far drums (`blocks` says where

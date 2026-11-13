@@ -19,7 +19,8 @@ import type { FrameCtx } from '../../engine/frame';
 import { defineParams, hex, onParams } from '../../engine/params';
 import { Ripples } from '../water/ripples';
 import { stagePlane, spawnsOf, type StagePlane } from '../stage';
-import { layoutTemple, packStones, STAGE_Z, type TempleLayout } from './layout';
+import { layoutTemple, packStones, solidsOf, STAGE_Z, type TempleLayout } from './layout';
+import { clearOf, type Solid } from '../solids';
 import { JOINT } from '../../skeleton/rig';
 
 export const templeParams = defineParams('temple', {
@@ -105,6 +106,8 @@ export class Temple implements World {
   readonly room = 16;
   readonly maxDist = 18;
   readonly layout: TempleLayout;
+  /** the stones as simple shapes for the camera (World.solids): boxes and cylinders, from the layout */
+  readonly solids: readonly Solid[];
   /** the tide now (m over the floor), as last set by update */
   tide = 0;
   private u: LightSlot<TempleU>;
@@ -126,6 +129,7 @@ export class Temple implements World {
     const { kit, frame, coarse } = ctx;
     this.layout = layoutTemple({ coarse });
     this.packed = packStones(this.layout.stones);
+    this.solids = solidsOf(this.layout.stones);
     this.buf = kit.storage({ label: 'temple.stones', data: this.packed.data, usage: ['storage'] });
     this.u = lightSlot(kit, 'temple');
     this.waves = new Ripples(kit, frame, {
@@ -216,9 +220,11 @@ export class Temple implements World {
     }
   }
 
-  /** the floor, or the top of a solid stone standing there (the altar, a stump) */
   /** the tide (fire's mirror copy reflects about it) */
   waterY() { return this.tide; }
+  /** the camera's clearance (World.clear): the segment against every stone (a 40 cm margin) */
+  clear(a: [number, number, number], b: [number, number, number]) { return clearOf(this.solids, a, b); }
+  /** the floor, or the top of a solid stone standing there (the altar, a stump) */
   groundAt(x: number, z: number) {
     for (const [x0, x1, z0, z1, top] of this.layout.tops) if (x >= x0 && x <= x1 && z >= z0 && z <= z1) return top;
     return 0;
