@@ -75,7 +75,10 @@ layer's suite there), then upload. `resize({ count })` comes first when a progra
 ## 4. Draws, per view and world: `declareView(s)`
 
 Called once per view, world and scene phase (`backdrop` is for worlds only; you get `opaque` and `glow`). Add your
-draws for `s.phase` into `s.pass`, enabled by `s.on` (true while that view shows that world). Lit by the world:
+draws for `s.phase` into `s.pass`, enabled by `s.on` (true while that view shows that world). The two phases go to
+two passes over one depth buffer (the depth contract, AGENTS.md): `opaque` draws land in the scene target, whose alpha
+is the opaque view distance (write it, as a solid thing); `glow` draws land in the view's glow target and never touch
+that distance (a blended draw's alpha write is turned off for you). Lit by the world:
 
 ```ts
 if (s.phase === 'opaque') s.pass.draw(drawShader, {
@@ -113,7 +116,8 @@ between dances. A kind with no such moments leaves `acts` out.
   arcs, the gems' sparkles) is drawn in the main view only, or must say what it does.
 - **`carry(moves)`**: when a dancer crosses a gate, move its particles by the gate's rigid move before your step.
   `matter/core/carry.ts` (`CarryStep`) does it for a kind whose state is the core `Particle` (core/carry.wgsl); a kind
-  with its own struct writes a carry shader with the same `Carry` uniform (fire/carry.wgsl).
+  with its own struct writes a carry shader with the same `Carry` uniform (fire/carry.wgsl). A move may carry `within`
+  (a sphere round the door): only particles inside it go, so what the dancer shed earlier stays where it fell.
 - **`hear(ears)`**: the music hands your kind its ears once; tell them what happens each frame (holds and events:
   docs/extending/sound.md). `matter/core/sounding.ts` has the helpers (a body's middle, its fastest limb, a seeded
   number per frame, a trigger). Scale by `Dancer.presence`.
@@ -122,9 +126,20 @@ between dances. A kind with no such moments leaves `acts` out.
   it show: bind `hearts: heartsOf(kit)`, include `../gems/hearts`, and multiply your brightness and alpha by
   `heartVeil(hearts, wp, frame.camPos)` (below 1 only between the camera and a heart), and add
   `heartLight(hearts, wp)` for its glow. It is zero when nobody wears a heart. It costs one uniform buffer.
+- **`focus(view)`**: translucent matter the depth of field should focus on returns an r16float texture (any size) with
+  the view distance where it is dense, and a "nothing" value of at least 1e4 elsewhere (fire 6e4, water 1e5, which a
+  half float stores as +∞: compare against it, never do arithmetic on it). The post chain binds up to three
+  (`FOCUS_SLOTS`), filled each frame from the kinds that return one. It never writes the scene's alpha.
+- **Screen-space matter** (fire's field, water's surface): splat after the view's scene pass and test against its
+  alpha (the opaque distance); lay the result into the view's glow target (fire: additive light, the air fogs it at the
+  focus distance) or composite a body over the scene in the 'air' stage before the post chain's merge (water: the merge
+  finds bodies where the scene changed, so the Pool's water mirrors them). Mirror copies: the geode's agate
+  (`World.mirrorFloor`) and water (`World.waterY()`) — the worlds' own reflections march only the opaque scene.
 - **`declarePost(post)`**: translucent matter with no one distance (steam) draws over the focused image, in the post
-  chain's lens pass after the depth of field, testing the scene's distance by hand (`post.sceneTex`'s alpha). Matter
-  that has a distance stays in the scene and min-blends it into the scene's alpha (fire does).
+  chain's lens pass after the depth of field, testing the scene's distance by hand (`post.sceneTex`, the air target:
+  its alpha is the opaque distance, or a water body's).
+- **The device's budget**: read counts, resolutions and sprite scales from `budget()` (engine/perf.ts) at declare, not
+  `coarse` (a phone's numbers are what `coarse` gave).
 
 ## 8. Dress a dancer in it
 

@@ -14,7 +14,8 @@ src/play/
   build.ts     JogoBuilder (when a move sets a piece, and its shape) and Pieces (set ice, crystal ledges, rings of flame)
   hud.ts       Hud: the meters in the world (the thread, its beads, the feet's arcs, the beat's pulse)
   flow.ts      Flow: waiting, the intro's re-form and count-in, the finale, the results' gems
-  partner.ts   Brain, BrainSource (any brain as a device), StandIn (the built-in partner)
+  partner.ts   Brain, BrainSource (any brain as a device), AiPartner (src/ai's PartnerBrain through a BrainDriver: the
+               default partner), StandIn (the small built-in one, &partner=standin)
   script.ts    ScriptRunner: a jogo from JSON (scripts/*.json)
   menu.ts      the front of the game, the lobby, the room's code (DOM; styles in index.html)
   glow.ts, glow-draw.ts, glow.wgsl   the jogo's own light in the world (points, segments, rings, gems), one draw
@@ -61,10 +62,17 @@ slow-motion breath). Numbers worth tuning are in `jogoParams`.
 
 ## Add a fusion kind
 
-The kind comes from the two seats' forms (`RULES.fusionKinds`). Its colours are `FUSION_COLOURS` and its own matter is
-a case in `Fusion.kindFrame` (fusion.ts); the music's texture is `music.fusion(kind)` (src/audio).
+The kind comes from the two seats' forms (`RULES.fusionKinds`). Its look is the field's (`field.fuse({ dancers, kind,
+amount, strength, tightness })`, matter/field: the helix of both auras round a vortex and the steam's kind look, in
+`FUSION_KINDS` and the steam shaders); the jogo's streams use `FUSION_COLOURS`, and anything the jogo adds on top is a
+case in `Fusion.kindFrame` (storm's arcs and drops); the music's texture is `music.fusion(kind)` (src/audio).
 
 ## A partner brain
+
+The partner is src/ai's `PartnerBrain` (docs/extending/brain.md) by default, preset `playful`; `&partner=calm|fierce|
+mirror` or `bend.jogo.preset(name)` changes it, `&partner=standin` seats the jogo's own little stand-in. In
+`?jogo=partner|same` free dancers ring the stage (src/ai's roda) as the device's budget allows (`Budget.roda`:
+desktop 4, laptop 2, phone none; `&roda=N`). Any other brain:
 
 ```ts
 import type { Brain, PartnerView } from '../play/partner';

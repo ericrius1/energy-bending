@@ -57,7 +57,10 @@ textures or samplers than the baseline allows. Run the game under the baseline w
 worlds return `textureLoad(src, px, 0)`. A world with water calls `water/water.wgsl` (`waterHit`, `waveNormal`,
 `waterReflect`: the reflection is the scene on screen, marched along the reflected ray, else your sky); a hot one bends
 what is far (`forgeScene`). Keep half floats in mind: the scene's alpha is an `rgba16float`, so write distances under
-30 km and compare them with a part in a thousand of slack.
+30 km and compare them with a part in a thousand of slack. The `src` the air hands you is the **opaque** scene only
+(the depth contract, AGENTS.md): flames and other glowing matter are in a separate glow target laid over afterwards,
+so your reflection never sees them. A water world returns `waterY()` (its surface height) so fire draws its own
+mirror copy there.
 
 ## 2. The World
 
@@ -83,12 +86,19 @@ export class Pool implements World {
 - `fixtures`: matter the world is built of, e.g. `{ kind: 'gems', count, radius, specimens, seed, enabled }` (the
   gems build a dome of crystals from it). Later, set matter (building) lands here.
 - `tone()` is how the instrument sounds there (audio/sound.ts `Tone`); `ambience()` the wood's own sounds.
+- `grade` (optional, `Grade` in worlds/world.ts, src/post/grade.ts): the world's colour after the tone map (lift,
+  gamma, gain, shadow and highlight tints, saturation, contrast); it eases over half a second at a crossing. Saturated
+  colours (the elements') are mostly protected.
+- `waterY()` (optional): the height of water that mirrors (the Pool, the temple's tide).
+- `clear(a, b)` (optional): how much of a segment is clear of the world's big solid things, for the camera (the
+  redwoods answer from their trunks).
 
 ## 3. Stages and ledges (worlds/stage.ts)
 
 A stage plane is data the body physics reads: `{ id, origin, right, halfWidth, ground, ledges, spawns, ledgeY? }`
 (engine/camera.ts, one type for the rig, the physics and the worlds), plus what the camera may want: `height` (how much
-to frame when nobody is on it) and `lens`; `stagePlane(def)` fills `height` in. The normal is `planeNormal(plane)`
+to frame when nobody is on it), `lens`, and the locked camera's composed angle `yaw` and `pitch` (rad off square-on
+and down; defaults camera.lockYaw / lockPitch); `stagePlane(def)` fills `height` in and passes the rest on. The normal is `planeNormal(plane)`
 (right × up) and how far back the locked camera may stand comes from the world's `room`. Plane coordinates: x along
 `right` from `origin`, y up, metres. A `Ledge` is `{ id, x0, x1, y, solid?, thick?, bob? }`: its top at y from x0 to
 x1, one-way unless solid, bobbing `bob` m with the bass.

@@ -182,10 +182,14 @@ Wave 1 is built and merged into `master`, its seams joined (`docs/reports/2-inte
 verified, the open items).
 
 **Wave 2 (one agent, then helpers).** `src/play`: the jogo end to end, fusion, building, HUD, menus,
-same-screen and online.
+same-screen and online. Built (`docs/reports/3-jogo.md`), with the brains (`src/ai`, `3-brains.md`).
 
 **Then the loop.** Render stills and a short film; a critic agent watches and writes the next plan;
-agents execute; repeat until it is beautiful. Then one or two films with no text, the server on Railway,
+agents execute; repeat until it is beautiful. The first turn of the loop is done: the critic's look and plan
+(`docs/reports/3-critique.md`), its ten tasks built in parallel (`4-*.md`: fire as a field, water and ice, the depth
+contract and the lens, cameras through gates, steam fronts, the five worlds, gems and hearts, the device budget) and
+merged with the jogo and the brains (`docs/reports/5-integration.md`, which lists what is still open). The films
+(the critic's task 10) are next. Then one or two films with no text, the server on Railway,
 the site at ericlevin.dev/energybending, and a place in the portfolio.
 
 ## Shared habits
