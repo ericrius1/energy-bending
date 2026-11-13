@@ -1,7 +1,7 @@
 // The partner: a brain playing the other seat. The brains (src/ai, another agent's) decide an Intent each frame from
 // what they can see; this file holds the thin adapter that makes any such brain a device the jogo can seat
 // (`BrainSource`, an IntentSource), the view it is handed (`PartnerView`), and a small built-in stand-in so the jogo has
-// a partner today. When src/ai has its partner, it drops in here: anything with `think(view): Intent` will do.
+// a partner. src/ai's partner (`AiPartner`, at the end) is the default; anything with `think(view): Intent` will do.
 //
 // The stand-in keeps a conversational distance, gingas, answers on the beat (an attack now and then, a cartwheel, a
 // spin), dodges most of what comes at it (esquiva under a kick), takes its form when it has the flow, comes in and holds
@@ -13,6 +13,12 @@ import { makeIntent, type Intent, type IntentSource, type InputMode } from '../i
 import type { StagePlane } from '../engine/camera';
 import { RULES } from '../../shared/rules.ts';
 import type { PublicState } from '../../shared/protocol.ts';
+import type { World } from '../worlds/world';
+import type { MusicView, RulesView, StageView } from '../ai/brain';
+import type { ClipLibrary } from '../ai/clips';
+import { Scene } from '../ai/scene';
+import { BrainDriver } from '../ai/driver';
+import { PartnerBrain, type PresetName } from '../ai/partner';
 
 type V3 = [number, number, number];
 
@@ -107,5 +113,70 @@ export class StandIn implements Brain {
       }
     }
     return it;
+  }
+}
+
+// ---------------------------------------------------------------- src/ai's partner, seated through this adapter
+
+/** what the ai partner needs of the game besides the PartnerView */
+export interface AiPartnerCtx {
+  /** the world the jogo plays in (its stage, ground, gates, room) */
+  world(): World;
+  /** the music's level 0 … 1 and whether it is in a breakdown (the partner's moods follow it) */
+  music(): MusicView;
+  /** this frame's events from the jogo (src/play/jogo.ts), passed to the brain as the rules' events */
+  events(): readonly { k: string }[];
+  /** the clips the brains groove and flourish to (src/ai/clips.ts), when the travel clips have loaded */
+  clips?: ClipLibrary | null;
+}
+
+/** src/ai's PartnerBrain playing a seat of the jogo: it keeps the brains' Scene (both seats, their moves witnessed)
+ *  and a BrainDriver for the seat, fed each frame from the jogo's PartnerView and the room's state (the real rules, not
+ *  the brains' stand-in referee). Between jogos (waiting, intro, over) it does what the stand-in did: nothing, then
+ *  says ready at the end */
+export class AiPartner implements Brain {
+  readonly scene = new Scene();
+  private driver: BrainDriver | null = null;
+  private brain: PartnerBrain;
+  private t = 0;
+  private readied = false;
+  constructor(private ctx: AiPartnerCtx, public preset: PresetName = 'playful', seed = 23) {
+    this.brain = new PartnerBrain({ preset, seed, clips: ctx.clips ?? null });
+  }
+
+  /** change the preset (a new brain, same seat) */
+  setPreset(p: PresetName) { this.preset = p; this.brain = new PartnerBrain({ preset: p, seed: 23, clips: this.ctx.clips ?? null }); this.driver = null; }
+
+  think(v: PartnerView): Intent {
+    const it = makeIntent();
+    const st = v.state, phase = st?.phase ?? 'waiting';
+    this.t += v.dt;
+    if (phase === 'over') {
+      if (!this.readied && hash(Math.floor(v.beat.beats)) < 0.5) { it.jump = true; this.readied = true; }
+      return it;
+    }
+    this.readied = false;
+    // the scene: both seats (the other one's body where this page simulates it), the clock, the rules as the room says
+    const me = { id: `seat.${v.seat}`, seat: v.seat, character: v.me };
+    const them = { id: `seat.${1 - v.seat}`, seat: 1 - v.seat, character: v.them.character, where: () => ({ root: v.them.root, yaw: 0, pose: null }) };
+    this.scene.bodies = [me, them];
+    const rules: RulesView | null = st ? {
+      phase: st.phase, tension: st.tension, mergeReady: st.mergeReady, flow: [st.flow[0], st.flow[1]], form: [st.form[0], st.form[1]],
+      fusion: !!st.fusion, events: this.ctx.events() as unknown as RulesView['events'],
+    } : null;
+    this.scene.update({ t: this.t, dt: v.dt, beat: v.beat.beats, bpm: v.beat.bpm, music: this.ctx.music(), rules });
+    if (!this.driver || this.driver.character !== v.me) {
+      this.driver = new BrainDriver(this.brain, me, this.scene, () => this.stage(v.me));
+      this.driver.defaultFlourish = 'pirueta';
+    }
+    return this.driver.think();
+  }
+
+  private stage(c: Character): StageView {
+    const w = this.ctx.world();
+    return {
+      plane: c.plane, stage: w.stages[0] ?? null, terrain: { groundAt: (x, z) => w.groundAt(x, z) },
+      gates: w.portals.map((p) => ({ id: p.id, at: p.at, normal: p.normal, radius: p.radius })), room: w.room,
+    };
   }
 }

@@ -69,6 +69,16 @@ export const RULES = {
     'block':    { attack: false, flow: 2 },
     'spin':     { attack: false, flow: 4 },
     'jump':     { attack: false, flow: 2 },
+    // flourishes (sampled CMU clips the brains and a player's "spin with the stick up" reach: src/ai/clips.ts, the
+    // pirouette in dancer/play.ts) and the clap: no attack, a little flow, relayed online like any move
+    'pirueta':  { attack: false, flow: 2 },
+    'giro':     { attack: false, flow: 2 },
+    'volta':    { attack: false, flow: 2 },
+    'saltos':   { attack: false, flow: 2 },
+    'voo':      { attack: false, flow: 2 },
+    'tour':     { attack: false, flow: 2 },
+    'quebra':   { attack: false, flow: 2 },
+    'palmas':   { attack: false, flow: 1, echo: false },
   } as Record<string, { attack: boolean; flow: number; echo?: boolean }>,
   // Exchange results, reported by the dancer being attacked. streak: true extends the streak, false resets.
   xch: {

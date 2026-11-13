@@ -32,13 +32,17 @@ let idn = 0;
 const mv = (s: Session, seat: number, move: string, t: number, extra: object = {}): any => onMove(s, seat, { id: `${seat}-${++idn}`, move, ts: t, x: 0, y: 0.2, dir: 1, perfect: false, ...extra }, t);
 
 test('RULES lists every move name with attack and flow', () => {
-  const names = ['ginga', 'meia-lua', 'armada', 'martelo', 'bencao', 'rasteira', 'strike', 'throw', 'au', 'macaco', 'role', 'esquiva', 'block', 'spin', 'jump'];
+  const names = ['ginga', 'meia-lua', 'armada', 'martelo', 'bencao', 'rasteira', 'strike', 'throw', 'au', 'macaco', 'role', 'esquiva', 'block', 'spin', 'jump',
+    // the flourishes and the clap (src/ai/clips.ts, the pirouette): no attack, a little flow
+    'pirueta', 'giro', 'volta', 'saltos', 'voo', 'tour', 'quebra', 'palmas'];
   for (const n of names) {
     assert.ok(RULES.moves[n], n);
     assert.equal(typeof RULES.moves[n].attack, 'boolean', n);
     assert.ok(RULES.moves[n].flow > 0, n);
   }
   assert.deepEqual(Object.keys(RULES.moves).sort(), [...names].sort());
+  for (const n of ['pirueta', 'giro', 'volta', 'saltos', 'voo', 'tour', 'quebra', 'palmas']) assert.equal(RULES.moves[n].attack, false, n);
+  assert.equal(RULES.moves.palmas.echo, false);
   for (const k of ['SESSION_MS', 'PERFECT_MS', 'PARRY_MS', 'FUSION_BARS', 'FORM_ENTER', 'FORM_DRAIN'] as const) assert.ok(RULES[k] > 0, k);
   assert.equal(RULES.FORM_ENTER, 30); assert.equal(RULES.FORM_DRAIN, 6); assert.equal(RULES.SESSION_MS, 180000);
 });

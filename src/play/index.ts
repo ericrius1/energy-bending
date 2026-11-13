@@ -1,8 +1,9 @@
 // The jogo, joined to the game: main.ts calls `registerPlay(app)` once, and this decides from the page's address what
 // the page is:
 //   ?jogo=same       two dancers on one screen (the first device to press plays dancer 1, the next dancer 2; until a
-//                    second device comes, the stand-in partner dances 2)
-//   ?jogo=partner    against a partner brain (src/ai's when it lands, the stand-in today: partner.ts)
+//                    second device comes, the partner dances 2)
+//   ?jogo=partner    against a partner brain: src/ai's PartnerBrain (&partner=playful|calm|fierce|mirror; playful by
+//                    default; &partner=standin the jogo's own little stand-in, partner.ts)
 //   ?jogo=online&room=CODE[&create][&watch]   one seat of a room on the room server (&server=ws://…/ws; default this
 //                    host's 5417); &watch dances as a free guest
 //   ?jogo=script&script=NAME    a scripted jogo (src/play/scripts/NAME.json), for films and captures; also bend.jogo.run
@@ -43,7 +44,9 @@ import { Feel } from './feel';
 import { Fusion } from './fusion';
 import { Hud } from './hud';
 import { Flow } from './flow';
-import { BrainSource, StandIn, type Brain, type PartnerView } from './partner';
+import { AiPartner, BrainSource, StandIn, type Brain, type PartnerView } from './partner';
+import { ClipLibrary } from '../ai/clips';
+import { PRESETS, type PresetName } from '../ai/partner';
 import { ScriptRunner, type JogoScript } from './script';
 import { Lobby, Waiting, showFront, escapeToFront, hrefOf } from './menu';
 
@@ -92,7 +95,7 @@ export async function registerPlay(app: PlayApp) {
   const mode = q.get('jogo');
   if (mode == null) {
     // the plain page: the front of the game over the show (never in a film, or with any of the debug demos)
-    const demo = ['play', 'net', 'landmarks', 'wander', 'film', 'gates', 'fly', 'nomenu', 'pip', 'you', 'lock'].some((k) => q.has(k));
+    const demo = ['play', 'net', 'landmarks', 'wander', 'film', 'gates', 'fly', 'nomenu', 'pip', 'you', 'lock', 'roda', 'teach', 'npcs', 'perf', 'perfgroup'].some((k) => q.has(k));
     if (!demo && typeof document !== 'undefined') {
       const root = showFront(q);
       // the show goes on behind it; a press on the canvas (the show's wake) hides the front
@@ -132,8 +135,19 @@ export async function startJogo(app: PlayApp, mode: string) {
   /** the dancer of each seat (in a local room both are this page's; online, one is a NetController's) */
   const seatDancer: (Dancer | null)[] = [null, null];
   const seatCtl: (IntentController | null)[] = [null, null];
+  // the partner: src/ai's PartnerBrain (&partner=playful|calm|fierce|mirror; playful by default) through the adapter;
+  // &partner=standin keeps the jogo's own little stand-in (partner.ts)
   const standIn = new StandIn();
-  let partner: Brain = standIn;
+  const wanted = q.get('partner') ?? 'playful';
+  const clips = await app.travel.then((t) => new ClipLibrary(app.motion, t)).catch(() => null);
+  const aiPartner = new AiPartner({
+    world, events: () => frameEvents, clips,
+    music: () => {
+      const e = music.engine;
+      return music.live ? { level: Math.min(1, e.level / 4 + 0.1), breakdown: false } : { level: Number(q.get('level') ?? 0.6), breakdown: false };
+    },
+  }, wanted in PRESETS ? (wanted as PresetName) : 'playful');
+  let partner: Brain = wanted === 'standin' ? standIn : aiPartner;
   const partnerView = (seat: number) => (dt: number): PartnerView | null => {
     const me = seatCtl[seat], other = seatDancer[1 - seat];
     if (!me || !other) return null;
@@ -416,8 +430,11 @@ export async function startJogo(app: PlayApp, mode: string) {
     beat: () => (playFrom == null || !room.state ? null : ((room.now() - playFrom) * room.state.music.bpm) / 60000),
     /** run a scripted jogo (a JogoScript object) from now */
     run: (s: JogoScript) => runScript(s),
-    /** the partner brain (src/ai's, when it lands): anything with think(view) */
-    setPartner: (b: Brain | null) => { partner = b ?? standIn; },
+    /** the partner brain: anything with think(view); null puts src/ai's back */
+    setPartner: (b: Brain | null) => { partner = b ?? aiPartner; },
+    /** src/ai's partner's preset (playful, calm, fierce, mirror) */
+    preset: (p: PresetName) => { aiPartner.setPreset(p); partner = aiPartner; },
+    partner: aiPartner,
     events: () => frameEvents,
     history,
     stats: () => ({
