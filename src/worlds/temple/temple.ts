@@ -214,6 +214,8 @@ export class Temple implements World {
   }
 
   /** the floor, or the top of a solid stone standing there (the altar, a stump) */
+  /** the tide (fire's mirror copy reflects about it) */
+  waterY() { return this.tide; }
   groundAt(x: number, z: number) {
     for (const [x0, x1, z0, z1, top] of this.layout.tops) if (x >= x0 && x <= x1 && z >= z0 && z <= z1) return top;
     return 0;

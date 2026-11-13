@@ -141,7 +141,7 @@ export interface FireField {
   focusT: number;
   time: number;
   embers: number;
-  pad0: number;
+  mirrorY: number;
   pad1: number;
   pad2: number;
 }
@@ -159,6 +159,13 @@ export interface ViewSeen {
   pad0: number;
   pad1: number;
 }
+export interface Heart {
+  at: Vec4;
+  glow: Vec4;
+}
+export interface Hearts {
+  h: Partial<Heart>[];
+}
 export interface SOut {
   pos: Vec4;
   uv: Vec2;
@@ -172,5 +179,5 @@ export interface Field2 {
   flow: Vec4;
 }
 
-declare const shader: Shader<{ Frame: Frame; Joint: Joint; Seg: Seg; Particle: Particle; Home: Home; BodyStep: BodyStep; Flame: Flame; FireSim: FireSim; FireField: FireField; Seen: Seen; ViewSeen: ViewSeen; SOut: SOut; Field2: Field2 }, 'frame' | 'sim' | 'field' | 'seen' | 'flames' | 'homes' | 'scene' | 'samp_linear' | 'samp_repeat' | 'samp_nearest' | 'samp_shadow'>;
+declare const shader: Shader<{ Frame: Frame; Joint: Joint; Seg: Seg; Particle: Particle; Home: Home; BodyStep: BodyStep; Flame: Flame; FireSim: FireSim; FireField: FireField; Seen: Seen; ViewSeen: ViewSeen; Heart: Heart; Hearts: Hearts; SOut: SOut; Field2: Field2 }, 'frame' | 'sim' | 'field' | 'seen' | 'hearts' | 'flames' | 'homes' | 'scene' | 'samp_linear' | 'samp_repeat' | 'samp_nearest' | 'samp_shadow'>;
 export default shader;

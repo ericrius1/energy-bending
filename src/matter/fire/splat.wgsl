@@ -5,8 +5,8 @@
 //
 // Opaque matter hides flames behind it, by hand: the view's scene (its alpha the opaque view distance) is read where
 // each splat lands, and a flame behind the surface adds nothing, one just in front adds less (`soft`), so a gem heart
-// inside a body of flame shows through the thin flame in front of it. MIRROR splats the copy the geode's polished
-// floor reflects (below the floor, so it is tested against the floor's own distance: hidden only by something standing
+// inside a body of flame shows through the thin flame in front of it. MIRROR splats the copy a mirroring floor
+// reflects (the geode's polished agate; the Pool's and the temple's water, about World.waterY) (below the floor, so it is tested against the floor's own distance: hidden only by something standing
 // in front of the floor). Embers are not splatted (draw.wgsl draws them as points).
 //
 // A dancer's flames are splatted where this view sees them (engine/seen.wgsl: only in the world the dancer is in,
@@ -15,6 +15,7 @@
 #include "weft/frame"
 #include "./field"
 #include "../../engine/seen"
+#include "../gems/hearts"
 
 @group(1) @binding(0) var<uniform> sim: FireSim;
 @group(1) @binding(1) var<uniform> field: FireField;
@@ -22,6 +23,8 @@
 @group(1) @binding(3) var<storage, read> homes: array<Home>;
 @group(1) @binding(4) var<uniform> seen: ViewSeen;
 @group(1) @binding(5) var scene: texture_2d<f32>;
+/** a gem heart inside the flame (ember, geodeheart): the flame in front of it thins, so the heart shows through */
+@group(1) @binding(6) var<uniform> hearts: Hearts;
 
 override MIRROR: u32 = 0u;
 
@@ -54,8 +57,8 @@ const CORNERS = array<vec2f, 6>(vec2f(-1.0, -1.0), vec2f(1.0, -1.0), vec2f(1.0, 
   if (seenClip(sd, p) < -0.3) { return o; }
   var fade = 1.0;
   if (MIRROR == 1u) {
-    let below = p.y - sim.body.floorY;
-    p.y = sim.body.floorY - below;
+    let below = p.y - field.mirrorY;
+    p.y = field.mirrorY - below;
     v.y = -v.y;
     fade = field.reflect * exp(-below * 1.6);
   }
@@ -90,11 +93,12 @@ const CORNERS = array<vec2f, 6>(vec2f(-1.0, -1.0), vec2f(1.0, -1.0), vec2f(1.0, 
   // the distance the scene is tested at: the flame's own; a mirrored flame's is where its ray meets the floor
   var test = dist;
   if (MIRROR == 1u) {
-    let cy = frame.camPos.y - sim.body.floorY;
-    test = dist * cy / max(cy + (sim.body.floorY - p.y), 1e-3);
+    let cy = frame.camPos.y - field.mirrorY;
+    test = dist * cy / max(cy + (field.mirrorY - p.y), 1e-3);
   }
   // fewer, bigger splats in a gate's view each add less (the sum per pixel stays the same)
-  let g = field.gain * fade / max(seen.keep * seen.grow * seen.grow, 1e-3);
+  let veil = select(heartVeil(hearts, p, frame.camPos), 1.0, MIRROR == 1u);
+  let g = field.gain * fade * veil / max(seen.keep * seen.grow * seen.grow, 1e-3);
   o.a = vec4f(T * tongue * g, form, smoke * field.smokeGain * fade / max(seen.keep * seen.grow * seen.grow, 1e-3), test);
   o.b = vec4f(dot(v, frame.camRight), dot(v, frame.camUp), dist, 0.0);
   return o;

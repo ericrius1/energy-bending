@@ -27,6 +27,7 @@ import type { FrameBuilder } from '../../engine/frame';
 import type { ViewCtx } from '../../engine/views';
 import type { ScenePass } from '../../engine/scene';
 import { waterParams } from './params';
+import { heartsOf } from '../gems/hearts';
 
 /** what the surface needs of the pool */
 export interface SurfacePool {
@@ -75,7 +76,9 @@ export class WaterSurface {
   private smoothed: Texture;
   private copy: Texture | null = null;
 
+  private hearts: UniformBuffer<any>;
   constructor(kit: Kit, frame: FrameBuilder, private view: ViewCtx, private pool: SurfacePool, private mode: SurfaceMode, private on: () => boolean, resolution = 1) {
+    this.hearts = heartsOf(kit);
     const scale = view.scale * waterParams.resolution * resolution;
     const id = (view.id === 'main' ? '' : `.${view.id}`) + (mode === 'mirror' ? '.mirror' : '');
     const v = view.id === 'main' ? undefined : view.view;
@@ -124,7 +127,7 @@ export class WaterSurface {
       // the focus: cleared to "nothing here" whenever the view is drawn, so it is never stale when there is no water
       const focus = tex('focus', 'r16float');
       const fp = kit.pass({ label: `water.focus${id}`, color: [{ target: focus, clear: [1e5, 0, 0, 0] }], view: v, enabled: view.on });
-      fp.fullscreen(surfaceShader, { label: `water.focus${id}`, fragment: 'fs_focus', bind: { surf: pool.surf, scene: copy, water: B, raw: dist, seen: view.seen }, enabled: on });
+      fp.fullscreen(surfaceShader, { label: `water.focus${id}`, fragment: 'fs_focus', bind: { surf: pool.surf, scene: copy, water: B, raw: dist, seen: view.seen, hearts: heartsOf(kit) }, enabled: on });
       frame.add('air', fp, 'water');
       this.focus = focus;
     }
@@ -135,7 +138,7 @@ export class WaterSurface {
     const view = this.view, world = s.world;
     const key = `${world.id}.${s.phase}`;
     const tag = `${world.id}${view.id === 'main' ? '' : `.${view.id}`}`;
-    const bind = { surf: this.pool.surf, water: this.smoothed, raw: this.dist, seen: view.seen };
+    const bind = { surf: this.pool.surf, water: this.smoothed, raw: this.dist, seen: view.seen, hearts: this.hearts };
     if (this.mode === 'air') {
       if (this.worlds.has(world.id)) return;
       this.worlds.add(world.id);

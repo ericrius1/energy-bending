@@ -111,7 +111,7 @@ export interface FireField {
   focusT: number;
   time: number;
   embers: number;
-  pad0: number;
+  mirrorY: number;
   pad1: number;
   pad2: number;
 }

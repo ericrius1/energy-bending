@@ -219,10 +219,16 @@ export class FirePasses implements MatterPasses {
       gain: P.density * 60_000 / Math.max(1000, this.perNow), spread: P.spread, soft: P.soft, smokeGain: P.smoke, drySmoke: P.drySmoke,
       reflect: P.reflect, stretch: P.stretch, tongues: P.tongues, intensity: P.intensity, gaps: P.gaps, scale: P.noiseScale,
       climb: P.climb, advect: P.advect, period: P.period, smokeDark: 2.5, plasmaGlow: P.plasmaGlow, flicker: P.flicker, cut: P.cut,
-      focusT: P.focusT, time: f.t, embers: P.emberGlow,
+      focusT: P.focusT, time: f.t, embers: P.emberGlow, mirrorY: this.mirrorY(f),
     });
     this.updateLights(f);
     this.voice(f);
+  }
+
+  /** the floor the main view's world mirrors fire about (its water, else 0: the geode's agate) */
+  private mirrorY(f: FrameCtx) {
+    const id = f.views[0]?.world;
+    return this.ctx.worlds.find((w) => w.id === id)?.waterY?.() ?? 0;
   }
 
   /** one light per flame dancer, in its middle, flickering with its flame */

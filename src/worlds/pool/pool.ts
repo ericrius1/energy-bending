@@ -144,6 +144,8 @@ export class Pool implements World {
   }
 
   groundAt() { return 0; }
+  /** the water is the floor: fire's mirror copy reflects about it */
+  waterY() { return 0; }
   exposure() { return 1.15; }
   tone() { return { water: 9000, cave: 0.35, hearth: 0, depth: 0.7, forest: 0 }; }
   ambience() { return null; }

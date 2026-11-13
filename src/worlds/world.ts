@@ -83,6 +83,9 @@ export interface World {
   readonly fixtures: Fixture[];
   /** whether its floor is a mirror (matter adds its reflection) */
   readonly mirrorFloor: boolean;
+  /** the height of water that mirrors the world (the Pool, the temple's tide), if any. The world's own reflection
+   *  marches only the opaque scene; translucent matter that draws its own mirror copy (fire) reflects about this */
+  waterY?(): number;
   /** how far from the middle the camera may stand, and the furthest it may dolly out */
   readonly room: number;
   readonly maxDist: number;

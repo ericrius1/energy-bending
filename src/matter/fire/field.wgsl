@@ -33,7 +33,9 @@ struct FireField {
   focusT: f32,         // summed temperature dense enough to focus on (the focus texture)
   time: f32,
   embers: f32,         // ember glow (embers are drawn as points in the scene, draw.wgsl)
-  pad0: f32, pad1: f32, pad2: f32,
+  mirrorY: f32,        // the height of the floor the mirror copy is reflected about (the geode's agate, the Pool's
+                       // water, the temple's tide: World.waterY)
+  pad1: f32, pad2: f32,
 }
 
 /** the in-between of fire and plasma (form 0.5): a blue torch, deep blue at its skin, cyan-white inside, a white cone

@@ -20,6 +20,7 @@
 #include "../../worlds/light"
 #include "../core/body"
 #include "../../engine/seen"
+#include "../gems/hearts"
 
 struct Surf {
   thin: vec4f,         // rgb: thin water's glow; w: how bright the body glows
@@ -50,6 +51,8 @@ struct Surf {
 @group(1) @binding(2) var water: texture_2d<f32>;    // the smoothed surface: distance, thickness, foam, frost
 @group(1) @binding(3) var raw: texture_2d<f32>;      // the splats' nearest distance and capsule (slot + 1)
 @group(1) @binding(4) var<uniform> seen: ViewSeen;
+/** a gem heart inside the water (tide, gemwater): the surface thins in front of it and takes its light */
+@group(1) @binding(5) var<uniform> hearts: Hearts;
 
 /** the eye-to-point vector of a pixel of the water texture (uv of its centre) at view distance d */
 fn atDist(uv: vec2f, d: f32) -> vec3f {
@@ -272,7 +275,10 @@ fn shade(q: vec2i, wdims: vec2i, W: vec4f) -> Shade {
     if (t.a < W.x) { t = s; }
     behind[c] = t[c];
   }
-  let col = behind * (1.0 - sh.opac) * vec3f(0.75, 0.92, 1.0) + sh.col;
+  // a gem heart behind this pixel shows through: the water in front of it thins and takes its light
+  let veil = heartVeil(hearts, sh.wp, frame.camPos);
+  let opac = sh.opac * veil;
+  let col = behind * (1.0 - opac) * vec3f(0.75, 0.92, 1.0) + sh.col * mix(0.55, 1.0, veil) + heartLight(hearts, sh.wp) * 0.3;
   // colour only: the scene's alpha is its opaque view distance (the focus is fs_focus's)
   return vec4f(mix(s.rgb, col, sh.cover), select(s.a, W.x, surf.distAlpha > 0.5 && sh.cover > 0.5));
 }
@@ -292,7 +298,8 @@ fn depthAt(wp: vec3f) -> f32 {
   if (sh.cover <= 0.002) { discard; }
   var o: SceneOut;
   // premultiplied over what is there (the colour blend), alpha untouched (the alpha blend keeps it)
-  o.c = vec4f(sh.col * sh.cover, sh.cover * sh.opac);
+  let veil = heartVeil(hearts, sh.wp, frame.camPos);
+  o.c = vec4f((sh.col * mix(0.55, 1.0, veil) + heartLight(hearts, sh.wp) * 0.3) * sh.cover, sh.cover * sh.opac * veil);
   o.depth = depthAt(sh.wp);
   return o;
 }

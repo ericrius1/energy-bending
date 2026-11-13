@@ -24,6 +24,7 @@ import type { FrameBuilder, Stage } from '../../engine/frame';
 import type { ViewCtx } from '../../engine/views';
 import type { World } from '../../worlds/world';
 import { fireParams } from './params';
+import { heartsOf } from '../gems/hearts';
 
 /** what a view's field needs of the flame pool */
 export interface FieldPool {
@@ -57,14 +58,16 @@ export class FlameField {
     // the air fogs the glow at the fire's own distance, from its focus texture); a gate's air, after its air
     const scene = gate ? view.targets.air : view.targets.hdr;
     const over = gate ? view.targets.air : view.targets.glow;
-    const bind = { sim: pool.sim, field: pool.field, flames: pool.flames, homes: pool.homes, seen: view.seen, scene };
+    const bind = { sim: pool.sim, field: pool.field, flames: pool.flames, homes: pool.homes, seen: view.seen, scene, hearts: heartsOf(kit) };
     const add = { color: { srcFactor: 'one', dstFactor: 'one' }, alpha: { srcFactor: 'one', dstFactor: 'one' } } as const;
     this.splat = kit.pass({
       label: `fire.splat${id}`, view: v, enabled: on,
       color: [{ target: this.heat, clear: [0, 0, 0, 0] }, { target: this.flow, clear: [0, 0, 0, 0] }],
     });
     const common = { bind, count: 6, instances: () => pool.count(), cull: 'none' as const, depthWrite: false, blend: [add, add] };
-    const mirrored = () => worlds.find((w) => w.id === view.world)?.mirrorFloor === true && fireParams.reflect > 0;
+    // the copy a mirroring floor shows: the geode's agate, and the water of the Pool and the temple (World.waterY: their
+    // own reflection marches only the opaque scene, which has no fire in it)
+    const mirrored = () => { const w = worlds.find((x) => x.id === view.world); return !!w && (w.mirrorFloor || !!w.waterY) && fireParams.reflect > 0; };
     this.splat.draw(splatShader, { ...common, label: `fire.splat.mirror${id}`, constants: { MIRROR: 1 }, enabled: mirrored });
     this.splat.draw(splatShader, { ...common, label: `fire.splat${id}`, constants: { MIRROR: 0 } });
     const focus = kit.pass({ label: `fire.focus${id}`, view: v, enabled: on, color: [{ target: this.focus }] });

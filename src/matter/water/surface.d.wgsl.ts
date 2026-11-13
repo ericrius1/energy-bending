@@ -274,6 +274,13 @@ export interface ViewSeen {
   pad0: number;
   pad1: number;
 }
+export interface Heart {
+  at: Vec4;
+  glow: Vec4;
+}
+export interface Hearts {
+  h: Partial<Heart>[];
+}
 export interface Surf {
   thin: Vec4;
   deep: Vec4;
@@ -317,5 +324,5 @@ export interface SceneOut {
   depth: number;
 }
 
-declare const shader: Shader<{ Frame: Frame; FullscreenOut: FullscreenOut; Geode: Geode; Forest: Forest; Pool: Pool; Temple: Temple; Forge: Forge; FireLight: FireLight; FireLights: FireLights; WorldLight: WorldLight; KeyLight: KeyLight; Joint: Joint; Seg: Seg; Particle: Particle; Home: Home; BodyStep: BodyStep; Bodies: Bodies; Touch: Touch; Goal: Goal; Touched: Touched; Stepped: Stepped; Seen: Seen; ViewSeen: ViewSeen; Surf: Surf; Bone: Bone; Shade: Shade; SceneOut: SceneOut }, 'frame' | 'worldLight' | 'bodies' | 'touch' | 'surf' | 'seen' | 'joints' | 'segs' | 'poolWaves' | 'templeWaves' | 'scene' | 'water' | 'raw' | 'samp_linear' | 'samp_repeat' | 'samp_nearest' | 'samp_shadow'>;
+declare const shader: Shader<{ Frame: Frame; FullscreenOut: FullscreenOut; Geode: Geode; Forest: Forest; Pool: Pool; Temple: Temple; Forge: Forge; FireLight: FireLight; FireLights: FireLights; WorldLight: WorldLight; KeyLight: KeyLight; Joint: Joint; Seg: Seg; Particle: Particle; Home: Home; BodyStep: BodyStep; Bodies: Bodies; Touch: Touch; Goal: Goal; Touched: Touched; Stepped: Stepped; Seen: Seen; ViewSeen: ViewSeen; Heart: Heart; Hearts: Hearts; Surf: Surf; Bone: Bone; Shade: Shade; SceneOut: SceneOut }, 'frame' | 'worldLight' | 'bodies' | 'touch' | 'surf' | 'seen' | 'hearts' | 'joints' | 'segs' | 'poolWaves' | 'templeWaves' | 'scene' | 'water' | 'raw' | 'samp_linear' | 'samp_repeat' | 'samp_nearest' | 'samp_shadow'>;
 export default shader;
