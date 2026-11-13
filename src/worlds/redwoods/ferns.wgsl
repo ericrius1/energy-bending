@@ -275,14 +275,14 @@ override PER: u32 = 4u;      // how many on each piece
   }
   // a frond: out of the moss, arching over and hanging down (licorice ferns droop from a limb)
   let L = (0.16 + 0.2 * h2.y) * select(1.0, 0.7, big);
-  let out = normalize(nS * 0.8 + dir * (h2.z - 0.5) * 0.9 + vec3f(0.0, 0.25, 0.0));
+  let out = normalize(nS * 0.8 + dir * (h2.z - 0.5) * 0.9 + vec3f(0.0, 0.1, 0.0));
   let across = normalize(cross(out, vec3f(0.0, 1.0, 0.0)) + vec3f(0.0, 0.0, 1e-4));
   let green = mix(vec3f(0.03, 0.08, 0.015), vec3f(0.06, 0.12, 0.02), h2.z);
   if (vi < 18u) {
     // the rachis: three quads
     let c = QUAD[vi % 6u];
     let f = f32(vi / 6u + c.y) / 3.0;
-    let p = base + out * L * f + vec3f(wind.x, -0.75 * L * f * f, wind.y) * f;
+    let p = base + out * L * f + vec3f(wind.x, -1.3 * L * f * f, wind.y) * f;
     o.uv = vec2f(f, 0.0);
     o.seed = h2.x;
     light(&o, green * 0.7, p + across * select(-0.003, 0.003, c.x == 1u), normalize(cross(across, out)), 0.7);
@@ -294,8 +294,8 @@ override PER: u32 = 4u;      // how many on each piece
   let sgn = select(-1.0, 1.0, ((l / 3u) & 1u) == 1u);
   let corner = l % 3u;
   let f = 0.15 + 0.8 * (f32(j) + 0.5) / 7.0;
-  let at = base + out * L * f + vec3f(wind.x, -0.75 * L * f * f, wind.y) * f;
-  let tangent = normalize(out + vec3f(0.0, -1.5 * L * f, 0.0));
+  let at = base + out * L * f + vec3f(wind.x, -1.3 * L * f * f, wind.y) * f;
+  let tangent = normalize(out + vec3f(0.0, -2.6 * L * f, 0.0));
   let leaf = L * 0.26 * (1.0 - f * 0.7);
   let span = normalize(across * sgn + tangent * 0.35);
   var p = at;

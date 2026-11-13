@@ -39,10 +39,10 @@ export const templeParams = defineParams('temple', {
   moonSize: 3.6,
   moonHeight: 8,
   stars: 0.8,
-  stone: '#a89d8c',
+  stone: '#a29e94',
   wetGloss: 1,
   /** the afterglow's low light on the stones' fronts (it rakes the carving) */
-  afterglow: 0.5,
+  afterglow: 0.22,
   /** how quickly the stone dries once the tide has left it (per cycle of the tide) */
   dry: 4,
   /** the moon's path on the water: how bright, how wide (the facets' slope), how fine its sparkle (per m) */
@@ -56,7 +56,7 @@ export const templeParams = defineParams('temple', {
   mirror: 0.05,
   ripples: 1,
   wind: 0.06,
-  haze: 0.009,
+  haze: 0.013,
   /** how far the dancers' own light reaches (m), and a light for every dancer (for stills; the game sets each its own) */
   fireReach: 6,
   firelight: 0,

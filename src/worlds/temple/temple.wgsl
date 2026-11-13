@@ -73,12 +73,11 @@ fn templeSky(d: vec3f, stars: f32) -> vec3f {
     let veil = exp(-lane * lane / 0.22) * smoothstep(0.3, 0.75, wisp) * smoothstep(9.0, 4.0, length(q)) * worldLight.temple.glitter.w;
     c = mix(c, c * 0.3 + silver * 0.9 + worldLight.temple.moonCol.rgb * 0.06, veil);
   }
-  // the light round it in the damp air: a tight glow, a soft corona (brownish in, bluish out) and, faint and wide, the
-  // 22-degree ring of the ice high up
+  // the light round it in the damp air: a tight glow and a soft corona (brownish in, bluish out)
   let cor = max(ang / R - 1.0, 0.0);
   c += worldLight.temple.moonCol.rgb * (pow(mm, 400.0) * 0.5 + pow(mm, 40.0) * 0.06 + pow(mm, 6.0) * 0.02);
   c += worldLight.temple.moonCol.rgb * mix(vec3f(1.0, 0.82, 0.6), vec3f(0.7, 0.85, 1.1), smoothstep(0.3, 1.6, cor)) * exp(-cor * 1.4) * 0.28 * step(R, ang);
-  c += worldLight.temple.moonCol.rgb * vec3f(0.95, 0.95, 1.05) * exp(-pow((ang - 0.384) / 0.022, 2.0)) * 0.035;
+
   if (stars > 0.0 && worldLight.temple.zenith.w > 0.0 && d.y > 0.0) {
     let p = d * 230.0;
     let cell = floor(p);

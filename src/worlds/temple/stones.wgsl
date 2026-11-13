@@ -294,8 +294,11 @@ fn carving(kind: f32, u: f32, v: f32, hw: f32, height: f32, seed: f32) -> f32 {
     }
     // the arrises: worn round over a few centimetres, and here and there a chip knocked out of them (fresh stone, its
     // broken face tipped off the edge)
-    let toEdge = min(min(hx - abs(L.x), hz - abs(L.z)), min(L.y, i.info.w - L.y) * 2.0);
-    let c = smoothstep(0.58, 0.66, vnoise(i.wp * 7.0 + seed * 11.0)) * smoothstep(0.075, 0.02, toEdge);
+    // (how far to the nearest edge of this face: across it and up it)
+    let ey = min(L.y, i.info.w - L.y) * 2.0;
+    var toEdge = min(hx - abs(L.x), hz - abs(L.z));
+    if (face < 2u) { toEdge = min(hz - abs(L.z), ey); } else if (face > 3u) { toEdge = min(hx - abs(L.x), ey); }
+    let c = smoothstep(0.64, 0.7, vnoise(i.wp * 7.0 + seed * 11.0)) * smoothstep(0.075, 0.02, toEdge);
     chip = c;
     groove = max(groove, smoothstep(0.66, 0.6, vnoise(i.wp * 7.0 + seed * 11.0)) * c * 0.6);
     N = normalize(mix(N, geomN, 0.5 * c) + (vnoise(i.wp * 31.0) - 0.5) * c * 0.5);
@@ -341,7 +344,7 @@ fn carving(kind: f32, u: f32, v: f32, hw: f32, height: f32, seed: f32) -> f32 {
   let pits = smoothstep(0.74, 0.82, vnoise(wp * 23.0 + seed));
   albedo *= 1.0 - 0.3 * pits - 0.35 * groove;
   // fresh stone where it chipped: paler, warmer, not yet weathered
-  albedo = mix(albedo, worldLight.temple.stone.rgb * vec3f(1.12, 1.08, 1.0), chip * 0.7);
+  albedo = mix(albedo, worldLight.temple.stone.rgb * vec3f(1.1, 1.07, 1.0), chip * 0.5);
   // the rain's streaks: dark, grey-green, running down from every top and joint, long and narrow, fading as they go
   let streakN = vnoise2(vec2f(across * 9.0, wp.y * 0.6 + seed * 5.0)) * 0.7 + vnoise2(vec2f(across * 23.0, wp.y * 1.3)) * 0.3;
   let run = smoothstep(0.5, 0.8, streakN) * exp(-below / 1.1) * (1.0 - abs(N.y));

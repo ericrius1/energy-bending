@@ -101,6 +101,9 @@ fn flameAt(k: u32) -> vec3f {
 }
 
 @fragment fn fs(i: LOut) -> @location(0) vec4f {
+  // (the derivatives first, while every pixel of the quad is still here)
+  let dLat = fwidth(i.lat);
+  let dAround = fwidth(i.around);
   let V = normalize(frame.camPos - i.wp);
   var N = normalize(i.n);
   let l = worldLight.forest.lamps[i.k];
@@ -122,11 +125,11 @@ fn flameAt(k: u32) -> vec3f {
   let paper = array<vec3f, 4>(vec3f(1.0, 0.86, 0.66), vec3f(1.0, 0.93, 0.82), vec3f(1.0, 0.68, 0.38), vec3f(1.0, 0.74, 0.66))[u32(h.x * 3.99)];
   // the bamboo hoops (dark lines where the paper meets them) and the seams of its panels (a doubled strip of paper)
   let hoopD = abs(fract(i.lat * f32(HOOPS) + 0.5) - 0.5) / f32(HOOPS);
-  let hw = fwidth(i.lat) * 0.9 + 0.0025;
+  let hw = dLat * 0.9 + 0.0025;
   let hoop = smoothstep(hw + 0.004, 0.003, hoopD);
   let panels = 12.0;
   let seamD = abs(fract(i.around / 6.2831853 * panels + 0.5) - 0.5) / panels * 6.2831853;
-  let seam = smoothstep(fwidth(i.around) + 0.012, 0.004, seamD);
+  let seam = smoothstep(dAround + 0.012, 0.004, seamD);
   // the paper's fibres and a few darker flecks of bark pulp
   let fib = 0.86 + 0.18 * vnoise(i.wp * vec3f(160.0, 60.0, 160.0) / max(R, 0.1) * 0.2) + 0.08 * (vnoise(i.wp * 420.0) - 0.5);
   // lit from inside: by how near the candle the paper is (brightest round its height, dim at the lid and the foot)

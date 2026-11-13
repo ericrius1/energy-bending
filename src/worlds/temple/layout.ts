@@ -167,11 +167,11 @@ export function layoutTemple(o: { coarse: boolean; seed?: number }): TempleLayou
   // side of the moon's path, some whole, most snapped; a far gate under the moon; walls. In less detail, and fewer on a
   // phone
   const far = { far: true } as const;
-  const rows = o.coarse ? [-18, -27] : [-16, -21, -26.5, -32, -38, -45];
+  const rows = o.coarse ? [-19, -28] : [-18, -24, -30, -38, -46];
   for (const z of rows) {
     for (const x of [-9.5, -5.2, 5.4, 9.8]) {
       const st = r(), xx = x + (r() - 0.5) * 0.8, zz = z + (r() - 0.5) * 1.2;
-      if (st < 0.18) continue;
+      if (st < 0.35) continue;
       if (st < 0.45) {
         const top = 4.6 + r() * 0.6;
         column(xx, zz, COURT.sea, top, 0.5, far);
