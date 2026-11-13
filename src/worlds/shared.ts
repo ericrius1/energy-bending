@@ -1,5 +1,5 @@
 // The worlds' light group, group 2, that weft shares with every shader including worlds/light.wgsl: one uniform
-// buffer, `light` (WorldLight in light.wgsl: a slot per world and the dancers' fire), and the textures the worlds put
+// buffer, `worldLight` (WorldLight in light.wgsl: a slot per world and the dancers' fire), and the textures the worlds put
 // in World.shared (the water worlds' ripples). A world writes only its own slot, through a LightSlot it takes by its
 // member's name; the slots are written in place in the one buffer's CPU copy, which weft uploads once per kit.run, so
 // every view drawn that run (the main view, each gate's) reads its own world's slot. Nothing here names a world: a new
@@ -39,7 +39,7 @@ export function lightSlot<K extends keyof WorldLight>(kit: Kit, name: K): LightS
 }
 
 export function shareWorldLight(kit: Kit, all: readonly World[]) {
-  const values: Record<string, unknown> = { light: worldLight(kit) };
+  const values: Record<string, unknown> = { worldLight: worldLight(kit) };
   for (const w of all) for (const [name, res] of Object.entries(w.shared)) {
     if (name in values) throw new Error(`worlds: two worlds share a light binding named '${name}'`);
     values[name] = res;

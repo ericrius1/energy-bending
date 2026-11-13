@@ -163,5 +163,5 @@ export interface Surf {
   pad0: number;
 }
 
-declare const shader: Shader<{ Frame: Frame; FullscreenOut: FullscreenOut; Geode: Geode; Forest: Forest; Pool: Pool; Temple: Temple; Forge: Forge; FireLight: FireLight; FireLights: FireLights; WorldLight: WorldLight; KeyLight: KeyLight; Surf: Surf }, 'frame' | 'light' | 'surf' | 'poolWaves' | 'templeWaves' | 'scene' | 'water' | 'samp_linear' | 'samp_repeat' | 'samp_nearest' | 'samp_shadow'>;
+declare const shader: Shader<{ Frame: Frame; FullscreenOut: FullscreenOut; Geode: Geode; Forest: Forest; Pool: Pool; Temple: Temple; Forge: Forge; FireLight: FireLight; FireLights: FireLights; WorldLight: WorldLight; KeyLight: KeyLight; Surf: Surf }, 'frame' | 'worldLight' | 'surf' | 'poolWaves' | 'templeWaves' | 'scene' | 'water' | 'samp_linear' | 'samp_repeat' | 'samp_nearest' | 'samp_shadow'>;
 export default shader;

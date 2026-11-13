@@ -272,5 +272,5 @@ export interface VOut {
   clip: number;
 }
 
-declare const shader: Shader<{ Frame: Frame; Joint: Joint; Seg: Seg; Particle: Particle; Home: Home; BodyStep: BodyStep; WaterSim: WaterSim; Aux: Aux; Geode: Geode; Forest: Forest; Pool: Pool; Temple: Temple; Forge: Forge; FireLight: FireLight; FireLights: FireLights; WorldLight: WorldLight; KeyLight: KeyLight; Seen: Seen; ViewSeen: ViewSeen; IceLook: IceLook; SetShard: SetShard; VOut: VOut }, 'frame' | 'light' | 'sim' | 'look' | 'seen' | 'state' | 'aux' | 'homes' | 'sets' | 'poolWaves' | 'templeWaves' | 'samp_linear' | 'samp_repeat' | 'samp_nearest' | 'samp_shadow'>;
+declare const shader: Shader<{ Frame: Frame; Joint: Joint; Seg: Seg; Particle: Particle; Home: Home; BodyStep: BodyStep; WaterSim: WaterSim; Aux: Aux; Geode: Geode; Forest: Forest; Pool: Pool; Temple: Temple; Forge: Forge; FireLight: FireLight; FireLights: FireLights; WorldLight: WorldLight; KeyLight: KeyLight; Seen: Seen; ViewSeen: ViewSeen; IceLook: IceLook; SetShard: SetShard; VOut: VOut }, 'frame' | 'worldLight' | 'sim' | 'look' | 'seen' | 'state' | 'aux' | 'homes' | 'sets' | 'poolWaves' | 'templeWaves' | 'samp_linear' | 'samp_repeat' | 'samp_nearest' | 'samp_shadow'>;
 export default shader;

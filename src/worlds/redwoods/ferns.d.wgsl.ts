@@ -165,5 +165,5 @@ export interface SprayOut {
   mask: number;
 }
 
-declare const shader: Shader<{ Frame: Frame; Geode: Geode; Forest: Forest; Pool: Pool; Temple: Temple; Forge: Forge; FireLight: FireLight; FireLights: FireLights; WorldLight: WorldLight; KeyLight: KeyLight; Log: Log; LOut: LOut; SprayOut: SprayOut }, 'frame' | 'light' | 'logs' | 'poolWaves' | 'templeWaves' | 'samp_linear' | 'samp_repeat' | 'samp_nearest' | 'samp_shadow'>;
+declare const shader: Shader<{ Frame: Frame; Geode: Geode; Forest: Forest; Pool: Pool; Temple: Temple; Forge: Forge; FireLight: FireLight; FireLights: FireLights; WorldLight: WorldLight; KeyLight: KeyLight; Log: Log; LOut: LOut; SprayOut: SprayOut }, 'frame' | 'worldLight' | 'logs' | 'poolWaves' | 'templeWaves' | 'samp_linear' | 'samp_repeat' | 'samp_nearest' | 'samp_shadow'>;
 export default shader;

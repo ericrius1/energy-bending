@@ -7,7 +7,7 @@ import type { FireLights } from './light.wgsl';
 import { lightSlot, type LightSlot } from '../../worlds/shared';
 import { LIMITS } from '../../engine/limits';
 
-/** the kit's fire light: the `fire` slot of the shared world light (read as `light.fire` in worlds/light.wgsl) */
+/** the kit's fire light: the `fire` slot of the shared world light (read as `worldLight.fire` in worlds/light.wgsl) */
 export function fireLights(kit: Kit): LightSlot<FireLights> {
   return lightSlot(kit, 'fire');
 }

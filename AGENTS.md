@@ -138,7 +138,7 @@ Within a scene pass the order is the declaration order (weft), so declaration go
   `npm test` counts every stage (`scripts/check-bindings.mjs`, from weft's own reflection, without a GPU) and fails
   past any of them; `?baseline` runs the game with only the default limits. See "The binding budget" below.
 - Bind group 0 is weft's (frame). Here: group 1 is a shader's own, group 2 the worlds' light (shared: one uniform,
-  `light: WorldLight`, with a slot per world and the dancers' fire, and the pool's and the temple's wave textures),
+  `worldLight: WorldLight`, with a slot per world and the dancers' fire, and the pool's and the temple's wave textures),
   group 3 the bodies and the field (shared, made by `Field`: joints, segs, bodies, touch, fieldA, fieldB, fieldBox).
   A shader gets a shared group by including the file that declares it, and then **all** of that group's bindings
   count in every stage of its pipeline (weft makes a shared group's layout visible to every stage), so a binding added

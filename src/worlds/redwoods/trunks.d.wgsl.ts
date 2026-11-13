@@ -169,5 +169,5 @@ export interface VOut {
   end: Vec2;
 }
 
-declare const shader: Shader<{ Frame: Frame; Geode: Geode; Forest: Forest; Pool: Pool; Temple: Temple; Forge: Forge; FireLight: FireLight; FireLights: FireLights; WorldLight: WorldLight; KeyLight: KeyLight; Log: Log; StageLog: StageLog; VOut: VOut }, 'frame' | 'light' | 'logs' | 'stage' | 'poolWaves' | 'templeWaves' | 'barkTex' | 'barkH' | 'samp_linear' | 'samp_repeat' | 'samp_nearest' | 'samp_shadow'>;
+declare const shader: Shader<{ Frame: Frame; Geode: Geode; Forest: Forest; Pool: Pool; Temple: Temple; Forge: Forge; FireLight: FireLight; FireLights: FireLights; WorldLight: WorldLight; KeyLight: KeyLight; Log: Log; StageLog: StageLog; VOut: VOut }, 'frame' | 'worldLight' | 'logs' | 'stage' | 'poolWaves' | 'templeWaves' | 'barkTex' | 'barkH' | 'samp_linear' | 'samp_repeat' | 'samp_nearest' | 'samp_shadow'>;
 export default shader;

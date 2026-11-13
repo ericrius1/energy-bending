@@ -35,7 +35,7 @@ fn corner(k: u32, r: f32) -> vec2f {
   let slab = u32(c.b.y);
   let island = c.b.w > 0.5;
   var lift = forgeBob(slab);
-  if (island) { lift = sin(light.forge.heat.y * 0.11 + c.b.y * 1.7) * 0.5; }
+  if (island) { lift = sin(worldLight.forge.heat.y * 0.11 + c.b.y * 1.7) * 0.5; }
   let top = c.a.z + lift;
   let R = c.a.w * 0.975;
   let hang = c.b.x;
@@ -106,7 +106,7 @@ fn corner(k: u32, r: f32) -> vec2f {
   var N = normalize(i.n);
   // the basalt: near black, a little blue, rough, banded where it cooled; the tops worn smoother
   let n1 = vnoise(wp * 3.1 + seed * 31.0);
-  var albedo = light.forge.stone.rgb * (0.75 + 0.5 * n1) * (0.9 + 0.2 * fract(seed * 91.7));
+  var albedo = worldLight.forge.stone.rgb * (0.75 + 0.5 * n1) * (0.9 + 0.2 * fract(seed * 91.7));
   // the cross-joints: thin breaks across each column, irregularly spaced
   let jointH = 0.45 + 0.9 * fract(seed * 5.3);
   let jf = fract((below + fract(seed * 17.1) * jointH) / jointH);
@@ -118,16 +118,16 @@ fn corner(k: u32, r: f32) -> vec2f {
   if (part < 1.5) { albedo *= 1.1 + 0.25 * vnoise(wp * 6.0 + seed * 9.0); }
   // the light: the fire's from below, the aurora's and the sky's from above, the dancers' own
   let V = normalize(frame.camPos - wp);
-  let fireL = light.forge.fire.rgb * light.forge.fire.w;
-  let kd = normalize(light.forge.key.xyz);
+  let fireL = worldLight.forge.fire.rgb * worldLight.forge.fire.w;
+  let kd = normalize(worldLight.forge.key.xyz);
   let up = max(-N.y, 0.0);
   var col = albedo * (fireL * (max(dot(N, kd), 0.0) * 0.4 + up * 0.35) + forgeAmbient(N, 1.0 - joint * 0.5, wp, 1.0));
   let R = reflect(-V, N);
   let fres = 0.04 + 0.96 * pow(1.0 - max(dot(N, V), 0.0), 5.0);
   // (the worn tops shine a little with the aurora, the sides less)
-  col += forgeSky(R, 0.0) * mix(fres, 0.03 + fres, select(0.0, 1.0, part < 1.5)) * light.forge.stone.w * select(0.4, 1.0, part < 1.5);
+  col += forgeSky(R, 0.0) * mix(fres, 0.03 + fres, select(0.0, 1.0, part < 1.5)) * worldLight.forge.stone.w * select(0.4, 1.0, part < 1.5);
   // molten light: in the seams and joints, the deeper the hotter, and at the tips; on the anvil's top, its seams
-  let t = light.forge.heat.y;
+  let t = worldLight.forge.heat.y;
   let flick = 0.75 + 0.25 * sin(t * 2.3 + seed * 40.0 + wp.y * 3.0);
   let deep = smoothstep(0.8, 4.0, below);
   // (only some joints and seams run hot, in patches)
@@ -135,6 +135,6 @@ fn corner(k: u32, r: f32) -> vec2f {
   var hot = (joint * 0.9 + edge * 0.25) * deep * patchy;
   if (part > 2.5) { hot = 0.05 + 0.45 * smoothstep(i.local.w, i.local.w + 0.4, below) * step(0.45, fract(seed * 11.3)); }
   if (part > 0.5 && part < 1.5 && anvil) { hot = 0.22 * smoothstep(0.55, 0.8, vnoise(wp * 0.9 + vec3f(0.0, t * 0.05, 0.0))); }
-  col += light.forge.seam.rgb * light.forge.seam.w * hot * flick * select(1.0, 0.3, i.info.z > 0.5);
+  col += worldLight.forge.seam.rgb * worldLight.forge.seam.w * hot * flick * select(1.0, 0.3, i.info.z > 0.5);
   return vec4f(col, dot(wp - frame.camPos, frame.camFwd));
 }

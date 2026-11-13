@@ -4,7 +4,7 @@
 // (forest.ts moves them through the day), dappled through the leaves and shadowed by the trunks: each trunk is tested
 // directly (a tall tapering column, the light's ray against its circle in plan), never through a shadow map. Everything
 // drawn in the woods shares this: the ground and the sky, the trunks, the meadow, the lanterns, the matter and the air.
-// (worlds/light.wgsl includes it; `Forest` is its slot of the shared light uniform, read as `light.forest`: include that.)
+// (worlds/light.wgsl includes it; `Forest` is its slot of the shared light uniform, read as `worldLight.forest`: include that.)
 
 struct Forest {
   pad: f32,         // (Gem Dancers' 'on': which world lights a draw is now its pipeline's WORLD constant)
@@ -41,14 +41,14 @@ fn trunkRadius(y: f32, r: f32, h: f32) -> f32 {
 
 /** the canopy: 1 where it's thick overhead at xz, 0 in a gap (and in the gap over the clearing) */
 fn canopyAt(xz: vec2f) -> f32 {
-  let t = light.forest.clock.x * light.forest.wind;
+  let t = worldLight.forest.clock.x * worldLight.forest.wind;
   let big = vnoise2(xz * 0.045 + 17.0);
   let mid = vnoise2(xz * 0.13 + 41.0);
   // the leaves shift in the wind, so the flecks of sun on the floor shimmer
   let fine = vnoise2(xz * 0.42 + vec2f(t * 0.05 + 83.0, t * 0.03)) * (0.8 + 0.2 * sin(t * 0.9 + xz.x * 0.3));
   // (closing up further from the clearing: out in the wood there are only a few gaps)
   let d = big * 0.55 + mid * 0.3 + fine * 0.15 + smoothstep(30.0, 140.0, length(xz)) * 0.22;
-  let gap = smoothstep(light.forest.shade.w * 0.55, light.forest.shade.w * 1.3, length(xz));
+  let gap = smoothstep(worldLight.forest.shade.w * 0.55, worldLight.forest.shade.w * 1.3, length(xz));
   return smoothstep(0.28, 0.52, d) * gap;
 }
 
@@ -56,13 +56,13 @@ fn canopyAt(xz: vec2f) -> f32 {
  *  way), the sparser sprays of the lower limbs, and, for a low sun, the trunks of the whole wood between it and here, in
  *  bands along its direction (the shafts between the trees) */
 fn leafLight(p: vec3f) -> f32 {
-  let L = light.forest.key.xyz;
+  let L = worldLight.forest.key.xyz;
   let ly = max(L.y, 0.06);
-  let H = light.forest.keyCol.w;
+  let H = worldLight.forest.keyCol.w;
   let q = p.xz + L.xz * ((H - p.y) / ly);
   let low = H * 0.36;
   let q2 = p.xz + L.xz * (max(low - p.y, 0.0) / ly);
-  let sprays = smoothstep(0.6, 0.85, vnoise2(q2 * 0.3 + 22.0)) * step(p.y, low) * smoothstep(light.forest.shade.w * 0.4, light.forest.shade.w, length(q2));
+  let sprays = smoothstep(0.6, 0.85, vnoise2(q2 * 0.3 + 22.0)) * step(p.y, low) * smoothstep(worldLight.forest.shade.w * 0.4, worldLight.forest.shade.w, length(q2));
   let leaves = pow(1.0 - 0.97 * canopyAt(q), 1.0 + 0.25 / max(L.y, 0.1));
   // a low sun comes in under the canopy, between the trunks of the wood: bands of light along its direction
   let sunward = normalize(L.xz + vec2f(1e-4, 0.0));
@@ -74,15 +74,15 @@ fn leafLight(p: vec3f) -> f32 {
 
 /** 0 where a trunk stands between p and the key light, 1 where none does (a soft edge that widens with distance) */
 fn trunkLight(p: vec3f) -> f32 {
-  let L = light.forest.key.xyz;
+  let L = worldLight.forest.key.xyz;
   let across = length(L.xz);
   if (across < 1e-3) { return 1.0; }
   let dir = L.xz / across;
   let rise = L.y / across;
   var lit = 1.0;
-  let n = min(u32(light.forest.air.w), MAXTRUNK);
+  let n = min(u32(worldLight.forest.air.w), MAXTRUNK);
   for (var k = 0u; k < n; k++) {
-    let tr = light.forest.trunks[k];
+    let tr = worldLight.forest.trunks[k];
     let o = tr.xy - p.xz;
     let along = dot(o, dir);
     if (along <= 0.0) { continue; }
@@ -109,21 +109,21 @@ fn onScreen(p: vec3f, r: f32) -> bool {
 
 /** how far xz is from the fallen log's side (negative under it) and from its root plate's */
 fn offLog(xz: vec2f) -> f32 {
-  let a = light.forest.stageLog.xy;
-  let ba = light.forest.stageLog.zw - a;
+  let a = worldLight.forest.stageLog.xy;
+  let ba = worldLight.forest.stageLog.zw - a;
   let h = clamp(dot(xz - a, ba) / max(dot(ba, ba), 1e-4), 0.0, 1.0);
-  let side = length(xz - a - ba * h) - light.forest.stagePlate.x;
-  return min(side, length(xz - light.forest.stagePlate.yz) - light.forest.stagePlate.w * 0.5);
+  let side = length(xz - a - ba * h) - worldLight.forest.stagePlate.x;
+  return min(side, length(xz - worldLight.forest.stagePlate.yz) - worldLight.forest.stagePlate.w * 0.5);
 }
 
 /** whether xz is clear of the trunks' feet (by `room` past their flare) and of the fallen log; only the ring and its
  *  neighbours can be near */
 fn clearOfTrunks(xz: vec2f, room: f32) -> bool {
   if (offLog(xz) < room * 0.5) { return false; }
-  if (length(xz) < light.forest.clock.w - 4.5) { return true; }
-  let n = min(u32(light.forest.air.w), MAXTRUNK);
+  if (length(xz) < worldLight.forest.clock.w - 4.5) { return true; }
+  let n = min(u32(worldLight.forest.air.w), MAXTRUNK);
   for (var k = 0u; k < n; k++) {
-    let tr = light.forest.trunks[k];
+    let tr = worldLight.forest.trunks[k];
     if (length(xz - tr.xy) < tr.z * 1.9 + room) { return false; }
   }
   return true;
@@ -132,9 +132,9 @@ fn clearOfTrunks(xz: vec2f, room: f32) -> bool {
 /** the lanterns' light on a surface at p facing n (wrap: how far round the side it reaches, for leaves and petals) */
 fn lampLight(p: vec3f, n: vec3f, wrap: f32) -> vec3f {
   var c = 0.0;
-  let m = min(u32(light.forest.lampCol.w), MAXLAMP);
+  let m = min(u32(worldLight.forest.lampCol.w), MAXLAMP);
   for (var k = 0u; k < m; k++) {
-    let l = light.forest.lamps[k];
+    let l = worldLight.forest.lamps[k];
     if (l.w <= 0.0) { continue; }
     let d = l.xyz - p;
     let r2 = dot(d, d);
@@ -145,43 +145,43 @@ fn lampLight(p: vec3f, n: vec3f, wrap: f32) -> vec3f {
     c += l.w * max(ndl, 0.0) * fade * fade / (r2 + 0.25);
   }
   // and the dancers' fire (worlds/light.wgsl worldFire): everything the lanterns light, flame lights too
-  return light.forest.lampCol.rgb * c + worldFire(p, n);
+  return worldLight.forest.lampCol.rgb * c + worldFire(p, n);
 }
 
 /** the soft light under the trees on a surface facing n: the sky through the leaves above, the meadow's bounce below */
 fn woodsAmbient(n: vec3f) -> vec3f {
-  let ground = light.forest.shade.rgb * vec3f(0.42, 0.55, 0.32) + light.forest.keyCol.rgb * light.forest.key.w * vec3f(0.010, 0.014, 0.006);
-  return mix(ground, light.forest.shade.rgb, n.y * 0.5 + 0.5);
+  let ground = worldLight.forest.shade.rgb * vec3f(0.42, 0.55, 0.32) + worldLight.forest.keyCol.rgb * worldLight.forest.key.w * vec3f(0.010, 0.014, 0.006);
+  return mix(ground, worldLight.forest.shade.rgb, n.y * 0.5 + 0.5);
 }
 
 /** the sky in direction d (what shows through the gaps in the canopy) */
 fn skyAt(d: vec3f) -> vec3f {
   let up = clamp(d.y, 0.0, 1.0);
-  var c = mix(light.forest.horizon.rgb, light.forest.zenith.rgb, sqrt(up));
-  let s = max(dot(d, light.forest.sunDisc.xyz), 0.0);
-  c += light.forest.glow.rgb * (pow(s, 5.0) * 0.25 + pow(s, 40.0) * 0.6);
+  var c = mix(worldLight.forest.horizon.rgb, worldLight.forest.zenith.rgb, sqrt(up));
+  let s = max(dot(d, worldLight.forest.sunDisc.xyz), 0.0);
+  c += worldLight.forest.glow.rgb * (pow(s, 5.0) * 0.25 + pow(s, 40.0) * 0.6);
   return c;
 }
 
 /** the sun's and the moon's discs, and the stars (they show only where nothing's in front) */
 fn heavens(d: vec3f) -> vec3f {
   var c = vec3f(0.0);
-  let s = dot(d, light.forest.sunDisc.xyz);
-  c += vec3f(1.0, 0.92, 0.8) * light.forest.sunDisc.w * smoothstep(0.99986, 0.99992, s);
-  let m = dot(d, light.forest.moonDisc.xyz);
+  let s = dot(d, worldLight.forest.sunDisc.xyz);
+  c += vec3f(1.0, 0.92, 0.8) * worldLight.forest.sunDisc.w * smoothstep(0.99986, 0.99992, s);
+  let m = dot(d, worldLight.forest.moonDisc.xyz);
   // the moon: a pale disc with darker seas, and a halo in the damp air
   let seas = 0.82 + 0.18 * vnoise(vec3f(d * 900.0));
-  c += vec3f(0.85, 0.9, 1.0) * light.forest.moonDisc.w * (smoothstep(0.99975, 0.99982, m) * seas + pow(max(m, 0.0), 300.0) * 0.06);
-  if (light.forest.zenith.w > 0.0 && d.y > 0.0) {
+  c += vec3f(0.85, 0.9, 1.0) * worldLight.forest.moonDisc.w * (smoothstep(0.99975, 0.99982, m) * seas + pow(max(m, 0.0), 300.0) * 0.06);
+  if (worldLight.forest.zenith.w > 0.0 && d.y > 0.0) {
     let p = d * 260.0;
     let cell = floor(p);
     let h = hash3(cell);
     if (h > 0.986) {
       let at = (vec3f(hash3(cell + 1.3), hash3(cell + 2.7), hash3(cell + 4.1)) - 0.5) * 0.6;
       let r = length(fract(p) - 0.5 - at);
-      let twinkle = 0.65 + 0.35 * sin(light.forest.clock.x * (2.0 + 3.0 * h) + h * 90.0);
+      let twinkle = 0.65 + 0.35 * sin(worldLight.forest.clock.x * (2.0 + 3.0 * h) + h * 90.0);
       let tint = mix(vec3f(0.75, 0.85, 1.0), vec3f(1.0, 0.88, 0.75), hash3(cell + 9.1));
-      c += tint * smoothstep(0.22, 0.0, r) * (0.4 + 4.0 * pow(hash3(cell + 7.7), 6.0)) * twinkle * light.forest.zenith.w * smoothstep(0.0, 0.25, d.y);
+      c += tint * smoothstep(0.22, 0.0, r) * (0.4 + 4.0 * pow(hash3(cell + 7.7), 6.0)) * twinkle * worldLight.forest.zenith.w * smoothstep(0.0, 0.25, d.y);
     }
   }
   return c;
@@ -195,37 +195,37 @@ fn woodsEnv(d: vec3f, at: vec3f) -> vec3f {
   let el = d.y;
   // overhead: the gap, then leaves with sky between them
   let leaves = smoothstep(0.38, 0.62, vnoise2(vec2f(az * 3.0, el * 7.0) + 13.0) * 0.7 + vnoise2(vec2f(az * 9.0, el * 21.0) + 51.0) * 0.3);
-  let lit = light.forest.keyCol.rgb * light.forest.key.w;
-  let canopy = light.forest.shade.rgb * 0.12 + lit * 0.006;
+  let lit = worldLight.forest.keyCol.rgb * worldLight.forest.key.w;
+  let canopy = worldLight.forest.shade.rgb * 0.12 + lit * 0.006;
   var c = mix(mix(canopy, sky, 1.0 - leaves), sky, smoothstep(0.6, 0.85, el));
   // eye level: the mist between the ring's trunks (dark columns, lit on the sunny side)
   let col = 0.5 + 0.5 * sin(az * 9.0 + 1.7 + vnoise2(vec2f(az * 2.0, 2.0)) * 2.0);
   let trunks = smoothstep(0.35, 0.55, col) * (1.0 - smoothstep(0.25, 0.6, el));
-  let side = max(dot(normalize(vec3f(d.x, 0.0, d.z) + 1e-4), -normalize(vec3f(light.forest.key.x, 0.0, light.forest.key.z) + 1e-4)), 0.0);
-  let bark = vec3f(0.07, 0.025, 0.012) * (light.forest.shade.rgb * 3.0 + lit * 0.05 * side);
-  let level = mix(light.forest.mist.rgb * 0.9 + light.forest.shade.rgb * 0.3, bark, trunks);
+  let side = max(dot(normalize(vec3f(d.x, 0.0, d.z) + 1e-4), -normalize(vec3f(worldLight.forest.key.x, 0.0, worldLight.forest.key.z) + 1e-4)), 0.0);
+  let bark = vec3f(0.07, 0.025, 0.012) * (worldLight.forest.shade.rgb * 3.0 + lit * 0.05 * side);
+  let level = mix(worldLight.forest.mist.rgb * 0.9 + worldLight.forest.shade.rgb * 0.3, bark, trunks);
   c = mix(level, c, smoothstep(0.08, 0.45, el));
   // below: the meadow in the light
-  let meadow = vec3f(0.035, 0.07, 0.02) * (light.forest.shade.rgb * 3.0 + lit * 0.35);
+  let meadow = vec3f(0.035, 0.07, 0.02) * (worldLight.forest.shade.rgb * 3.0 + lit * 0.35);
   c = mix(c, meadow, smoothstep(0.02, -0.25, el));
   // the sun through the leaves, and the lanterns: warm bright spots where they hang
-  c += lit * 0.5 * smoothstep(0.996, 0.9995, dot(d, light.forest.key.xyz)) * (1.0 - light.forest.night);
-  let m = min(u32(light.forest.lampCol.w), MAXLAMP);
+  c += lit * 0.5 * smoothstep(0.996, 0.9995, dot(d, worldLight.forest.key.xyz)) * (1.0 - worldLight.forest.night);
+  let m = min(u32(worldLight.forest.lampCol.w), MAXLAMP);
   for (var k = 0u; k < m; k++) {
-    let l = light.forest.lamps[k];
+    let l = worldLight.forest.lamps[k];
     if (l.w <= 0.0) { continue; }
     let to = l.xyz - at;
     let near = dot(d, normalize(to));
-    c += light.forest.lampCol.rgb * l.w * (smoothstep(0.9975, 0.9992, near) * 2.4 + pow(max(near, 0.0), 60.0) * 0.08);
+    c += worldLight.forest.lampCol.rgb * l.w * (smoothstep(0.9975, 0.9992, near) * 2.4 + pow(max(near, 0.0), 60.0) * 0.08);
   }
   return c;
 }
 
 /** how thick the mist is at p: thickest along the ground, thinning upward, in slow drifting billows */
 fn mistAt(p: vec3f) -> f32 {
-  let t = light.forest.clock.x;
+  let t = worldLight.forest.clock.x;
   let billow = 0.4 + 1.2 * vnoise2(vec2f(p.x * 0.08 + p.y * 0.17 + t * 0.03, p.z * 0.08 - p.y * 0.11 - t * 0.02));
-  return light.forest.mist.w * (0.05 + exp(-max(p.y, 0.0) / light.forest.air.x) * billow);
+  return worldLight.forest.mist.w * (0.05 + exp(-max(p.y, 0.0) / worldLight.forest.air.x) * billow);
 }
 
 /** the wind at xz: how far a stalk leans per metre of its height, in gusts that sweep across the clearing */
@@ -233,7 +233,7 @@ fn windAt(xz: vec2f, t: f32) -> vec2f {
   let dir = vec2f(0.8, 0.6);
   let gust = 0.5 + 0.5 * sin(dot(xz, dir) * 0.35 - t * 1.3) * sin(dot(xz, vec2f(-0.6, 0.8)) * 0.21 + t * 0.4);
   let flutter = vec2f(sin(xz.x * 3.1 + t * 4.3), cos(xz.y * 2.7 + t * 3.7)) * 0.18;
-  return (dir * (0.2 + gust * 0.8) + flutter) * light.forest.wind * 0.16;
+  return (dir * (0.2 + gust * 0.8) + flutter) * worldLight.forest.wind * 0.16;
 }
 
 fn woodsHash(p: vec2f) -> f32 { return fract(sin(dot(p, vec2f(127.1, 311.7))) * 43758.5453); }
@@ -244,12 +244,12 @@ fn woodsHash(p: vec2f) -> f32 { return fract(sin(dot(p, vec2f(127.1, 311.7))) * 
 fn woodsAir(s: vec4f, px: vec2i, d: vec3f) -> vec3f {
   let along = max(dot(d, frame.camFwd), 1e-3);
   let tMax = min(s.a / along, 110.0);
-  let steps = max(i32(light.forest.march.x), 4);
+  let steps = max(i32(worldLight.forest.march.x), 4);
   let j = woodsHash(vec2f(px) + fract(frame.time * 7.31) * 97.0);
-  let g = light.forest.air.z;
-  let cosT = dot(d, light.forest.key.xyz);
+  let g = worldLight.forest.air.z;
+  let cosT = dot(d, worldLight.forest.key.xyz);
   let hg = (1.0 - g * g) / pow(max(1.0 + g * g - 2.0 * g * cosT, 1e-4), 1.5);
-  let keyC = light.forest.keyCol.rgb * light.forest.key.w * light.forest.air.y * mix(1.0, hg, 0.6) * 0.7;
+  let keyC = worldLight.forest.keyCol.rgb * worldLight.forest.key.w * worldLight.forest.air.y * mix(1.0, hg, 0.6) * 0.7;
   var T = 1.0;
   var acc = vec3f(0.0);
   for (var k = 0; k < steps; k++) {
@@ -260,18 +260,18 @@ fn woodsAir(s: vec4f, px: vec2i, d: vec3f) -> vec3f {
     let dt = tb - ta;
     let p = frame.camPos + d * t;
     let dens = mistAt(p);
-    acc += T * dens * dt * (keyC * keyLight(p) + light.forest.mist.rgb);
+    acc += T * dens * dt * (keyC * keyLight(p) + worldLight.forest.mist.rgb);
     T *= exp(-dens * dt);
   }
   var glow = 0.0;
-  let m = min(u32(light.forest.lampCol.w), MAXLAMP);
+  let m = min(u32(worldLight.forest.lampCol.w), MAXLAMP);
   for (var k = 0u; k < m; k++) {
-    let l = light.forest.lamps[k];
+    let l = worldLight.forest.lamps[k];
     if (l.w <= 0.0) { continue; }
     let o = l.xyz - frame.camPos;
     let tc = dot(o, d);
     let h = sqrt(max(dot(o, o) - tc * tc, 0.0) + 0.02);
     glow += l.w * (atan((tMax - tc) / h) - atan(-tc / h)) / h * mistAt(l.xyz);
   }
-  return s.rgb * T + acc + light.forest.lampCol.rgb * glow * 0.03 * sqrt(T);
+  return s.rgb * T + acc + worldLight.forest.lampCol.rgb * glow * 0.03 * sqrt(T);
 }

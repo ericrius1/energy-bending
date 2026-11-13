@@ -3,7 +3,7 @@
 // (WorldLight, worlds/light.wgsl), so plasma, which is fire's violet form, and any later kind of light-giving matter
 // add no buffer of their own. This file has no bindings; a shader that includes worlds/light.wgsl reads it as:
 //
-//   col += albedo * fireLightAt(light.fire, worldPos, normal);     // or worldFire(worldPos, normal)
+//   col += albedo * fireLightAt(worldLight.fire, worldPos, normal);     // or worldFire(worldPos, normal)
 //
 // Each light sits in its dancer's middle, a little above the hips (where the flame is densest), with a radius the size
 // of a body; its colour is warm for fire and violet-white for plasma, and its intensity flickers with the flame and

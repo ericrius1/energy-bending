@@ -76,7 +76,7 @@ fn stemVertex(root: vec2f, tall: f32, bend: vec2f, row: u32, rows: u32, cx: u32,
 /** light it (per vertex): what the shade and the lanterns give it, and what the key light would */
 fn light(o: ptr<function, FOut>, albedo: vec3f, wp: vec3f, n: vec3f, ao: f32) {
   (*o).col = albedo * (woodsAmbient(n) * ao + lampLight(wp, n, 0.5));
-  (*o).key = albedo * light.forest.keyCol.rgb * light.forest.key.w * keyLight(wp) * ao;
+  (*o).key = albedo * worldLight.forest.keyCol.rgb * worldLight.forest.key.w * keyLight(wp) * ao;
   (*o).wp = wp;
   (*o).n = n;
   (*o).pos = frame.viewProj * vec4f(wp, 1.0);
@@ -88,7 +88,7 @@ fn light(o: ptr<function, FOut>, albedo: vec3f, wp: vec3f, n: vec3f, ao: f32) {
   let R = rootOf(ii, GRID, 7u, 0.45);
   let root = R.xy;
   let r = length(root);
-  let ring = light.forest.clock.w;
+  let ring = worldLight.forest.clock.w;
   if (R.w < 0.5) { return o; }
   // drifts of flowers with grass between, thinning out into the trees
   let drift = vnoise2(root * 0.55 + 2.0);
@@ -108,11 +108,11 @@ fn light(o: ptr<function, FOut>, albedo: vec3f, wp: vec3f, n: vec3f, ao: f32) {
   }
   o.kind = kind;
   let S = spec(kind);
-  let grow = light.forest.clock.y;
+  let grow = worldLight.forest.clock.y;
   let h3 = rnd3(ii * 17u + 9u);
   let tall = S.tall * (0.7 + 0.6 * h3.x) * mix(1.0, grow, 0.5);
   let yaw = h3.y * 6.2831853;
-  let t = light.forest.clock.x;
+  let t = worldLight.forest.clock.x;
   let bend = (windAt(root, t + h3.z) * 1.3 + (h3.xy - 0.5) * 0.35) * tall;
   let head = stemAt(root, tall, bend, 1.0);
   // the head faces up, tipped with the stem and a little its own way
@@ -216,7 +216,7 @@ fn light(o: ptr<function, FOut>, albedo: vec3f, wp: vec3f, n: vec3f, ao: f32) {
   let R = rootOf(ii, SPIRES, 77777u, 1.4);
   let root = R.xy;
   let r = length(root);
-  let ring = light.forest.clock.w;
+  let ring = worldLight.forest.clock.w;
   if (R.w < 0.5 || !clearOfTrunks(root, 0.12)) { return o; }
   // lupines in drifts across the clearing, foxgloves along the trees
   let fox = smoothstep(ring - 3.5, ring - 2.0, r) * smoothstep(ring + 3.0, ring + 1.0, r);
@@ -226,10 +226,10 @@ fn light(o: ptr<function, FOut>, albedo: vec3f, wp: vec3f, n: vec3f, ao: f32) {
   if (!isFox && R.z > lup) { return o; }
   if (isFox && R.z > 0.75) { return o; }
   o.kind = select(7u, 8u, isFox);
-  let grow = light.forest.clock.y;
+  let grow = worldLight.forest.clock.y;
   let tall = select(0.42 + 0.3 * h2.y, 0.85 + 0.55 * h2.y, isFox) * mix(1.0, grow, 0.5);
   let yaw = h2.z * 6.2831853;
-  let t = light.forest.clock.x;
+  let t = worldLight.forest.clock.x;
   let bend = (windAt(root, t + h2.y) * 1.1 + (vec2f(h2.y, h2.z) - 0.5) * 0.18) * tall;
 
   if (vi < 36u) {
@@ -302,7 +302,7 @@ fn light(o: ptr<function, FOut>, albedo: vec3f, wp: vec3f, n: vec3f, ao: f32) {
 
 @fragment fn fs(i: FOut) -> @location(0) vec4f {
   let V = normalize(frame.camPos - i.wp);
-  let L = light.forest.key.xyz;
+  let L = worldLight.forest.key.xyz;
   var N = normalize(i.n);
   // two-sided: whichever face is towards you (inside a floret's cone, its inside)
   let inside = dot(N, V) < 0.0;
@@ -330,6 +330,6 @@ fn light(o: ptr<function, FOut>, albedo: vec3f, wp: vec3f, n: vec3f, ao: f32) {
   let H = normalize(L + V);
   let gloss = select(30.0, 80.0, i.kind == 5u);
   let sheen = pow(max(dot(N, H), 0.0), gloss) * select(0.12, 0.6, i.kind == 5u);
-  let c = col + key * (diff + through) + light.forest.keyCol.rgb * light.forest.key.w * sheen * length(key) * 0.5;
+  let c = col + key * (diff + through) + worldLight.forest.keyCol.rgb * worldLight.forest.key.w * sheen * length(key) * 0.5;
   return vec4f(c, dot(i.wp - frame.camPos, frame.camFwd));
 }

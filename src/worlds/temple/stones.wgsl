@@ -218,21 +218,21 @@ fn carving(kind: f32, u: f32, v: f32, height: f32, seed: f32) -> f32 {
   // high tide's line, darker where it's wet
   let n1 = fbm(wp * 1.3 + seed * 17.0);
   let n2 = vnoise(wp * 7.0 + seed * 3.0);
-  var albedo = light.temple.stone.rgb * (0.72 + 0.45 * n1) * (0.88 + 0.24 * n2);
+  var albedo = worldLight.temple.stone.rgb * (0.72 + 0.45 * n1) * (0.88 + 0.24 * n2);
   albedo = mix(albedo, albedo * vec3f(0.78, 0.8, 0.86), smoothstep(0.55, 0.8, vnoise(wp * 0.6 + 4.0)));
   let pits = smoothstep(0.72, 0.8, vnoise(wp * 23.0 + seed));
   albedo *= 1.0 - 0.35 * pits - 0.45 * groove;
   let lichen = smoothstep(0.62, 0.78, vnoise(wp * 2.1 + seed * 9.0)) * smoothstep(0.9, 1.6, wp.y) * max(N.y * 0.5 + 0.5, 0.3);
   albedo = mix(albedo, vec3f(0.34, 0.3, 0.2), lichen * 0.5);
-  let line = light.temple.fire.w + 0.05 * (vnoise(wp * 3.0) - 0.5);
+  let line = worldLight.temple.fire.w + 0.05 * (vnoise(wp * 3.0) - 0.5);
   let wet = smoothstep(line + 0.08, line - 0.02, wp.y);
   let weed = wet * smoothstep(0.35, 0.65, vnoise(wp * 4.0 + seed * 5.0) * 0.6 + (line - wp.y) * 1.5);
   albedo = mix(albedo, vec3f(0.035, 0.05, 0.03), weed * 0.6);
   albedo *= 1.0 - 0.45 * wet;
   // the light
   let V = normalize(frame.camPos - wp);
-  let Ld = light.temple.moon.xyz;
-  let moon = light.temple.moonCol.rgb * light.temple.moonCol.w * templeShadow(wp + N * 0.03);
+  let Ld = worldLight.temple.moon.xyz;
+  let moon = worldLight.temple.moonCol.rgb * worldLight.temple.moonCol.w * templeShadow(wp + N * 0.03);
   let ao = (1.0 - 0.55 * groove) * mix(0.55, 1.0, smoothstep(0.0, 0.7, wp.y + 0.3));
   let diff = max(dot(N, Ld), 0.0);
   var col = albedo * (moon * diff + templeAmbient(N, ao, wp, 1.0) * ao);
@@ -242,7 +242,7 @@ fn carving(kind: f32, u: f32, v: f32, height: f32, seed: f32) -> f32 {
   col += moon * albedo * edgeOn * 0.8;
   // wet stone shines: the moon's highlight and the sky in it
   let R = reflect(-V, N);
-  let gloss = mix(0.06, 1.0, wet) * light.temple.stone.w;
+  let gloss = mix(0.06, 1.0, wet) * worldLight.temple.stone.w;
   col += moon * pow(max(dot(R, Ld), 0.0), mix(12.0, 80.0, wet)) * gloss * 0.6;
   let fres = 0.04 + 0.96 * pow(1.0 - max(dot(N, V), 0.0), 5.0);
   // (dry stone is rough: it only mirrors the sky when it's wet)

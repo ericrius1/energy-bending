@@ -120,7 +120,7 @@ fn toWorld(b: Blade, q: vec3f) -> vec3f {
   // the cave's glow inside it, brightest where it's seen edge on (a long way through it) and along its fibres to the
   // tip, and the light from above caught in it
   let through = 0.25 + 0.75 * pow(1.0 - cosV, 2.0);
-  col += light.geode.cave.rgb * light.geode.cave.w * mix(body, vec3f(1.0), 0.3) * through * (0.35 + 0.65 * cloud) * (0.25 + 0.75 * smoothstep(0.0, 1.0, i.local.z / 3.0)) * 0.8;
+  col += worldLight.geode.cave.rgb * worldLight.geode.cave.w * mix(body, vec3f(1.0), 0.3) * through * (0.35 + 0.65 * cloud) * (0.25 + 0.75 * smoothstep(0.0, 1.0, i.local.z / 3.0)) * 0.8;
   col += key.col * body * 0.05 * (0.5 + fib) * out;
   return vec4f(col, dot(i.wp - frame.camPos, frame.camFwd));
 }

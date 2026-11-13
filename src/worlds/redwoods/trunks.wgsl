@@ -213,9 +213,9 @@ fn bark(i: VOut) -> vec4f {
       albedo = mix(vec3f(0.07, 0.05, 0.03), vec3f(0.16, 0.1, 0.06), vnoise(i.wp * 5.0)) * (0.6 + 0.4 * smoothstep(0.6, 0.8, vnoise(i.wp * 14.0)));
     }
   }
-  let L = light.forest.key.xyz;
+  let L = worldLight.forest.key.xyz;
   let vis = keyLight(i.wp + N0 * 0.06);
-  let lit = light.forest.keyCol.rgb * light.forest.key.w * vis;
+  let lit = worldLight.forest.keyCol.rgb * worldLight.forest.key.w * vis;
   let diff = max(dot(N, L), 0.0);
   let ao = mix(0.45, 1.0, hs.r) * mix(0.5, 1.0, smoothstep(0.0, 3.0, y));
   var col = albedo * (lit * diff + woodsAmbient(N) * ao + lampLight(i.wp, N, 0.0) * mix(0.6, 1.0, hs.r));
@@ -223,6 +223,6 @@ fn bark(i: VOut) -> vec4f {
   let back = pow(max(dot(-V, L), 0.0), 3.0) * pow(1.0 - max(dot(N0, V), 0.0), 2.0);
   col += lit * back * albedo * 1.6;
   // high up, the trunk goes into the dark of the canopy
-  col *= mix(1.0, 0.18, smoothstep(light.forest.keyCol.w * 0.45, light.forest.keyCol.w * 0.9, y));
+  col *= mix(1.0, 0.18, smoothstep(worldLight.forest.keyCol.w * 0.45, worldLight.forest.keyCol.w * 0.9, y));
   return vec4f(col, dot(i.wp - frame.camPos, frame.camFwd));
 }

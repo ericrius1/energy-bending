@@ -1,4 +1,4 @@
-// The geode's light (included by worlds/light.wgsl, where `Geode` is its slot of the shared light uniform: `light.geode`).
+// The geode's light (included by worlds/light.wgsl, where `Geode` is its slot of the shared light uniform: `worldLight.geode`).
 // A dark hollow full of water: one big softbox overhead (the key), strip lights, coloured rims behind; a shaft of
 // light from a hole in the roof that came down through rippling water, so it lands as a net of caustics on the floor
 // and the stones and breaks into rays in the air; haze with distance.
@@ -69,7 +69,7 @@ fn causticU(p: vec3f, shaft: vec4f, top: f32) -> vec2f {
 // ---------------------------------------------------------------- what matter sees in the geode
 /** the studio the gems reflect: a dark room, one big softbox, a ring of strip lights, two coloured rims, the floor */
 fn studio(d: vec3f) -> vec3f {
-  let L = geode;
+  let L = worldLight.geode;
   let up = d.y * 0.5 + 0.5;
   var c = mix(L.bgBottom.rgb * 0.6, L.bgTop.rgb, smoothstep(0.0, 1.0, up)) * 0.5;
   let kd = normalize(L.key.xyz);
@@ -94,25 +94,25 @@ fn studio(d: vec3f) -> vec3f {
 
 /** the soft light of the room on a surface facing N (sky above, the lit floor below), dimmed in crevices */
 fn geodeAmbient(N: vec3f, ao: f32) -> vec3f {
-  let sky = mix(light.geode.bgTop.rgb, vec3f(0.55, 0.58, 0.66), 0.35);
-  let ground = light.geode.floorCol.rgb * 0.35 + light.geode.bgBottom.rgb;
+  let sky = mix(worldLight.geode.bgTop.rgb, vec3f(0.55, 0.58, 0.66), 0.35);
+  let ground = worldLight.geode.floorCol.rgb * 0.35 + worldLight.geode.bgBottom.rgb;
   return mix(ground, sky, N.y * 0.5 + 0.5) * (0.25 + 0.75 * ao) * 1.6;
 }
 
 /** the key on matter at p: under the shaft it has come through water, so it shifts with the net on the floor below
  *  (fine: the finer net too; fixture: the wall's crystals, which are out of it) */
 fn geodeKeyNet(p: vec3f, fine: bool, fixture: f32) -> f32 {
-  let u = causticU(p, light.geode.shaft, light.geode.shaftCol.w);
-  let under = smoothstep(1.15, 0.55, length(u)) * light.geode.caustic.x * (1.0 - fixture);
+  let u = causticU(p, worldLight.geode.shaft, worldLight.geode.shaftCol.w);
+  let under = smoothstep(1.15, 0.55, length(u)) * worldLight.geode.caustic.x * (1.0 - fixture);
   if (under <= 0.0) { return 1.0; }
-  return mix(1.0, causticLight(u, light.geode.caustic.y, frame.time * light.geode.caustic.z, fine), under);
+  return mix(1.0, causticLight(u, worldLight.geode.caustic.y, frame.time * worldLight.geode.caustic.z, fine), under);
 }
 
 /** the wall's crystals: in the dark round the stage, lit mostly from within, dimmer the further from the light */
 fn geodeFixtureTint(p: vec3f, fade: bool) -> vec3f {
   var k = 1.0;
-  if (fade) { k = mix(1.0, 0.35, smoothstep(3.0, 9.0, length(p.xz - light.geode.pool.xy))); }
-  return light.geode.cave.rgb * light.geode.cave.w * k;
+  if (fade) { k = mix(1.0, 0.35, smoothstep(3.0, 9.0, length(p.xz - worldLight.geode.pool.xy))); }
+  return worldLight.geode.cave.rgb * worldLight.geode.cave.w * k;
 }
 
 // ---------------------------------------------------------------- the air
@@ -124,15 +124,15 @@ fn geodeAir(s: vec4f, px: vec2i, d: vec3f) -> vec3f {
   let along = max(dot(d, frame.camFwd), 1e-3);
   let tMax = min(s.a / along, 40.0);
   var c = s.rgb;
-  let top = light.geode.shaftCol.w;
-  let r0 = light.geode.shaft.z;
+  let top = worldLight.geode.shaftCol.w;
+  let r0 = worldLight.geode.shaft.z;
   // where the ray crosses the cylinder round the shaft (in xz), clipped to the floor below and the roof above
-  let o = frame.camPos.xz - light.geode.shaft.xy;
+  let o = frame.camPos.xz - worldLight.geode.shaft.xy;
   let a = dot(d.xz, d.xz);
   let b = dot(o, d.xz);
   let cc = dot(o, o) - r0 * r0;
   let disc = b * b - a * cc;
-  if (disc > 0.0 && a > 1e-6 && light.geode.shaft.w > 0.0) {
+  if (disc > 0.0 && a > 1e-6 && worldLight.geode.shaft.w > 0.0) {
     let sq = sqrt(disc);
     var t0 = max((-b - sq) / a, 0.0);
     var t1 = min((-b + sq) / a, tMax);
@@ -150,21 +150,21 @@ fn geodeAir(s: vec4f, px: vec2i, d: vec3f) -> vec3f {
         let p = frame.camPos + d * t;
         let h = clamp(p.y / top, 0.0, 1.0);
         let rad = mix(r0, r0 * 0.45, h);
-        let rr = length(p.xz - light.geode.shaft.xy);
+        let rr = length(p.xz - worldLight.geode.shaft.xy);
         let edge = smoothstep(rad, rad * 0.72, rr) * (0.55 + 0.45 * smoothstep(rad * 0.2, rad * 0.9, rr));
         // slow drifting veils of dust in it
         let dust = 0.65 + 0.35 * sin(p.y * 2.3 + sin(p.x * 3.1 + frame.time * 0.21) * 1.7 + frame.time * 0.13) * sin(p.z * 2.7 - frame.time * 0.17);
         // and rays: the water above gathers the light into the same net all the way down
         var ray = 1.0;
-        if (light.geode.caustic.w > 0.0) { ray = mix(1.0, causticLight((p.xz - light.geode.shaft.xy) / rad, light.geode.caustic.y, frame.time * light.geode.caustic.z, false), light.geode.caustic.w); }
+        if (worldLight.geode.caustic.w > 0.0) { ray = mix(1.0, causticLight((p.xz - worldLight.geode.shaft.xy) / rad, worldLight.geode.caustic.y, frame.time * worldLight.geode.caustic.z, false), worldLight.geode.caustic.w); }
         acc += edge * dust * ray * (0.55 + 0.45 * (1.0 - h)) * dtm;
         t += dtm;
       }
       // the dust scatters forward (Henyey-Greenstein, g 0.35, as a multiple of looking across it)
       let g = 0.35;
       let phase = (1.0 - g * g) / pow(1.0 + g * g - 2.0 * g * d.y, 1.5) / 0.738;
-      c += light.geode.shaftCol.rgb * light.geode.shaft.w * acc * phase;
+      c += worldLight.geode.shaftCol.rgb * worldLight.geode.shaft.w * acc * phase;
     }
   }
-  return mix(light.geode.hazeCol.rgb, c, exp(-tMax * light.geode.hazeCol.w));
+  return mix(worldLight.geode.hazeCol.rgb, c, exp(-tMax * worldLight.geode.hazeCol.w));
 }

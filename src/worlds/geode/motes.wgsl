@@ -12,21 +12,21 @@ struct MOut {
 @vertex fn vs(@builtin(vertex_index) vi: u32, @builtin(instance_index) ii: u32) -> MOut {
   var o: MOut;
   let h = rnd3(ii * 7u + 1u);
-  let top = light.geode.shaftCol.w;
+  let top = worldLight.geode.shaftCol.w;
   let fall = 0.012 + 0.03 * h.x;
   let y = top * fract(h.z - frame.time * fall / top * 3.0);
   let up = y / top;
-  let rad = light.geode.shaft.z * mix(1.0, 0.45, up) * sqrt(h.y) * 1.1;
+  let rad = worldLight.geode.shaft.z * mix(1.0, 0.45, up) * sqrt(h.y) * 1.1;
   let a = h.x * 6.2831853 + sin(frame.time * 0.11 + h.z * 9.0) * 0.4;
   let wob = vec3f(sin(frame.time * 0.37 + h.y * 17.0), 0.0, cos(frame.time * 0.29 + h.x * 13.0)) * 0.08;
-  let centre = vec3f(light.geode.shaft.x + cos(a) * rad, y, light.geode.shaft.y + sin(a) * rad) + wob;
+  let centre = vec3f(worldLight.geode.shaft.x + cos(a) * rad, y, worldLight.geode.shaft.y + sin(a) * rad) + wob;
   let c = array<vec2f, 6>(vec2f(-1.0, -1.0), vec2f(1.0, -1.0), vec2f(1.0, 1.0), vec2f(-1.0, -1.0), vec2f(1.0, 1.0), vec2f(-1.0, 1.0))[vi];
-  let size = light.geode.moteSize * (0.5 + h.y);
+  let size = worldLight.geode.moteSize * (0.5 + h.y);
   o.pos = frame.viewProj * vec4f(centre + (frame.camRight * c.x + frame.camUp * c.y) * size, 1.0);
   o.uv = c;
   // lit only inside the light, faint at the edge of it, twinkling as they turn
-  let edge = smoothstep(1.0, 0.3, length(centre.xz - light.geode.shaft.xy) / (light.geode.shaft.z * mix(1.0, 0.45, up)));
-  o.bright = light.geode.shaft.w * edge * (0.35 + 0.65 * pow(0.5 + 0.5 * sin(frame.time * (1.0 + 3.0 * h.z) + h.x * 40.0), 4.0));
+  let edge = smoothstep(1.0, 0.3, length(centre.xz - worldLight.geode.shaft.xy) / (worldLight.geode.shaft.z * mix(1.0, 0.45, up)));
+  o.bright = worldLight.geode.shaft.w * edge * (0.35 + 0.65 * pow(0.5 + 0.5 * sin(frame.time * (1.0 + 3.0 * h.z) + h.x * 40.0), 4.0));
   return o;
 }
 

@@ -19,7 +19,7 @@ src/worlds/pool/
   index.ts       worlds.register({ id: 'pool', make: (ctx) => new Pool(ctx) })   (main.ts finds it by glob)
   pool.ts        the World
   pool.wgsl      its light: struct Pool (its slot of the light uniform) and its functions (env, ambient, key, air,
-                 scene), which read it as `light.pool.<field>`
+                 scene), which read it as `worldLight.pool.<field>`
   backdrop.wgsl  its draws…
 ```
 
@@ -29,7 +29,7 @@ with `this.u = lightSlot(ctx.kit, 'pool')` (`worlds/shared.ts`; the name is your
 with `this.u.set({ … })` in `update` (nested partials, as a weft uniform). `shared` holds only textures for the light
 group (the pool shares its ripple field as `{ poolWaves: this.waves.tex }`); most worlds say `shared = {}`.
 
-The worlds' light is one uniform buffer, `light: WorldLight` (group 2, binding 0): a slot per world and one for the
+The worlds' light is one uniform buffer, `worldLight: WorldLight` (group 2, binding 0): a slot per world and one for the
 dancers' fire. However many worlds there are, a lit shader binds one uniform for them, and every view reads its own
 world's slot (a gate's view of another world in the same frame reads that world's). Nothing in `worlds/shared.ts`,
 `world.ts`, `engine/` or `main.ts` changes for a new world.
@@ -38,7 +38,7 @@ Then `src/worlds/light.wgsl`, the one file outside your folder a world touches (
 
 1. `#include "./pool/pool"`
 2. `pool: Pool,` as the next member of `struct WorldLight` (after the last world's; the member's name is what
-   `lightSlot` takes and what your shaders read: `light.pool.key`)
+   `lightSlot` takes and what your shaders read: `worldLight.pool.key`)
 3. a world with a texture of its own (water's height field): `@group(2) @binding(N) var poolWaves: texture_2d<f32>;`
    at the next binding, named as your `shared` key. Each costs every lit shader stage a sampled texture (16 at the
    baseline; `npm test` counts them)
@@ -109,7 +109,7 @@ x1, one-way unless solid, bobbing `bob` m with the bass.
 
 ## Light from the dancers
 
-The fire kind's light rides in the same uniform (`light.fire`, filled each frame by `matter/fire/lights.ts`), and
+The fire kind's light rides in the same uniform (`worldLight.fire`, filled each frame by `matter/fire/lights.ts`), and
 `worlds/light.wgsl` gives `worldFire(p, n)`: one
 point light per flame dancer (fire warm, plasma violet by the dancer's form). Add it to your world's own shading of
 its solid things (the geode's floor and shelves, everything the redwoods' lanterns light, the temple's and the forge's
