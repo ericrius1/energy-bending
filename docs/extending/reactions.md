@@ -16,7 +16,8 @@ let w = fieldWind(p);      // vec3f, m/s, world
 let h = fieldHeat(p);      // f32: 0 the room, 1 at a flame body's surface, -1 at an ice body's
 let wet = fieldWet(p);     // f32: 0 dry, 1 at a water body's surface
 let s = fieldSteam(p);     // f32: how fast steam is being made here (heat meeting wet, flame melting ice)
-let both = fieldAt(p);     // FieldSample { a: (wind, wet), b: (hot, cold, steam, stir) } in two samples
+let dry = fieldDry(p);     // f32: how dry the air is: 0.6 at a plasma body, 0 at fire's (tells plasma's heat from fire's)
+let both = fieldAt(p);     // FieldSample { a: (wind, wet), b: (hot, cold, steam, dry) } in two samples
 ```
 
 - The field is two `rgba16float` 3D textures and a small uniform, in **bind group 3**, shared with the bodies (joints,
@@ -78,14 +79,28 @@ three staging buffers, and mapped after the frame; the value comes back once the
 frame or the one after. So `probe()` and `updraft()` return what was measured one to three frames ago
 (`reading.frame` is the frame it was measured in). That is fine for a jump's lift; don't use it for contact.
 
-### Fusion flows (groundwork)
+### Fusion: the helix and the steam's look
 
-When two dancers fuse, the game (wave 2) sets a vortex between them each frame, at their middle, axis up, with some
-inflow: `field.vortex('fusion', { at: mid, strength, radius, inflow, lift })`, and removes it after. The vortex turns,
-draws in and lifts the air; everything that follows `fieldWind` (flying particles, steam, flame) swirls into a shared
-centre. Matter still on a body is held by its springs; a kind that wants its body matter to flow into the fusion
-blends its home spring toward `fieldWind` by a fusion amount it is given. `?vortex=4` puts a test vortex at the
-dancers' middle (with `?field` to see it).
+When two dancers fuse, the game stages it on the field, once or every frame as the amount eases:
+
+```ts
+field.fuse({ dancers: [0, 1], kind: 'storm', amount: 0.8, strength: 2.2, tightness: 1 });  // 'steam' | 'prism' | 'storm' | 'aurora'
+field.fuse(null);                     // or amount 0: nothing at all (a strict no-op in the field and in steam)
+field.fusionFront                     // { kind, amount } as steam reads it
+```
+
+The field winds the two dancers' auras (each body's average) into a slow **double helix** round a vortex at their
+middle: two strands half a turn apart, `radius` 0.32 m, `height` 1 m either side of the centre, `tightness` turns per
+metre, turning at `speed` rad/s, `width` 0.12 m; `auras: [a, b]` gives the strands' auras directly instead of the
+dancers'. Where the strands are, the field holds the two matters (fire's heat on one, water's wet on the other), so
+steam is made between them; the strands themselves also breathe a little steam (0.35 of a strong clash), so the helix
+reads in steam whatever the two matters are. The vortex (strength × amount at 1.4 × the radius, with inflow and lift)
+is the field's own and does not take one of the four `vortex` slots' names, though it does take a slot. Steam is born
+along the strands and swirls up the vortex, and takes the fusion's look: **steam** white with cyan and orange licks,
+**prism** thin vapour in thin-film colour, **storm** dark and heavy, lit by flickers from inside, **aurora** green
+rising into violet, drawn out upward. Matter still on a body is held by its springs; a kind that wants its body
+matter to flow into the fusion blends its home spring toward `fieldWind` by the amount. `?vortex=4` puts a plain test
+vortex at the dancers' middle (with `?field` to see it).
 
 ## Adding an aura for a new kind
 
@@ -126,8 +141,23 @@ world (or per gate view) is an open item.
 A reaction is a matter kind with no homes (`src/matter/reactions/steam.ts` is the example): its `declare` makes a
 pool and a compute step in `sim`; dead particles try to be born where the field says so (`fieldSteam`, or a quantity
 you derive from `fieldHeat`/`fieldWet`), live ones follow `fieldWind`. It registers from `reactions/index.ts`. If it
-needs a new quantity the field doesn't hold, derive it in `step.wgsl` into the spare channel (B.w holds the stir, for
-the overlay) rather than adding a texture: each texture costs every field-reading stage a sampled-texture binding.
+needs a new quantity the field doesn't hold, derive it in `step.wgsl` from what is there rather than adding a texture
+(each texture costs every field-reading stage a sampled-texture binding). There is no spare channel left: B.w, once
+the stir for the overlay, now holds plasma's dryness.
+
+### How steam meets (the example)
+
+Steam does not trust the field's 18 cm cells for where two bodies touch: a dead particle picks a random point on a
+random capsule's axis, finds the nearest capsule of any other dancer, and if the two surfaces are within `gap` (7 cm)
+or cross, takes a point on the contact (the ring where two crossing capsules' surfaces meet, or the middle of the
+gap). It is born there with a chance set by `fieldSteam` at that point, so only matter that reacts makes anything.
+The pair is read off the field there: plasma is dry (`fieldDry` past 0.06 to 0.25) or hotter than fire (heat past
+1.15 to 1.45), ice is cold (cold past 0.03 to 0.2). One pool holds four sorts: **fronts** (white-hot streaks along the
+contact, 0.12 s each, born again every frame: a crisp line that follows the contact and is gone when the bodies part),
+**wisps** (vapour boiling out of the contact and up, gone within about a second), **drips** (flame on ice) and
+**sparks** (plasma on water). Wisps are drawn at half resolution into their own target and composited after the depth
+of field with a soft blur and a per-pixel cap (`cap` 0.55 of what is behind, never brighter than `maxBright` 0.85
+of white); fronts, drips and sparks go on top at full resolution, the only steam allowed past 0.85.
 
 ## Looking at it
 

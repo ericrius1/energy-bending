@@ -1,0 +1,186 @@
+[
+ {
+  "name": "st-fire-water-close",
+  "query": "play&two&dress=fire,water&world=pool",
+  "fps": 10,
+  "seconds": 3,
+  "warm": 200,
+  "setup": " bend.set('camera', { followDist: 2.4, followFov: 40, followPitch: 0.1, followSwing: 0 }); bend.wake(); bend.place(0,-0.42,0,Math.PI/2); bend.place(1,0.42,0,-Math.PI/2);",
+  "cues": {
+   "0.5": "bend.move(0,'armada')",
+   "1.6": "bend.move(1,'meia-lua')"
+  },
+  "each": "bend.camera({ yaw: 0.0 });",
+  "sheet": {
+   "cols": 5,
+   "rows": 2,
+   "width": 400
+  },
+  "stills": [
+   0.3,
+   1,
+   2
+  ]
+ },
+ {
+  "name": "st-fire-water-game",
+  "query": "play&two&dress=fire,water&world=pool",
+  "fps": 10,
+  "seconds": 3,
+  "warm": 200,
+  "setup": " bend.set('camera', { followDist: 6, followFov: 44, followPitch: 0.1, followSwing: 0 }); bend.wake(); bend.place(0,-0.42,0,Math.PI/2); bend.place(1,0.42,0,-Math.PI/2);",
+  "cues": {
+   "0.5": "bend.move(0,'armada')",
+   "1.6": "bend.move(1,'meia-lua')"
+  },
+  "each": "bend.camera({ yaw: 0.0 });",
+  "sheet": {
+   "cols": 5,
+   "rows": 2,
+   "width": 400
+  },
+  "stills": [
+   0.3,
+   1,
+   2
+  ]
+ },
+ {
+  "name": "st-fire-ice-close",
+  "query": "play&two&dress=fire,ice&world=pool",
+  "fps": 10,
+  "seconds": 3,
+  "warm": 200,
+  "setup": " bend.set('camera', { followDist: 2.4, followFov: 40, followPitch: 0.1, followSwing: 0 }); bend.wake(); bend.place(0,-0.42,0,Math.PI/2); bend.place(1,0.42,0,-Math.PI/2);",
+  "cues": {
+   "0.5": "bend.move(0,'armada')",
+   "1.6": "bend.move(1,'meia-lua')"
+  },
+  "each": "bend.camera({ yaw: 0.0 });",
+  "sheet": {
+   "cols": 5,
+   "rows": 2,
+   "width": 400
+  },
+  "stills": [
+   0.3,
+   1,
+   2
+  ]
+ },
+ {
+  "name": "st-fire-ice-game",
+  "query": "play&two&dress=fire,ice&world=pool",
+  "fps": 10,
+  "seconds": 3,
+  "warm": 200,
+  "setup": " bend.set('camera', { followDist: 6, followFov: 44, followPitch: 0.1, followSwing: 0 }); bend.wake(); bend.place(0,-0.42,0,Math.PI/2); bend.place(1,0.42,0,-Math.PI/2);",
+  "cues": {
+   "0.5": "bend.move(0,'armada')",
+   "1.6": "bend.move(1,'meia-lua')"
+  },
+  "each": "bend.camera({ yaw: 0.0 });",
+  "sheet": {
+   "cols": 5,
+   "rows": 2,
+   "width": 400
+  },
+  "stills": [
+   0.3,
+   1,
+   2
+  ]
+ },
+ {
+  "name": "st-plasma-water-close",
+  "query": "play&two&dress=plasma,water&world=pool",
+  "fps": 10,
+  "seconds": 3,
+  "warm": 200,
+  "setup": " bend.set('camera', { followDist: 2.4, followFov: 40, followPitch: 0.1, followSwing: 0 }); bend.wake(); bend.place(0,-0.42,0,Math.PI/2); bend.place(1,0.42,0,-Math.PI/2);",
+  "cues": {
+   "0.5": "bend.move(0,'armada')",
+   "1.6": "bend.move(1,'meia-lua')"
+  },
+  "each": "bend.camera({ yaw: 0.0 });",
+  "sheet": {
+   "cols": 5,
+   "rows": 2,
+   "width": 400
+  },
+  "stills": [
+   0.3,
+   1,
+   2
+  ]
+ },
+ {
+  "name": "st-plasma-water-game",
+  "query": "play&two&dress=plasma,water&world=pool",
+  "fps": 10,
+  "seconds": 3,
+  "warm": 200,
+  "setup": " bend.set('camera', { followDist: 6, followFov: 44, followPitch: 0.1, followSwing: 0 }); bend.wake(); bend.place(0,-0.42,0,Math.PI/2); bend.place(1,0.42,0,-Math.PI/2);",
+  "cues": {
+   "0.5": "bend.move(0,'armada')",
+   "1.6": "bend.move(1,'meia-lua')"
+  },
+  "each": "bend.camera({ yaw: 0.0 });",
+  "sheet": {
+   "cols": 5,
+   "rows": 2,
+   "width": 400
+  },
+  "stills": [
+   0.3,
+   1,
+   2
+  ]
+ },
+ {
+  "name": "st-plasma-ice-close",
+  "query": "play&two&dress=plasma,ice&world=pool",
+  "fps": 10,
+  "seconds": 3,
+  "warm": 200,
+  "setup": " bend.set('camera', { followDist: 2.4, followFov: 40, followPitch: 0.1, followSwing: 0 }); bend.wake(); bend.place(0,-0.42,0,Math.PI/2); bend.place(1,0.42,0,-Math.PI/2);",
+  "cues": {
+   "0.5": "bend.move(0,'armada')",
+   "1.6": "bend.move(1,'meia-lua')"
+  },
+  "each": "bend.camera({ yaw: 0.0 });",
+  "sheet": {
+   "cols": 5,
+   "rows": 2,
+   "width": 400
+  },
+  "stills": [
+   0.3,
+   1,
+   2
+  ]
+ },
+ {
+  "name": "st-plasma-ice-game",
+  "query": "play&two&dress=plasma,ice&world=pool",
+  "fps": 10,
+  "seconds": 3,
+  "warm": 200,
+  "setup": " bend.set('camera', { followDist: 6, followFov: 44, followPitch: 0.1, followSwing: 0 }); bend.wake(); bend.place(0,-0.42,0,Math.PI/2); bend.place(1,0.42,0,-Math.PI/2);",
+  "cues": {
+   "0.5": "bend.move(0,'armada')",
+   "1.6": "bend.move(1,'meia-lua')"
+  },
+  "each": "bend.camera({ yaw: 0.0 });",
+  "sheet": {
+   "cols": 5,
+   "rows": 2,
+   "width": 400
+  },
+  "stills": [
+   0.3,
+   1,
+   2
+  ]
+ }
+]

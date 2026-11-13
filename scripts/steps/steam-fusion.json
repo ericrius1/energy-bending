@@ -1,0 +1,146 @@
+[
+ {
+  "name": "st-fusion-steam",
+  "query": "play&two&dress=fire,water&world=pool",
+  "fps": 10,
+  "seconds": 4,
+  "warm": 200,
+  "setup": " bend.set('camera', { followDist: 4.4, followFov: 46, followPitch: 0.1, followSwing: 0 }); bend.wake(); bend.place(0,-0.45,0,Math.PI/2); bend.place(1,0.45,0,-Math.PI/2);",
+  "each": "const F = bend.show.kinds.find((k) => k.id === 'field').field; F.fuse({ dancers: [0, 1], kind: 'steam', amount: Math.min(1, t/1.2), strength: 2.5, tightness: 1.1 });",
+  "sheet": {
+   "cols": 4,
+   "rows": 2,
+   "width": 400
+  },
+  "stills": [
+   1.5,
+   3.5
+  ]
+ },
+ {
+  "name": "st-fusion-steam-redwoods",
+  "query": "play&two&dress=fire,water&world=redwoods",
+  "fps": 10,
+  "seconds": 4,
+  "warm": 200,
+  "setup": "bend.set('redwoods', { hour: 21.6, dayGoes: false }); bend.set('camera', { followDist: 4.4, followFov: 46, followPitch: 0.1, followSwing: 0 }); bend.wake(); bend.place(0,-0.45,0,Math.PI/2); bend.place(1,0.45,0,-Math.PI/2);",
+  "each": "const F = bend.show.kinds.find((k) => k.id === 'field').field; F.fuse({ dancers: [0, 1], kind: 'steam', amount: Math.min(1, t/1.2), strength: 2.5, tightness: 1.1 });",
+  "sheet": {
+   "cols": 4,
+   "rows": 2,
+   "width": 400
+  },
+  "stills": [
+   1.5,
+   3.5
+  ]
+ },
+ {
+  "name": "st-fusion-prism",
+  "query": "play&two&dress=fire,water&world=pool",
+  "fps": 10,
+  "seconds": 4,
+  "warm": 200,
+  "setup": " bend.set('camera', { followDist: 4.4, followFov: 46, followPitch: 0.1, followSwing: 0 }); bend.wake(); bend.place(0,-0.45,0,Math.PI/2); bend.place(1,0.45,0,-Math.PI/2);",
+  "each": "const F = bend.show.kinds.find((k) => k.id === 'field').field; F.fuse({ dancers: [0, 1], kind: 'prism', amount: Math.min(1, t/1.2), strength: 2.5, tightness: 1.1 });",
+  "sheet": {
+   "cols": 4,
+   "rows": 2,
+   "width": 400
+  },
+  "stills": [
+   1.5,
+   3.5
+  ]
+ },
+ {
+  "name": "st-fusion-prism-redwoods",
+  "query": "play&two&dress=fire,water&world=redwoods",
+  "fps": 10,
+  "seconds": 4,
+  "warm": 200,
+  "setup": "bend.set('redwoods', { hour: 21.6, dayGoes: false }); bend.set('camera', { followDist: 4.4, followFov: 46, followPitch: 0.1, followSwing: 0 }); bend.wake(); bend.place(0,-0.45,0,Math.PI/2); bend.place(1,0.45,0,-Math.PI/2);",
+  "each": "const F = bend.show.kinds.find((k) => k.id === 'field').field; F.fuse({ dancers: [0, 1], kind: 'prism', amount: Math.min(1, t/1.2), strength: 2.5, tightness: 1.1 });",
+  "sheet": {
+   "cols": 4,
+   "rows": 2,
+   "width": 400
+  },
+  "stills": [
+   1.5,
+   3.5
+  ]
+ },
+ {
+  "name": "st-fusion-storm",
+  "query": "play&two&dress=fire,water&world=pool",
+  "fps": 10,
+  "seconds": 4,
+  "warm": 200,
+  "setup": " bend.set('camera', { followDist: 4.4, followFov: 46, followPitch: 0.1, followSwing: 0 }); bend.wake(); bend.place(0,-0.45,0,Math.PI/2); bend.place(1,0.45,0,-Math.PI/2);",
+  "each": "const F = bend.show.kinds.find((k) => k.id === 'field').field; F.fuse({ dancers: [0, 1], kind: 'storm', amount: Math.min(1, t/1.2), strength: 2.5, tightness: 1.1 });",
+  "sheet": {
+   "cols": 4,
+   "rows": 2,
+   "width": 400
+  },
+  "stills": [
+   1.5,
+   3.5
+  ]
+ },
+ {
+  "name": "st-fusion-storm-redwoods",
+  "query": "play&two&dress=fire,water&world=redwoods",
+  "fps": 10,
+  "seconds": 4,
+  "warm": 200,
+  "setup": "bend.set('redwoods', { hour: 21.6, dayGoes: false }); bend.set('camera', { followDist: 4.4, followFov: 46, followPitch: 0.1, followSwing: 0 }); bend.wake(); bend.place(0,-0.45,0,Math.PI/2); bend.place(1,0.45,0,-Math.PI/2);",
+  "each": "const F = bend.show.kinds.find((k) => k.id === 'field').field; F.fuse({ dancers: [0, 1], kind: 'storm', amount: Math.min(1, t/1.2), strength: 2.5, tightness: 1.1 });",
+  "sheet": {
+   "cols": 4,
+   "rows": 2,
+   "width": 400
+  },
+  "stills": [
+   1.5,
+   3.5
+  ]
+ },
+ {
+  "name": "st-fusion-aurora",
+  "query": "play&two&dress=fire,water&world=pool",
+  "fps": 10,
+  "seconds": 4,
+  "warm": 200,
+  "setup": " bend.set('camera', { followDist: 4.4, followFov: 46, followPitch: 0.1, followSwing: 0 }); bend.wake(); bend.place(0,-0.45,0,Math.PI/2); bend.place(1,0.45,0,-Math.PI/2);",
+  "each": "const F = bend.show.kinds.find((k) => k.id === 'field').field; F.fuse({ dancers: [0, 1], kind: 'aurora', amount: Math.min(1, t/1.2), strength: 2.5, tightness: 1.1 });",
+  "sheet": {
+   "cols": 4,
+   "rows": 2,
+   "width": 400
+  },
+  "stills": [
+   1.5,
+   3.5
+  ]
+ },
+ {
+  "name": "st-fusion-aurora-redwoods",
+  "query": "play&two&dress=fire,water&world=redwoods",
+  "fps": 10,
+  "seconds": 4,
+  "warm": 200,
+  "setup": "bend.set('redwoods', { hour: 21.6, dayGoes: false }); bend.set('camera', { followDist: 4.4, followFov: 46, followPitch: 0.1, followSwing: 0 }); bend.wake(); bend.place(0,-0.45,0,Math.PI/2); bend.place(1,0.45,0,-Math.PI/2);",
+  "each": "const F = bend.show.kinds.find((k) => k.id === 'field').field; F.fuse({ dancers: [0, 1], kind: 'aurora', amount: Math.min(1, t/1.2), strength: 2.5, tightness: 1.1 });",
+  "sheet": {
+   "cols": 4,
+   "rows": 2,
+   "width": 400
+  },
+  "stills": [
+   1.5,
+   3.5
+  ]
+ }
+]

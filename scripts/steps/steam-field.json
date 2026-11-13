@@ -1,0 +1,14 @@
+[
+ { "name": "field-fire-water", "query": "play&two&dress=fire,water&world=pool", "wake": true, "frames": 240,
+   "eval": "bend.place(0,-1.6,0,-Math.PI/2); bend.place(1,1.6,0,Math.PI/2);",
+   "eval2": "const F = bend.show.kinds.find(k=>k.id==='field').field; const ds = bend.show.dancers; const rows = {}; for (const d of [0,1]) { const h = ds[d].skeleton.world; const s = d===0 ? -1 : 1; const pts = [0.16, 0.46, 1.16].map((o)=>[h[0]+s*o, h[1]+0.25, h[2]]).concat([[h[0], h[1]+1.25, h[2]], [h[0], h[1]+1.55, h[2]]]); pts.forEach((p,i)=>F.probe('m'+d+i, p)); await bend.step(2); rows[d] = pts.map((p,i)=>{ const r = F.probe('m'+d+i, p); return r && { heat: +r.heat.toFixed(3), wet: +r.wet.toFixed(3), steam: +r.steam.toFixed(3), wind: +Math.hypot(...r.wind).toFixed(2), up: +r.wind[1].toFixed(2) }; }); pts.forEach((p,i)=>F.unprobe('m'+d+i)); } console.warn('FIELD fire,water (surface, +0.3 m, +1 m to the side at chest; 0.3 m and 0.6 m over the head)', JSON.stringify(rows));",
+   "frames2": 1 },
+ { "name": "field-plasma-ice", "query": "play&two&dress=plasma,ice&world=pool", "wake": true, "frames": 240,
+   "eval": "bend.place(0,-1.6,0,-Math.PI/2); bend.place(1,1.6,0,Math.PI/2);",
+   "eval2": "const F = bend.show.kinds.find(k=>k.id==='field').field; const ds = bend.show.dancers; const rows = {}; for (const d of [0,1]) { const h = ds[d].skeleton.world; const s = d===0 ? -1 : 1; const pts = [0.16, 0.46, 1.16].map((o)=>[h[0]+s*o, h[1]+0.25, h[2]]).concat([[h[0], h[1]+1.25, h[2]], [h[0], h[1]+1.55, h[2]]]); pts.forEach((p,i)=>F.probe('m'+d+i, p)); await bend.step(2); rows[d] = pts.map((p,i)=>{ const r = F.probe('m'+d+i, p); return r && { heat: +r.heat.toFixed(3), wet: +r.wet.toFixed(3), steam: +r.steam.toFixed(3), wind: +Math.hypot(...r.wind).toFixed(2), up: +r.wind[1].toFixed(2) }; }); pts.forEach((p,i)=>F.unprobe('m'+d+i)); } console.warn('FIELD plasma,ice', JSON.stringify(rows));",
+   "frames2": 1 },
+ { "name": "field-kick-wake", "query": "play&dress=fire&world=pool", "wake": true, "frames": 200,
+   "eval": "bend.place(0,0,0,Math.PI/2);",
+   "eval2": "const F = bend.show.kinds.find(k=>k.id==='field').field; const h = bend.show.dancers[0].skeleton.world; const R = [0.5, 0.8, 1.1, 1.4]; const pts = []; for (const r of R) for (let k = 0; k < 4; k++) { const a = k*Math.PI/2 + Math.PI/4; pts.push([h[0]+r*Math.cos(a), h[1]-0.1, h[2]+r*Math.sin(a)]); } const best = R.map(()=>0); bend.move(0,'armada'); for (let f = 0; f < 70; f++) { pts.forEach((p,i)=>F.probe('k'+i,p)); await bend.step(1); pts.forEach((p,i)=>{ const r = F.probe('k'+i,p); if (r) best[Math.floor(i/4)] = Math.max(best[Math.floor(i/4)], Math.hypot(...r.wind)); }); } pts.forEach((p,i)=>F.unprobe('k'+i)); console.warn('WAKE max wind (m/s) during an armada at radius 0.5, 0.8, 1.1, 1.4 m from the hips at hip height', JSON.stringify(best.map(v=>+v.toFixed(2))));",
+   "frames2": 1 }
+]

@@ -1,0 +1,42 @@
+[
+ {
+  "name": "st-circle-pool",
+  "query": "play&two&dress=fire,water&world=pool",
+  "fps": 10,
+  "seconds": 6,
+  "warm": 200,
+  "setup": " bend.set('camera', { followDist: 4.2, followFov: 44, followPitch: 0.12, followSwing: 0 }); bend.wake();",
+  "each": "const r = 0.62 + 0.5*Math.max(0, Math.sin(t*1.05)); const a = t*1.1; bend.place(0, -r*Math.cos(a), -r*Math.sin(a), a + Math.PI/2); bend.place(1, r*Math.cos(a), r*Math.sin(a), a - Math.PI/2); bend.camera({ yaw: 0.0 });",
+  "sheet": {
+   "cols": 6,
+   "rows": 4,
+   "width": 320
+  },
+  "stills": [
+   0.5,
+   1.5,
+   3,
+   4.5
+  ]
+ },
+ {
+  "name": "st-circle-redwoods",
+  "query": "play&two&dress=fire,water&world=redwoods",
+  "fps": 10,
+  "seconds": 6,
+  "warm": 200,
+  "setup": "bend.set('redwoods', { hour: 21.6, dayGoes: false }); bend.set('camera', { followDist: 4.2, followFov: 44, followPitch: 0.12, followSwing: 0 }); bend.wake();",
+  "each": "const r = 0.62 + 0.5*Math.max(0, Math.sin(t*1.05)); const a = t*1.1; bend.place(0, -r*Math.cos(a), -r*Math.sin(a), a + Math.PI/2); bend.place(1, r*Math.cos(a), r*Math.sin(a), a - Math.PI/2); bend.camera({ yaw: 0.0 });",
+  "sheet": {
+   "cols": 6,
+   "rows": 4,
+   "width": 320
+  },
+  "stills": [
+   0.5,
+   1.5,
+   3,
+   4.5
+  ]
+ }
+]

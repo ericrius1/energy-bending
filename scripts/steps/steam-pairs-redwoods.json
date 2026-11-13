@@ -1,0 +1,186 @@
+[
+ {
+  "name": "st-fire-water-close-redwoods",
+  "query": "play&two&dress=fire,water&world=redwoods",
+  "fps": 10,
+  "seconds": 3,
+  "warm": 200,
+  "setup": "bend.set('redwoods', { hour: 21.6, dayGoes: false }); bend.set('camera', { followDist: 2.4, followFov: 40, followPitch: 0.1, followSwing: 0 }); bend.wake(); bend.place(0,-0.42,0,Math.PI/2); bend.place(1,0.42,0,-Math.PI/2);",
+  "cues": {
+   "0.5": "bend.move(0,'armada')",
+   "1.6": "bend.move(1,'meia-lua')"
+  },
+  "each": "bend.camera({ yaw: 0.0 });",
+  "sheet": {
+   "cols": 5,
+   "rows": 2,
+   "width": 400
+  },
+  "stills": [
+   0.3,
+   1,
+   2
+  ]
+ },
+ {
+  "name": "st-fire-water-game-redwoods",
+  "query": "play&two&dress=fire,water&world=redwoods",
+  "fps": 10,
+  "seconds": 3,
+  "warm": 200,
+  "setup": "bend.set('redwoods', { hour: 21.6, dayGoes: false }); bend.set('camera', { followDist: 6, followFov: 44, followPitch: 0.1, followSwing: 0 }); bend.wake(); bend.place(0,-0.42,0,Math.PI/2); bend.place(1,0.42,0,-Math.PI/2);",
+  "cues": {
+   "0.5": "bend.move(0,'armada')",
+   "1.6": "bend.move(1,'meia-lua')"
+  },
+  "each": "bend.camera({ yaw: 0.0 });",
+  "sheet": {
+   "cols": 5,
+   "rows": 2,
+   "width": 400
+  },
+  "stills": [
+   0.3,
+   1,
+   2
+  ]
+ },
+ {
+  "name": "st-fire-ice-close-redwoods",
+  "query": "play&two&dress=fire,ice&world=redwoods",
+  "fps": 10,
+  "seconds": 3,
+  "warm": 200,
+  "setup": "bend.set('redwoods', { hour: 21.6, dayGoes: false }); bend.set('camera', { followDist: 2.4, followFov: 40, followPitch: 0.1, followSwing: 0 }); bend.wake(); bend.place(0,-0.42,0,Math.PI/2); bend.place(1,0.42,0,-Math.PI/2);",
+  "cues": {
+   "0.5": "bend.move(0,'armada')",
+   "1.6": "bend.move(1,'meia-lua')"
+  },
+  "each": "bend.camera({ yaw: 0.0 });",
+  "sheet": {
+   "cols": 5,
+   "rows": 2,
+   "width": 400
+  },
+  "stills": [
+   0.3,
+   1,
+   2
+  ]
+ },
+ {
+  "name": "st-fire-ice-game-redwoods",
+  "query": "play&two&dress=fire,ice&world=redwoods",
+  "fps": 10,
+  "seconds": 3,
+  "warm": 200,
+  "setup": "bend.set('redwoods', { hour: 21.6, dayGoes: false }); bend.set('camera', { followDist: 6, followFov: 44, followPitch: 0.1, followSwing: 0 }); bend.wake(); bend.place(0,-0.42,0,Math.PI/2); bend.place(1,0.42,0,-Math.PI/2);",
+  "cues": {
+   "0.5": "bend.move(0,'armada')",
+   "1.6": "bend.move(1,'meia-lua')"
+  },
+  "each": "bend.camera({ yaw: 0.0 });",
+  "sheet": {
+   "cols": 5,
+   "rows": 2,
+   "width": 400
+  },
+  "stills": [
+   0.3,
+   1,
+   2
+  ]
+ },
+ {
+  "name": "st-plasma-water-close-redwoods",
+  "query": "play&two&dress=plasma,water&world=redwoods",
+  "fps": 10,
+  "seconds": 3,
+  "warm": 200,
+  "setup": "bend.set('redwoods', { hour: 21.6, dayGoes: false }); bend.set('camera', { followDist: 2.4, followFov: 40, followPitch: 0.1, followSwing: 0 }); bend.wake(); bend.place(0,-0.42,0,Math.PI/2); bend.place(1,0.42,0,-Math.PI/2);",
+  "cues": {
+   "0.5": "bend.move(0,'armada')",
+   "1.6": "bend.move(1,'meia-lua')"
+  },
+  "each": "bend.camera({ yaw: 0.0 });",
+  "sheet": {
+   "cols": 5,
+   "rows": 2,
+   "width": 400
+  },
+  "stills": [
+   0.3,
+   1,
+   2
+  ]
+ },
+ {
+  "name": "st-plasma-water-game-redwoods",
+  "query": "play&two&dress=plasma,water&world=redwoods",
+  "fps": 10,
+  "seconds": 3,
+  "warm": 200,
+  "setup": "bend.set('redwoods', { hour: 21.6, dayGoes: false }); bend.set('camera', { followDist: 6, followFov: 44, followPitch: 0.1, followSwing: 0 }); bend.wake(); bend.place(0,-0.42,0,Math.PI/2); bend.place(1,0.42,0,-Math.PI/2);",
+  "cues": {
+   "0.5": "bend.move(0,'armada')",
+   "1.6": "bend.move(1,'meia-lua')"
+  },
+  "each": "bend.camera({ yaw: 0.0 });",
+  "sheet": {
+   "cols": 5,
+   "rows": 2,
+   "width": 400
+  },
+  "stills": [
+   0.3,
+   1,
+   2
+  ]
+ },
+ {
+  "name": "st-plasma-ice-close-redwoods",
+  "query": "play&two&dress=plasma,ice&world=redwoods",
+  "fps": 10,
+  "seconds": 3,
+  "warm": 200,
+  "setup": "bend.set('redwoods', { hour: 21.6, dayGoes: false }); bend.set('camera', { followDist: 2.4, followFov: 40, followPitch: 0.1, followSwing: 0 }); bend.wake(); bend.place(0,-0.42,0,Math.PI/2); bend.place(1,0.42,0,-Math.PI/2);",
+  "cues": {
+   "0.5": "bend.move(0,'armada')",
+   "1.6": "bend.move(1,'meia-lua')"
+  },
+  "each": "bend.camera({ yaw: 0.0 });",
+  "sheet": {
+   "cols": 5,
+   "rows": 2,
+   "width": 400
+  },
+  "stills": [
+   0.3,
+   1,
+   2
+  ]
+ },
+ {
+  "name": "st-plasma-ice-game-redwoods",
+  "query": "play&two&dress=plasma,ice&world=redwoods",
+  "fps": 10,
+  "seconds": 3,
+  "warm": 200,
+  "setup": "bend.set('redwoods', { hour: 21.6, dayGoes: false }); bend.set('camera', { followDist: 6, followFov: 44, followPitch: 0.1, followSwing: 0 }); bend.wake(); bend.place(0,-0.42,0,Math.PI/2); bend.place(1,0.42,0,-Math.PI/2);",
+  "cues": {
+   "0.5": "bend.move(0,'armada')",
+   "1.6": "bend.move(1,'meia-lua')"
+  },
+  "each": "bend.camera({ yaw: 0.0 });",
+  "sheet": {
+   "cols": 5,
+   "rows": 2,
+   "width": 400
+  },
+  "stills": [
+   0.3,
+   1,
+   2
+  ]
+ }
+]

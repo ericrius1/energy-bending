@@ -22,7 +22,8 @@ struct FieldBox {
 }
 
 // A: wind (m/s, world) in xyz, wet in w. B: the heat as two parts, hot (x) and cold (y), which advect and fade on their
-// own and cancel where they meet (ice melting by a flame); z: how much steam is being made here (reactions read it).
+// own and cancel where they meet (ice melting by a flame); z: how much steam is being made here (reactions read it);
+// w: how dry the air is (plasma's aura boils wet away: 0.6 at a plasma body; reactions tell plasma from fire by it).
 @group(3) @binding(4) var fieldA: texture_3d<f32>;
 @group(3) @binding(5) var fieldB: texture_3d<f32>;
 @group(3) @binding(6) var<uniform> fieldBox: FieldBox;
@@ -64,6 +65,12 @@ fn fieldWet(p: vec3f) -> f32 {
   let u = fieldUvw(p);
   if (u.w <= 0.0) { return 0.0; }
   return textureSampleLevel(fieldA, samp_linear, u.xyz, 0.0).w * u.w;
+}
+/** how dry the air is at p: 0 … 0.6 at a plasma body (fire 0): what tells plasma's heat from fire's */
+fn fieldDry(p: vec3f) -> f32 {
+  let u = fieldUvw(p);
+  if (u.w <= 0.0) { return 0.0; }
+  return textureSampleLevel(fieldB, samp_linear, u.xyz, 0.0).w * u.w;
 }
 /** how fast steam is being made at p (heat meeting wet, flame meeting ice): 0 none, ~1 a strong clash */
 fn fieldSteam(p: vec3f) -> f32 {

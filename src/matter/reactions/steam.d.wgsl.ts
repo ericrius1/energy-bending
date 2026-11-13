@@ -6,12 +6,17 @@ export interface Puff {
   age: number;
   vel: Vec3;
   life: number;
+  info: Vec4;
 }
 export interface Steam {
   count: number;
   frameNo: number;
   dt: number;
   time: number;
+  wispEnd: number;
+  frontEnd: number;
+  dripEnd: number;
+  capsules: number;
   birth: number;
   rise: number;
   follow: number;
@@ -24,10 +29,22 @@ export interface Steam {
   glow: number;
   warmth: number;
   floorY: number;
-  capsules: number;
   deposits: number;
-  pad0: number;
-  pad1: number;
+  gap: number;
+  frontRate: number;
+  frontLife: number;
+  frontGlow: number;
+  cap: number;
+  maxBright: number;
+  jet: number;
+  sink: number;
+  lowScale: number;
+  blur: number;
+  sparkRate: number;
+  fusion: Vec4;
+  hAt: Vec4;
+  hAxis: Vec4;
+  hShape: Vec4;
   near: ArrayLike<number> | Vec4[];
 }
 
