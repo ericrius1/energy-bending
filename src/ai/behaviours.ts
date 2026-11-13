@@ -54,7 +54,7 @@ export function approach(s: Sight, m: Mind, x: number, z: number, o: { k?: numbe
   return false;
 }
 
-/** how far a body can go along the locked plane, that way (±1), before a wall or a solid ledge at body height stops
+/** how far a body can go along the locked plane, that way (Â±1), before a wall or a solid ledge at body height stops
  *  it (m; Infinity when free) */
 export function roomBehind(c: Character, way: number): number {
   const pl = c.plane;
@@ -247,14 +247,17 @@ export function bandOf(name: string, want: OfferAim): [number, number] | null {
   const [t0, t1] = r.touch;
   // (the throw's stream reaches across the stage: offered close, like a kick)
   const top = name === 'throw' ? Math.min(t1, 1.6) : t1;
-  const band: [number, number] = want === 'touch' ? [Math.max(t0 + 0.1, top - 0.45), top - 0.06] : [t1 + 0.02, Math.min(r.near - 0.02, t1 + 0.09)];
+  const band: [number, number] = want === 'touch' ? [Math.max(t0 + 0.1, top - 0.45), top - 0.06] : [t1 + 0.02, Math.min(r.near - 0.02, t1 + 0.14)];
   return band[1] > band[0] + 0.02 ? band : null;
 }
 
 /** an attack worth offering now: the liked ones, readable wind-ups preferred, the big ones as the music rises,
  *  repeats avoided */
-export function chooseOffer(style: OfferStyle, m: Mind, level: number, want: OfferAim): string | null {
+export function chooseOffer(style: OfferStyle, m: Mind, level: number, want: OfferAim, d = NaN): string | null {
   return m.rng.weighted(ATTACKS.filter((n) => bandOf(n, want)), (name) => {
+    // (the ones that fit where the dancer stands now are worth more: less walking before the offer)
+    const band = bandOf(name, want)!, off = Number.isFinite(d) ? Math.max(0, band[0] - d, d - band[1]) : 0, near = 1 / (1 + 4 * off);
+
     const like = style.likes[name] ?? 1;
     if (like <= 0) return 0;
     const windup = MOVES[name].windup;
@@ -264,8 +267,25 @@ export function chooseOffer(style: OfferStyle, m: Mind, level: number, want: Off
     const fair = 1 - style.generosity * (1 - clamp((windup - 0.22) / 0.04, 0, 1)) * 0.95;
     const big = name === 'armada' || name === 'rasteira' || name === 'throw' ? 1 : 0;
     const mood = big ? 0.5 + level : 1.2 - 0.4 * level;
-    return like * fair * (1 - style.generosity + style.generosity * readable) * mood / (1 + 1.5 * m.recent(name, 5));
+    return like * fair * near * (1 - style.generosity + style.generosity * readable) * mood / (1 + 1.5 * m.recent(name, 5));
   });
+}
+
+/** how close (m; negative: overlapping by that much, roughly) `name` started now would come to the other's body as
+ *  it stands (null when their body isn't simulated here) */
+export function liveGap(s: Sight, name: string, o: Other): number | null {
+  const oc = o.character;
+  if (!oc) return null;
+  const ax = jogoAxis(s, o), ev = hypotheticalEvent(s.self, name, s.bpm, ax.sign);
+  const th = readThreat(ev, oc.hurtShapes(), s.self.plane);
+  if (!th) return null;
+  if (th.first == null) return th.min;
+  // overlapping: how much further it could be and still touch (the hurt shapes padded until it no longer does)
+  for (const pad of [0.04, 0.08, 0.12, 0.16]) {
+    const t2 = readThreat(ev, oc.hurtShapes().map((x) => ({ ...x, r: Math.max(0.001, x.r - pad) })), s.self.plane);
+    if (!t2 || t2.first == null) return -pad;
+  }
+  return -0.2;
 }
 
 /** would `name`, started now, do what is wanted to the other as they stand? (the live check, by the replay against
@@ -277,7 +297,8 @@ export function wouldDo(s: Sight, name: string, want: OfferAim, o: Other): boole
   const th = readThreat(ev, oc.hurtShapes(), s.self.plane);
   if (!th) return false;
   if (want === 'touch') return th.first != null;
-  return th.first == null && th.min <= COMBAT.NEAR - 0.02;
+  // (an invitation must above all not land; coming near is the hope, passing is no harm)
+  return th.first == null && th.min <= COMBAT.NEAR + 0.25;
 }
 
 /** plan `name` at the next 8th line toward the partner (and, for a flurry, the next attacks in each one's recovery) */
@@ -391,9 +412,11 @@ export function avoid(s: Sight, m: Mind, strip: { plane: StagePlane; margin: num
     const p = strip.plane, n = planeNormal(p), look = 0.9;
     const ax = c.x + x * look, az = c.z + z * look;
     if (inStrip(p, ax, az, strip.margin)) {
-      // push back to the side of the plane the body is on
+      // push back to the side of the plane the body is on, or (rounding an end) out past the end
       const side = (c.x - p.origin[0]) * n[0] + (c.z - p.origin[2]) * n[2] >= 0 ? 1 : -1;
-      x += n[0] * side * 1.6; z += n[2] * side * 1.6;
+      const s = (c.x - p.origin[0]) * p.right[0] + (c.z - p.origin[2]) * p.right[2];
+      if (Math.abs(s) > p.halfWidth) { const o = s < 0 ? -1 : 1; x += p.right[0] * o * 1.6; z += p.right[2] * o * 1.6; }
+      else { x += n[0] * side * 1.6; z += n[2] * side * 1.6; }
     }
   }
   const l = Math.hypot(x, z) || 1;
@@ -404,14 +427,17 @@ export function avoid(s: Sight, m: Mind, strip: { plane: StagePlane; margin: num
 export function routeAround(c: Character, p: StagePlane, x: number, z: number, margin: number): [number, number] {
   const n = planeNormal(p);
   const side = (q: [number, number]) => (q[0] - p.origin[0]) * n[0] + (q[1] - p.origin[2]) * n[2];
-  const from: [number, number] = [c.x, c.z], to: [number, number] = [x, z];
-  const s0 = side(from), s1 = side(to);
-  if ((s0 >= -margin * 0.5) === (s1 >= -margin * 0.5) && Math.abs(s0) > margin * 0.5) return to;
-  if (Math.sign(s0) === Math.sign(s1) && Math.abs(s1) > margin) return to;
-  // crossing: go to the nearer end of the stage, out past it
   const along = (q: [number, number]) => (q[0] - p.origin[0]) * p.right[0] + (q[1] - p.origin[2]) * p.right[2];
-  const e = (along(from) + along(to) >= 0 ? 1 : -1) * (p.halfWidth + 1.4);
-  return [p.origin[0] + p.right[0] * e + n[0] * Math.sign(s0 || 1) * 0.2, p.origin[2] + p.right[2] * e + n[2] * Math.sign(s0 || 1) * 0.2];
+  const from: [number, number] = [c.x, c.z], to: [number, number] = [x, z];
+  const s0 = side(from), s1 = side(to), end = p.halfWidth + 1.0;
+  // the same side of the plane (or the target out past an end): straight there
+  if (Math.sign(s0) === Math.sign(s1) || Math.abs(along(to)) > end - 0.1) return to;
+  const at = (s: number, d: number): [number, number] => [p.origin[0] + p.right[0] * s + n[0] * d, p.origin[2] + p.right[2] * s + n[2] * d];
+  const e = (along(from) + along(to) >= 0 ? 1 : -1) * end;
+  // out past the end already: round it, onto the target's side
+  if (Math.abs(along(from)) > end - 0.6) return at(e + Math.sign(e) * 0.25, Math.sign(s1) * (margin + 0.3));
+  // else to the end first, staying on this side, clear of the strip
+  return at(e, Math.sign(s0 || 1) * (margin + 0.3));
 }
 
 /** walk to somewhere new within `radius` of a centre (keeping off a strip) now and then; true while walking */
@@ -424,7 +450,7 @@ export class Wander {
       const a = m.rng.range(0, Math.PI * 2), d = radius * Math.sqrt(m.rng.next());
       const x = cx + Math.cos(a) * d, z = cz + Math.sin(a) * d;
       if (strip && inStrip(strip.plane, x, z, strip.margin + 0.6)) continue;
-      if (Math.hypot(x - c.x, z - c.z) < 1.2) continue;
+      if (Math.hypot(x - c.x, z - c.z) < 1.2 || Math.hypot(x, z) > s.stage.room - 0.8) continue;
       this.goal = [x, z];
       return;
     }

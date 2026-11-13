@@ -17,7 +17,7 @@ import { newHints, type Brain, type BodyHints, type Other, type Sight } from './
 import { Mind } from './mind';
 import { busyFor, canStart, durOf, nextEighth, startBeat } from './body';
 import {
-  answer, bandOf, callPattern, chooseOffer, echo, jogoAxis, keepDistance, liveMove, merge, offer, roomBehind, unison, Reader,
+  answer, bandOf, callPattern, chooseOffer, echo, jogoAxis, keepDistance, liveGap, liveMove, merge, offer, roomBehind, unison, Reader,
   type AnswerStyle, type OfferAim, type OfferStyle,
 } from './behaviours';
 import type { ClipLibrary } from './clips';
@@ -70,7 +70,7 @@ export const moodOf = (s: Sight): Mood => (s.music.breakdown ? 'still' : s.music
 /** per mood: beats between this dancer's offers, the ginga's distance between them (m), how much ginga */
 const MOOD = {
   still: { gap: Infinity, dist: 2.4, groove: 0.2 },
-  calm: { gap: 5, dist: 2.1, groove: 0.75 },
+  calm: { gap: 4, dist: 1.95, groove: 0.75 },
   flow: { gap: 3, dist: 1.8, groove: 1 },
   peak: { gap: 2, dist: 1.55, groove: 1 },
 } as const;
@@ -132,6 +132,7 @@ export class PartnerBrain implements Brain {
         this.takeTurn(s, o, mood);
         this.useStage(s, o, mood);
         this.maybeCall(s, o, mood);
+        this.fillSilence(s, o);
       } else this.intend = null;
     }
     if (merging) this.intend = null;
@@ -176,7 +177,8 @@ export class PartnerBrain implements Brain {
       const f = this.clips.flourishFor(s.music.level, this.mind.rng.next());
       if (f) { this.mind.plan({ move: f, line: nextEighth(startBeat(s.beatPrev, s.beat) + 0.5), late: 0.5, toward: [0, 1], prio: 0.8, why: 'celebrate' }); this.flourishAt = s.t; }
     }
-    if (phase === 'play') this.myOffer = s.beat - this.mind.rng.range(0, 3);
+    // back to play: the lower seat opens (as if the other had just had their turn), the other answers
+    if (phase === 'play') { this.myOffer = s.beat - this.mind.rng.range(2, 4); if (s.seat === 0) this.theirAttack = s.beat - 1; }
   }
 
   /** through the fusion the two dance as one: the lower seat leads short patterns (a move on three bar lines), the
@@ -203,9 +205,10 @@ export class PartnerBrain implements Brain {
       // (they are dancing something: wait for them to be free, the offer is for them to answer)
       if (live) return;
       // they are stepping in to offer: let them, answer, and offer after
-      if (this.closing(s, o)) { this.intend = null; this.myOffer = s.beat - this.mind.rng.range(0, 1.5); return; }
+      // (both stepping in at once: the higher seat gives way, the lower now and then, so it is never a standoff)
+      if (this.closing(s, o) && (s.seat !== 0 || this.mind.rng.chance(0.02))) { this.intend = null; this.myOffer = s.beat - this.mind.rng.range(0, 1.5); return; }
       // (the distance says when; the offer itself checks, on its frame, that it still does what is wanted)
-      const fits = d >= band[0] && d <= band[1];
+      const err = this.offerError(s, o), fits = o.character ? Math.abs(err) < 0.1 : d >= band[0] && d <= band[1];
       if (fits && !m.waiting(1) && busyFor(c) === 0 && c.grounded) {
         const flurry = mood === 'peak' && it.want === 'touch' ? P.flurry : 1;
         offer(s, m, o, it.name, it.want, { ...P, flurry }, (name) => {
@@ -224,8 +227,8 @@ export class PartnerBrain implements Brain {
     const theirs = this.theirAttack > this.myOffer, patience = gap * 2 + 2;
     if (!theirs && s.beat - this.myOffer < patience) return;
     const want: OfferAim = this.responsive < 0.35 ? 'near' : 'touch';
-    const name = chooseOffer(P, m, s.music.level, want);
-    if (name) { this.intend = { name, want, until: s.beat + 4 }; this.reader.log?.(`${s.t.toFixed(2)} intend ${name} ${want} d ${jogoAxis(s, o).dist.toFixed(2)} band ${bandOf(name, want)?.map((x) => x.toFixed(2))}`); return; }
+    const name = chooseOffer(P, m, s.music.level, want, jogoAxis(s, o).dist);
+    if (name) { this.intend = { name, want, until: s.beat + 6 }; this.reader.log?.(`${s.t.toFixed(2)} intend ${name} ${want} d ${jogoAxis(s, o).dist.toFixed(2)} band ${bandOf(name, want)?.map((x) => x.toFixed(2))}`); return; }
     // nothing to offer: something that needs no distance (a spin, a jump on the spot), so the jogo keeps talking
     const other = m.rng.weighted(['spin', 'jump', 'au'] as const, (n) => (n === 'au' ? P.stage : 1) / (1 + m.recent(n, 4)));
     if (other && canStart(c, other)) {
@@ -241,15 +244,44 @@ export class PartnerBrain implements Brain {
     return a.dist < 2.4 && -(o.v[0] * a.dir[0] + o.v[2] * a.dir[1]) > 0.3;
   }
 
+  /** how far (m) to step in (+) or out (-) for the intended offer to do what is wanted: measured by the replay against
+   *  the other's body as it stands now when it is simulated here (a kick that overlaps them by about 8 cm, or passes
+   *  6 cm short), else from the attack's measured band; re-measured every few frames */
+  private offerError(s: Sight, o: Other): number {
+    const it = this.intend!;
+    if (s.t - this.errAt < 0.1 && this.errFor === it) return this.errLast;
+    this.errAt = s.t; this.errFor = it;
+    const d = jogoAxis(s, o).dist, band = bandOf(it.name, it.want)!;
+    let err = d - (band[0] + band[1]) / 2;
+    const g = liveGap(s, it.name, o);
+    if (g != null) err = it.want === 'touch' ? g + 0.08 : g - 0.06;
+    this.errLast = err;
+    return err;
+  }
+  private errAt = -1;
+  private errFor: unknown = null;
+  private errLast = 0;
+
   /** the legs while an offer is intended: to the middle of its band */
   private stepIn(s: Sight, o: Other) {
     const it = this.intend!, band = bandOf(it.name, it.want);
     if (!band) return;
-    const a = jogoAxis(s, o), err = a.dist - (band[0] + band[1]) / 2;
+    const a = jogoAxis(s, o), err = this.offerError(s, o);
     if (Math.abs(err) < 0.04) return;
     const k = Math.max(0.12, Math.min(0.55, Math.abs(err) * 0.7));
     if (err > 0) this.mind.claim({ x: a.dir[0], z: a.dir[1], k, walk: false, prio: 1, why: 'step in' });
     else if (roomBehind(s.self, -a.sign) > 0.4) this.mind.claim({ x: -a.dir[0], z: -a.dir[1], k: Math.min(k, s.self.plane ? 0.4 : 0.14), walk: false, prio: 1, why: 'step out' });
+  }
+
+  /** a silence of two bars (neither has started anything) is filled with something small on the spot, the way a
+   *  capoeirista's ginga breaks into an esquiva or a turn: the conversation never stops */
+  private fillSilence(s: Sight, o: Other) {
+    const m = this.mind, c = s.self;
+    const mine = m.lastMine()?.beat ?? -Infinity, theirs = o.moves[o.moves.length - 1]?.beat ?? -Infinity;
+    // (the lower seat after two bars, the other after two and a half: one of them, not both at once)
+    if (s.beat - Math.max(mine, theirs) < (s.seat === 0 ? 8 : 10) || m.waiting(0.5) || busyFor(c) > 0 || !c.grounded) return;
+    const name = m.rng.weighted(['esquiva', 'spin', 'block', 'jump'] as const, (n) => 1 / (1 + 2 * m.recent(n, 5)));
+    if (name) m.plan({ move: name, line: nextEighth(startBeat(s.beatPrev, s.beat) + 0.05), late: 0.1, toward: [0, 1], prio: 0.6, why: 'fill' });
   }
 
   /** start a pattern (the same move on three bar lines) the other can join in unison */
@@ -270,7 +302,9 @@ export class PartnerBrain implements Brain {
     const ax = jogoAxis(s, o), live = liveMove(o, s.bpm);
     if (live?.attack) return;
     const wall = roomBehind(c, -ax.sign) < 1.2;
-    if (((ax.dist > 0.9 && ax.dist < 1.75) || (wall && ax.dist < 1.75)) && (wall || m.rng.chance(P.stage * (mood === 'peak' ? 0.03 : 0.012)))) {
+    // (only toward room: an aú that lands in a corner behind the other is no use)
+    const landing = roomBehind(c, ax.sign) - 1.8 - ax.dist;
+    if (((ax.dist > 0.9 && ax.dist < 1.75) || (wall && ax.dist < 1.75)) && landing > 0.9 && (wall || m.rng.chance(P.stage * (mood === 'peak' ? 0.03 : 0.012)))) {
       m.plan({ move: 'au', line: nextEighth(startBeat(s.beatPrev, s.beat) + 0.05), late: 0.1, toward: [ax.dir[0], ax.dir[1]], prio: 0.8, why: 'change sides' });
       this.auAt = s.beat;
     }

@@ -107,8 +107,10 @@ export function pressMove(c: Character, name: string, toward: [number, number], 
       // the bending hand aimed far along the facing: the throw (aim is in the screen plane: x along the plane, or the
       // camera's right when free)
       const pl = c.plane;
-      out.aimX = pl ? 0.92 * c.dir : 0.92 * (fwd[0] * Math.cos(c.inputYaw) - fwd[1] * Math.sin(c.inputYaw));
-      out.aimY = 0.12;
+      // free, the aim lives in the screen plane: its side, and up, far enough to mean the throw
+      const side = fwd[0] * Math.cos(c.inputYaw) - fwd[1] * Math.sin(c.inputYaw);
+      out.aimX = pl ? 0.92 * c.dir : 0.62 * (side < 0 ? -1 : 1);
+      out.aimY = pl ? 0.12 : 0.6;
       break;
     }
     case 'au': out.spin = true; that(); if (c.plane) out.auDir = sgn(out.moveX); break;
