@@ -172,7 +172,7 @@ fn hidden() -> VOut { var o: VOut; o.pos = vec4f(2.0, 2.0, 2.0, 1.0); return o; 
 
   // the surface: the world's reflection by Fresnel (wet, melting ice is glossier)
   let F = 0.04 + 0.96 * pow(1.0 - cosV, 5.0);
-  col = mix(col, worldEnv(R, i.wp) * mix(0.6, 1.1, i.wet), F * mix(0.7, 1.0, i.wet));
+  col = mix(col, worldEnv(R, i.wp) * mix(look.tint.rgb * 0.8 + 0.2, vec3f(1.1), i.wet), F * mix(0.7, 1.0, i.wet));
 
   // hard bright edges between the facets
   let e = min(i.bary.x, min(i.bary.y, i.bary.z));

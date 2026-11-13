@@ -16,14 +16,14 @@ export const iceParams = defineParams('ice', {
   edges: 1,
   glint: 1,
   inside: 0.35,
-  thin: '#8fb8d8',
-  thick: '#16305a',
+  thin: '#6f9fcc',
+  thick: '#0c2246',
   ior: 1.31,
   dispersion: 0.04,
   /** mist and dust */
   mist: 1,
   dust: 1,
-  mistSize: 0.18,
+  mistSize: 0.14,
   dustSize: 0.006,
   /** the chance a second that a dead mote is reborn (scaled per frame) */
   breath: 3,
