@@ -190,9 +190,12 @@ agents execute; repeat until it is beautiful. The first turn of the loop is done
 contract and the lens, cameras through gates, steam fronts, the five worlds, gems and hearts, the device budget) and
 merged with the jogo and the brains (`docs/reports/5-integration.md`). The second turn is done too: the second
 critic (`6-critique.md`: the fusion, water, white-out), the film tool (`6-film-tool.md`), its seven tasks (`7-*.md`)
-and their integration (`docs/reports/8-integration.md`, which lists what is left before the films are rendered at
-master quality). The films are next. Then one or two films with no text, the server on Railway,
-the site at ericlevin.dev/energybending, and a place in the portfolio.
+and their integration (`docs/reports/8-integration.md`). The third turn is done: six tasks from that report's list
+(`9-*.md`: the fusion as one body and the moves at film distance, the field's heat by source and the violet bars, the
+near fade and the gates' depth of field, the temple's lock, the stage dim and the forge, the films' tooling and both
+timelines, water against the fog and its rise) and their integration (`docs/reports/9-integration.md`, which lists
+what is left). Next: the music from Suno (in progress), the two films rendered at master quality, the deploy (the
+code on GitHub, the room server on Railway, the site at ericlevin.dev/energybending), and a place in the portfolio.
 
 ## Shared habits
 

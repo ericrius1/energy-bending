@@ -143,7 +143,10 @@ export class WaterPool {
     this._count = n;
   }
 
-  /** particles [from, to) come into the world: a puddle round their dancer before the show wakes, rain after */
+  /** particles [from, to) come into the world: a puddle round their dancer before the show wakes; after it, a film on
+   *  the floor under their own homes (sim.wgsl keeps each there until it lifts: life < 0 marks it), which rises at
+   *  once, feet first when a rise has just been called (the front's opening, a body changed there). They used to rain
+   *  in from a cylinder over the dancer, which the front's first half-second showed as a hard-edged column of streaks */
   private spawn(f: FrameCtx, from: number, to: number) {
     const k = to - from, st = new Float32Array(k * PARTICLE_FLOATS), ax = new Float32Array(k * 4), h = this.homeData;
     let seed = 0x9e3779b9 ^ from;
@@ -156,8 +159,7 @@ export class WaterPool {
         const rr = Math.sqrt(r()) * 0.9;
         st.set([cx + Math.cos(a) * rr, 0.008, cz + Math.sin(a) * rr, 0, 0, 0, 0, 4], o);   // RESTING
       } else {
-        const rr = Math.sqrt(r()) * 0.7;
-        st.set([cx + Math.cos(a) * rr, 2.6 + r() * 2.5, cz + Math.sin(a) * rr, 1.5 + r(), 0, -1, 0, 1], o);   // FLYING
+        st.set([cx, 0.008, cz, -1, 0, 0, 0, 4], o);   // RESTING, placed under its home by the sim
       }
       st[o + 11] = 1;   // rotation w
       ax[j * 4] = h[i * 8 + 4];
@@ -237,8 +239,9 @@ export class WaterPool {
       cover: [P.coverLo, P.coverHi, P.thickness, P.amount],
       wisp: [P.wisp, P.curl, P.tear, P.wispScale],
       refract: P.refract, dispersion: P.dispersion, glint: P.glint, foam: P.foam, caustic: P.caustic, rise: P.rise,
-      reflect: P.reflect, floorY, time, iceGlint: I.glint, edges: I.edges, mirror: P.mirror, distAlpha: P.distAlpha ? 1 : 0,
-      iceOpacity: I.opacity, climb: P.climb, ripple: [P.ripples, P.rippleScale, P.rimSharp, P.depthNormal],
+      reflect: P.reflect, floorY, time, iceGlint: I.glint, edges: I.edges, mirror: P.mirror,
+      iceOpacity: I.opacity, climb: P.climb, lens: P.lens, ripple: [P.ripples, P.rippleScale, P.rimSharp, P.depthNormal],
+      soft: [P.soft, P.softThick, 0, 0],
     });
     this.smoothX.set({ dir: [1, 0], radius: P.smooth, falloff: P.falloff, maxPx: 24 });
     this.smoothY.set({ dir: [0, 1], radius: P.smooth, falloff: P.falloff, maxPx: 24 });

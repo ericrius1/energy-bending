@@ -18,8 +18,10 @@ try {
   await step('health, the index line, and 404s', async () => {
     const get = async (p: string) => { const r = await fetch(HTTP + p); return [r.status, await r.text()] as const; };
     assert.deepEqual(await get('/health'), [200, 'ok']);
-    const [st, body] = await get('/');
+    // the rooms' line is at /rooms always (at / too when no site is built; with one, / leads to the game)
+    const [st, body] = await get('/rooms');
     assert.equal(st, 200); assert.match(body, /protocol 3/);
+    assert.equal((await get('/'))[0], 200);
     for (const p of ['/server/index.ts', '/package.json', '/.git/config', '/shared/rules.ts']) assert.equal((await get(p))[0], 404, p);
   });
 

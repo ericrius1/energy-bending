@@ -6,8 +6,10 @@
 // Poses are binary frames the server never decodes: it checks the size and the first byte, writes the sender's slot
 // into byte 1 and relays the frame to everyone else in the room. Everything else is JSON through rules.route.
 //
-// The game itself is a static site served elsewhere; this serves no files.
+// Given a `site` (server/site.ts), it also serves the game's built pages under their base path, so one service is
+// both the game and its rooms; without one it serves no files.
 import http from 'node:http';
+import { serveSite, type Site } from './site.ts';
 import crypto from 'node:crypto';
 import { WebSocketServer, type WebSocket, type RawData } from 'ws';
 import { PROTOCOL, SEATS, SLOTS, MAX_FRAME, NAME_MAX, isPose, stampSlot, type ClientMsg, type ServerMsg, type Role } from '../shared/protocol.ts';
@@ -41,7 +43,7 @@ interface Sock { ws: WebSocket; conn: Conn | null; bad: number; alive: boolean; 
 
 export interface RoomServer { port: number; close(): Promise<void>; rooms(): number }
 
-export function startRooms({ port = 5417, host = '127.0.0.1', log = (...a: unknown[]) => console.log(new Date().toISOString(), ...a) } = {}): Promise<RoomServer> {
+export function startRooms({ port = 5417, host = '127.0.0.1', site = null as Site | null, log = (...a: unknown[]) => console.log(new Date().toISOString(), ...a) } = {}): Promise<RoomServer> {
   const P = SERVER_PARAMS;
   const rooms = new Map<string, Room>();
   const socks = new Map<WebSocket, Sock>();
@@ -166,6 +168,8 @@ export function startRooms({ port = 5417, host = '127.0.0.1', log = (...a: unkno
   const server = http.createServer((req, res) => {
     const path = (req.url ?? '/').split('?')[0];
     if (path === '/health') { res.writeHead(200, { 'Content-Type': 'text/plain', 'Cache-Control': 'no-cache' }); res.end('ok'); return; }
+    if (path === '/rooms') { res.writeHead(200, { 'Content-Type': 'text/plain', 'Cache-Control': 'no-cache' }); res.end(`Energy Bending rooms (protocol ${PROTOCOL}, WebSocket at /ws); ${rooms.size} rooms\n`); return; }
+    if (site && serveSite(site, req, res)) return;
     if (path === '/') { res.writeHead(200, { 'Content-Type': 'text/plain' }); res.end(`Energy Bending rooms (protocol ${PROTOCOL}, WebSocket at /ws); ${rooms.size} rooms\n`); return; }
     res.writeHead(404, { 'Content-Type': 'text/plain' }); res.end('Not found');
   });

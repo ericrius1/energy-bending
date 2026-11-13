@@ -2,7 +2,7 @@
 // same URL in two browsers (the room is made by whoever comes first). Each page dances one partner of the salsa couple
 // (seat 0 the lead, seat 1 the follow) in time with the room's clock, sends it at 20 Hz, and shows the other through
 // a NetController, so both pages show the same couple. The network conditioner applies from the URL as everywhere
-// (&lag=200&jitter=80&loss=10). The room server: &server=ws://host:port/ws, else this page's host on port 5417.
+// (&lag=200&jitter=80&loss=10). The room server: &server=ws://host:port/ws, else src/net/where.ts (the build's VITE_ROOMS, the page's own host when built, 5417 in development).
 //
 // It also measures, from inside the page, what the other dancer looks like here: the playback delay, the transit
 // jitter, the round trip, the pose error (what was shown at an instant against the true pose for that instant, which
@@ -20,6 +20,7 @@ import { gemsLoadout } from '../matter/core/kind';
 import { vec3 } from 'math';
 import { Session } from './session';
 import type { NetController } from './controller';
+import { roomServer } from './where';
 
 /** dances a mocap clip at the room's time (so two pages dance the couple together) and sends each pose as it is made */
 class SendingController implements Controller {
@@ -121,7 +122,7 @@ const pct = (a: number[], q: number) => { if (!a.length) return NaN; const s = [
 /** start the session and return the cast (seat 0's dancer first, so both pages give each the same slot and colours) */
 export async function netDemo(motion: Motion, frame: FrameBuilder, query: URLSearchParams): Promise<CastFn> {
   const room = (query.get('net') || 'DEMO').toUpperCase();
-  const url = query.get('server') ?? `${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.hostname}:5417/ws`;
+  const url = roomServer(query);
   const world = () => query.get('world') ?? 'geode';
   const session = new Session({ url, room, create: true, stage: 'geode', world: world() });
   try {
