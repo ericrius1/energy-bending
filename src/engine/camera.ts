@@ -557,7 +557,7 @@ export class CameraRig {
     } else for (let i = 0; i < this.framingCount; i++) add(this.framing[i * 3], this.framing[i * 3 + 1], this.framing[i * 3 + 2]);
     if (!(u1 >= u0)) { u0 = -P.halfWidth; u1 = P.halfWidth; v0 = 0; v1 = P.height ?? 3; }
     // a margin round them (hands and hair beyond the joints), the floor under them, never less than a body of stage
-    u0 -= 0.4; u1 += 0.4; v0 = Math.min(v0, P.ground ?? 0) - 0.25; v1 = Math.max(v1 + 0.3, v0 + 2.4);
+    u0 -= 0.3; u1 += 0.3; v0 = Math.min(v0, P.ground ?? 0) - 0.25; v1 = Math.max(v1 + 0.3, v0 + 2.4);
     const X = this.lockExt;
     if (this.lockFresh) { X[0] = u0; X[1] = u1; X[2] = v0; X[3] = v1; }
     else {
@@ -574,14 +574,14 @@ export class CameraRig {
     const rt: V3 = [hz, 0, -hx];                                                    // the screen's right
     const up: V3 = [-sp * hx, cp, -sp * hz];                                        // the screen's up
     const c: V3 = [ox + P.right[0] * uc, oy + vc, oz + P.right[2] * uc];
-    // how far back to hold the four corners inside the safe area (90 % across, 86 % up and down)
+    // how far back to hold the four corners inside the safe area (93 % across, 86 % up and down)
     const lens = P.lens ?? C.lockLens, tanP = Math.tan((lens * Math.PI) / 360), asp = Math.max(f.aspect, 0.2);
     const corners: V3[] = [];
     for (const u of [X[0], X[1]]) for (const v of [X[2], X[3]]) {
       const qx = ox + P.right[0] * u - c[0], qy = oy + v - c[1], qz = oz + P.right[2] * u - c[2];
       corners.push([qx * rt[0] + qz * rt[2], qx * up[0] + qy * up[1] + qz * up[2], qx * back[0] + qy * back[1] + qz * back[2]]);
     }
-    const SX = 0.9, SY = 0.86;
+    const SX = 0.93, SY = 0.86;
     let D = 0;
     for (const [x, y, z] of corners) D = Math.max(D, Math.abs(x) / (SX * tanP * asp) + z, Math.abs(y) / (SY * tanP) + z);
     let fov = lens;
