@@ -12,6 +12,9 @@ export interface Pool {
   waves: Vec4;
   deep: Vec4;
   march: Vec4;
+  moon: Vec4;
+  moonCol: Vec4;
+  mist: Vec4;
 }
 
 declare const shader: Shader<{ Pool: Pool }, never>;

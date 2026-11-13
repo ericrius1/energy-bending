@@ -1,0 +1,7 @@
+[
+ { "name": "geode-wide-a", "query": "world=geode&dress=fire", "params": { "camera": { "shots": false, "autoOrbit": false } }, "idle": 0, "yaw": 0, "pitch": 0.1, "dist": 9, "height": 1.6, "frames": 90 },
+ { "name": "geode-wide-b", "idle": 0, "yaw": 2.4, "pitch": 0.1, "dist": 9, "height": 1.6, "frames": 20 },
+ { "name": "geode-wide-c", "idle": 0, "yaw": 4.2, "pitch": 0.3, "dist": 7, "height": 1.6, "frames": 20 },
+ { "name": "geode-lock", "query": "play&two&dress=fire,water&world=geode", "eval": "bend.wake(); bend.lock(true); await bend.step(12); const L=(bend.rig.plane?.ledges??[]).filter(l=>!l.bob).slice().sort((a,b)=>a.x0-b.x0); const cs=bend.show.dancers.map(d=>d.controller).filter(c=>c.kind==='intent'); if(L.length>1){ const a=L[0], b=L[L.length-1]; cs[0].character.reset((a.x0+a.x1)/2, a.y+0.15); cs[1].character.reset((b.x0+b.x1)/2, b.y+0.15);} else { bend.place(0,-2.4,0); bend.place(1,2.4,0);}", "frames": 150 },
+ { "name": "geode-gems", "query": "world=geode&dress=gems", "params": { "camera": { "shots": false, "autoOrbit": false } }, "wake": true, "idle": 0, "yaw": 0.3, "pitch": 0.08, "dist": 5, "height": 1.4, "frames": 300 }
+]

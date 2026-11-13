@@ -43,6 +43,8 @@ export interface Geode {
   shaftCol: Vec4;
   caustic: Vec4;
   hazeCol: Vec4;
+  wall: Vec4;
+  gates: ArrayLike<number> | Vec4[];
   rimPower: number;
   floorGloss: number;
   fog: number;
@@ -88,6 +90,9 @@ export interface Pool {
   waves: Vec4;
   deep: Vec4;
   march: Vec4;
+  moon: Vec4;
+  moonCol: Vec4;
+  mist: Vec4;
 }
 export interface Temple {
   zenith: Vec4;
@@ -156,7 +161,8 @@ export interface VOut {
   wp: Vec3;
   local: Vec3;
   axis: Vec3;
-  seed: number;
+  look: Vec4;
+  size: Vec2;
 }
 
 declare const shader: Shader<{ Frame: Frame; Geode: Geode; Forest: Forest; Pool: Pool; Temple: Temple; Forge: Forge; FireLight: FireLight; FireLights: FireLights; WorldLight: WorldLight; KeyLight: KeyLight; Blade: Blade; VOut: VOut }, 'frame' | 'worldLight' | 'blades' | 'poolWaves' | 'templeWaves' | 'samp_linear' | 'samp_repeat' | 'samp_nearest' | 'samp_shadow'>;

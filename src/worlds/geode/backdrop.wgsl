@@ -1,59 +1,98 @@
-// The cave behind the dancers: the dark of a hollow geode (its crystal walls are stones of their own, drawn after
-// this), and the floor, a polished slab of banded agate with a pool of light under the shaft from above, fading into
-// the dark; under the shaft the light lands as a net of caustics (it came down through water, geode.wgsl). Drawn first, with no
-// depth; the mirrored stones are added on top of it for the reflection. Alpha carries
-// the distance along the view, for the light in the air and the depth of field.
+// The cave behind the dancers: the hollow's wall all round and over (geode.wgsl geodeWall: faces of crystal in veins
+// of colour, glowing from within, the vault's opening over the stage), and the floor, a polished slab of banded agate
+// with a pool of light under the shaft from above; under the shaft the light lands as a net of caustics (it came down
+// through water). The polish mirrors the wall's glow (softly) and the key, so no part of the floor is a black hole, and
+// a path worn smooth runs from the middle to each gate, lit at its end by the world beyond. Drawn first, with no
+// depth; the wall's own gem crystals and the mirrored stones are drawn on top of it. Alpha carries the distance along
+// the view, for the light in the air and the depth of field.
 #include "weft/frame"
 #include "weft/fullscreen"
 #include "../light"
 
-@fragment fn fs(i: FullscreenOut) -> @location(0) vec4f {
-  let d = viewRay(i.uv);
-  let horizon = mix(worldLight.geode.bgBottom.rgb, worldLight.geode.bgTop.rgb, 0.35);
-  var c = mix(horizon, worldLight.geode.bgTop.rgb, smoothstep(0.0, 0.7, d.y));
-  var depth = 80.0;
-  if (d.y < 0.0) {
-    let t = (worldLight.geode.floorY - frame.camPos.y) / d.y;
-    if (t > 0.0) {
-      let p = frame.camPos + d * t;
-      depth = t * dot(d, frame.camFwd);
-      let r = length(p.xz - worldLight.geode.pool.xy);
-      let pool = exp(-r * r / (worldLight.geode.pool.w * worldLight.geode.pool.w));
-      // agate: rings round the middle of the slab, wandering, with finer bands inside the broad ones
-      let q = p.xz * 0.55;
-      let warp = fbm(vec3f(q * 0.7, 3.1)) * 2.2 + fbm(vec3f(q * 2.3, 7.7)) * 0.35;
-      let rr = length(p.xz) * 0.9 + warp;
-      let broad = smoothstep(0.25, 0.75, 0.5 + 0.5 * sin(rr * 3.1));
-      let fine = 0.5 + 0.5 * sin(rr * 23.0 + warp * 4.0);
-      let band = mix(broad, fine, 0.3);
-      let slab = mix(worldLight.geode.floorCol.rgb * 0.05, worldLight.geode.floorBand.rgb, band * worldLight.geode.floorBand.w);
-      // under the shaft the pool's light comes through the water, gathered into a net, and the light itself lands
-      // there as a soft warm net of its own
-      let u = causticU(p, worldLight.geode.shaft, worldLight.geode.shaftCol.w);
-      let under = smoothstep(1.15, 0.5, length(u)) * worldLight.geode.caustic.x;
-      var net = 1.0;
-      var lines = 0.0;
-      if (under > 0.0) {
-        let L = causticLight(u, worldLight.geode.caustic.y, frame.time * worldLight.geode.caustic.z, true);
-        net = mix(1.0, L, under);
-        lines = max(L - 1.0, 0.0) * under;
-      }
-      var f = slab * (0.12 + pool * 0.8 * net) + worldLight.geode.floorCol.rgb * pool * 0.12 * (0.6 + 0.4 * band) * net;
-      // the dancers' fire on the polished slab (worlds/light.wgsl worldFire)
-      f += (slab + worldLight.geode.floorCol.rgb * 0.05) * worldFire(p, vec3f(0.0, 1.0, 0.0));
-      f += vec3f(1.0, 0.95, 0.88) * lines * 0.06 * (0.6 + 0.4 * band);
-      // the key's long highlight on the polish, and what the polish reflects: a lot at a glance along it, next to
-      // nothing looking straight down (Fresnel)
-      let kd = normalize(worldLight.geode.key.xyz);
-      let refl = vec3f(d.x, -d.y, d.z);
-      let fres = 0.04 + 0.96 * pow(max(1.0 - abs(d.y), 0.0), 5.0);
-      f += vec3f(1.0, 0.96, 0.92) * pow(max(dot(refl, kd), 0.0), 160.0) * worldLight.geode.floorGloss * 0.25 * fres;
-      f += studio(refl) * worldLight.geode.floorGloss * 0.015 * (0.6 + 0.4 * band) * fres * 3.0;
-      c = mix(f, horizon, 1.0 - exp(-t * worldLight.geode.fog));
-    }
+/** how much of a worn path to a gate lies under floor point q (1 on it), and that gate's tint × how near its end */
+fn geodePaths(q: vec2f) -> vec4f {
+  var on = 0.0;
+  var tint = vec3f(0.0);
+  for (var k = 0; k < 4; k++) {
+    let g = worldLight.geode.gates[k];
+    if (g.z <= 0.0) { continue; }
+    // from near the middle of the floor to the foot of the gate
+    let a = g.xy * 0.3;
+    let b = g.xy * 0.97;
+    let ab = b - a;
+    let s = clamp(dot(q - a, ab) / dot(ab, ab), 0.0, 1.0);
+    let dist = length(q - a - ab * s);
+    // (ragged at its edges, wider where feet turned toward the door)
+    let w = g.z * (0.8 + 0.4 * s) * (0.85 + 0.3 * vnoise2(q * 2.3));
+    let p = smoothstep(w, w * 0.35, dist) * smoothstep(0.0, 0.25, s);
+    on = max(on, p);
+    let near = exp(-dot(q - g.xy, q - g.xy) / 2.2);
+    tint += geodeGateTint(g.w) * (p * s * s * 0.6 + near);
   }
-  // a soft halo round the stage, over the dark and the floor alike
-  let toStage = normalize(vec3f(worldLight.geode.pool.x, worldLight.geode.floorY + 1.0, worldLight.geode.pool.y) - frame.camPos);
-  c += worldLight.geode.rim.rgb * pow(max(dot(d, toStage), 0.0), 12.0) * 0.012;
-  return vec4f(c, depth);
+  return vec4f(tint, on);
+}
+
+@fragment fn fs(i: FullscreenOut) -> @location(0) vec4f {
+  let L = worldLight.geode;
+  let d = viewRay(i.uv);
+  let cam = frame.camPos;
+  let horizon = mix(L.bgBottom.rgb, L.bgTop.rgb, 0.35);
+  // the wall, unless the floor comes first
+  let tw = geodeWallT(cam, d);
+  var t = tw;
+  var floorHit = false;
+  if (d.y < 0.0) {
+    let tf = (L.floorY - cam.y) / d.y;
+    if (tf > 0.0 && tf < tw) { t = tf; floorHit = true; }
+  }
+  let p = cam + d * t;
+  var c = vec3f(0.0);
+  if (!floorHit) {
+    c = geodeWall(p, d);
+  } else {
+    let r = length(p.xz - L.pool.xy);
+    let pool = exp(-r * r / (L.pool.w * L.pool.w));
+    // agate: rings round the middle of the slab, wandering, with finer bands inside the broad ones
+    let q = p.xz * 0.55;
+    let warp = fbm(vec3f(q * 0.7, 3.1)) * 2.2 + fbm(vec3f(q * 2.3, 7.7)) * 0.35;
+    let rr = length(p.xz) * 0.9 + warp;
+    let broad = smoothstep(0.25, 0.75, 0.5 + 0.5 * sin(rr * 3.1));
+    let fine = 0.5 + 0.5 * sin(rr * 23.0 + warp * 4.0);
+    var band = mix(broad, fine, 0.3);
+    // the paths to the gates: worn smooth (the fine bands rubbed out, the polish brighter), lit by the gate at its end
+    let path = geodePaths(p.xz);
+    band = mix(band, broad * 0.6 + 0.2, path.w * 0.7);
+    let slab = mix(L.floorCol.rgb * 0.05, L.floorBand.rgb, band * L.floorBand.w);
+    // under the shaft the pool's light comes through the water, gathered into a net, and the light itself lands
+    // there as a soft warm net of its own
+    let u = causticU(p, L.shaft, L.shaftCol.w);
+    let under = smoothstep(1.15, 0.5, length(u)) * L.caustic.x;
+    var net = 1.0;
+    var lines = 0.0;
+    if (under > 0.0) {
+      let cl = causticLight(u, L.caustic.y, frame.time * L.caustic.z, true);
+      net = mix(1.0, cl, under);
+      lines = max(cl - 1.0, 0.0) * under;
+    }
+    var f = slab * (0.12 + pool * 0.8 * net) + L.floorCol.rgb * pool * 0.12 * (0.6 + 0.4 * band) * net;
+    // the dancers' fire on the polished slab (worlds/light.wgsl worldFire)
+    f += (slab + L.floorCol.rgb * 0.05) * worldFire(p, vec3f(0.0, 1.0, 0.0));
+    f += vec3f(1.0, 0.95, 0.88) * lines * 0.06 * (0.6 + 0.4 * band);
+    // the key's long highlight on the polish, and what the polish reflects: the studio and the wall's glow, a lot at a
+    // glance along it, less looking straight down (Fresnel), more on the worn paths
+    let kd = normalize(L.key.xyz);
+    let refl = vec3f(d.x, -d.y, d.z);
+    let fres = 0.04 + 0.96 * pow(max(1.0 - abs(d.y), 0.0), 5.0);
+    let gloss = L.floorGloss * (1.0 + path.w * 0.8);
+    f += vec3f(1.0, 0.96, 0.92) * pow(max(dot(refl, kd), 0.0), 160.0) * gloss * 0.25 * fres;
+    f += studio(refl) * gloss * 0.015 * (0.6 + 0.4 * band) * fres * 3.0;
+    f += geodeWallSoft(p, refl) * gloss * (0.25 + 0.75 * fres) * (0.5 + 0.5 * band);
+    // each gate's own light spilling onto its path
+    f += path.rgb * 0.035 * (0.5 + 0.5 * band);
+    c = mix(f, horizon, 1.0 - exp(-t * L.fog));
+  }
+  // a soft halo round the stage, over the wall and the floor alike
+  let toStage = normalize(vec3f(L.pool.x, L.floorY + 1.0, L.pool.y) - cam);
+  c += L.rim.rgb * pow(max(dot(d, toStage), 0.0), 12.0) * 0.012;
+  return vec4f(c, min(t * dot(d, frame.camFwd), 30000.0));
 }

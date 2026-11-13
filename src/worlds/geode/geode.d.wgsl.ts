@@ -14,6 +14,8 @@ export interface Geode {
   shaftCol: Vec4;
   caustic: Vec4;
   hazeCol: Vec4;
+  wall: Vec4;
+  gates: ArrayLike<number> | Vec4[];
   rimPower: number;
   floorGloss: number;
   fog: number;
