@@ -1,0 +1,9 @@
+[
+  { "name": "geode-dance", "wake": true, "frames": 900, "timings": true },
+  { "name": "redwoods-day", "query": "world=redwoods", "queryLapidary": "scene=forest", "params": { "redwoods": { "hour": 13, "dayGoes": false } }, "wake": true, "frames": 900, "timings": true },
+  { "name": "redwoods-night", "query": "world=redwoods", "queryLapidary": "scene=forest", "params": { "redwoods": { "hour": 21.6, "dayGoes": false } }, "frames": 240 },
+  { "name": "pip", "query": "pip", "wake": true, "frames": 900, "timings": true },
+  { "name": "landmarks", "query": "landmarks", "wake": true, "frames": 900, "yaw": 0.0, "shot": "wide" },
+  { "name": "wander", "query": "wander", "wake": true, "frames": 1200, "shot": "wide" },
+  { "name": "lock", "query": "lock", "wake": true, "frames": 900 }
+]

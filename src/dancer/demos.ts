@@ -36,7 +36,7 @@ export function wanderDemo(motion: Motion, travel: Motion | null, n = 2): CastFn
   return (p) => Array.from({ length: n }, (_, k) => {
     const c = new WanderController(moves, styles[k % styles.length], 11 + k);
     c.place((k - (n - 1) / 2) * 1.6, 0, 0);
-    c.cx = 0; c.cz = 0;
+    c.cx = 0; c.cz = 0; c.radius = 2;
     return new Dancer(`wander.${k}`, c, gemsLoadout(p.suites[k % p.suites.length]));
   });
 }

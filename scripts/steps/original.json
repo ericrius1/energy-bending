@@ -1,0 +1,5 @@
+[
+  { "name": "geode-dance", "wake": true, "frames": 900, "timings": true },
+  { "name": "redwoods-day", "queryLapidary": "scene=forest", "params": { "redwoods": { "hour": 13, "dayGoes": false } }, "wake": true, "frames": 900, "timings": true },
+  { "name": "redwoods-night", "queryLapidary": "scene=forest", "params": { "redwoods": { "hour": 21.6, "dayGoes": false } }, "frames": 240 }
+]

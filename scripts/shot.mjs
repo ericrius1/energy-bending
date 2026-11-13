@@ -37,6 +37,20 @@ page.on('console', (m) => {
 });
 page.on('pageerror', (e) => { problems.push(`[pageerror] ${e.message}`); console.log('  pageerror:', e.message); });
 
+/** GPU time per pass over 150 frames stepped at 60 fps, written to <out>/timings-<name>.json */
+async function timings(name) {
+  const t = await page.evaluate(async () => {
+    const k = window.__api.kit;
+    k.profiler.force = true;
+    for (let i = 0; i < 150; i++) { k.step(1 / 60); if (i % 5 === 0) await k.device.queue.onSubmittedWorkDone(); await new Promise((r) => setTimeout(r, 4)); }
+    await k.device.queue.onSubmittedWorkDone();
+    return { passes: [...k.profiler.ms].sort((a, b) => b[1] - a[1]), frame: k.profiler.frameMs, render: [...k.size.render] };
+  });
+  console.log(`timings after ${name}: gpu frame ${t.frame.toFixed(3)} ms at ${t.render.join('x')}`);
+  for (const [l, v] of t.passes) console.log(`  ${l.padEnd(28)} ${v.toFixed(3)} ms`);
+  writeFileSync(join(out, `timings-${name}.json`), JSON.stringify(t, null, 1));
+}
+
 let opened = null;
 async function open(query) {
   const q = [opts.query, query, 'noautores'].filter(Boolean).join('&');
@@ -65,7 +79,7 @@ async function open(query) {
 }
 
 for (const s of steps) {
-  await open(s.query ?? '');
+  await open((API === 'lapidary' ? s.queryLapidary : undefined) ?? s.query ?? '');
   const t0 = Date.now();
   await page.evaluate(async (s) => {
     const B = window.__api;
@@ -118,21 +132,10 @@ for (const s of steps) {
   }, API);
   writeFileSync(join(out, `${s.name}.png`), Buffer.from(png.split(',')[1], 'base64'));
   console.log(`${s.name}.png (${ms} ms)`);
+  if (s.timings || (opts.timings && s === steps[steps.length - 1])) await timings(s.name);
 }
 
 console.log('adapter:', await adapterName(page));
-if (opts.timings) {
-  const t = await page.evaluate(async () => {
-    const k = window.__api.kit;
-    k.profiler.force = true;
-    for (let i = 0; i < 150; i++) { k.step(1 / 60); if (i % 5 === 0) await k.device.queue.onSubmittedWorkDone(); await new Promise((r) => setTimeout(r, 4)); }
-    await k.device.queue.onSubmittedWorkDone();
-    return { passes: [...k.profiler.ms].sort((a, b) => b[1] - a[1]), frame: k.profiler.frameMs, render: [...k.size.render] };
-  });
-  console.log(`gpu frame ${t.frame.toFixed(3)} ms at ${t.render.join('x')}`);
-  for (const [l, v] of t.passes) console.log(`  ${l.padEnd(28)} ${v.toFixed(3)} ms`);
-  writeFileSync(join(out, 'timings.json'), JSON.stringify(t, null, 1));
-}
 if (API === 'bend') {
   const st = await page.evaluate(() => { const s = window.bend.stats(); return { failed: s.failed, errors: s.errors, matter: s.matter, views: s.views }; });
   console.log('stats:', JSON.stringify(st));
