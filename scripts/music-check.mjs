@@ -76,7 +76,11 @@ try {
         let ok = true; for (let j = 1; j < 6; j++) if (Math.abs(all[k + j].t - (all[k].t + (j * 8192) / sr)) > 1e-3) ok = false;
         if (!ok) continue;
         const rec = new Float32Array(6 * 8192); for (let j = 0; j < 6; j++) rec.set(all[k + j].d, j * 8192);
-        const place = M.trackPlace(t0);
+        // (where the clock put the track then: the nearest reading taken during the run, carried on to t0; a world
+        // change moves the clock, so reading it now would judge the old track by the new one's grid)
+        let near = null;
+        for (const b of beats) if (b.place && (!near || Math.abs(b.t - t0) < Math.abs(near.t - t0))) near = b;
+        const place = near && Math.abs(near.t - t0) < 0.3 ? { id: near.place.id, pos: near.place.pos + (t0 - near.t) } : null;
         if (!place) continue;
         const buf = M.loader.get(place.id);
         if (!buf) continue;
@@ -89,7 +93,7 @@ try {
         res.push({ t: +(t0 - tStart).toFixed(2), id: place.id, errMs: +(best * 1000).toFixed(2), r: +bv.toFixed(3) });
       }
       const ev = M.engine.events.filter((x) => x.type === 'track');
-      return { id0, decodeWaitMs: Math.round(decodeWaitMs), sampleRate: sr, bpm: M.clock.bpm, res, switchAt: switchAt && switchAt - tStart, beats: beats.filter((_, i) => i % 50 === 0), stats: M.deck.stats(), trackAt: M.engine.trackAt - tStart, track: M.engine.track.id };
+      return { id0, decodeWaitMs: Math.round(decodeWaitMs), sampleRate: sr, bpm: M.clock.bpm, res, switchAt: switchAt && switchAt - tStart, beats: beats.length, stats: M.deck.stats(), trackAt: M.engine.trackAt - tStart, track: M.engine.track.id };
     }, SECONDS, opt.switch ?? null, !!opt.seam);
     if (r.error) { console.log(`${world}: ${r.error}`); bad++; await page.close(); continue; }
     const good = r.res.filter((x) => x.errMs != null && x.r > 0.5), errs = good.map((x) => Math.abs(x.errMs)).sort((a, b) => a - b);

@@ -61,6 +61,8 @@ export function simulate(o: SimOptions) {
     return c;
   }) as [Character, Character];
   const ref = new JogoReferee(seats, 'geode', 0);
+  // (the referee's room at the simulation's tempo: a room otherwise takes its world's track's)
+  ref.session.music.bpm = bpm;
   const stageView: StageView = { plane: o.plane, stage: o.stage ?? o.plane, terrain, gates: o.gates ?? [], room: o.room ?? 7 };
   const freeView: StageView = { ...stageView, plane: null };
   const bodies: (SceneBody & { character: Character })[] = seats.map((c, k) => ({ id: `seat.${k}`, seat: k, character: c }));

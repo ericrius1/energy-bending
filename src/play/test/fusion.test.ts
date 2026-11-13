@@ -6,7 +6,7 @@
 import { Character } from '../../dancer/character';
 import type { StagePlane } from '../../engine/camera';
 import { makeIntent, type Intent } from '../../input/intent';
-import { RULES, beatAt } from '../../../shared/rules.ts';
+import { beatAt, sessionMs } from '../../../shared/rules.ts';
 import { Room } from '../room';
 import { Jogo, type Element, type SeatBody } from '../jogo';
 import { JogoBuilder } from '../build';
@@ -46,7 +46,7 @@ async function run(s: JogoScript, seconds: number) {
   let from: number | null = null;
   const runner = new ScriptRunner(s, {
     controllers: () => chars.map((c, k) => controller(c, intents[k])) as never,
-    beat: () => (from == null ? null : ((room.now() - from) * RULES.BPM) / 60000), arm: (k) => builder.arm(k), plane: () => PLANE,
+    beat: () => (from == null ? null : ((room.now() - from) * room.state!.music.bpm) / 60000), arm: (k) => builder.arm(k), plane: () => PLANE,
     setTension: (v) => { (room.session.net as unknown as { session: { tension: number } }).session.tension = v; },
   });
   await room.connect();
@@ -54,7 +54,7 @@ async function run(s: JogoScript, seconds: number) {
   let t0: number | null = null, tEnd: number | null = null, released: number | null = null, kind = '';
   for (let i = 0; i < seconds * 60; i++, frame++) {
     const st = room.state;
-    if (st?.phase === 'play' && from == null) from = st.sessionEnd! - RULES.SESSION_MS;
+    if (st?.phase === 'play' && from == null) from = st.sessionEnd! - sessionMs(st.music);
     runner.update();
     jogo.clock(DT);
     const m = room.state!.music, beat = beatAt(m, room.now());

@@ -7,7 +7,7 @@ import { Character } from '../../dancer/character';
 import { MOVES, tempoScale } from '../../dancer/moves';
 import type { StagePlane } from '../../engine/camera';
 import { makeIntent, type Intent } from '../../input/intent';
-import { RULES, gridError, beatAt, barMs } from '../../../shared/rules.ts';
+import { RULES, gridError, beatAt, barMs, sessionMs } from '../../../shared/rules.ts';
 import type { Session as RulesSession } from '../../../shared/rules.ts';
 import { Room } from '../room';
 import { Jogo, type Element, type JogoEvent, type SeatBody } from '../jogo';
@@ -178,7 +178,7 @@ await (async () => {
     b.until(() => { log(); return b.room.state?.phase === 'play'; });
     const st0 = b.room.state!;
     test('the room starts in intro and plays from a bar line at least 3 s later', () => {
-      const playFrom = st0.sessionEnd! - RULES.SESSION_MS, bar = barMs(st0.music);
+      const playFrom = st0.sessionEnd! - sessionMs(st0.music), bar = barMs(st0.music);
       const k = (playFrom - st0.music.epoch) / bar;
       near(k, Math.round(k), 1e-6, 'play begins on a bar line');
       assert(playFrom - st0.music.epoch >= RULES.INTRO_MIN_MS, 'intro too short');
@@ -350,12 +350,12 @@ await (async () => {
     let from: number | null = null;
     const ctl = b.chars.map((c) => ({ character: c, script: { set: (p: Partial<Intent> | null) => { const it = b.intents[b.chars.indexOf(c)]; if (p) for (const [k, v] of Object.entries(p)) (it as unknown as Record<string, unknown>)[k] = v ?? (typeof (makeIntent() as unknown as Record<string, unknown>)[k] === 'boolean' ? false : 0); } }, move: (n: string) => c.startMove(n) }));
     const r = new ScriptRunner(script, {
-      controllers: () => ctl as never, beat: () => (from == null ? null : ((b.room.now() - from) * 112) / 60000), arm: () => {}, plane: () => PLANE,
+      controllers: () => ctl as never, beat: () => (from == null ? null : ((b.room.now() - from) * b.room.state!.music.bpm) / 60000), arm: () => {}, plane: () => PLANE,
     });
     const log: string[] = [];
     for (let i = 0; i < 60 * 14; i++) {
       const st = b.room.state;
-      if (st?.phase === 'play' && from == null) from = st.sessionEnd! - RULES.SESSION_MS;
+      if (st?.phase === 'play' && from == null) from = st.sessionEnd! - sessionMs(st.music);
       r.update();
       b.step();
       for (const e of b.events.splice(0)) if (e.k === 'xch' || e.k === 'move' || e.k === 'echo' || e.k === 'unison') log.push(`${i}:${e.k}:${'res' in e ? e.res : 'move' in e ? e.move : ''}`);

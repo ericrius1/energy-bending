@@ -5,7 +5,7 @@
 import { Character } from '../../dancer/character';
 import type { StagePlane } from '../../engine/camera';
 import { makeIntent, type Intent } from '../../input/intent';
-import { RULES, beatAt } from '../../../shared/rules.ts';
+import { beatAt, sessionMs } from '../../../shared/rules.ts';
 import { Room } from '../room';
 import { Jogo, type Element, type JogoEvent, type SeatBody } from '../jogo';
 import { JogoBuilder } from '../build';
@@ -44,7 +44,7 @@ async function run(s: JogoScript, seconds = 60) {
   let from: number | null = null;
   const runner = new ScriptRunner(s, {
     controllers: () => chars.map((c, k) => controller(c, intents[k])) as never,
-    beat: () => (from == null ? null : ((room.now() - from) * RULES.BPM) / 60000), arm: (k) => builder.arm(k), plane: () => PLANE,
+    beat: () => (from == null ? null : ((room.now() - from) * room.state!.music.bpm) / 60000), arm: (k) => builder.arm(k), plane: () => PLANE,
     setTension: (v) => { (room.session.net as unknown as { session: { tension: number } }).session.tension = v; },
   });
   await room.connect();
@@ -52,7 +52,7 @@ async function run(s: JogoScript, seconds = 60) {
   const tension: [number, number][] = [];
   for (let i = 0; i < seconds * 60; i++) {
     const st = room.state;
-    if (st?.phase === 'play' && from == null) from = st.sessionEnd! - RULES.SESSION_MS;
+    if (st?.phase === 'play' && from == null) from = st.sessionEnd! - sessionMs(st.music);
     if (st?.phase === 'intro' && i > 0 && from == null) { /* the intro: the dancers re-form at their spawns */ }
     runner.update();
     jogo.clock(DT);
@@ -61,7 +61,7 @@ async function run(s: JogoScript, seconds = 60) {
     for (let k = 0; k < 2; k++) chars[k].update(DT, intents[k], { beats: beat, bpm: m.bpm });
     jogo.update();
     for (const it of intents) for (const k of ['jump', 'punch', 'kick', 'spin', 'dodge', 'form', 'interact'] as const) it[k] = false;
-    const b = from == null ? -1 : ((room.now() - from) * RULES.BPM) / 60000;
+    const b = from == null ? -1 : ((room.now() - from) * room.state!.music.bpm) / 60000;
     for (const e of jogo.events.splice(0)) {
       log.push({ beat: b, e });
       // the feel's knock on a hit

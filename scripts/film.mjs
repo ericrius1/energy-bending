@@ -344,6 +344,8 @@ const ff = (args) => new Promise((ok, no) => spawn(FFMPEG, ['-y', '-hide_banner'
 const work = join(OUT, 'work', `${NAME}-${Q.label}`);
 mkdirSync(work, { recursive: true });
 const list = (files) => files.map((f) => `file '${f.replace(/\\/g, '/').replace(/'/g, "'\\''")}'`).join('\n');
+// (every shot rendered: where each is on the track, and the frames each keeps)
+const BEAT0 = place();
 // each shot's takes, joined without re-encoding
 for (const s of pick) {
   const lf = join(work, `${s.id}.txt`);
@@ -352,7 +354,6 @@ for (const s of pick) {
   await ff(['-f', 'concat', '-safe', '0', '-i', lf, '-c', 'copy', '-frames:v', String(s.keep), s.joined]);
   s.info = existsSync(join(s.dir, 'info.json')) ? JSON.parse(readFileSync(join(s.dir, 'info.json'), 'utf8')) : null;
 }
-const BEAT0 = place();
 if (TRACK) log(`track ${TRACK.id} (${TRACK.bpm.toFixed(3)} bpm, from ${relative(ROOT, TRACK.source)}): the film's first frame is its beat ${BEAT0?.toFixed(3)}; cuts at ${pick.map((s) => (s.at + s.len).toFixed(3)).join(', ')} s (beats ${pick.map((s) => (BEAT0 + (s.at + s.len) / SPB).toFixed(2)).join(', ')})`);
 const T = pick.reduce((a, s) => a + s.keep / Q.fps, 0);
 const lf = join(work, 'film.txt');
