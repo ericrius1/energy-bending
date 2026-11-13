@@ -747,6 +747,15 @@ export class CameraRig {
         for (let a = 0; a < 3; a++) E[a] = T[a] + (E[a] - T[a]) * h;
         this.pull *= h;
       }
+      // (what the sweep can't see: the look point itself inside a solid, a dancer falling through a slab. Then the eye
+      // still must not be: along the boom in toward the look point, or else out past where it was, the first point clear)
+      if (S.inside(E, 0.05)) {
+        const D: V3 = [E[0] - T[0], E[1] - T[1], E[2] - T[2]], p: V3 = [0, 0, 0];
+        for (const k of [0.9, 0.8, 0.7, 0.6, 0.5, 0.4, 0.3, 1.2, 1.4, 1.7, 2]) {
+          p[0] = T[0] + D[0] * k; p[1] = T[1] + D[1] * k; p[2] = T[2] + D[2] * k;
+          if (!S.inside(p, 0.15)) { E[0] = p[0]; E[1] = p[1]; E[2] = p[2]; break; }
+        }
+      }
     }
   }
 

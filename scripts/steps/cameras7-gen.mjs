@@ -32,6 +32,9 @@ takes.push({ name: 'partner-temple', query: 'jogo=partner&world=temple&dress=fir
 // ---------------------------------------------------------------- through each hub gate and back
 for (const to of ['redwoods', 'pool', 'temple', 'forge']) {
   const find = `const g = [...bend.gates.gates.values()].find((g) => g.world === 'geode' && g.partner && g.partner.world === '${to}');`;
+  // (the forge's gate stands on the anvil's lobe, and 1.75 to 2.75 m in along its normal there is no floor: stop sooner
+  // there, or the walk goes into the pit)
+  const [stop, turn, back] = to === 'forge' ? [3.3, 4.1, 4.5] : [4.8, 5.4, 5.8];
   takes.push({
     name: `gate-${to}`, query: 'play&dress=fire', fps: 5, seconds: 12, warm: 30,
     setup: `${find} const n = g.n, P = [g.at[0] + n[0] * 4, g.at[2] + n[2] * 4];
@@ -41,15 +44,15 @@ for (const to of ['redwoods', 'pool', 'temple', 'forge']) {
     each: "const p = bend.players()[0], r = bend.rig; window.walk.push([+t.toFixed(2), +p.x.toFixed(3), +p.z.toFixed(3), bend.gates.worldOf(bend.show.dancers[0]), r.eye.map((v) => +v.toFixed(2)), +Math.hypot(r.eye[0] - r.look[0], r.eye[1] - r.look[1], r.eye[2] - r.look[2]).toFixed(2), !!r.through]);",
     cues: {
       // through, then stop
-      '4.8': 'bend.intent(0, { moveZ: 0 });',
+      [stop]: 'bend.intent(0, { moveZ: 0 });',
       // turn the camera to look back at the gate from beyond the player (as a player would with the look stick)
-      '5.4': `${find} const b = g.partner, p = bend.players()[0]; bend.camera({ yaw: Math.atan2(p.x - b.at[0], p.z - b.at[2]) });`,
-      '5.8': 'bend.intent(0, { moveZ: 1, walk: true });',
+      [turn]: `${find} const b = g.partner, p = bend.players()[0]; bend.camera({ yaw: Math.atan2(p.x - b.at[0], p.z - b.at[2]) });`,
+      [back]: 'bend.intent(0, { moveZ: 1, walk: true });',
       // the walk in each world and each way: the most it strays from the line between its ends, how far it went, the
       // camera behind it at the end of each run (cos of eye→player against the way they walk; 1 is straight behind),
       // and the nearest the eye came to what it looks at
       '11.6': `const W = window.walk, runs = [];
-        for (const leg of [W.filter((w) => w[0] > 0.3 && w[0] < 4.8), W.filter((w) => w[0] > 6.2)]) {
+        for (const leg of [W.filter((w) => w[0] > 0.3 && w[0] < ${stop}), W.filter((w) => w[0] > ${back + 0.4})]) {
           let run = [];
           const flush = () => { if (run.length > 3) runs.push(run); run = []; };
           for (const w of leg) { if (run.length && run[0][3] !== w[3]) flush(); run.push(w); }
