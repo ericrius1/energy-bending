@@ -24,7 +24,6 @@ import { waterParams, WATER_MAX } from './params';
 import { WaterSurface } from './surface';
 import { IceDraws } from '../ice/ice';
 import { iceParams } from '../ice/params';
-import { dressFor } from './dress';
 
 const PARTICLE_FLOATS = 12;
 /** gem count a programme asks for when it doesn't say (matter/core/params.ts): the budget is read relative to it */
@@ -80,7 +79,8 @@ export class WaterPool {
     this.drops = kit.uniforms(dropsShader.structs.Drops, 'water.drops');
     this.uploadLook();
     onParams(waterParams, (k) => {
-      if (k === 'form') this.formTarget.fill(Math.max(0, Math.min(1, waterParams.form)));
+      // the panel's form sets every dancer's (Dancer.form, the one place it lives) on the next frame
+      if (k === 'form') this.panelForm = Math.max(0, Math.min(1, waterParams.form));
       if (k === 'perDancer') this.dirty = true;
       this.uploadLook();
     });
@@ -90,15 +90,13 @@ export class WaterPool {
       sim: this.sim, state: this.state, aux: this.aux, homes: this.homes,
       count: () => this._count, maybeIce: () => this.maybeIce(),
     });
-    const q = typeof location !== 'undefined' ? new URLSearchParams(location.search).get('dress') : null;
-    if (q) waterParams.dress = q;
   }
 
   get count() { return this._count; }
 
   // ---------------------------------------------------------------- the game's handles
-  /** set dancer d's form: 0 water … 1 ice. The freeze climbs from the feet (and melts down from the head) */
-  form(d: number, v: number) { if (d >= 0 && d < LIMITS.dancers) this.formTarget[d] = Math.max(0, Math.min(1, v)); }
+  /** the panel's form waiting to be put on every dancer (null: none) */
+  private panelForm: number | null = null;
   /** dancer d's form now (as shown, easing toward what was set) */
   formOf(d: number) { return this.formNow[d] ?? 0; }
 
@@ -208,12 +206,14 @@ export class WaterPool {
 
   update(f: FrameCtx) {
     this.t = f.t;
-    dressFor(f, waterParams.dress);
     if (this.dirty) this.layout(f);
     const P = waterParams, s = this.f, b = s.body;
     const dt = Math.min(f.dt, 1 / 30) * (f.danceDt / Math.max(f.dt, 1e-6));
     // each dancer's form eases toward what was set, so the freeze climbs the body (about two seconds feet to head)
     const ease = 0.55 * Math.max(f.dt, 0);
+    if (this.panelForm !== null) { for (const d of f.dancers) d.form = this.panelForm; this.panelForm = null; }
+    // the target is the dancer's own form (Dancer.form: 0 water … 1 ice; bend.form sets it)
+    for (let d = 0; d < LIMITS.dancers; d++) this.formTarget[d] = Math.max(0, Math.min(1, f.dancers[d]?.form ?? 0));
     for (let d = 0; d < LIMITS.dancers; d++) {
       const g = this.formTarget[d], c = this.formNow[d];
       this.formNow[d] = c + Math.max(-ease, Math.min(ease, g - c));
@@ -259,14 +259,13 @@ export class WaterPool {
 }
 
 /** what the registry holds for 'water' and for 'ice': one face each of the shared pool. The game reaches the pool's
- *  handles through either: `form(d, v)`, `formOf(d)`, `setIce` (ice/setice.ts) */
+ *  handles through either: `formOf(d)` (the form as shown; the dancer's own is `Dancer.form`), `setIce` (ice/setice.ts) */
 export class WaterPasses implements MatterPasses {
   readonly acts?: MatterActs;
   constructor(readonly id: WaterKindId, readonly pool: WaterPool) {
     if (pool.primary === id) this.acts = pool.acts;
   }
   get setIce() { return this.pool.ice.setIce; }
-  form(d: number, v: number) { this.pool.form(d, v); }
   formOf(d: number) { return this.pool.formOf(d); }
   declareView(s: ScenePass) { this.pool.declareView(s); }
   layout(layers: MatterLayer[]) { this.pool.setLayers(this.id, layers); }

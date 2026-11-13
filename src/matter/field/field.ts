@@ -86,12 +86,16 @@ export class Field {
   readonly cells: number;
   /** it runs (kinds can skip CPU deposits when false) */
   readonly live = true;
-  /** each dancer slot's power form, 0 … 1: fire toward plasma, water toward ice. The game sets it; a loadout layer's
-   *  own `params.form` (a number) wins for that layer */
+  /** each dancer slot's power form, 0 … 1 (fire toward plasma, water toward ice), copied each frame from
+   *  `Dancer.form` (the one place it lives); a loadout layer's own `params.form` (a number) wins for that layer */
   readonly forms: number[] = new Array(LIMITS.dancers).fill(0);
-  /** how much of each dancer slot's matter is on its body, 0 … 1 (default 1): the show or the game lowers it while a
-   *  body is in a heap or shattered, so a skeleton without its matter gives the air no heat or wet (it still stirs) */
+  /** how much of each dancer slot's matter is on its body, 0 … 1, copied each frame from `Dancer.presence` (the show
+   *  lowers it while a body is in a heap or shattered): a skeleton without its matter gives the air no heat or wet */
   readonly presence: number[] = new Array(LIMITS.dancers).fill(1);
+  /** which dancer slots are in the world the field is in (the main view's): with dancers in two worlds (portals), the
+   *  field follows only those, and the others lay down no aura (one field, one world: see docs/extending/reactions.md).
+   *  null: every dancer. main.ts sets it from the gates */
+  inWorld: ((d: number) => boolean) | null = null;
   /** ?aura=…: kinds dancer d is treated as wearing, for the field only (null: what the loadout says) */
   auraOverride: (string | null)[] = [];
 
@@ -216,11 +220,17 @@ export class Field {
   update(f: FrameCtx) {
     this.frameNo = f.frame;
     const D = Math.min(f.dancers.length, LIMITS.dancers);
-    if (D) {
-      let x = 0, y = 0, z = 0;
-      for (let d = 0; d < D; d++) { const w = f.dancers[d].skeleton.world; x += w[0]; y += w[1]; z += w[2]; }
-      this.centre[0] = x / D; this.centre[1] = y / D; this.centre[2] = z / D;
+    for (let d = 0; d < D; d++) {
+      const dn = f.dancers[d], here = !this.inWorld || this.inWorld(d);
+      this.forms[d] = dn.form;
+      this.presence[d] = here ? dn.presence : 0;
     }
+    let x = 0, y = 0, z = 0, n = 0;
+    for (let d = 0; d < D; d++) {
+      if (this.inWorld && !this.inWorld(d)) continue;
+      const w = f.dancers[d].skeleton.world; x += w[0]; y += w[1]; z += w[2]; n++;
+    }
+    if (n) { this.centre[0] = x / n; this.centre[1] = y / n; this.centre[2] = z / n; }
     const prev: V3 = [...this.origin];
     // the box in whole cells, its floor 1.3 m under the hips (steam and flame rise: most of it is above)
     const snap = (v: number) => Math.round(v / this.cell) * this.cell;
@@ -246,6 +256,7 @@ export class Field {
     this.auras.fill(0);
     const perPart = new Map<BodyPart, [number, number, number, number]>();
     for (let d = 0; d < D; d++) {
+      if (this.inWorld && !this.inWorld(d)) continue;   // in another world: no aura here, not even a stir
       const forced = this.auraOverride[d];
       const layers: readonly LoadoutLayer[] = forced ? [{ kind: forced, share: 1 }] : f.dancers[d].loadout.layers;
       for (const part of BODY_PARTS) {

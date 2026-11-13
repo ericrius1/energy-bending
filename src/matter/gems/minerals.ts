@@ -40,6 +40,8 @@ export const SUITES: Record<string, [string, string, string]> = {
   Midnight: ['amethyst', 'obsidian', 'pyrite'],
   Dawn: ['rose', 'citrine', 'brilliant'],
   Custom: ['agate', 'emerald', 'rose'],
+  // one specimen kind only: a geode heart (presets.ts geodeheart)
+  Geode: ['amethyst', 'amethyst', 'amethyst'],
 };
 
 /** the Minerals uniform: one Kind per specimen, in the order of specimens.json */

@@ -8,5 +8,5 @@
   { "name": "water-spin", "query": "dress=water", "params": { "dance": { "auto": false } }, "goto": 1, "frames": 1000, "shot": "close" },
   { "name": "water-kick", "query": "dress=water", "goto": 7, "frames": 1000, "shot": "low" },
   { "name": "ice-night", "query": "world=redwoods&dress=ice", "params": { "dance": { "auto": false }, "redwoods": { "hour": 21.6, "dayGoes": false } }, "wake": true, "frames": 1000, "timings": true },
-  { "name": "gems-water", "query": "dress=gems%2Bwater", "params": { "dance": { "auto": false } }, "wake": true, "frames": 1000, "shot": "close" }
+  { "name": "gems-water", "query": "dress=gemwater", "params": { "dance": { "auto": false } }, "wake": true, "frames": 1000, "shot": "close" }
 ]

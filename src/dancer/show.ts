@@ -11,6 +11,7 @@ import { CameraController } from './camera';
 import { Programme, PROGRAMS, type Program, type Stagehand } from './programme';
 import { gemsLoadout, layersOf, type MatterPasses } from '../matter/core/kind';
 import type { BodyBuffers } from '../matter/core/bodies';
+import { dressed, dressFromQuery } from '../matter/core/presets';
 import type { CameraRig } from '../engine/camera';
 import { LIMITS } from '../engine/limits';
 import { matterParams as showParams } from '../matter/core/params';
@@ -31,6 +32,9 @@ export class Show implements Stagehand {
   you: CameraController | null = null;
   /** a demo's cast, when a debug flag asks for one */
   castOverride: CastFn | null = null;
+  /** a loadout preset per dancer slot (matter/core/presets.ts; ?dress=a,b, bend.dress): kept on through restaging. The
+   *  last name serves the slots after it; empty: as the programme or the demo dresses them */
+  dress: string[] = dressFromQuery();
   /** dance time (s), and the dance time the matter began to rise (0: it doesn't) */
   t = 0;
   wakeAt = 0;
@@ -89,6 +93,7 @@ export class Show implements Stagehand {
   // ---------------------------------------------------------------- the cast
   private cast(p: Program): Dancer[] {
     const them = this.castOverride ? this.castOverride(p, this) : this.castThem(p);
+    them.forEach((d, k) => this.dressOne(d, k));
     if (!this.you) return them;
     const ring = !!p.ring;
     this.you.baseX = ring ? 0 : p.piece === 'ensemble' ? 0 : 1.7;
@@ -124,6 +129,23 @@ export class Show implements Stagehand {
     return piece.dancers.map((_, d) => new Dancer(`${piece.id}.${d}`, new MocapController(new Track(this.motion, piece, d)), suite(d)));
   }
 
+  /** put slot k's dress (if any) on a dancer, keeping the gem suite it wore */
+  private dressOne(d: Dancer, k: number) {
+    const name = this.dress.length ? this.dress[Math.min(k, this.dress.length - 1)] : '';
+    if (!name) return;
+    const gem = d.loadout.layers.find((l) => l.kind === 'gems');
+    const l = dressed(name, String(gem?.params?.suite ?? 'Violet'));
+    if (l) d.loadout = l; else console.warn(`dress: no preset '${name}' (matter/core/presets.ts)`);
+  }
+
+  /** dress dancer d in a preset by name and keep it on (bend.dress); '' takes the dress off (the next dance dresses
+   *  it as the programme says) */
+  setDress(d: number, name: string) {
+    while (this.dress.length <= d) this.dress.push(this.dress[this.dress.length - 1] ?? '');
+    this.dress[d] = name;
+    if (this.dancers[d] && name) { this.dressOne(this.dancers[d], d); this.relayout(); }
+  }
+
   /** change one dancer's loadout (bend.loadout) */
   setLoadout(d: number, loadout: Dancer['loadout']) {
     if (!this.dancers[d]) throw new Error(`no dancer ${d} (there are ${this.dancers.length})`);
@@ -134,6 +156,10 @@ export class Show implements Stagehand {
   /** each frame: the programme moves on (the dancers are posed by main.ts in the dancers phase) */
   update(dt: number) {
     this.programme.update(dt);
+    // how much of each dancer's matter is on its body (Dancer.presence, read by the field): none while asleep in a
+    // heap or after a shatter (wakeAt 0), rising with the matter over the rise's spread
+    const on0 = this.awake && this.wakeAt > 0 ? Math.min(1, Math.max(0, (this.t - this.wakeAt) / Math.max(this.wakeSpread, 1e-3))) : 0;
+    for (const d of this.dancers) d.presence = on0;
     const on = this.programme.act === 'dancing';
     if (on !== this.wasDancing) { this.wasDancing = on; for (const k of this.kinds) k.acts?.dancing(on); }
   }

@@ -7,6 +7,13 @@ import type { Loadout } from '../matter/core/kind';
 
 export class Dancer {
   readonly skeleton: Skeleton;
+  /** the dancer's power form, 0 … 1: fire toward plasma, water toward ice (gems ignore it). The one place it lives:
+   *  the field's auras, the fire kind and the water pool all read it each frame (bend.form sets it; a loadout
+   *  layer's own `params.form` number still wins for that layer) */
+  form = 0;
+  /** how much of its matter is on its body, 0 … 1: the show lowers it while the matter lies in a heap or is
+   *  shattered, so a bare skeleton doesn't warm or wet the air (the field reads it) */
+  presence = 1;
   constructor(public readonly id: string, public controller: Controller, public loadout: Loadout) {
     this.skeleton = new Skeleton(controller.rig);
   }

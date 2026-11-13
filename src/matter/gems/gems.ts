@@ -304,7 +304,9 @@ export class GemPasses implements MatterPasses {
       const h = this.homeData;
       layers.forEach((layer, k) => {
         const suite = (SUITES[String(layer.layer.params?.suite ?? 'Violet')] ?? SUITES.Violet).map((id) => Math.max(0, this.ids.indexOf(id)));
-        for (let i = ranges[k].from; i < ranges[k].to; i++) h[i * 8 + 4] = suite[h[i * 8 + 6]];
+        // a layer may grow its stones (params.size, ×; presets.ts's geode heart): the home's size is look.y
+        const grow = Math.max(0.2, Number(layer.layer.params?.size ?? 1)) || 1;
+        for (let i = ranges[k].from; i < ranges[k].to; i++) { h[i * 8 + 4] = suite[h[i * 8 + 6]]; h[i * 8 + 5] *= grow; }
       });
       this.homes.write(h.subarray(0, count * 8));
       for (let i = 0; i < count; i++) for (let a = 0; a < 4; a++) this.looks[i * 4 + a] = h[i * 8 + 4 + a];

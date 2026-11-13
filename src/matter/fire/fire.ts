@@ -4,12 +4,12 @@
 // again (sim.wgsl). Drawn as stretched soft sprites added into the scene (draw.wgsl).
 //
 // Fire and plasma are one kind with a form per particle (0 fire … 1 plasma): a `plasma` loadout layer is form 1, a
-// `fire` layer is its `params.form` (default 0), and the game adds a per-dancer form on top (`form[d]`, which it can
-// animate), so a dancer's flame morphs smoothly into plasma and back. The `plasma` kind (matter/plasma) hands its
+// `fire` layer is its `params.form` (default 0), and the dancer's own form (`Dancer.form`, copied into `form[d]` each
+// frame; the game animates it with bend.form) is added on top, so a dancer's flame morphs smoothly into plasma and back. The `plasma` kind (matter/plasma) hands its
 // layers here and draws the arcs.
 //
 // What other code uses:
-//   form[d]            per dancer slot, 0 … 1, added to each layer's own form (the game animates it)
+//   form[d]            per dancer slot, 0 … 1, added to each layer's own form (read-only: a copy of Dancer.form)
 //   fireLights(kit)    the world light (matter/fire/lights.ts, light.wgsl): one point light per flame dancer
 //   handForm(d)        the form of the flame on dancer d's hands (the plasma kind arcs between hands past 0.4)
 //   resize(budget)     the show's stone count scales the flames (budget.count / 15000 × fireParams.perDancer)
@@ -47,7 +47,8 @@ export function flameFor(ctx: MatterCtx): FirePasses {
 export class FirePasses implements MatterPasses {
   readonly id = 'fire';
   readonly acts: MatterActs;
-  /** per dancer slot: the game's form, 0 fire … 1 plasma, added to each layer's own (animate it freely) */
+  /** per dancer slot: the dancer's form, 0 fire … 1 plasma, added to each layer's own. A copy of `Dancer.form`, made
+   *  each frame in update (set the form on the dancer: bend.form(d, v)) */
   readonly form = new Float32Array(LIMITS.dancers);
   readonly sim: UniformBuffer<FireSim>;
   readonly flames: StorageBuffer;
@@ -166,6 +167,7 @@ export class FirePasses implements MatterPasses {
   // ---------------------------------------------------------------- each frame
   update(f: FrameCtx) {
     if (this.dirty) this.relayout();
+    for (let d = 0; d < LIMITS.dancers; d++) this.form[d] = f.dancers[d]?.form ?? 0;
     const P = fireParams, s = this.s, b = s.body;
     const dt = Math.min(f.dt, 1 / 30) * (f.danceDt / Math.max(f.dt, 1e-6));
     this.burn += (this.burnTarget - this.burn) * (1 - Math.exp(-dt * this.burnRate));

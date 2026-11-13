@@ -3,7 +3,7 @@
 // that part of the body, weighted by each layer's share of that part. So a kind never writes its own heat or wet:
 // a fire arm is hot because it is fire, and a kick drags the air because it moves.
 //
-// A dancer's power form (field.forms[d], 0 … 1, or a layer's own `params.form`) moves a kind toward its other form:
+// A dancer's power form (Dancer.form, copied into field.forms[d], 0 … 1, or a layer's own `params.form`) moves a kind toward its other form:
 // fire toward plasma, water toward ice. A new kind adds its line here, or calls setAura from its own index.ts.
 
 /** a kind's aura: the heat it gives the air at the body (1 flame, -1 ice), the wet (1 water), how much it dries the

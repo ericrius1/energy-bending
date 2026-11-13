@@ -6,6 +6,9 @@
 //   bend.camera(o?)           the camera rig: { yaw, pitch, dist, height, fov, target, mode, shot } to read or set
 //   bend.lock(on)             lock the view to the world's first stage plane (or free it)
 //   bend.loadout(d, loadout)  dress dancer d in a loadout ({ layers: [{ kind, share, parts?, params? }] })
+//   bend.dress(d, name)       dress dancer d in a preset (matter/core/presets.ts: fire, water, ember, tide, …) and keep
+//                             it on through restaging ('' takes it off); ?dress=a,b does the same at start
+//   bend.form(d, v?)          dancer d's power form, 0 … 1 (fire toward plasma, water toward ice): read or set
 //   bend.stats()              the frame's plan, GPU times per pass, counts, the adapter
 //   bend.params / bend.set    every parameter group by name; set(name, patch) changes values and tells listeners
 //   bend.wake/goto/next/shoot the programme: wake the dancers, jump to programme i, move on, frame a shot
@@ -88,6 +91,13 @@ export function installHooks(app: HookApp) {
       return { yaw: rig.yaw, pitch: rig.pitch, dist: rig.dist, height: rig.height, fov: rig.fov, target: [...rig.target], mode: rig.mode, shot: rig.shot, idle: rig.idle, eye: [...rig.eye] };
     },
     lock: (on: boolean) => app.lock(on),
+    dress(d: number, name: string) { show.setDress(d, name); return show.dancers[d]?.loadout; },
+    form(d: number, v?: number) {
+      const dn = show.dancers[d];
+      if (!dn) throw new Error(`no dancer ${d} (there are ${show.dancers.length})`);
+      if (v !== undefined) dn.form = Math.max(0, Math.min(1, v));
+      return dn.form;
+    },
     loadout(d: number, loadout?: Loadout) {
       if (loadout) show.setLoadout(d, loadout);
       return show.dancers[d]?.loadout;

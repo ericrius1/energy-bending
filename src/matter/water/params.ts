@@ -1,7 +1,7 @@
 // The water's parameters: how many particles a dancer's water is, how it moves (loose on the body, quick to shed,
 // heavy when it falls, splashing), how it changes state (the form, the field's heat and cold), and how its
-// screen-space surface looks. Ice's own look is ice/params.ts. `form` and `dress` are for the panel and the capture
-// steps: the game sets each dancer's form with WaterPasses.form(d, v) and dresses dancers through their loadouts.
+// screen-space surface looks. Ice's own look is ice/params.ts. `form` is for the panel and the capture
+// steps (dresses are matter/core/presets.ts, ?dress=): the game sets each dancer's form on the dancer (Dancer.form, bend.form) and dresses dancers through their loadouts.
 import { defineParams } from '../../engine/params';
 
 /** the most particles the pool holds (buffers are made this big once: 96 bytes each, so 38 MB). A desktop dancer
@@ -13,9 +13,6 @@ export const waterParams = defineParams('water', {
   perDancer: 100_000,
   /** every dancer's form, 0 water … 1 ice, set from the panel or a capture (the game calls WaterPasses.form) */
   form: 0,
-  /** for captures and trying looks: dress dancers by name, one per dancer, comma-separated ('water', 'ice',
-   *  'gems+water', 'ice+water'; empty: as the programme dresses them). Also read from ?dress= at start */
-  dress: '',
   // motion (water; ice blends to its own stiffness per particle)
   stiffness: 60,
   damping: 7,
