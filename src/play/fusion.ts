@@ -13,8 +13,9 @@
 //   the eight bars  the kind develops by the bar count (field.fuse's `bar`): the helix tightens toward the fourth bar
 //              and opens after it, the column grows (aurora most); a few motes of the kind's colours drift round the
 //              strands; storm adds arcs inside the body (its rain is fire's: falling flames in its field)
-//   release    on the rules' `release`: the dancers are parted and the one body is let go outward for a beat
-//              (RELEASE_MS: the field's bar past 8), then each body's own matter comes back (the loadouts), with a
+//   release    on the rules' `release`: the dancers are parted and the one body parts with them for a beat, each
+//              flame drawn back to its own body and turning to its own look, fire's ramp and water's blue (RELEASE_MS:
+//              the field's bar past 8), then each body's own matter comes back (the loadouts), with a
 //              ring of ripples in the world's water and of sparks on the floor, the air pushed outward, music.release()
 import type { Dancer } from '../dancer/dancer';
 import type { Loadout } from '../matter/core/kind';
@@ -60,8 +61,10 @@ export interface FusionCtx {
 const smooth = (x: number) => { x = Math.max(0, Math.min(1, x)); return x * x * (3 - 2 * x); };
 const lerp3 = (a: V3, b: V3, u: number): V3 => [a[0] + (b[0] - a[0]) * u, a[1] + (b[1] - a[1]) * u, a[2] + (b[2] - a[2]) * u];
 
-/** how long the release holds the one body as it is let go, before each body's own matter returns (ms) */
-const RELEASE_MS = 750;
+/** how long the release holds the one body as it parts, before each body's own matter returns (ms). (750 until Report
+ *  10: the water's own body then climbs back from its feet for about a second, so the sooner it starts the shorter the
+ *  moment with fire alone on the floor) */
+const RELEASE_MS = 550;
 /** the pull while both hold merge and through the eight bars: the two roots drawn to this far apart (m), no faster than
  *  this (m/s each), so the fusion reads as one body (fire's field sums two flames into one contour only while they
  *  stand within about half a metre). Released at the release (the parting knock). From the landing it may close
@@ -286,7 +289,9 @@ export class Fusion {
     for (let j = 0; j < 8; j++) {
       const ang = (j / 8) * Math.PI * 2;
       this.ctx.ripple?.(C[0] + Math.cos(ang) * 0.6, C[2] + Math.sin(ang) * 0.6, 0.8, 0.5);
-      this.ctx.field?.deposit({ p: [C[0] + Math.cos(ang) * 0.5, C[1] - 0.3, C[2] + Math.sin(ang) * 0.5], r: 0.5, wind: [Math.cos(ang) * 6, 1, Math.sin(ang) * 6] });
+      // (a breath of air outward, not a blast: fire's flames ride the field's wind, and at 6 m/s the one body burst
+      // two metres across the frame in half a second; they part with their bodies now, fire/sim.wgsl)
+      this.ctx.field?.deposit({ p: [C[0] + Math.cos(ang) * 0.5, C[1] - 0.3, C[2] + Math.sin(ang) * 0.5], r: 0.5, wind: [Math.cos(ang) * 1.5, 0.5, Math.sin(ang) * 1.5] });
     }
     this.ctx.ripple?.(C[0], C[2], 1.2, 1.2);
     // the dancers part

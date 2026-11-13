@@ -61,11 +61,15 @@ fn helixOnScreen(uv: vec2f) -> f32 {
     A = mix(A, steam.cap * 1.15 * (1.0 - exp(-tau * 1.5)), storm);
   }
   // inside a fusion's helix (its column on screen: the strands' radius about the middle, its height) the vapour is the
-  // body's, so the cap is lifted there (0.8 of what is behind, 1.2 of white); everywhere else it holds
+  // body's, so the cap is lifted there (0.8 of what is behind, 1.2 of white); everywhere else it holds. Not for the
+  // steam kind: its body is fire's (composite.wgsl, with its own billows and lanes), and a white veil over 0.8 of it,
+  // laid after the depth of field and blurred, is what made the steam column one flat white shape (Report 10); its
+  // wisps keep a light cover there (0.3, of maxBright)
   let inside = helixOnScreen(i.uv) * F.y;
-  A = mix(A, 0.8 * (1.0 - exp(-tau * 1.3)), inside);
+  let veil = 1.0 - fusionIs(F, 0.0);
+  A = mix(A, mix(0.3, 0.8, veil) * (1.0 - exp(-tau * 1.3)), inside);
   // never brighter than maxBright of white
   let m = max(col.r, max(col.g, col.b));
-  col *= min(1.0, mix(steam.maxBright, 1.2, inside) / max(m, 1e-4));
+  col *= min(1.0, mix(steam.maxBright, 1.2, inside * veil) / max(m, 1e-4));
   return vec4f(col * A, A);
 }

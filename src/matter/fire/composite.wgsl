@@ -104,12 +104,19 @@ fn fusionLook(K: u32, Tc: f32, Td: f32, n: f32, side: f32, fil: f32, w: vec2f, y
     let core = vec3f(0.82, 1.0, 0.97) * smoothstep(0.8, 2.2, Td) * 0.9 * (1.0 - smoothstep(0.45, 0.8, hh));
     return hue * v * curtain * 1.15 + core;
   }
-  // steam: a soft white-gold vapour body, a warm core, and at its thin edges licks of orange (the fire's body) and
-  // cyan (the water's)
-  // (softer than the others: it saturates slowly, so a thick part is brighter than a thin one and the vapour has depth)
-  let vs = 1.0 - exp(-0.8 * Td);
-  let body = vec3f(0.95, 0.94, 0.92) * vs * 1.25 * (0.8 + 0.4 * n);
-  let core = vec3f(1.0, 0.8, 0.5) * smoothstep(1.2, 2.8, Td) * 0.5;
+  // steam: a luminous vapour body with structure, the way fire's contours have it. The column sums two whole bodies'
+  // flames, so nearly all of it sits at the compressed sum's top (Tc ~2.2) and a look that saturates there is one flat
+  // white shape (Report 9). So the brightness is carved by the display noise (more of the gaps than prism or storm
+  // take: the caller) and by slow billows a few times larger, and rises with the temperature without saturating:
+  // cool and translucent blue-grey where thin (moonlit vapour), warm white where thick, a gold core only in the
+  // thickest, under the shoulder; at the thin edges licks of orange (the fire's body) and cyan (the water's)
+  let bil = vnoise2(w * vec2f(1.9, 1.1) + vec2f(n * 0.9, -t * 0.4));
+  let Ts = clamp(Td * (0.55 + 0.9 * bil), 0.0, 3.6);
+  // (a power ramp, as fire's is: steep enough that the noise's lanes read as contours, not as a texture on white)
+  let lum = 1.25 * pow(Ts / 3.0, 1.7);
+  let hue = mix(vec3f(0.55, 0.66, 0.84), vec3f(1.0, 0.93, 0.82), smoothstep(0.9, 2.5, Ts));
+  let body = hue * lum;
+  let core = vec3f(1.0, 0.72, 0.38) * smoothstep(2.6, 3.6, Ts) * 0.35;
   let thin = smoothstep(0.02, 0.2, Td) * (1.0 - smoothstep(0.3, 1.0, Td));
   let tint = mix(vec3f(1.0, 0.42, 0.12), vec3f(0.2, 0.72, 1.0), smoothstep(0.3, 0.7, side));
   let lick = tint * thin * smoothstep(0.4, 0.75, n) * 1.6;
@@ -163,10 +170,21 @@ fn fusionLook(K: u32, Tc: f32, Td: f32, n: f32, side: f32, fil: f32, w: vec2f, y
     // the flame's point in the world (along the view ray to its distance): its height over the pair's floor
     let ray = frame.camFwd + frame.camRight * (ndc.x * th * frame.aspect) + frame.camUp * (ndc.y * th);
     let y = frame.camPos.y + ray.y * dist - field.fusionAt.w;
-    // soft vapour (steam, aurora) takes less of the dark gaps than flame does
-    let gk = select(1.0, 0.45, K == 0u || K == 3u);
+    // soft vapour takes less of the dark gaps than flame does (aurora; steam takes them all now, for its structure)
+    let gk = select(1.0, 0.45, K == 3u);
     let Tf = max(0.0, Tc * (1.0 - field.gaps * gk + 2.0 * field.gaps * gk * ns) - field.cut * gk);
-    let fc = shoulder(fusionLook(K, Tc, Tf, n, side, fil, w, y, i.uv, t) * (1.0 + 0.9 * field.fusion.w));
+    var fc = shoulder(fusionLook(K, Tc, Tf, n, side, fil, w, y, i.uv, t) * (1.0 + 0.9 * field.fusion.w));
+    // the release (past the eighth bar): the one body parts back into its two: the hot side (seat 0: fire, or plasma
+    // in storm and aurora; shared/rules.ts fusionKinds) turns to its own ramp, the cold side (water, or ice in prism
+    // and aurora) to a cool glow of its colour that fades as its own body climbs back from its feet (fusion.ts: the
+    // loadouts return 0.55 s in), so what parts reads as the two matters, not as a flash of the fusion's light
+    let rel = smoothstep(8.0, 8.45, field.fusion.z);
+    if (rel > 0.0) {
+      let wet = smoothstep(0.3, 0.7, side);
+      let hot = select(fire, plasma, K >= 2u);
+      let cold = select(vec3f(0.16, 0.42, 0.78), vec3f(0.5, 0.7, 0.92) * 0.8, K == 1u || K == 3u);
+      fc = mix(fc, mix(hot, cold * (1.0 - exp(-0.9 * Td)) * (1.0 - 0.5 * rel), wet), rel);
+    }
     col = mix(col, fc, wF);
   }
   // (the shoulder again on the mix: fire, torch, plasma's haze and a fusion's look summed can pass it)
