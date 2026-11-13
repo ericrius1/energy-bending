@@ -361,7 +361,8 @@ export class Field {
           const form = typeof l.params?.form === 'number' ? (l.params.form as number) : this.forms[d] ?? 0;
           const a = auraOf(l.kind, form), w = shareOf(l) / total;
           const k = w * Math.min(1, Math.max(0, this.presence[d] ?? 1));
-          acc[0] += a.heat * k; acc[1] += a.wet * k; acc[2] += a.dry * k; acc[3] += a.stir * w;
+          // (the fused body burns hotter than either matter alone: at least plasma's heat)
+          acc[0] += (l.params?.fusion ? Math.max(a.heat, 1.6) : a.heat) * k; acc[1] += a.wet * k; acc[2] += a.dry * k; acc[3] += a.stir * w;
         }
         if (!total) acc[3] = 1;   // bare skeleton still moves the air
         perPart.set(part, acc);

@@ -175,8 +175,8 @@ fn main(@builtin(global_invocation_id) gid: vec3u) {
         f.pos = sim.helixAt.xyz + vec3f(cos(a) * rr, 0.9 + 1.4 * rnd(rn ^ 0xb5u), sin(a) * rr);
         f.vel = vec3f(0.0, -3.2 - 1.5 * r1, 0.0);
         f.life = 0.45 + 0.35 * r3;
-        f.look.y = sim.heat * 0.4;
-        f.look.z = sim.size * 0.45;
+        f.look.y = sim.heat * 0.75;
+        f.look.z = sim.size * 0.55;
       }
     }
     flames[i] = f;
