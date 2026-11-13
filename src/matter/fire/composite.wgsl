@@ -169,7 +169,8 @@ fn fusionLook(K: u32, Tc: f32, Td: f32, n: f32, side: f32, fil: f32, w: vec2f, y
     let fc = shoulder(fusionLook(K, Tc, Tf, n, side, fil, w, y, i.uv, t) * (1.0 + 0.9 * field.fusion.w));
     col = mix(col, fc, wF);
   }
-  col *= field.intensity;
+  // (the shoulder again on the mix: fire, torch, plasma's haze and a fusion's look summed can pass it)
+  col = shoulder(col * field.intensity);
   // smoke: soft, warm grey-brown, a little lit by the flame it was
   let sa = clamp((1.0 - exp(-smoke * field.smokeDark)) * (0.6 + 0.4 * n), 0.0, 0.85) * (1.0 - form) * (1.0 - wF);
   let sc = vec3f(0.022, 0.018, 0.016) + fireRamp(Tc * 0.35) * 0.05;

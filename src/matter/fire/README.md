@@ -36,7 +36,7 @@ The depth contract: nothing here writes the scene's alpha (the opaque view dista
 two strands, storm's rain; past bar 8 thrown outward), splat themselves into `heat.a` and their side into `heat.g`,
 and the composite puts that share of a pixel through the kind's ramp (`fusionLook`: steam, prism, storm, aurora).
 
-The ramps have a **shoulder** (`shoulder` in flame.wgsl): above 1 the brightest channel rolls off toward 2 and the
+The ramps have a **shoulder** (`shoulder` in flame.wgsl): above 1 the brightest channel rolls off toward 1.6 and the
 others keep their ratio, and the hottest fire is held to a yellow-white, plasma to a violet-white, so a core keeps its
 hue and structure instead of clipping to a flat white disc.
 

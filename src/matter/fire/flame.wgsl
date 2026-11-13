@@ -51,23 +51,24 @@ fn fireRamp(T: f32) -> vec3f {
   let t = clamp(T, 1e-4, 3.2);
   let c = pow(vec3f(t), vec3f(1.0, 2.0, 3.6)) * vec3f(1.75, 0.95, 0.6);
   // past T ~1.6 the reference's blue term overtakes the others: a hot core is held to a yellow-white (its hue, not
-  // white: green under 0.9 of red, blue under 0.62 of green) instead of going blue-violet or flat white
-  return shoulder(vec3f(c.r, min(c.g, c.r * 0.9), min(c.b, c.g * 0.62)));
+  // white: green under 0.86 of red, blue under 0.56 of green) instead of going blue-violet or flat white
+  return shoulder(vec3f(c.r, min(c.g, c.r * 0.86), min(c.b, c.g * 0.56)));
 }
-/** a highlight shoulder: below 1 nothing changes; above, the brightest channel rolls off toward 2 and the others keep
- *  their ratio to it, so a hot core keeps its hue and its structure instead of clipping to a flat white disc */
+/** a highlight shoulder: below 1 nothing changes; above, the brightest channel rolls off toward 1.6 and the others
+ *  keep their ratio to it, so a hot core keeps its hue and its structure instead of clipping to a flat white disc (the
+ *  grade's ACES takes 1.6 to about 0.9: still a highlight, still its colour) */
 fn shoulder(c: vec3f) -> vec3f {
   let m = max(c.r, max(c.g, c.b));
   if (m <= 1.0) { return c; }
   let x = m - 1.0;
-  return c * ((1.0 + x / (1.0 + x)) / m);
+  return c * ((1.0 + 0.6 * (1.0 - exp(-x / 0.6))) / m);
 }
 /** temperature to colour, plasma: violet, magenta-pink, white-hot (docs/element-looks.md, 4) */
 fn plasmaRamp(T: f32) -> vec3f {
   let t = clamp(T, 0.0, 3.6);
   let c = vec3f(0.42, 0.10, 1.0) * 1.5 * t + vec3f(1.0, 0.30, 0.95) * 0.6 * t * t + vec3f(1.0) * 0.7 * t * t * t;
   // its hottest is violet-white, not white: red and green held under blue
-  return shoulder(vec3f(min(c.r, c.b * 0.92), min(c.g, c.b * 0.72), c.b));
+  return shoulder(vec3f(min(c.r, c.b * 0.82), min(c.g, c.b * 0.56), c.b));
 }
 
 /** how hot a flame is now: hot at birth, cooling fast at first (the core survives ~0.3 s), the tips fading quickly */
