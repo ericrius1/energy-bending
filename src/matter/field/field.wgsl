@@ -3,9 +3,9 @@
 // this file and call fieldWind / fieldHeat / fieldWet (and the reactions fieldSteam); nothing else to bind. The field
 // itself (field.ts, step.wgsl) moves the air and lays down every body's aura each frame, before the kinds' own steps.
 //
-// It is two 3D textures, sampled (not storage buffers: a simulation is near the eight-storage-buffers budget), and
+// It is three 3D textures, sampled (not storage buffers: a simulation is near the eight-storage-buffers budget), and
 // a small uniform with where the box is, in bind group 3, shared with the bodies (matter/core/body.wgsl): field.ts
-// re-shares group 3 with these three bindings added after the bodies' four. A shader that includes this file and
+// re-shares group 3 with these four bindings added after the bodies' four. A shader that includes this file and
 // uses it gets the whole of group 3, so its stages count the bodies' two storage buffers (joints, capsules) too.
 //
 // The scales: heat 1 is a flame body's surface, 0 the room, -1 an ice body's; wet 1 is a water body's surface, 0
@@ -24,9 +24,14 @@ struct FieldBox {
 // A: wind (m/s, world) in xyz, wet in w. B: the heat as two parts, hot (x) and cold (y), which advect and fade on their
 // own and cancel where they meet (ice melting by a flame); z: how much steam is being made here (reactions read it);
 // w: how dry the air is (plasma's aura boils wet away: 0.6 at a plasma body; reactions tell plasma from fire by it).
+// C: whose heat it is. x, y: the part of B's hot and cold that one dancer laid (its own, carried and faded with the air
+// like B's); z, w: those dancers' slots × x and × y (premultiplied, so a trilinear sample between a heated cell and a
+// calm one keeps the heated cell's slot, and between two dancers' cells gives each its share). One owner of the hot and
+// one of the cold per cell: whoever lays the most of it there (field/step.wgsl claim). fieldHeatFrom(p, d) reads it.
 @group(3) @binding(4) var fieldA: texture_3d<f32>;
 @group(3) @binding(5) var fieldB: texture_3d<f32>;
 @group(3) @binding(6) var<uniform> fieldBox: FieldBox;
+@group(3) @binding(7) var fieldC: texture_3d<f32>;
 
 /** p (world) in the grid's texture coordinates, and how far inside the box it is (0 outside … 1 a cell in) */
 fn fieldUvw(p: vec3f) -> vec4f {
@@ -59,6 +64,20 @@ fn fieldHeat(p: vec3f) -> f32 {
   if (u.w <= 0.0) { return 0.0; }
   let b = textureSampleLevel(fieldB, samp_linear, u.xyz, 0.0);
   return (b.x - b.y) * u.w;
+}
+/** how hot it is at p for dancer d's matter: fieldHeat less the heat and cold d's own body laid there (its own
+ *  flame doesn't boil its own water, its own ice doesn't freeze it). Heat from anyone else, carried on the air, the
+ *  CPU's deposits and a fusion's helix all count. Where the field holds two dancers' heat of the same sign in one cell
+ *  only the larger is told apart (cells are 18 cm): at a contact of two flames d sees the other's excess over its own */
+fn fieldHeatFrom(p: vec3f, d: u32) -> f32 {
+  let u = fieldUvw(p);
+  if (u.w <= 0.0) { return 0.0; }
+  let b = textureSampleLevel(fieldB, samp_linear, u.xyz, 0.0);
+  let c = textureSampleLevel(fieldC, samp_linear, u.xyz, 0.0);
+  // how much of this sample's own hot (cold) is d's: 1 in d's cells, a share between d's and another dancer's
+  let mineH = select(0.0, clamp(1.0 - abs(c.z / max(c.x, 1e-4) - f32(d)), 0.0, 1.0), c.x > 1e-4);
+  let mineC = select(0.0, clamp(1.0 - abs(c.w / max(c.y, 1e-4) - f32(d)), 0.0, 1.0), c.y > 1e-4);
+  return (max(b.x - c.x * mineH, 0.0) - max(b.y - c.y * mineC, 0.0)) * u.w;
 }
 /** how wet it is at p: 0 dry … 1 in water */
 fn fieldWet(p: vec3f) -> f32 {

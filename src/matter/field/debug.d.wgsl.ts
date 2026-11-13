@@ -55,5 +55,5 @@ export interface DOut {
   col: Vec3;
 }
 
-declare const shader: Shader<{ Frame: Frame; FieldBox: FieldBox; FieldSample: FieldSample; FieldDebug: FieldDebug; DOut: DOut }, 'frame' | 'fieldBox' | 'look' | 'fieldA' | 'fieldB' | 'samp_linear' | 'samp_repeat' | 'samp_nearest' | 'samp_shadow'>;
+declare const shader: Shader<{ Frame: Frame; FieldBox: FieldBox; FieldSample: FieldSample; FieldDebug: FieldDebug; DOut: DOut }, 'frame' | 'fieldBox' | 'look' | 'fieldA' | 'fieldB' | 'fieldC' | 'samp_linear' | 'samp_repeat' | 'samp_nearest' | 'samp_shadow'>;
 export default shader;

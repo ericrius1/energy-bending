@@ -44,5 +44,5 @@ export interface FieldSample {
   b: Vec4;
 }
 
-declare const shader: Shader<{ Frame: Frame; FieldBox: FieldBox; FieldSample: FieldSample }, 'frame' | 'fieldBox' | 'fieldA' | 'fieldB' | 'samp_linear' | 'samp_repeat' | 'samp_nearest' | 'samp_shadow'>;
+declare const shader: Shader<{ Frame: Frame; FieldBox: FieldBox; FieldSample: FieldSample }, 'frame' | 'fieldBox' | 'fieldA' | 'fieldB' | 'fieldC' | 'samp_linear' | 'samp_repeat' | 'samp_nearest' | 'samp_shadow'>;
 export default shader;

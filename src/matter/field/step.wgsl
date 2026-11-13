@@ -6,7 +6,11 @@
 // Heat and cold also radiate a faint tail past a body's near falloff (so the body beside it feels it: water thinning in
 // heat, ice melting, water freezing), a fast limb drags the air further (the wake behind a kick), plasma's dryness is
 // kept in B.w (reactions tell plasma from fire by it), and a fusion winds its two matters into a double helix.
-// It writes nextA and nextB; field.ts copies them over fieldA and fieldB before anything samples the field.
+// Whose heat it is goes in C: the dancer laying the most heat in a cell owns its hot, the one laying the most cold owns
+// its cold (a flame and an ice body touching: each its own), and the part of the cell's hot and cold that is its
+// owner's own is carried with the air beside B's (so water can tell its own flame's heat from a partner's: field.wgsl
+// fieldHeatFrom). The helix, the deposits and anything carried in from another owner's cells are nobody's own.
+// It writes nextA, nextB and nextC; field.ts copies them over fieldA, fieldB and fieldC before anything samples the field.
 //
 // Every rate is applied as 1 - exp(-rate dt), and the advection only ever samples, so the step is stable at any dt.
 #include "../core/body"
@@ -31,6 +35,9 @@ struct FieldSim {
    *  reaches further: reach × (1 + wake × speed) */
   radiate: f32, radiateLen: f32, wake: f32, dryDecay: f32,
   helix: Helix,
+  /** per dancer slot (d: [d / 4][d % 4]): 1 when its heat is nobody's own (a fused body: play/fusion.ts dresses both
+   *  dancers in one flame, and the water resting on its feet is meant to boil thin under it), 0 otherwise */
+  unowned: array<vec4f, 2>,
   /** per capsule slot (dancer × SEGS + capsule): heat (signed), wet, dry, how much it stirs the air */
   auras: array<vec4f, 256>,
   deposit: array<Deposit, FIELD_DEPOSITS>,
@@ -40,6 +47,7 @@ struct FieldSim {
 @group(1) @binding(0) var<uniform> sim: FieldSim;
 @group(1) @binding(1) var nextA: texture_storage_3d<rgba16float, write>;
 @group(1) @binding(2) var nextB: texture_storage_3d<rgba16float, write>;
+@group(1) @binding(3) var nextC: texture_storage_3d<rgba16float, write>;
 
 /** last frame's contents at p (world), zero outside last frame's box */
 fn prevAt(p: vec3f) -> FieldSample {
@@ -52,6 +60,28 @@ fn prevAt(p: vec3f) -> FieldSample {
   s.a = textureSampleLevel(fieldA, samp_linear, uvw, 0.0) * w;
   s.b = textureSampleLevel(fieldB, samp_linear, uvw, 0.0) * w;
   return s;
+}
+
+/** last frame's C (whose heat: field.wgsl) at p, zero outside last frame's box */
+fn prevC(p: vec3f) -> vec4f {
+  let size = fieldBox.dims * fieldBox.cell;
+  let uvw = (p - fieldBox.prev) / size;
+  let edge = min(min(uvw, 1.0 - uvw) * fieldBox.dims, vec3f(1.0));
+  let w = clamp(min(edge.x, min(edge.y, edge.z)), 0.0, 1.0);
+  if (w <= 0.0) { return vec4f(0.0); }
+  return textureSampleLevel(fieldC, samp_linear, uvw, 0.0) * w;
+}
+
+/** one half of C (hot or cold) in a cell: the owner's share carried here and its slot, against the dancer laying the
+ *  most this frame (its slot and level) and the cell's total after laying. The owner keeps the cell and lays its share
+ *  as the total takes it; another dancer takes the cell over once it lays more than the owner's carried share, and
+ *  claims the cell's heat up to what it lays (so its own matter doesn't see its own heat ramping up as someone else's).
+ *  Returns (share, owner) */
+fn claim(own: f32, owner: f32, bestD: u32, best: f32, total: f32, ka: f32) -> vec2f {
+  if (best <= 1e-3) { return vec2f(own, owner); }
+  if (own > 1e-4 && abs(owner - f32(bestD)) < 0.5) { return vec2f(own + max(best - own, 0.0) * ka, owner); }
+  if (best >= own) { return vec2f(min(total, best), f32(bestD)); }
+  return vec2f(own, owner);
 }
 
 /** the air a vortex source moves at p: round its axis, in toward it, up along it */
@@ -86,19 +116,23 @@ fn main(@builtin(global_invocation_id) id: vec3u) {
   let here = prevAt(back);
   var a = here.a;
   var b = here.b;
+  var c = prevC(back);
   // a little diffusion: toward the average of the six neighbours of where it came from
   var na = vec4f(0.0);
   var nb = vec4f(0.0);
+  var nc = vec4f(0.0);
   for (var k = 0u; k < 6u; k++) {
     var o = vec3f(0.0);
     o[k / 2u] = select(-cell, cell, (k & 1u) == 1u);
     let s = prevAt(back + o);
     na += s.a;
     nb += s.b;
+    nc += prevC(back + o);
   }
   let kd = 1.0 - exp(-sim.diffuse * dt);
   a = mix(a, na / 6.0, kd);
   b = mix(b, nb / 6.0, kd);
+  c = mix(c, nc / 6.0, kd);
 
   var wind = a.xyz;
   var wet = max(a.w, 0.0);
@@ -106,11 +140,18 @@ fn main(@builtin(global_invocation_id) id: vec3u) {
   var cold = max(b.y, 0.0);
   // B.w: how dry the air is (plasma's aura boils wet away): reactions tell plasma from fire by it
   var dry = max(b.w, 0.0);
+  // C: the owners' shares of hot and cold, and the owners (their slots, premultiplied by those shares)
+  var ownHot = max(c.x, 0.0);
+  var ownCold = max(c.y, 0.0);
+  var hotOwner = c.z / max(ownHot, 1e-4);
+  var coldOwner = c.w / max(ownCold, 1e-4);
 
   // ---------------------------------------------------------------- toward calm; heat meets cold; hot air rises
   wind *= exp(-sim.windDecay * dt);
   hot *= exp(-sim.hotDecay * dt);
   cold *= exp(-sim.coldDecay * dt);
+  ownHot *= exp(-sim.hotDecay * dt);
+  ownCold *= exp(-sim.coldDecay * dt);
   wet *= exp(-sim.wetDecay * dt);
   dry *= exp(-sim.dryDecay * dt);
   // where flame and ice share a cell they use each other up, and the ice melts into wet
@@ -127,6 +168,11 @@ fn main(@builtin(global_invocation_id) id: vec3u) {
   var coldT = 0.0;
   var wetT = 0.0;
   var dryT = 0.0;
+  // the dancers laying the most heat and the most cold here, and what they lay (whose heat: C)
+  var hotD = 0u;
+  var coldD = 0u;
+  var bestHot = 0.0;
+  var bestCold = 0.0;
   let reach = max(sim.reach, 1e-3);
   let tailLen = max(sim.radiateLen, 1e-3);
   // how far the radiant tail is worth following (where it falls under 1 % of its level)
@@ -134,6 +180,8 @@ fn main(@builtin(global_invocation_id) id: vec3u) {
   for (var d = 0u; d < bodies.dancers; d++) {
     // (a dancer is at most ~1.3 m from its hips to a raised fingertip)
     if (distance(p, joints[d * MAXJ].pos.xyz) > 1.5 + max(2.5 * reach * (1.0 + sim.wake * 8.0), tailMax)) { continue; }
+    var hotHere = 0.0;
+    var coldHere = 0.0;
     for (var s = 0u; s < sim.capsules; s++) {
       let slot = d * SEGS + s;
       let seg = segs[slot];
@@ -156,10 +204,17 @@ fn main(@builtin(global_invocation_id) id: vec3u) {
       let aura = sim.auras[slot];
       stirW += ws * aura.w;
       stirV += ws * aura.w * vel;
-      hotT = max(hotT, wr * max(aura.x, 0.0));
-      coldT = max(coldT, wr * max(-aura.x, 0.0));
+      hotHere = max(hotHere, wr * max(aura.x, 0.0));
+      coldHere = max(coldHere, wr * max(-aura.x, 0.0));
       wetT = max(wetT, w * aura.y);
       dryT = max(dryT, w * aura.z);
+    }
+    hotT = max(hotT, hotHere);
+    coldT = max(coldT, coldHere);
+    // (a fused body's heat is nobody's own: it lays the totals and claims nothing)
+    if (sim.unowned[d / 4u][d % 4u] < 0.5) {
+      if (hotHere > bestHot) { bestHot = hotHere; hotD = d; }
+      if (coldHere > bestCold) { bestCold = coldHere; coldD = d; }
     }
   }
   if (stirW > 1e-4) { wind = mix(wind, stirV / stirW, min(stirW, 1.0) * (1.0 - exp(-sim.drag * dt))); }
@@ -169,6 +224,13 @@ fn main(@builtin(global_invocation_id) id: vec3u) {
   wet += max(wetT - wet, 0.0) * ka;
   wet -= wet * dryT * ka;
   dry += max(dryT - dry, 0.0) * ka;
+  // whose (claim, above)
+  let ch = claim(ownHot, hotOwner, hotD, bestHot, hot, ka);
+  ownHot = ch.x;
+  hotOwner = ch.y;
+  let cc = claim(ownCold, coldOwner, coldD, bestCold, cold, ka);
+  ownCold = cc.x;
+  coldOwner = cc.y;
 
   // ---------------------------------------------------------------- the fusion's double helix
   var helixSteam = 0.0;
@@ -225,10 +287,14 @@ fn main(@builtin(global_invocation_id) id: vec3u) {
   cold = clamp(cold, 0.0, 4.0);
   wet = clamp(wet, 0.0, 4.0);
   dry = clamp(dry, 0.0, 2.0);
+  // the owner's share is never more than the cell holds (melting, the exchange and the fade take from both)
+  ownHot = clamp(ownHot, 0.0, hot);
+  ownCold = clamp(ownCold, 0.0, cold);
   // steam is made where heat meets wet, and (more) where a flame is melting ice; the faint overlap of two auras'
   // tails a metre apart makes none (a threshold), so steam marks where they really meet
   let contact = min(hot, 2.0) * min(wet, 2.0) + 2.0 * min(hot, cold);
   let steam = sim.steamGain * (max(contact - 0.06, 0.0) * 2.0 + met / max(dt, 1e-4) * 0.3) + helixSteam;
   textureStore(nextA, id, vec4f(wind, wet));
   textureStore(nextB, id, vec4f(hot, cold, steam, dry));
+  textureStore(nextC, id, vec4f(ownHot, ownCold, hotOwner * ownHot, coldOwner * ownCold));
 }

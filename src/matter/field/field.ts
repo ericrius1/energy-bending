@@ -5,8 +5,9 @@
 // of what that part wears (auras.ts, weighted by the loadout's share on that part and the dancer's power form).
 // On top go the CPU's point deposits (thrown streams, impacts) and vortex sources (the fusion's swirl).
 //
-// The grid is two rgba16float 3D textures in bind group 3, which this object re-shares with the bodies' buffers
-// (matter/core/bodies.ts made group 3 with four bindings; the field adds three), so a kind gets the field by
+// The grid is three rgba16float 3D textures in bind group 3 (wind and wet; heat, cold, steam and dryness; and whose
+// heat it is, so a body's own flame doesn't boil its own water: fieldHeatFrom), which this object re-shares with the
+// bodies' buffers (matter/core/bodies.ts made group 3 with four bindings; the field adds four), so a kind gets the field by
 // including field.wgsl. The box follows the dancers' middle in whole cells, so its contents never jump or blur
 // when it moves. A few points can be read back to the CPU (probe, updraft) a frame or three late.
 //
@@ -83,6 +84,9 @@ export interface FieldReading {
   wind: V3;
   /** signed: 1 flame, -1 ice */
   heat: number;
+  /** the heat as the probe's dancer's own matter feels it (fieldHeatFrom: less what that dancer laid itself); the
+   *  same as `heat` for a probe with no dancer */
+  others: number;
   wet: number;
   /** how fast steam is being made there */
   steam: number;
@@ -112,7 +116,7 @@ if (LIMITS.dancers * LIMITS.capsules !== AURA_SLOTS) throw new Error('field: ste
 const MAXD = LIMITS.fieldDeposits, MAXV = LIMITS.fieldVortices, MAXP = LIMITS.fieldProbes;
 const READ_BYTES = MAXP * 32;
 
-interface Probe { slot: number; at: V3; reading: FieldReading | null }
+interface Probe { slot: number; at: V3; from: number; reading: FieldReading | null }
 
 export class Field {
   /** the box's centre (m, world): the dancers' middle, moved in whole cells */
@@ -142,14 +146,18 @@ export class Field {
 
   private A: Texture;
   private B: Texture;
+  private C: Texture;
   private nextA: Texture;
   private nextB: Texture;
+  private nextC: Texture;
   private box: UniformBuffer<FieldBox>;
   private sim: UniformBuffer<FieldSim>;
   private probes: UniformBuffer<Probes>;
   private readings: StorageBuffer;
   private boxData = { origin: [0, 0, 0] as V3, cell: 0, prev: [0, 0, 0] as V3, on: 0, dims: [0, 0, 0] as V3, pad: 0 };
   private auras = new Float32Array(AURA_SLOTS * 4);
+  /** per dancer slot: 1 when it wears a fusion's flame (its heat is nobody's own: FieldSim.unowned) */
+  private unowned: Vec4[] = [[0, 0, 0, 0], [0, 0, 0, 0]];
   private pending: Deposit[] = [];
   private recent: Deposit[] = [];
   private dropped = 0;
@@ -191,6 +199,8 @@ export class Field {
     this.B = tex('field.b', ['sample', 'copy-dst']);
     this.nextA = tex('field.a.next', ['storage', 'copy-src']);
     this.nextB = tex('field.b.next', ['storage', 'copy-src']);
+    this.C = tex('field.c', ['sample', 'copy-dst']);
+    this.nextC = tex('field.c.next', ['storage', 'copy-src']);
     this.box = kit.uniforms(fieldShader.structs.FieldBox, 'field.box');
     this.sim = kit.uniforms(stepShader.structs.FieldSim, 'field.sim');
     this.probes = kit.uniforms(probeShader.structs.Probes, 'field.probes');
@@ -200,13 +210,14 @@ export class Field {
 
     // group 3 as every matter shader sees it: the bodies' buffers and the field (see the opening note)
     const b = o.bodies;
-    kit.shareGroup(3, groupShader, { joints: b.joints, segs: b.segs, bodies: b.bodies, touch: b.touch, fieldA: this.A, fieldB: this.B, fieldBox: this.box }, 'bodies+field');
+    kit.shareGroup(3, groupShader, { joints: b.joints, segs: b.segs, bodies: b.bodies, touch: b.touch, fieldA: this.A, fieldB: this.B, fieldBox: this.box, fieldC: this.C }, 'bodies+field');
 
     const [X, Y, Z] = this.dims;
-    const step = kit.compute(stepShader, { label: 'field.step', threads: [X, Y, Z], bind: { sim: this.sim, nextA: this.nextA, nextB: this.nextB } });
+    const step = kit.compute(stepShader, { label: 'field.step', threads: [X, Y, Z], bind: { sim: this.sim, nextA: this.nextA, nextB: this.nextB, nextC: this.nextC } });
     const copy: RawItem = kit.raw((enc) => {
       enc.copyTextureToTexture({ texture: this.nextA.gpu }, { texture: this.A.gpu }, [X, Y, Z]);
       enc.copyTextureToTexture({ texture: this.nextB.gpu }, { texture: this.B.gpu }, [X, Y, Z]);
+      enc.copyTextureToTexture({ texture: this.nextC.gpu }, { texture: this.C.gpu }, [X, Y, Z]);
     }, 'field.copy');
     const probe = kit.compute(probeShader, { label: 'field.probe', threads: [MAXP], bind: { probes: this.probes, readings: this.readings }, enabled: () => this.probeMap.size > 0 });
     const readCopy = kit.raw((enc) => {
@@ -242,16 +253,18 @@ export class Field {
   }
 
   /** watch the field at p (a named probe, moved each call) and return the last reading there: one to three frames
-   *  late (reading.frame says when), null until the first comes back. Up to LIMITS.fieldProbes names at once */
-  probe(id: string, p: V3): FieldReading | null {
+   *  late (reading.frame says when), null until the first comes back. Up to LIMITS.fieldProbes names at once.
+   *  `from`: a dancer slot, whose matter the probe stands for (`reading.others`: the heat less that dancer's own) */
+  probe(id: string, p: V3, from = -1): FieldReading | null {
     let pr = this.probeMap.get(id);
     if (!pr) {
       const used = new Set([...this.probeMap.values()].map((x) => x.slot));
       let slot = 0;
       while (used.has(slot)) slot++;
       if (slot >= MAXP) throw new Error(`field: more than ${MAXP} probes`);
-      this.probeMap.set(id, (pr = { slot, at: [...p], reading: null }));
+      this.probeMap.set(id, (pr = { slot, at: [...p], from, reading: null }));
     }
+    pr.from = from;
     pr.at[0] = p[0]; pr.at[1] = p[1]; pr.at[2] = p[2];
     return pr.reading;
   }
@@ -316,6 +329,7 @@ export class Field {
       buoyancy: P.buoyancy, sink: P.sink, drag: P.drag, auraRate: P.auraRate, reach: P.reach, exchange: P.exchange,
       melt: P.melt, steamGain: P.steamGain, windMax: P.windMax, vortexRate: P.vortexRate, auras: this.auras,
       radiate: P.radiate, radiateLen: P.radiateLen, wake: P.wake, dryDecay: P.dryDecay, helix: this.helixData,
+      unowned: this.unowned,
     });
   }
 
@@ -344,11 +358,15 @@ export class Field {
   /** each capsule slot's aura: the layers worn on its part, by share, at the dancer's form */
   private layAuras(f: FrameCtx, D: number) {
     this.auras.fill(0);
+    for (const u of this.unowned) u.fill(0);
     const perPart = new Map<BodyPart, [number, number, number, number]>();
     for (let d = 0; d < D; d++) {
       if (!this.inWorld(d)) continue;   // in another world: no aura here, not even a stir
       const forced = this.auraOverride[d];
       const layers: readonly LoadoutLayer[] = forced ? [{ kind: forced, share: 1 }] : f.dancers[d].loadout.layers;
+      // a fused body's heat is nobody's own, so the water resting on its feet boils thin under its own flame as well as
+      // under the partner's (whose heat: step.wgsl claim)
+      if (layers.some((l) => l.params?.fusion)) this.unowned[d >> 2][d & 3] = 1;
       for (const part of BODY_PARTS) {
         let total = 0;
         const acc: [number, number, number, number] = [0, 0, 0, 0];
@@ -408,7 +426,7 @@ export class Field {
     this.lastVortices = vortex.length;
     this.sim.set({ deposits: deposit.length, vortices: vortex.length, ...(deposit.length ? { deposit } : {}), ...(vortex.length ? { vortex } : {}) });
     if (this.probeMap.size) {
-      for (const p of this.probeMap.values()) this.probePoints.set([p.at[0], p.at[1], p.at[2], 0], p.slot * 4);
+      for (const p of this.probeMap.values()) this.probePoints.set([p.at[0], p.at[1], p.at[2], p.from], p.slot * 4);
       this.probes.set({ at: this.probePoints, count: Math.max(...[...this.probeMap.values()].map((p) => p.slot)) + 1 });
       this.copiedIds = new Array(MAXP).fill(null);
       for (const [id, p] of this.probeMap) this.copiedIds[p.slot] = id;
@@ -430,7 +448,7 @@ export class Field {
         const p = id ? this.probeMap.get(id) : undefined;
         if (!p || p.slot !== i) return;
         const o = i * 8;
-        p.reading = { wind: [r[o], r[o + 1], r[o + 2]], heat: r[o + 4], wet: r[o + 5], steam: r[o + 6], up: r[o + 7], frame };
+        p.reading = { wind: [r[o], r[o + 1], r[o + 2]], heat: r[o + 4], others: r[o + 3], wet: r[o + 5], steam: r[o + 6], up: r[o + 7], frame };
       });
     }, () => { this.busy[slot] = false; });
   }
