@@ -79,6 +79,7 @@ export class Woods {
     sunDisc: [0, 1, 0, 0], moonDisc: [0, 1, 0, 0], shade: [0, 0, 0, GAP], mist: [0, 0, 0, 0], air: [3.8, 1, 0.5, 24],
     lampCol: [3.2, 1.75, 0.7, 0], clock: [0, 1, 1, RING],
     rim: [0, 0, 0, 0], march: [15, 0.008, 0, 0], stageLog: [0, 0, 0, 0], stagePlate: [0, 0, 0, 0],
+    gate: [0, 0, 0, 0], near: [0, 0, 0, 0], dancers: new Float32Array(16), kicks: new Float32Array([0, 0, 0, -99, 0, 0, 0, -99, 0, 0, 0, -99, 0, 0, 0, -99]),
     lamps: this.lamps, anchors: this.anchors, trunks: new Float32Array(MAXTRUNK * 4),
   };
 
@@ -144,8 +145,10 @@ export class Woods {
       const x = L.anchor[0] + Math.sin(L.ax) * L.cord, z = L.anchor[2] + Math.sin(L.az) * L.cord;
       const y = L.anchor[1] - Math.cos(Math.hypot(L.ax, L.az)) * L.cord;
       const on = smooth(L.at + 1.2, L.at - 1.2, el);
-      // a candle: a little flicker always, a stutter as it catches
-      const flick = 1 + 0.05 * Math.sin(t * 13 + L.seed) * Math.sin(t * 7.7 + L.seed * 2);
+      // a candle: a slow breathing, a quicker waver, and now and then a gutter as a draught catches it
+      const s = L.seed;
+      const gutter = Math.max(0, Math.sin(t * 0.37 + s * 3.1) * Math.sin(t * 0.23 + s * 1.3) - 0.55) * 1.6;
+      const flick = 1 + 0.045 * Math.sin(t * 2.3 + s) + 0.035 * Math.sin(t * 7.9 + s * 2) * Math.sin(t * 5.3 + s * 4) + 0.025 * Math.sin(t * 17.1 + s * 6) - 0.25 * gutter * (0.6 + 0.4 * Math.sin(t * 21 + s));
       const catching = on > 0 && on < 1 ? 0.6 + 0.4 * Math.abs(Math.sin(t * 23 + L.seed * 5)) : 1;
       this.lamps.set([x, y, z, on * flick * catching * p.lanterns], k * 4);
       this.anchors.set([L.anchor[0], L.anchor[1], L.anchor[2], L.size], k * 4);

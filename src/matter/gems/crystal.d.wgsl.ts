@@ -193,6 +193,10 @@ export interface Forest {
   march: Vec4;
   stageLog: Vec4;
   stagePlate: Vec4;
+  gate: Vec4;
+  near: Vec4;
+  dancers: ArrayLike<number> | Vec4[];
+  kicks: ArrayLike<number> | Vec4[];
   lamps: ArrayLike<number> | Vec4[];
   anchors: ArrayLike<number> | Vec4[];
   trunks: ArrayLike<number> | Vec4[];
@@ -225,6 +229,9 @@ export interface Temple {
   stone: Vec4;
   fire: Vec4;
   march: Vec4;
+  tide: Vec4;
+  glitter: Vec4;
+  tide2: Vec4;
   lights: ArrayLike<number> | Vec4[];
   glow: ArrayLike<number> | Vec4[];
   cols: ArrayLike<number> | Vec4[];

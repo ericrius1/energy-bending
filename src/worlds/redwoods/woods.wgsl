@@ -33,6 +33,9 @@ fn groundAt(p: vec3f, uv: vec2f, dx: vec2f, dy: vec2f) -> vec3f {
   ao *= mix(0.35, 1.0, smoothstep(-0.1, 1.2, off));
   duff = max(duff, smoothstep(1.0, 0.0, off) * 0.7);
   albedo = mix(albedo, albedo * vec3f(0.85, 0.6, 0.45), duff * 0.55);
+  // the path from the gate: trodden bare, the moss worn through to dark earth and needles
+  let worn = pathAt(p.xz);
+  albedo = mix(albedo, vec3f(0.07, 0.045, 0.03) * (0.7 + 0.6 * vnoise2(p.xz * 6.0)), worn * 0.85);
   let open = smoothstep(worldLight.forest.clock.w * 0.85, worldLight.forest.clock.w * 0.3, length(p.xz));
   albedo *= mix(vec3f(1.0), vec3f(0.9, 1.08, 0.82), open * 0.5);
   let up = vec3f(0.0, 1.0, 0.0);
@@ -50,10 +53,14 @@ fn groundAt(p: vec3f, uv: vec2f, dx: vec2f, dy: vec2f) -> vec3f {
   let dy = dpdy(uv);
   var c = vec3f(0.0);
   var depth = 400.0;
+  // the wood going on into the mist, trunk after trunk (what the far ground and the low sky both become: the same
+  // colour and distance either side of the horizon, so nothing drawn over it with its own distance shows a seam there)
+  let far = worldLight.forest.mist.rgb * 1.1 + worldLight.forest.shade.rgb * vec3f(0.12, 0.16, 0.18);
   if (d.y < -1e-4) {
     let p = cam + d * tg;
-    depth = tg * dot(d, frame.camFwd);
-    c = groundAt(p, uv, dx, dy);
+    depth = min(tg, 140.0) * dot(d, frame.camFwd);
+    c = far;
+    if (tg < 140.0) { c = mix(groundAt(p, uv, dx, dy), far, smoothstep(50.0, 140.0, tg)); }
   } else {
     // the canopy's underside overhead, or the sky through a gap in it
     let H = worldLight.forest.keyCol.w;
@@ -67,8 +74,7 @@ fn groundAt(p: vec3f, uv: vec2f, dx: vec2f, dy: vec2f) -> vec3f {
     let leaves = (worldLight.forest.shade.rgb * 0.05 + worldLight.forest.keyCol.rgb * worldLight.forest.key.w * (0.0015 + 0.025 * through + 0.008 * fleck)) * vec3f(0.5, 0.8, 0.35);
     c = mix(sky, leaves, dens);
     depth = mix(400.0, min(t, 400.0), step(0.5, dens)) * dot(d, frame.camFwd);
-    // low down, the wood goes on: trunk after trunk into the mist (darker the lower you look)
-    let far = worldLight.forest.mist.rgb * 1.1 + worldLight.forest.shade.rgb * vec3f(0.12, 0.16, 0.18);
+    // low down, the wood goes on: trunk after trunk into the mist
     let level = smoothstep(0.42, 0.08, d.y);
     c = mix(c, far, level);
     depth = mix(depth, 140.0 * dot(d, frame.camFwd), level);

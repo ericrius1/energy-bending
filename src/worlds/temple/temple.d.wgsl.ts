@@ -14,6 +14,9 @@ export interface Temple {
   stone: Vec4;
   fire: Vec4;
   march: Vec4;
+  tide: Vec4;
+  glitter: Vec4;
+  tide2: Vec4;
   lights: ArrayLike<number> | Vec4[];
   glow: ArrayLike<number> | Vec4[];
   cols: ArrayLike<number> | Vec4[];

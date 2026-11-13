@@ -2,6 +2,8 @@
 // each frond a rachis with sixteen pairs of narrow pinnae, swaying at the tips. And the redwoods' own foliage (vs_spray):
 // flat sprays of needles along the limbs the lanterns hang from, cards whose comb of needles is drawn in the fragment
 // and cut out sample by sample (the colour's alpha carries the view distance, so the coverage goes in the sample mask).
+// And what grows on the stage's logs (vs_epi): licorice ferns hanging from the moss along the boughs and down the fallen
+// log's flanks, shelf fungus stepping along its sides.
 #include "weft/frame"
 #include "../light"
 
@@ -209,5 +211,99 @@ struct SprayOut { @location(0) c: vec4f, @builtin(sample_mask) mask: u32 }
   let fresh = mix(1.0, 2.2, smoothstep(0.55, 1.0, x)) * (0.8 + 0.4 * i.seed);
   let c = (i.col + i.key * (diff + through)) * fresh;
   o.c = vec4f(c, dot(i.wp - frame.camPos, frame.camFwd));
+  return o;
+}
+
+// ---------------------------------------------------------------- what grows on the stage's logs
+
+/** a piece of the stage's logs (stage.ts, as trunks.wgsl reads it) */
+struct Piece { a: vec4f, b: vec4f, ends: vec4f, kind: vec4f }
+@group(1) @binding(1) var<storage, read> stage: array<Piece>;
+override EFIRST: u32 = 0u;   // the first piece these grow on
+override PER: u32 = 4u;      // how many on each piece
+
+/** licorice ferns along the boughs and down the fallen log's sides, hanging from the moss, and on the log shelf
+ *  fungus, brackets stepping along its flank. Each instance one of them, at a hashed place round its piece: a frond is
+ *  a drooping rachis with seven pairs of leaflets (60 vertices), a bracket a half-disc shelf with a rolled rim */
+@vertex fn vs_epi(@builtin(vertex_index) vi: u32, @builtin(instance_index) ii: u32) -> LOut {
+  var o: LOut;
+  o.pos = vec4f(2.0, 2.0, 2.0, 1.0);
+  let pc = stage[EFIRST + ii / PER];
+  let h = rnd3(ii * 23u + 7u);
+  let h2 = rnd3(ii * 41u + 3u);
+  let ax = pc.b.xyz - pc.a.xyz;
+  let len = length(ax);
+  let dir = ax / max(len, 1e-4);
+  let side = normalize(cross(dir, vec3f(0.0, 1.0, 0.0)) + vec3f(1e-4, 0.0, 0.0));
+  let upP = cross(side, dir);
+  let s = (f32(ii % PER) + h.x) / f32(PER);
+  let r = mix(pc.a.w, pc.b.w, s);
+  let big = r > 0.5;
+  // round its top (a bough), or down its flanks (the log, whose top is a ledge for the feet)
+  var phi = (h.y - 0.5) * 2.0 * 1.1;
+  if (big) { phi = select(-1.0, 1.0, h.y > 0.5) * mix(0.85, 1.75, h.z); }
+  let nS = upP * cos(phi) + side * sin(phi);
+  let base = pc.a.xyz + dir * len * s + nS * r * 0.97;
+  if (!onScreen(base, 0.5) || base.y < 0.03) { return o; }
+  let t = worldLight.forest.clock.x;
+  let wind = windAt(base.xz, t + h.x * 3.0) * 0.5;
+  let fungus = big && h2.x < 0.6 && abs(phi) > 1.1;
+  if (fungus) {
+    // a bracket: a half-disc out from the bark, level, its top domed a little, its rim rolled under
+    let out = normalize(vec3f(nS.x, 0.0, nS.z) + vec3f(1e-4, 0.0, 0.0));
+    let along = normalize(cross(vec3f(0.0, 1.0, 0.0), out));
+    let rad = 0.05 + 0.09 * h2.y;
+    let k = vi % 30u;
+    let tri = k / 3u;
+    let c = k % 3u;
+    var ang = f32(tri) / 10.0 * 3.14159265;
+    var u = 1.0;
+    if (c == 0u) { u = 0.0; } else if (c == 2u) { ang = f32(tri + 1u) / 10.0 * 3.14159265; }
+    let rd = along * cos(ang) + out * sin(ang);
+    var p = base + rd * rad * u + vec3f(0.0, rad * 0.25 * (1.0 - u * u), 0.0);
+    var n = normalize(vec3f(0.0, 1.0, 0.0) + rd * 0.35 * u);
+    if (vi >= 30u) {
+      // the rim, rolled under
+      p = base + rd * rad * (0.85 + 0.15 * u) - vec3f(0.0, rad * 0.18 * u, 0.0);
+      n = rd;
+    }
+    let tint = mix(vec3f(0.42, 0.24, 0.1), vec3f(0.55, 0.42, 0.26), h2.z);
+    o.uv = vec2f(0.0, 0.0);
+    o.seed = h2.z;
+    light(&o, tint * mix(0.6, 1.0, u), p, n, 0.8);
+    return o;
+  }
+  // a frond: out of the moss, arching over and hanging down (licorice ferns droop from a limb)
+  let L = (0.16 + 0.2 * h2.y) * select(1.0, 0.7, big);
+  let out = normalize(nS * 0.8 + dir * (h2.z - 0.5) * 0.9 + vec3f(0.0, 0.1, 0.0));
+  let across = normalize(cross(out, vec3f(0.0, 1.0, 0.0)) + vec3f(0.0, 0.0, 1e-4));
+  let green = mix(vec3f(0.03, 0.08, 0.015), vec3f(0.06, 0.12, 0.02), h2.z);
+  if (vi < 18u) {
+    // the rachis: three quads
+    let c = QUAD[vi % 6u];
+    let f = f32(vi / 6u + c.y) / 3.0;
+    let p = base + out * L * f + vec3f(wind.x, -1.3 * L * f * f, wind.y) * f;
+    o.uv = vec2f(f, 0.0);
+    o.seed = h2.x;
+    light(&o, green * 0.7, p + across * select(-0.003, 0.003, c.x == 1u), normalize(cross(across, out)), 0.7);
+    return o;
+  }
+  // the leaflets: seven pairs, each a triangle off the rachis, shorter towards the tip
+  let l = vi - 18u;
+  let j = l / 6u;
+  let sgn = select(-1.0, 1.0, ((l / 3u) & 1u) == 1u);
+  let corner = l % 3u;
+  let f = 0.15 + 0.8 * (f32(j) + 0.5) / 7.0;
+  let at = base + out * L * f + vec3f(wind.x, -1.3 * L * f * f, wind.y) * f;
+  let tangent = normalize(out + vec3f(0.0, -2.6 * L * f, 0.0));
+  let leaf = L * 0.26 * (1.0 - f * 0.7);
+  let span = normalize(across * sgn + tangent * 0.35);
+  var p = at;
+  var u = 0.0;
+  if (corner == 1u) { p = at + span * leaf; u = 1.0; }
+  else if (corner == 2u) { p = at + tangent * leaf * 0.32; u = 0.2; }
+  o.uv = vec2f(f, u);
+  o.seed = h2.x;
+  light(&o, mix(green, green * 1.7, u), p, normalize(cross(span, tangent) + vec3f(0.0, 0.3, 0.0)), mix(0.6, 1.0, u));
   return o;
 }

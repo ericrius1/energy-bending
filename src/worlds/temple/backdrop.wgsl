@@ -47,21 +47,25 @@ fn flagAt(xz: vec2f) -> Flag {
     let f = flagAt(p.xz);
     t = (f.h - cam.y) / d.y;
     p = cam + d * t;
-    // the stone: worn, mottled, darker in the joints and in the cracks some flags have; a carved ring round the middle
+    // the stone: worn, each flag its own shade, grainy, darker in the joints and in the cracks some flags have; a carved
+    // ring round the middle, worn faint where the feet and the sea have gone over it most
     let n1 = fbm(vec3f(p.xz * 0.9, 1.0) + f.id.x * 3.1 + f.id.y * 7.3);
-    var albedo = worldLight.temple.stone.rgb * (0.6 + 0.4 * n1) * (0.8 + 0.3 * hash2i(vec2i(f.id) + vec2i(3, 5)));
+    let grain = vnoise2(p.xz * 37.0);
+    var albedo = worldLight.temple.stone.rgb * (0.78 + 0.22 * n1) * (0.82 + 0.26 * hash2i(vec2i(f.id) + vec2i(3, 5))) * (0.93 + 0.12 * grain);
     let joint = smoothstep(0.035, 0.008, f.edge);
     let crackN = abs(vnoise2(p.xz * 1.7 + f.id * 11.0) - 0.5);
     let crack = smoothstep(0.03, 0.0, crackN) * step(0.7, hash2i(vec2i(f.id) + vec2i(9, 2)));
     let r = length(p.xz);
     let ring = smoothstep(0.035, 0.0, abs(r - 5.3)) + smoothstep(0.035, 0.0, abs(r - 6.1));
     let ang = atan2(p.z, p.x) * 5.7 / 0.8;
-    let key = select(0.0, smoothstep(0.06, 0.02, templeMeander(ang, (r - 5.38) / 0.64)), r > 5.38 && r < 6.02);
+    let worn = smoothstep(0.3, 0.7, vnoise2(p.xz * 1.3 + 7.0));
+    let key = select(0.0, smoothstep(0.06, 0.02, templeMeander(ang, (r - 5.38) / 0.64)), r > 5.38 && r < 6.02) * (0.3 + 0.7 * worn);
     let groove = max(max(joint, crack), max(ring, key) * 0.8);
     albedo *= 1.0 - 0.6 * groove;
-    // weed and moss in the joints, and the floor always wet
+    // weed and moss in the joints; wet and dark where the water is or lately was, and the low flags holding puddles
     albedo = mix(albedo, vec3f(0.03, 0.045, 0.025), joint * 0.6);
-    albedo *= 0.62;
+    let wet = max(templeWet(f.h), smoothstep(-0.008, -0.022, f.h) * 0.8);
+    albedo *= mix(0.86, 0.6, wet);
     let shadow = templeShadow(p + vec3f(0.0, 0.02, 0.0));
     let diff = max(worldLight.temple.moon.y, 0.0);
     col = albedo * (moonL * diff * shadow + templeAmbient(up, 1.0 - groove * 0.6, p, 1.0));
@@ -69,8 +73,9 @@ fn flagAt(xz: vec2f) -> Flag {
     let n = normalize(vec3f((hash2i(vec2i(f.id) + vec2i(1, 1)) - 0.5) * 0.04, 1.0, (hash2i(vec2i(f.id) + vec2i(2, 2)) - 0.5) * 0.04));
     let R = reflect(d, n);
     let fres = 0.03 + 0.97 * pow(1.0 - max(-d.y, 0.0), 5.0);
-    col += templeSky(normalize(vec3f(R.x, abs(R.y), R.z)), 0.0) * fres * 0.1 * (1.0 - groove) * worldLight.temple.stone.w;
-    col += moonL * pow(max(dot(R, worldLight.temple.moon.xyz), 0.0), 120.0) * 0.8 * shadow * (1.0 - groove) * worldLight.temple.stone.w;
+    let gloss = (1.0 - groove) * worldLight.temple.stone.w * mix(0.25, 1.0, wet);
+    col += templeSky(normalize(vec3f(R.x, abs(R.y), R.z)), 0.0) * fres * 0.1 * gloss;
+    col += moonL * pow(max(dot(R, worldLight.temple.moon.xyz), 0.0), mix(30.0, 120.0, wet)) * mix(0.25, 0.8, wet) * shadow * gloss;
     col = templeUnder(col, p, albedo * moonL * diff * shadow);
   } else {
     // the sea bed: rippled sand and stones, far down

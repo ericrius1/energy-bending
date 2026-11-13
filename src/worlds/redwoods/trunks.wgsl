@@ -5,7 +5,7 @@
 // limbs in less. Moss on the shaded foot, an old fire scar on some, lost up in the dark of the canopy.
 // The stage's logs (stage.ts: the fallen giant, its root plate, the two boughs) are chains of tapered capsules in the
 // same bark (vs_stage), their ends round, cut flat, broken or torn: a broken end shows the red heartwood and its
-// rings, the root plate's face the earth it tore up.
+// rings round a hollow rotted out of its heart, the root plate's face the earth it tore up. Moss cushions their tops.
 #include "weft/frame"
 #include "../light"
 
@@ -27,10 +27,12 @@ struct StageLog {
   a: vec4f,      // one end; w: its radius
   b: vec4f,      // the other; w: its radius
   ends: vec4f,   // x, y: each end round (0), flat (1), broken (2) or torn (3); z: how far along its chain it starts (m); w: a seed
-  kind: vec4f,   // x: 0 bark, 1 a root plate (earth on its faces)
+  kind: vec4f,   // x: 0 bark, 1 a root plate (earth on its faces); y: how many times the bark goes round its chain; z: the chain's seed
 }
 @group(1) @binding(3) var<storage, read> stage: array<StageLog>;
 override CAPR: u32 = 4u;
+/** the first piece this draw makes (the big pieces and the boughs are drawn at two levels of detail) */
+override SFIRST: u32 = 0u;
 
 struct VOut {
   @builtin(position) pos: vec4f,
@@ -42,6 +44,7 @@ struct VOut {
   @location(5) @interpolate(flat) seed: f32,
   @location(6) @interpolate(flat) limb: f32,
   @location(7) end: vec2f,   // x: 0 bark, 1 a cut or broken end (heartwood), 2 a root plate's face (earth); y: out from the middle (0 to 1)
+  @location(8) @interpolate(flat) stageP: f32,   // 1 a stage log (moss on its top), 0 a tree
 }
 
 // metres of bark the texture spans round a trunk, and up it
@@ -95,6 +98,7 @@ fn profile(s: f32, len: f32, r0: f32, sh: vec4f, a: f32) -> f32 {
   o.seed = L.shape.w;
   o.limb = select(1.0, 0.0, trunk);
   o.end = vec2f(0.0);
+  o.stageP = 0.0;
   o.pos = frame.viewProj * vec4f(wp, 1.0);
   return o;
 }
@@ -108,7 +112,7 @@ fn profile(s: f32, len: f32, r0: f32, sh: vec4f, a: f32) -> f32 {
   let side = quad % SIDES + c.x;
   let ring = quad / SIDES + c.y;
   let ringQ = quad / SIDES;
-  let L = stage[ii];
+  let L = stage[SFIRST + ii];
   let ax = L.b.xyz - L.a.xyz;
   let len = length(ax);
   let dir = ax / max(len, 1e-4);
@@ -149,6 +153,11 @@ fn profile(s: f32, len: f32, r0: f32, sh: vec4f, a: f32) -> f32 {
   r *= 1.0 + torn * (0.22 * (vnoise2(vec2f(a * 2.0, L.ends.w * 50.0)) - 0.5) + 0.12 * (vnoise2(vec2f(a * 6.0, 3.0)) - 0.5));
   if (cap > 1.5 && cap < 2.5 && endN != 0.0) {
     bulge += endN * r0 * (0.6 * (vnoise2(vec2f(a * 1.7 + L.ends.w * 30.0, rf * 3.0)) - 0.35) * (1.0 - rf * 0.4));
+    // a big log's heart has rotted out: a hollow running back into it, its mouth ragged
+    if (r0 > 0.5) {
+      let mouth = 0.62 + 0.06 * (vnoise2(vec2f(a * 2.5, 7.0)) - 0.5);
+      bulge -= endN * r0 * 1.6 * smoothstep(mouth, mouth * 0.25, rf);
+    }
   }
   let wp = L.a.xyz + dir * (s + bulge) + radial * r;
   var n = radial;
@@ -157,14 +166,16 @@ fn profile(s: f32, len: f32, r0: f32, sh: vec4f, a: f32) -> f32 {
   } else {
     n = normalize(radial - dir * (L.b.w - L.a.w) / max(len, 1e-3));
   }
-  let tiles = max(1.0, round(6.2831853 * max(L.a.w, 0.05) / BARK_W));
-  o.uv = vec2f(f32(side) / f32(SIDES) * tiles + L.ends.w * 7.0, -(L.ends.z + s) / BARK_H + L.ends.w * 3.0);
+  let tiles = max(1.0, L.kind.y);
+  // (a chain's bark runs on from piece to piece: the same turn round it, the length along it carried on)
+  o.uv = vec2f(f32(side) / f32(SIDES) * tiles + L.kind.z * 7.0, -(L.ends.z + s) / BARK_H + L.kind.z * 3.0);
   o.wp = wp;
   o.n = n;
   o.around = -b1 * sin(a) + b2 * cos(a);
   o.ang = a;
   o.seed = L.ends.w;
   o.limb = 1.0;
+  o.stageP = 1.0;
   let cut = select(0.0, 1.0, cap > 0.5 && part != 0.0);
   o.end = vec2f(select(cut, 2.0, L.kind.x > 0.5 && part != 0.0), rf);
   o.pos = frame.viewProj * vec4f(wp, 1.0);
@@ -196,6 +207,17 @@ fn bark(i: VOut) -> vec4f {
   albedo *= 1.0 - 0.3 * low;
   let mossy = smoothstep(0.55, 0.85, vnoise(i.wp * 2.3) * 0.45 + vnoise(i.wp * 7.1) * 0.2 + max(-N0.z, 0.0) * 0.3 + low * 0.3 + i.limb * 0.25) * smoothstep(5.0, 0.6, y + i.limb * -6.0);
   albedo = mix(albedo, vec3f(0.035, 0.07, 0.016) * (0.5 + 0.9 * hs.r), mossy * 0.75);
+  // a stage log's top: a cushion of moss, thick where the rain sits, in patches with the bark between, fresher at its
+  // tips; on the fallen giant, grey-green lichen down its sides and dark rot where it lies in the wet
+  if (i.stageP > 0.5 && i.end.x < 0.5) {
+    let patchy = vnoise(i.wp * 3.1) * 0.6 + vnoise(i.wp * 11.0) * 0.4;
+    let top = smoothstep(0.35, 0.85, N0.y + (patchy - 0.5) * 0.7);
+    let moss = mix(vec3f(0.03, 0.06, 0.012), vec3f(0.09, 0.14, 0.025), smoothstep(0.4, 0.9, vnoise(i.wp * 23.0))) * (0.6 + 0.6 * hs.r);
+    albedo = mix(albedo, moss, top * 0.9);
+    let side = smoothstep(0.55, 0.75, vnoise(i.wp * 5.3 + 3.0)) * (1.0 - abs(N0.y)) * step(0.5, y + 0.5) * step(y, 1.6);
+    albedo = mix(albedo, vec3f(0.12, 0.13, 0.1) * (0.7 + 0.5 * hs.r), side * 0.25);
+    albedo *= 1.0 - 0.5 * smoothstep(0.35, 0.05, y) * smoothstep(0.0, -0.5, N0.y);
+  }
   // an old fire scar, blackened, up one side of some of the trunks
   if (i.limb < 0.5 && fract(i.seed * 7.31) > 0.55) {
     let toward = abs(atan2(sin(i.ang - i.seed * 40.0), cos(i.ang - i.seed * 40.0)));
@@ -209,6 +231,10 @@ fn bark(i: VOut) -> vec4f {
     if (i.end.x < 1.5) {
       albedo = mix(vec3f(0.36, 0.13, 0.06), vec3f(0.22, 0.07, 0.035), rings) * (0.55 + 0.45 * vnoise(i.wp * 9.0));
       albedo = mix(albedo, vec3f(0.06, 0.035, 0.02), smoothstep(0.2, 0.0, i.end.y) * 0.7);
+      // a hollow end: punky brown rot round its mouth, darkening to black down it (the light doesn't get in)
+      let hollow = smoothstep(0.66, 0.5, i.end.y) * step(0.5, i.stageP);
+      albedo = mix(albedo, vec3f(0.07, 0.035, 0.018) * (0.6 + 0.8 * vnoise(i.wp * 17.0)), hollow);
+      albedo *= mix(1.0, 0.05, smoothstep(0.55, 0.15, i.end.y) * step(0.5, i.stageP));
     } else {
       albedo = mix(vec3f(0.07, 0.05, 0.03), vec3f(0.16, 0.1, 0.06), vnoise(i.wp * 5.0)) * (0.6 + 0.4 * smoothstep(0.6, 0.8, vnoise(i.wp * 14.0)));
     }

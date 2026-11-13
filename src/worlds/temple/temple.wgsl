@@ -23,6 +23,11 @@ struct Temple {
   stone: vec4f,     // the stone's colour; w: how glossy it is wet
   fire: vec4f,      // x: how far the dancers' light reaches (m), y: seconds, z: dancers, w: the high tide (the wet line)
   march: vec4f,     // x: steps the reflection is marched in, y: how far (m), z: the haze over the sea (per m), w: shadow-casting pillars
+  tide: vec4f,      // x: the low tide, y: the high (m over the floor), z: where the cycle is now (0 low … 0.5 high … 1),
+                    // w: how quickly wet stone dries once the water has left it (per cycle)
+  glitter: vec4f,   // the moon's path on the water: x how bright, y how wide (the slope of the facets), z how fine the
+                    // sparkle (per m); w: the thin cloud over the moon (how thick)
+  tide2: vec4f,     // x: how strong the afterglow's low light on the stone's fronts is, y: the moonlit sky's cool fill
   lights: array<vec4f, 8>,  // each dancer's light: xyz where it is (the chest), w: -
   glow: array<vec4f, 8>,    // its colour × strength
   cols: array<vec4f, 24>,   // the pillars that throw the moon's shadow: xz of the foot, radius, top
@@ -41,24 +46,38 @@ fn templeSky(d: vec3f, stars: f32) -> vec3f {
   c += worldLight.temple.dusk.rgb * worldLight.temple.dusk.w * west * (exp(-up * 9.0) + 0.35 * exp(-up * 3.0));
   c += worldLight.temple.dusk.rgb * worldLight.temple.dusk.w * 0.5 * vec3f(1.0, 0.75, 0.55) * west * exp(-up * 40.0);
   c += vec3f(0.035, 0.03, 0.06) * east * exp(-up * 6.0);
-  // long thin clouds, lit rose on the western side, silver round the moon
-  let cq = d.xz / max(d.y + 0.08, 0.02);
-  let streak = smoothstep(0.55, 0.85, vnoise2(vec2f(cq.x * 0.35, cq.y * 1.6) + 7.0) * 0.7 + vnoise2(cq * 1.3 + 3.0) * 0.3);
   let mm = max(dot(d, worldLight.temple.moon.xyz), 0.0);
-  let cloudLit = worldLight.temple.dusk.rgb * worldLight.temple.dusk.w * (0.15 + 0.6 * west) + worldLight.temple.moonCol.rgb * pow(mm, 12.0) * 0.5;
-  c = mix(c, c * 0.45 + cloudLit * 0.4, streak * smoothstep(0.02, 0.12, up) * smoothstep(0.7, 0.25, up));
-  // the moon: a large pale disc, darker seas, a soft limb, a wide halo in the damp air
   let ang = acos(clamp(dot(d, worldLight.temple.moon.xyz), -1.0, 1.0));
   let R = worldLight.temple.moon.w;
+  let t = worldLight.temple.fire.y;
+  // the moon: a large pale disc, darker seas, a soft limb (drawn first: the clouds pass in front of it)
+  let mx = normalize(cross(worldLight.temple.moon.xyz, vec3f(0.0, 1.0, 0.0)));
+  let my = cross(mx, worldLight.temple.moon.xyz);
+  let q = vec2f(dot(d, mx), dot(d, my)) / R;
   if (ang < R * 1.2) {
-    let mx = normalize(cross(worldLight.temple.moon.xyz, vec3f(0.0, 1.0, 0.0)));
-    let my = cross(mx, worldLight.temple.moon.xyz);
-    let q = vec2f(dot(d, mx), dot(d, my)) / R;
     let seas = 0.78 + 0.22 * smoothstep(0.35, 0.7, vnoise2(q * 2.3 + 4.0) * 0.6 + vnoise2(q * 6.0) * 0.4);
     let limb = sqrt(max(1.0 - dot(q, q), 0.0));
     c = mix(c, worldLight.temple.moonCol.rgb * 3.2 * seas * (0.7 + 0.3 * limb), smoothstep(R, R * 0.97, ang));
   }
-  c += worldLight.temple.moonCol.rgb * (pow(mm, 400.0) * 0.6 + pow(mm, 40.0) * 0.08 + pow(mm, 6.0) * 0.025);
+  // long thin clouds drifting slowly north, lit rose on the western side, silver round the moon
+  let cq = d.xz / max(d.y + 0.08, 0.02) + vec2f(t * 0.012, 0.0);
+  let streak = smoothstep(0.55, 0.85, vnoise2(vec2f(cq.x * 0.35, cq.y * 1.6) + 7.0) * 0.7 + vnoise2(cq * 1.3 + 3.0) * 0.3);
+  let silver = worldLight.temple.moonCol.rgb * (pow(mm, 12.0) * 0.5 + pow(mm, 300.0) * 1.2);
+  let cloudLit = worldLight.temple.dusk.rgb * worldLight.temple.dusk.w * (0.15 + 0.6 * west) + silver;
+  c = mix(c, c * 0.45 + cloudLit * 0.4, streak * smoothstep(0.02, 0.12, up) * smoothstep(0.7, 0.25, up));
+  // and one thin veil always somewhere across the moon's face, slowly changing: torn wisps, lit silver through, the
+  // disc dimmed behind them
+  if (ang < R * 9.0) {
+    let lane = q.y + 0.2 + 0.35 * sin(q.x * 0.45 + t * 0.03) + 0.25 * vnoise2(vec2f(q.x * 0.3 - t * 0.02, 1.0));
+    let wisp = vnoise2(vec2f(q.x * 0.55 - t * 0.09, q.y * 2.6 + 3.0)) * 0.65 + vnoise2(vec2f(q.x * 1.7 - t * 0.15, q.y * 6.0)) * 0.35;
+    let veil = exp(-lane * lane / 0.22) * smoothstep(0.3, 0.75, wisp) * smoothstep(9.0, 4.0, length(q)) * worldLight.temple.glitter.w;
+    c = mix(c, c * 0.3 + silver * 0.9 + worldLight.temple.moonCol.rgb * 0.06, veil);
+  }
+  // the light round it in the damp air: a tight glow and a soft corona (brownish in, bluish out)
+  let cor = max(ang / R - 1.0, 0.0);
+  c += worldLight.temple.moonCol.rgb * (pow(mm, 400.0) * 0.5 + pow(mm, 40.0) * 0.06 + pow(mm, 6.0) * 0.02);
+  c += worldLight.temple.moonCol.rgb * mix(vec3f(1.0, 0.82, 0.6), vec3f(0.7, 0.85, 1.1), smoothstep(0.3, 1.6, cor)) * exp(-cor * 1.4) * 0.28 * step(R, ang);
+
   if (stars > 0.0 && worldLight.temple.zenith.w > 0.0 && d.y > 0.0) {
     let p = d * 230.0;
     let cell = floor(p);
@@ -90,6 +109,28 @@ fn templeMeander(u: f32, v: f32) -> f32 {
   d = min(d, templeSeg(p, vec2f(4.0, 1.5), vec2f(2.5, 1.5)));
   d = min(d, templeSeg(p, vec2f(2.5, 1.5), vec2f(2.5, 2.5)));
   return d / 5.0;
+}
+
+/** how much of the afterglow (low behind the audience) reaches p: the court's own stones are low, so only the steps'
+ *  edge and what stands far forward shade it; a gentle fall into the back of the court, and dimmer down in the water */
+fn templeAfterShade(p: vec3f) -> f32 {
+  return mix(0.6, 1.0, smoothstep(-11.0, 4.0, p.z)) * mix(0.5, 1.0, smoothstep(-0.3, 0.6, p.y - worldLight.temple.water.x));
+}
+
+// ---------------------------------------------------------------- the tide on the stone
+/** how wet stone at height y is (0 … 1): under the water now, wet; above it, wet still where the falling tide left it
+ *  lately and drying since (the tide's height is a cosine of its phase, so when it last passed y is known exactly) */
+fn templeWet(y: f32) -> f32 {
+  let w = worldLight.temple.water.x;
+  if (y < w + 0.01) { return 1.0; }
+  let lo = worldLight.temple.tide.x;
+  let hi = worldLight.temple.tide.y;
+  let u = (y - lo) / max(hi - lo, 1e-3);
+  if (u >= 1.0) { return 0.0; }
+  let fell = 1.0 - acos(clamp(1.0 - 2.0 * u, -1.0, 1.0)) / 6.2831853;
+  let since = fract(worldLight.temple.tide.z - fell);
+  // (a few centimetres of wet climb above the water too)
+  return max(exp(-since * worldLight.temple.tide.w), smoothstep(w + 0.06, w + 0.01, y));
 }
 
 // ---------------------------------------------------------------- the light on things
@@ -206,6 +247,19 @@ fn templeScene(src: texture_2d<f32>, px: vec2i, d: vec3f) -> vec4f {
   let sb = textureLoad(src, q, 0);
   if (!waterBroken(sb) && waterHit(sb, d, wy).w >= 0.0) { under = sb.rgb; }
   let hit = waterReflect(src, p, r, i32(worldLight.temple.march.x), worldLight.temple.march.y, waterJitter(px), wy);
-  let refl = mix(templeSky(r, 1.0), hit.rgb, hit.a);
+  var refl = mix(templeSky(r, 1.0), hit.rgb, hit.a);
+  // the moon's path: the facets of the small waves that tip the moon into the eye, as a band of glitter running from
+  // under the moon to the eye (how steep a facet has to be is the half-vector's slope; how many are, a Gaussian of
+  // it), twinkling where the sparkle is fine enough to see, smooth where it's too far to resolve
+  let H = normalize(worldLight.temple.moon.xyz - d);
+  let slope = H.xz / max(H.y, 0.05);
+  let sw = worldLight.temple.glitter.y;
+  let path = exp(-dot(slope, slope) / (sw * sw)) / max(H.y, 0.2);
+  let fine = worldLight.temple.glitter.z;
+  let cell = p.xz * fine + vec2f(worldLight.temple.fire.y * 0.7, 0.0);
+  let spark = smoothstep(0.62, 0.95, vnoise2(cell + n.xz * 40.0) * 0.6 + vnoise2(cell * 2.3 - worldLight.temple.fire.y * 1.3) * 0.4);
+  let resolve = smoothstep(60.0, 6.0, h.w);
+  let blocked = (1.0 - hit.a);
+  refl += worldLight.temple.moonCol.rgb * worldLight.temple.moonCol.w * worldLight.temple.glitter.x * path * mix(0.35, spark * 3.0, resolve) * blocked;
   return vec4f(under * (1.0 - F) + refl * F, s.a);
 }

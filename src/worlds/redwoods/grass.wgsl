@@ -1,5 +1,5 @@
-// The meadow's grass: tufts over the clearing (short and soft where they dance, longer towards the trees, thin in the
-// trees' shade), each blade a strip of five segments fanned out of its tuft's root, curling over, leaning in the wind
+// The meadow's grass: tufts over the clearing (short and soft where they dance, longer towards the trees and against the
+// fallen log, worn down along the path from the gate, thin in the trees' shade), each blade a strip of five segments fanned out of its tuft's root, curling over, leaning in the wind
 // and pushed aside by any foot that comes down near it. Made from the instance index alone (no buffers): the tufts sit
 // on a jittered grid, the blades of one share its root. Lit per vertex; the fragment adds the light through the blade
 // when the sun is behind it.
@@ -50,15 +50,22 @@ fn trodden(root: vec2f) -> vec3f {
   let ring = worldLight.forest.clock.w;
   // the meadow is the clearing and a little way into the trees, thinning out under them
   if (r > REACH || h.z > smoothstep(ring + 3.5, ring - 1.5, r) * 0.92 + 0.08 * step(r, ring + 3.5)) { return o; }
-  if (!onScreen(vec3f(root0.x, 0.2, root0.y), 0.6) || !clearOfTrunks(root0, 0.15)) { return o; }
-  // further from the eye, fewer tufts (each a little wider, so the meadow stays as full)
+  if (!onScreen(vec3f(root0.x, 0.2, root0.y), 0.6)) { return o; }
+  // further from the eye, fewer tufts (each a little wider, so the meadow stays as full). (The cheap tests first: a
+  // tuft thinned away never pays for the loop over the trunks)
   let far = length(root0 - frame.camPos.xz);
   let thin = 1.0 + smoothstep(6.0, 10.0, far) + smoothstep(11.0, 16.0, far);
-  if (fract(h.z * 7.13) * thin > 1.0) { return o; }
+  if (fract(h.z * 7.13) * thin > 1.0 || !clearOfTrunks(root0, 0.15)) { return o; }
   let b = rnd3(ii * 13u + 5u);
   let b2 = rnd3(ii * 29u + 11u);
   // short where they dance, longer by the trees; a few long stems everywhere
-  let tall = mix(0.09, 0.36, smoothstep(ring * 0.42, ring * 0.72, r)) * (0.55 + 0.9 * b.x * b.x) * (1.0 + step(0.93, b2.z) * 1.4) * worldLight.forest.clock.z;
+  var tall = mix(0.09, 0.36, smoothstep(ring * 0.42, ring * 0.72, r)) * (0.55 + 0.9 * b.x * b.x) * (1.0 + step(0.93, b2.z) * 1.4) * worldLight.forest.clock.z;
+  // grown up long against the fallen log's side (out of reach of the mower that is the dancing); trodden short and
+  // bare in places along the path from the gate
+  let byLog = smoothstep(0.8, 0.05, offLog(root0));
+  let worn = pathAt(root0);
+  if (worn > 0.15 && fract(h.z * 3.7) < worn * 0.8) { return o; }
+  tall *= (1.0 + 1.7 * byLog) * (1.0 - 0.75 * worn);
   let yaw = b.y * 6.2831853;
   let outward = vec2f(cos(yaw), sin(yaw));
   let root = root0 + outward * 0.035 * b.z;

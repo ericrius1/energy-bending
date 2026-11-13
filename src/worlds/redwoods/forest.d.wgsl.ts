@@ -22,6 +22,10 @@ export interface Forest {
   march: Vec4;
   stageLog: Vec4;
   stagePlate: Vec4;
+  gate: Vec4;
+  near: Vec4;
+  dancers: ArrayLike<number> | Vec4[];
+  kicks: ArrayLike<number> | Vec4[];
   lamps: ArrayLike<number> | Vec4[];
   anchors: ArrayLike<number> | Vec4[];
   trunks: ArrayLike<number> | Vec4[];

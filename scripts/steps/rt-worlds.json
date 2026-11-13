@@ -1,0 +1,247 @@
+[
+ {
+  "name": "rt-rw-empty",
+  "query": "world=redwoods&dress=fire",
+  "fps": 4,
+  "seconds": 12,
+  "warm": 60,
+  "setup": "bend.set('camera',{ shots:false, autoOrbit:false });bend.set('redwoods', { hour: 19.4, dayGoes: false });",
+  "each": "bend.camera({ idle:0, yaw: t*0.5236, dist: 9, pitch: 0.1, height: 1.6, fov: 50 });",
+  "sheet": {
+   "cols": 8,
+   "rows": 6,
+   "width": 300
+  },
+  "stills": [
+   0,
+   3,
+   6,
+   9
+  ]
+ },
+ {
+  "name": "rt-rw-lock",
+  "query": "play&two&dress=fire,water&world=redwoods",
+  "fps": 10,
+  "seconds": 6,
+  "warm": 120,
+  "setup": "bend.set('redwoods', { hour: 19.4, dayGoes: false }); bend.wake(); bend.lock(true);",
+  "cues": {
+   "0.2": "const L=(bend.rig.plane?.ledges??[]).filter(l=>!l.bob).slice().sort((a,b)=>a.x0-b.x0); const cs=bend.show.dancers.map(d=>d.controller).filter(c=>c.kind==='intent'); if(L.length){ const a=L[0], b=L[L.length-1]; cs[0].character.reset((a.x0+a.x1)/2, a.y+0.15); cs[1].character.reset((b.x0+b.x1)/2, b.y+0.15);} console.warn('ledges redwoods', JSON.stringify(L));",
+   "2.5": "bend.move(0,'armada')",
+   "3.6": "bend.move(1,'meia-lua')",
+   "4.8": "bend.move(0,'spin')"
+  },
+  "sheet": {
+   "cols": 4,
+   "rows": 3,
+   "width": 400
+  },
+  "stills": [
+   2,
+   3,
+   4.2
+  ],
+  "timingsAt": 2
+ },
+ {
+  "name": "rt-rw-lock-gems",
+  "query": "play&two&dress=gems,gems&world=redwoods",
+  "fps": 10,
+  "seconds": 3,
+  "warm": 120,
+  "setup": "bend.set('redwoods', { hour: 19.4, dayGoes: false }); bend.wake(); bend.lock(true);",
+  "cues": {
+   "0.2": "const L=(bend.rig.plane?.ledges??[]).filter(l=>!l.bob).slice().sort((a,b)=>a.x0-b.x0); const cs=bend.show.dancers.map(d=>d.controller).filter(c=>c.kind==='intent'); if(L.length){ const a=L[0], b=L[L.length-1]; cs[0].character.reset((a.x0+a.x1)/2, a.y+0.15); cs[1].character.reset((b.x0+b.x1)/2, b.y+0.15);} console.warn('ledges redwoods', JSON.stringify(L));"
+  },
+  "sheet": {
+   "cols": 4,
+   "rows": 3,
+   "width": 400
+  },
+  "stills": [
+   2
+  ]
+ },
+ {
+  "name": "rt-rw-hours",
+  "query": "world=redwoods&dress=fire",
+  "fps": 1,
+  "seconds": 8,
+  "warm": 60,
+  "setup": "bend.set('camera',{ shots:false, autoOrbit:false });bend.set('redwoods', { hour: 19.4, dayGoes: false });",
+  "each": "const V=[[0.3,9,0.1,1.6,50],[0.3,9,0.1,1.6,50],[0.3,9,0.1,1.6,50],[2.2,6,-0.25,2.2,30],[1.2,5,0.15,1.2,40],[3.6,6,0.05,1.4,45],[4.6,8,0.05,2,50],[-1.4,9,0.12,2.5,50]]; const X=[async()=>{bend.set('redwoods',{hour:12.5})},async()=>{bend.set('redwoods',{hour:19.4})},async()=>{bend.set('redwoods',{hour:21.6})},async()=>{bend.set('redwoods',{hour:21.6})},async()=>{bend.set('redwoods',{hour:19.4})},async()=>{bend.set('redwoods',{hour:19.4})},async()=>{bend.set('redwoods',{hour:19.4})},async()=>{bend.set('redwoods',{hour:21.6})}]; const i=Math.min(V.length-1, Math.round(t)); await X[i](); const [yaw,dist,pitch,height,fov]=V[i]; bend.camera({ idle:0, yaw, dist, pitch, height, fov });",
+  "sheet": {
+   "cols": 4,
+   "rows": 2,
+   "width": 480
+  },
+  "stills": [
+   0,
+   1,
+   2,
+   3,
+   4,
+   5,
+   6,
+   7
+  ]
+ },
+ {
+  "name": "rt-rw-base",
+  "query": "world=redwoods&dress=fire&baseline",
+  "fps": 1,
+  "seconds": 1,
+  "warm": 120,
+  "setup": "bend.set('camera',{ shots:false, autoOrbit:false });bend.set('redwoods', { hour: 19.4, dayGoes: false });",
+  "each": "bend.camera({ idle:0, yaw: 0.3, dist: 9, pitch: 0.1, height: 1.6, fov: 50 });",
+  "sheet": {
+   "cols": 1,
+   "rows": 1,
+   "width": 640
+  },
+  "stills": [
+   0
+  ]
+ },
+ {
+  "name": "rt-tm-empty",
+  "query": "world=temple&dress=fire",
+  "fps": 4,
+  "seconds": 12,
+  "warm": 60,
+  "setup": "bend.set('camera',{ shots:false, autoOrbit:false });",
+  "each": "bend.camera({ idle:0, yaw: t*0.5236, dist: 9, pitch: 0.1, height: 1.6, fov: 50 });",
+  "sheet": {
+   "cols": 8,
+   "rows": 6,
+   "width": 300
+  },
+  "stills": [
+   0,
+   3,
+   6,
+   9
+  ]
+ },
+ {
+  "name": "rt-tm-lock",
+  "query": "play&two&dress=fire,water&world=temple",
+  "fps": 10,
+  "seconds": 6,
+  "warm": 120,
+  "setup": " bend.wake(); bend.lock(true);",
+  "cues": {
+   "0.2": "const L=(bend.rig.plane?.ledges??[]).filter(l=>!l.bob).slice().sort((a,b)=>a.x0-b.x0); const cs=bend.show.dancers.map(d=>d.controller).filter(c=>c.kind==='intent'); if(L.length){ const a=L[0], b=L[L.length-1]; cs[0].character.reset((a.x0+a.x1)/2, a.y+0.15); cs[1].character.reset((b.x0+b.x1)/2, b.y+0.15);} console.warn('ledges temple', JSON.stringify(L));",
+   "2.5": "bend.move(0,'armada')",
+   "3.6": "bend.move(1,'meia-lua')",
+   "4.8": "bend.move(0,'spin')"
+  },
+  "sheet": {
+   "cols": 4,
+   "rows": 3,
+   "width": 400
+  },
+  "stills": [
+   2,
+   3,
+   4.2
+  ],
+  "timingsAt": 2
+ },
+ {
+  "name": "rt-tm-lock-gems",
+  "query": "play&two&dress=gems,gems&world=temple",
+  "fps": 10,
+  "seconds": 3,
+  "warm": 120,
+  "setup": " bend.wake(); bend.lock(true);",
+  "cues": {
+   "0.2": "const L=(bend.rig.plane?.ledges??[]).filter(l=>!l.bob).slice().sort((a,b)=>a.x0-b.x0); const cs=bend.show.dancers.map(d=>d.controller).filter(c=>c.kind==='intent'); if(L.length){ const a=L[0], b=L[L.length-1]; cs[0].character.reset((a.x0+a.x1)/2, a.y+0.15); cs[1].character.reset((b.x0+b.x1)/2, b.y+0.15);} console.warn('ledges temple', JSON.stringify(L));"
+  },
+  "sheet": {
+   "cols": 4,
+   "rows": 3,
+   "width": 400
+  },
+  "stills": [
+   2
+  ]
+ },
+ {
+  "name": "rt-tm-tides",
+  "query": "world=temple&dress=fire",
+  "fps": 1,
+  "seconds": 7,
+  "warm": 60,
+  "setup": "bend.set('camera',{ shots:false, autoOrbit:false });",
+  "each": "const V=[[0,9,0.12,1.6,50],[0,9,0.12,1.6,50],[0.5,5,0.05,1.2,35],[0,14,-0.08,1.2,22],[2.6,9,0.12,1.6,50],[3.4,6,0.2,1.4,45],[-0.7,4,0.05,1,40]]; const X=[async()=>{bend.set('temple',{tideHold:0})},async()=>{bend.set('temple',{tideHold:0.5})},async()=>{bend.set('temple',{tideHold:0.25})},async()=>{bend.set('temple',{tideHold:0.4})},async()=>{bend.set('temple',{tideHold:0.3})},async()=>{bend.set('temple',{tideHold:0.1})},async()=>{bend.set('temple',{tideHold:0.45})}]; const i=Math.min(V.length-1, Math.round(t)); await X[i](); const [yaw,dist,pitch,height,fov]=V[i]; bend.camera({ idle:0, yaw, dist, pitch, height, fov });",
+  "sheet": {
+   "cols": 4,
+   "rows": 2,
+   "width": 480
+  },
+  "stills": [
+   0,
+   1,
+   2,
+   3,
+   4,
+   5,
+   6
+  ]
+ },
+ {
+  "name": "rt-tm-base",
+  "query": "world=temple&dress=fire&baseline",
+  "fps": 1,
+  "seconds": 1,
+  "warm": 120,
+  "setup": "bend.set('camera',{ shots:false, autoOrbit:false });",
+  "each": "bend.camera({ idle:0, yaw: 0, dist: 9, pitch: 0.12, height: 1.6, fov: 50 });",
+  "sheet": {
+   "cols": 1,
+   "rows": 1,
+   "width": 640
+  },
+  "stills": [
+   0
+  ]
+ },
+ {
+  "name": "rt-rw-time",
+  "query": "world=redwoods",
+  "fps": 1,
+  "seconds": 1,
+  "warm": 240,
+  "setup": "bend.set('camera',{ shots:false, autoOrbit:false });bend.set('redwoods', { hour: 19.4, dayGoes: false });",
+  "each": "bend.camera({ idle:0, yaw: 0.3, dist: 9, pitch: 0.1, height: 1.6, fov: 50 });",
+  "sheet": {
+   "cols": 1,
+   "rows": 1,
+   "width": 640
+  },
+  "stills": [
+   0
+  ],
+  "timings": true
+ },
+ {
+  "name": "rt-tm-time",
+  "query": "world=temple",
+  "fps": 1,
+  "seconds": 1,
+  "warm": 240,
+  "setup": "bend.set('camera',{ shots:false, autoOrbit:false });",
+  "each": "bend.camera({ idle:0, yaw: 0, dist: 9, pitch: 0.12, height: 1.6, fov: 50 });",
+  "sheet": {
+   "cols": 1,
+   "rows": 1,
+   "width": 640
+  },
+  "stills": [
+   0
+  ],
+  "timings": true
+ }
+]
