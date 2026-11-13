@@ -10,7 +10,7 @@
 // and single-<mineral> / monolith-<mineral> for each mineral a player can choose (amethyst, citrine, emerald,
 // obsidian, opal, quartz, rose, iron). The mixed bodies, a heart of one matter in a body of another: ember (a gem
 // heart and head inside fire limbs), gemwater (inside water), gemice (inside ice), geodeheart (the great geode torso
-// inside fire limbs) and geodeheart-water, tide (water with ice hands and feet), and all (a geode heart and a gem head,
+// inside fire limbs) and geodeheart-water, tide (water with ice hands and feet round a celestite heart), and all (a geode heart and a gem head,
 // fire arms, water legs, ice hands and feet). A `+` or a space in a URL is not needed: every name is one word.
 import type { BodyPart, Loadout } from './kind';
 
@@ -44,8 +44,8 @@ export const PRESETS: Record<string, (suite: string) => Loadout> = {
   // a gem heart (torso and head) inside a body of water, and inside ice
   gemwater: (suite) => ({ layers: [gem(0.3, { suite, heart: 1 }, CORE), { kind: 'water', share: 0.7 }] }),
   gemice: (suite) => ({ layers: [gem(0.3, { suite, heart: 1 }, CORE), { kind: 'ice', share: 0.7, parts: LIMBS }] }),
-  // water, with ice on the hands and feet
-  tide: () => ({ layers: [{ kind: 'water', share: 0.75, parts: ['torso', 'head', 'arms', 'legs'] }, { kind: 'ice', share: 0.25, parts: ['hands', 'feet'] }] }),
+  // water, with ice on the hands and feet, and a small celestite heart in the water
+  tide: () => ({ layers: [{ kind: 'water', share: 0.7, parts: ['torso', 'head', 'arms', 'legs'] }, { kind: 'ice', share: 0.22, parts: ['hands', 'feet'] }, gem(0.08, { suite: 'Sky', heart: 1.2 }, ['torso'])] }),
   // the great amethyst geode over the torso (a large crystal, its hollow lined with points and lit by the heart),
   // inside limbs of flame (or of water)
   geodeheart: () => ({ layers: [gem(0.16, { suite: 'Geode', crystals: 'torso', heart: 1.2 }, ['torso']), { kind: 'fire', share: 0.84, parts: ['head', ...LIMBS] }] }),
