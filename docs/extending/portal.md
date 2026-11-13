@@ -101,6 +101,13 @@ A kind that ignores `seen` still works, but its particles show in every world an
    at its own screen position (the slot's camera is this one carried, so pixels line up) bent by ripples, with colour
    fringes, a skin of light, the rim, halo, floor light and motes. A gate with no live slot shows the last view it had
    (blurred) or a shimmer.
+4. The depth of field through a live gate (`portals/focus.wgsl`, `gates.focus`): the disc writes its own plane's
+   distance as the scene's alpha (this world's air lies over the disc as over a window), so after the main scene one
+   draw of every live disc's rectangle writes, where the disc is what the eye sees, the far view's whole path (its air
+   target's alpha, or a flame's nearer focus there) into an r16float the air reads through `PostChain.focusFrom` as a
+   window: the lens focuses there as far as what is seen through the gate; the fog doesn't change. And a dancer seen
+   only through a disc is framed by the lens (`PostChain.framed`, carried back through the gate). Off where the
+   device's budget has no depth of field. Cost: see docs/reports/9-near-fade.md.
 
 ## The camera
 

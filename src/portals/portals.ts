@@ -27,7 +27,7 @@
 import type { Kit, Texture } from '@ericrius1/weft';
 import type { FrameBuilder, FrameCtx } from '../engine/frame';
 import { makeView, type ViewCtx } from '../engine/views';
-import { declareScene, sceneLayers, type SceneLayer, type ScenePhase } from '../engine/scene';
+import { declareScene, focusSources, sceneLayers, type SceneLayer, type ScenePhase } from '../engine/scene';
 import type { CameraRig } from '../engine/camera';
 import type { RenderPass } from '@ericrius1/weft';
 import type { World } from '../worlds/world';
@@ -35,7 +35,7 @@ import type { MatterPasses } from '../matter/core/kind';
 import type { BodyBuffers } from '../matter/core/bodies';
 import type { Dancer } from '../dancer/dancer';
 import type { PostChain } from '../post/post';
-import { JOINT_FLOATS, MAXJ } from '../skeleton/rig';
+import { JOINT, JOINT_FLOATS, MAXJ } from '../skeleton/rig';
 import { LIMITS } from '../engine/limits';
 import { Gate, type GateDef } from './gate';
 import { GateCamera, setPose } from './camera';
@@ -209,8 +209,40 @@ export class Portals implements SceneLayer {
       size: () => (this.taking ? [this.stillSize, this.stillSize, 1] : [0, 0, 1]),
     }), 'gates: a gate view copied into its still');
     post.exposureOf = () => this.exposure;
+    this.declareFocus(post);
     // every world's own gates (a world lists its side of each pair; the partner world lists the other)
     for (const w of this.ctx.worlds) for (const def of w.portals) this.open({ ...def, world: w.id });
+  }
+
+  /** the depth of field through the gates: the main view's window (portals/focus.wgsl: how far what is seen through
+   *  each live disc is, after the main scene), and the lens's focus on a dancer seen only through a disc (PostChain
+   *  .framed: carried back through the gate to where the eye sees it, when the line from the eye passes the disc) */
+  private declareFocus(post: PostChain) {
+    const main = this.ctx.main;
+    if (budget().dof && this.slots.length) {
+      const firstFocus = (v: ViewCtx) => { for (const m of focusSources(v)) { const t = m.focus?.(v); if (t) return t; } return null; };
+      const f = this.surfaces.declareFocus(main, () => this.slots.map((s) => (s.active ? firstFocus(s.view) : null)), () => P.focus);
+      this.ctx.frame.add('scene', f.pass, 'gates: the depth of field through a live gate');
+      post.focusFrom(main, () => (f.runs() ? f.tex : null));
+    }
+    const framed = post.framed;
+    post.framed = (view, dancers) => {
+      const out = framed(view, dancers);
+      if (view !== main) return out;
+      const eye = this.kit.camera.position;
+      for (const d of dancers) {
+        const w = this.worldOf(d), J = d.skeleton.world;
+        if (w === view.world) continue;
+        for (const g of this.gates.values()) {
+          if (g.world !== view.world || !g.partner || g.partner.world !== w || g.open < 0.95) continue;
+          for (const j of [JOINT.Hips, JOINT.Head]) {
+            const p = g.partner.through.pt([J[j * JOINT_FLOATS], J[j * JOINT_FLOATS + 1], J[j * JOINT_FLOATS + 2]]);
+            if (g.crossing(eye, p)) out.push([p[0], p[1], p[2]]);
+          }
+        }
+      }
+      return out;
+    };
   }
 
   /** the scene layer (engine/scene.ts): the gates in every view */

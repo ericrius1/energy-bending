@@ -160,9 +160,10 @@ export class PostChain {
    *  the lock (CameraRig.locked × a taste), `at` the stage's focus plane's distance from the eye (m; 0: the lens's focus
    *  distance). What lies beyond the plane darkens and softens a little (postParams.stageDarken, stageSoften) */
   stage = { dim: 0, at: 0 };
-  /** add a focus source to a view besides its kinds' (a gate's disc: the far view's focus distance where the disc is,
-   *  in an r16float texture of any size, ≥ 1e4 where there is nothing). It takes one of the FOCUS_SLOTS and counts as
-   *  a light's (it hides nothing behind it) */
+  /** add a window to a view's focus (a live gate's disc: src/portals/focus.wgsl): an r16float texture of any size
+   *  holding, where the window is what the eye sees, how far what is seen through it is (the whole path), and 0 (or
+   *  ≥ 5000) elsewhere. The depth of field takes it there in place of the opaque distance (a flame or a body in front
+   *  still wins); the fog doesn't. It takes one of the FOCUS_SLOTS while the source returns a texture (null: none) */
   focusFrom(view: ViewCtx, source: () => Texture | null) {
     const list = this.extraFocus.get(view) ?? [];
     list.push(source);
@@ -261,9 +262,9 @@ export class PostChain {
     let warned = false;
     // each slot is a body's (water, ice) or a light's (fire, a gate disc's far view): the air tells them apart
     const textures = () => {
-      const t: { tex: Texture; body: boolean }[] = [];
+      const t: { tex: Texture; body: boolean; window?: boolean }[] = [];
       for (const m of sources) { const x = m.focus?.(view); if (x) t.push({ tex: x, body: BODY_KINDS.has(m.id) }); }
-      for (const f of this.extraFocus.get(view) ?? []) { const x = f(); if (x) t.push({ tex: x, body: false }); }
+      for (const f of this.extraFocus.get(view) ?? []) { const x = f(); if (x) t.push({ tex: x, body: false, window: true }); }
       if (main && this.stub && postParams.focusStub > 0) t.splice(FOCUS_SLOTS - 1, 0, { tex: this.stub.tex, body: false });
       if (t.length > FOCUS_SLOTS && !warned) { warned = true; console.warn(`post: ${t.length} focus textures in view ${view.id}, more than FOCUS_SLOTS (${FOCUS_SLOTS}); the rest are left out`); }
       return t;
@@ -273,10 +274,11 @@ export class PostChain {
     const bodyOf = () => { for (const m of sources) { const b = m.body?.(view); if (b) return b; } return null; };
     const bodyTex = new Ref<Texture>(() => bodyOf() ?? this.emptyRgba, `air.body${id}`);
     const airv = kit.uniforms(airShader.structs.AirView, `air.view${id}`);
-    const vals: AirView = { bodies: 0, hasBody: 0, through: 0, bend: 0, tint: [1, 1, 1, 0] };
+    const vals: AirView = { bodies: 0, hasBody: 0, through: 0, bend: 0, tint: [1, 1, 1, 0], windows: 0 };
     this.frame.tick('post', () => {
       const t = textures(), P = postParams, c = hex(P.throughTint);
       vals.bodies = t.slice(0, FOCUS_SLOTS).reduce((m, x, k) => m | (x.body ? 1 << k : 0), 0);
+      vals.windows = t.slice(0, FOCUS_SLOTS).reduce((m, x, k) => m | (x.window ? 1 << k : 0), 0);
       vals.hasBody = bodyOf() ? 1 : 0;
       vals.through = P.through;
       vals.bend = P.mirrorBend;
