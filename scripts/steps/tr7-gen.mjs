@@ -8,21 +8,32 @@ import { writeFileSync } from 'node:fs';
 const takes = [];
 const dusk = "bend.set('redwoods', { hour: 19.4, dayGoes: false }); ";
 const moonrise = "bend.set('temple', { tideHold: 0.12 }); ";
+// (the look takes hold the camera exactly where the critic's did: the new World.clear would otherwise pull the eye in
+// front of a column, and a before and an after would not be the same frame; the -clear takes show the proxies at work)
+const still = 'if (bend.rig) bend.rig.clearance = null; ';
 const pair = (gap) => `bend.wake(); bend.place(0,${-gap / 2},0.3,Math.PI/2); bend.place(1,${gap / 2},0.3,-Math.PI/2);`;
 
 // ---------------------------------------------------------------- the temple
-// the critic's orbit at 8 m (6-w-temple), the tide held
-takes.push({
-  name: 'w-temple', query: 'play&two&dress=fire,water&world=temple', fps: 4, seconds: 12, warm: 300,
-  setup: `${moonrise}bend.set('camera', { followDist: 8, followFov: 44, followPitch: 0.18, followSwing: 0 }); ${pair(1.6)}`,
+// the critic's orbit at 8 m (6-w-temple), the tide held; and the same with the camera's clearance on (World.clear)
+const orbitT = (name, extra) => takes.push({
+  name, query: 'play&two&dress=fire,water&world=temple', fps: 4, seconds: 12, warm: 300,
+  setup: `${extra}${moonrise}bend.set('camera', { followDist: 8, followFov: 44, followPitch: 0.18, followSwing: 0 }); ${pair(1.6)}`,
   each: 'bend.camera({ yaw: t * 0.52 });', sheet: { cols: 8, rows: 3, width: 250 }, stills: [0, 2.5, 3, 3.5, 6, 9],
 });
+orbitT('w-temple', still);
+orbitT('w-temple-clear', '');
+takes.push({
+  name: 'w-redwoods-clear', query: 'play&two&dress=fire,water&world=redwoods', fps: 4, seconds: 12, warm: 300,
+  setup: `${dusk}bend.set('camera', { followDist: 8, followFov: 44, followPitch: 0.18, followSwing: 0 }); ${pair(1.6)}`,
+  each: 'bend.camera({ yaw: t * 0.52 });', sheet: { cols: 8, rows: 3, width: 250 }, stills: [],
+});
 // the orange side at 1080p, full size: the colonnade and the lintel's columns against the afterglow, then the moon close
-// (its halo and the thin cloud: banding, a hard edge)
+// (its halo and the thin cloud: banding, a hard edge; the moon's frames look along its bearing, layout.ts MOON_BEARING:
+// before this task it was 0.05, and they were shot at yaw -0.05)
 takes.push({
   name: 'tm-orange', query: 'world=temple', size: '1920x1080', fps: 30, seconds: 5, warm: 120,
-  setup: `${moonrise}bend.set('camera',{ shots:false, autoOrbit:false });`,
-  each: "const V=[[1.3,8,0.18,1.6,44,[0,1,0]],[1.7,8,0.18,1.6,44,[0,1,0]],[2.4,7,0.12,1.6,44,[0,1,0]],[0.02,30,-0.12,0,16,[0.5,5.6,-30]],[0.02,30,-0.135,0,5,[1.5,5.6,-30]]]; const v=V[Math.min(V.length-1,Math.floor(t))]; bend.camera({ idle:0, target:v[5], yaw:v[0], dist:v[1], pitch:v[2], height:v[3], fov:v[4] });",
+  setup: `${still}${moonrise}bend.set('camera',{ shots:false, autoOrbit:false });`,
+  each: "const V=[[1.3,8,0.18,1.6,44,[0,1,0]],[1.7,8,0.18,1.6,44,[0,1,0]],[2.4,7,0.12,1.6,44,[0,1,0]],[0.17,30,-0.14,5.6,16,[0,5.6,-30]],[0.17,30,-0.14,5.6,6,[0,5.6,-30]]]; const v=V[Math.min(V.length-1,Math.floor(t))]; bend.camera({ idle:0, target:v[5], yaw:v[0], dist:v[1], pitch:v[2], height:v[3], fov:v[4] });",
   sheet: { cols: 5, rows: 1, width: 384 }, stills: [0.9, 1.9, 2.9, 3.9, 4.9],
 });
 // film 2's dolly as the critic staged it (6-film2-dolly), the tide held: the lead shot is its frame at 3.6 s
@@ -63,8 +74,8 @@ takes.push({
 // the log's broken end, close, from the front and from its side, and the log in the dusk light from the lock's side
 takes.push({
   name: 'rw-logend', query: 'world=redwoods', size: '1920x1080', fps: 30, seconds: 4, warm: 120,
-  setup: `${dusk}bend.set('camera',{ shots:false, autoOrbit:false });`,
-  each: "const V=[[1.2,3.2,0.12,0.6,40],[0.5,3.6,0.18,0.6,40],[2.0,3.0,0.1,0.6,40],[0.1,7,0.08,1.0,40]]; const v=V[Math.min(V.length-1,Math.floor(t))]; bend.camera({ idle:0, target:[-2.2,0,-0.25], yaw:v[0], dist:v[1], pitch:v[2], height:v[3], fov:v[4] });",
+  setup: `${still}${dusk}bend.set('camera',{ shots:false, autoOrbit:false });`,
+  each: "const V=[[1.3,3.4,0.1,0.7,40,19.4],[1.3,3.4,0.1,0.7,40,12.5],[0.9,2.6,0.2,0.7,40,12.5],[0.1,7,0.08,1.0,40,19.4]]; const v=V[Math.min(V.length-1,Math.floor(t))]; bend.set('redwoods', { hour: v[5], dayGoes: false }); bend.camera({ idle:0, target:[-2.2,0,-0.25], yaw:v[0], dist:v[1], pitch:v[2], height:v[3], fov:v[4] });",
   sheet: { cols: 4, rows: 1, width: 480 }, stills: [0.9, 1.9, 2.9, 3.9],
 });
 

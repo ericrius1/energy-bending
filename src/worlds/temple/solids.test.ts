@@ -1,11 +1,12 @@
 // The temple's and the redwoods' solids for the camera (World.solids, World.clear): built from the same layouts the
 // geometry is drawn from, they stop a segment where it would enter a stone, a trunk, the log or a bough, let it run
-// through open air, and ignore a solid the segment starts inside.
+// through open air, and ignore a solid the segment starts inside. And the redwoods' one lantern that hung in front of the
+// locked camera now hangs above its frame.
 import { test, assert, near, done } from '../../dancer/test/check';
 import { clearOf } from '../solids';
 import { layoutTemple, solidsOf, STAGE_Z } from './layout';
 import { layoutWoods, solidsOfWoods } from '../redwoods/layout';
-import { layoutStage, solidsOfStage } from '../redwoods/stage';
+import { layoutStage, liftLanterns, solidsOfStage } from '../redwoods/stage';
 
 type V3 = [number, number, number];
 const T = layoutTemple({ coarse: false });
@@ -38,7 +39,7 @@ test('temple: a look point inside a margin (a dancer on a stump) does not pull t
   assert(t > 0.99, `clear ${t}`);
 });
 test('temple: the gate\'s columns and the fallen drums are there', () => {
-  assert(clearOf(ts, [-2.7, 3, -5], [-2.7, 3, -12]) < 1, 'gate column');
+  assert(clearOf(ts, [-4.25, 3, -5], [-4.25, 3, -12]) < 1, 'gate column (turned onto the moon bearing)');
   assert(clearOf(ts, [-4.8, 0.4, -4], [-4.8, 0.4, -9]) < 1, 'a fallen drum behind the stage');
 });
 
@@ -63,6 +64,16 @@ test('redwoods: a trunk of the ring stops a segment', () => {
   const x = W.trunks[0], z = W.trunks[1], R = W.trunks[2];
   const t = clearOf(rs, [x + 8, 3, z], [x, 3, z]);
   assert(t < 1 && 8 * (1 - t) >= R && 8 * (1 - t) <= R + 0.45, `stopped ${(8 * (1 - t)).toFixed(2)} m from the axis (R ${R.toFixed(2)})`);
+});
+
+test('redwoods: only the lantern that hung low in front of the lock is lifted, its bottom to 6.4 m', () => {
+  const L = layoutWoods().lanterns, before = L.map((l) => l.cord);
+  const lifted = liftLanterns(L, S.right);
+  assert(lifted.length === 1, `lifted ${lifted.join(',')}`);
+  const k = lifted[0];
+  near(L[k].anchor[1] - L[k].cord, 6.4, 1e-9);
+  assert(L.every((l, i) => i === k || l.cord === before[i]), 'the others keep their cords');
+  return `lantern ${k}: its bottom from ${(L[k].anchor[1] - before[k]).toFixed(2)} m to 6.40 m`;
 });
 
 done();
