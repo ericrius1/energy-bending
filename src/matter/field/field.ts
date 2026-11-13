@@ -89,6 +89,9 @@ export class Field {
   /** each dancer slot's power form, 0 … 1: fire toward plasma, water toward ice. The game sets it; a loadout layer's
    *  own `params.form` (a number) wins for that layer */
   readonly forms: number[] = new Array(LIMITS.dancers).fill(0);
+  /** how much of each dancer slot's matter is on its body, 0 … 1 (default 1): the show or the game lowers it while a
+   *  body is in a heap or shattered, so a skeleton without its matter gives the air no heat or wet (it still stirs) */
+  readonly presence: number[] = new Array(LIMITS.dancers).fill(1);
   /** ?aura=…: kinds dancer d is treated as wearing, for the field only (null: what the loadout says) */
   auraOverride: (string | null)[] = [];
 
@@ -253,7 +256,8 @@ export class Field {
           if (!(l.share > 0) || (l.parts && !l.parts.includes(part))) continue;
           const form = typeof l.params?.form === 'number' ? (l.params.form as number) : this.forms[d] ?? 0;
           const a = auraOf(l.kind, form), w = l.share / total;
-          acc[0] += a.heat * w; acc[1] += a.wet * w; acc[2] += a.dry * w; acc[3] += a.stir * w;
+          const k = w * Math.min(1, Math.max(0, this.presence[d] ?? 1));
+          acc[0] += a.heat * k; acc[1] += a.wet * k; acc[2] += a.dry * k; acc[3] += a.stir * w;
         }
         if (!total) acc[3] = 1;   // bare skeleton still moves the air
         perPart.set(part, acc);

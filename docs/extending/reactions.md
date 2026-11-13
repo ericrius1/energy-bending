@@ -69,6 +69,7 @@ const lift = field.updraft('p1-jump', [x, y, z]); // m/s of rising air averaged 
 field.unprobe('p1-jump');
 
 field.forms[d] = 0.7;   // dancer d's power form: fire toward plasma, water toward ice (0 … 1)
+field.presence[d] = 0; // how much of dancer d's matter is on its body (0 … 1): a heap gives the air no heat or wet
 ```
 
 Deposits, vortices and probe points made by the end of the `matter` phase land in this frame's step (the field reads
