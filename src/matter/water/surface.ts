@@ -6,7 +6,9 @@
 //                                     water.smooth.*      the narrow-range filter, x then y, `smoothPasses` times
 //   then, by the kind of view:
 //   the main view (and ?pip)          'air' stage, first: water.scene.copy (the resolved scene, so the surface can bend
-//                                     what is behind it while it writes over it), water.surface (one fullscreen draw per
+//                                     what is behind it while it writes over it), water.fog (in a world that fogs after
+//                                     the water, the geode and the redwoods: the air at what is behind the water, an
+//                                     eighth of the resolution: surface.wgsl fs_fog), water.surface (one fullscreen draw per
 //                                     world over the resolved `hdr`: colour only, the scene's alpha is left alone), then
 //                                     water.focus (the surface's view distance for the lens: MatterPasses.focus, and
 //                                     the body texture: how it dims and bends light behind it, for the post chain)
@@ -80,6 +82,12 @@ export class WaterSurface {
   private dist: Texture;
   private smoothed: Texture;
   private copy: Texture | null = null;
+  /** the air at what is behind the water, a quarter of the resolution each way (fs_fog), for a world that fogs after
+   *  the water; and its pass ('air', between the copy and the composite: one draw per such world) */
+  private fog: Texture | null = null;
+  private fogPass: RenderPass | null = null;
+  /** an rgba16float texture of this surface's to bind where a draw doesn't read `fog` (weft binds a module's all) */
+  private standIn: Texture;
 
   private hearts: UniformBuffer<any>;
   constructor(kit: Kit, frame: FrameBuilder, private view: ViewCtx, private pool: SurfacePool, private mode: SurfaceMode, private on: () => boolean, resolution = 1) {
@@ -94,6 +102,7 @@ export class WaterSurface {
     const A = tex('smoothA', 'rgba32float');
     const B = tex('smoothB', 'rgba32float');
     this.smoothed = B;
+    this.standIn = thick;
     // (seen: what this view sees of each dancer, engine/seen.wgsl)
     const bind = { sim: pool.sim, state: pool.state, aux: pool.aux, homes: pool.homes, seen: view.seen, look: pool.look, sets: pool.sets };
     const constants = { MIRROR: mode === 'mirror' ? 1 : 0, SET: 0 };
@@ -127,6 +136,9 @@ export class WaterSurface {
       const copy = (this.copy = tex('behind', 'rgba16float', view.scale));
       const copyItem = Object.assign(kit.copy(view.targets.hdr, copy, `water.scene.copy${id}`), { enabled: on });
       frame.add('air', copyItem, 'water');
+      this.fog = tex('fog', 'rgba16float', view.scale * 0.125);
+      this.fogPass = kit.pass({ label: `water.fog${id}`, color: [{ target: this.fog, clear: [0, 0, 0, 1] }], view: v, enabled: on });
+      frame.add('air', this.fogPass, 'water');
       this.composite = kit.pass({ label: `water.surface${id}`, color: [{ target: view.targets.hdr, clear: false }], view: v, enabled: on });
       frame.add('air', this.composite, 'water');
       // the focus: cleared to "nothing here" whenever the view is drawn, so it is never stale when there is no water
@@ -134,7 +146,7 @@ export class WaterSurface {
       // and the body texture (fs_focus says what it holds): for light the post chain lays over the scene after the water
       const body = (this.body = tex('body', 'rgba16float'));
       const fp = kit.pass({ label: `water.focus${id}`, color: [{ target: focus, clear: [1e5, 0, 0, 0] }, { target: body, clear: [1e4, 1, 0, 0] }], view: v, enabled: view.on });
-      fp.fullscreen(surfaceShader, { label: `water.focus${id}`, fragment: 'fs_focus', bind: { surf: pool.surf, scene: copy, water: B, raw: dist, seen: view.seen, hearts: heartsOf(kit) }, enabled: on });
+      fp.fullscreen(surfaceShader, { label: `water.focus${id}`, fragment: 'fs_focus', bind: { surf: pool.surf, scene: copy, water: B, raw: dist, seen: view.seen, hearts: heartsOf(kit), fog: thick }, enabled: on });
       frame.add('air', fp, 'water');
       this.focus = focus;
     }
@@ -145,13 +157,22 @@ export class WaterSurface {
     const view = this.view, world = s.world;
     const key = `${world.id}.${s.phase}`;
     const tag = `${world.id}${view.id === 'main' ? '' : `.${view.id}`}`;
-    const bind = { surf: this.pool.surf, water: this.smoothed, raw: this.dist, seen: view.seen, hearts: this.hearts };
+    const bind = { surf: this.pool.surf, water: this.smoothed, raw: this.dist, seen: view.seen, hearts: this.hearts, fog: this.standIn };
     if (this.mode === 'air') {
       if (this.worlds.has(world.id)) return;
       this.worlds.add(world.id);
+      const here = () => view.world === world.id;
+      // a world that fogs its scene after the water (no scene step: src/post/post.ts sceneStep) needs the air at what
+      // is behind the water first (surface.wgsl fs_fog)
+      const fogsAfter = !(world.light >= 2 && world.light <= 4);
+      if (fogsAfter) {
+        this.fogPass!.fullscreen(surfaceShader, {
+          label: `water.fog.${tag}`, fragment: 'fs_fog', constants: { WORLD: world.light }, bind: { ...bind, scene: this.copy! }, enabled: here,
+        });
+      }
       this.composite!.fullscreen(surfaceShader, {
         label: `water.surface.${tag}`, constants: { WORLD: world.light },
-        bind: { ...bind, scene: this.copy! }, enabled: () => view.world === world.id,
+        bind: { ...bind, scene: this.copy!, fog: fogsAfter ? this.fog! : this.standIn }, enabled: here,
       });
       return;
     }
