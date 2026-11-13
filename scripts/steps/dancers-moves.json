@@ -4,31 +4,31 @@
   "query": "play",
   "wake": true,
   "frames": 520,
-  "js": "B.set('camera', { followDist: 3.3, followFov: 42, followPitch: 0.1 }); B.place(0, 0, 0, Math.PI / 2);"
+  "eval": "bend.set('camera', { followDist: 3.3, followFov: 42, followPitch: 0.1 }); bend.place(0, 0, 0, Math.PI / 2);"
  },
  {
   "name": "meia-lua.front.0-ready",
   "frames": 40,
-  "js": "B.intent(0, null); B.place(0, 0, 0, Math.PI / 2); B.camera({ yaw: 1.5708, pitch: 0.1, idle: 0 });",
-  "query": "play"
+  "query": "play",
+  "eval": "bend.intent(0, null); bend.place(0, 0, 0, Math.PI / 2); bend.camera({ yaw: 1.5708, pitch: 0.1, idle: 0 });"
  },
  {
   "name": "meia-lua.front.1",
   "frames": 11,
-  "js": "B.move(0, 'meia-lua');",
-  "query": "play"
+  "query": "play",
+  "eval": "bend.move(0, 'meia-lua');"
  },
  {
   "name": "meia-lua.front.2",
   "frames": 11,
-  "js": "",
-  "query": "play"
+  "query": "play",
+  "eval": ""
  },
  {
   "name": "meia-lua.front.3",
   "frames": 14,
-  "js": "",
-  "query": "play"
+  "query": "play",
+  "eval": ""
  },
  {
   "name": "meia-lua.front.4-after",
@@ -38,26 +38,26 @@
  {
   "name": "meia-lua.side.0-ready",
   "frames": 40,
-  "js": "B.intent(0, null); B.place(0, 0, 0, Math.PI / 2); B.camera({ yaw: 0.0000, pitch: 0.1, idle: 0 });",
-  "query": "play"
+  "query": "play",
+  "eval": "bend.intent(0, null); bend.place(0, 0, 0, Math.PI / 2); bend.camera({ yaw: 0.0000, pitch: 0.1, idle: 0 });"
  },
  {
   "name": "meia-lua.side.1",
   "frames": 11,
-  "js": "B.move(0, 'meia-lua');",
-  "query": "play"
+  "query": "play",
+  "eval": "bend.move(0, 'meia-lua');"
  },
  {
   "name": "meia-lua.side.2",
   "frames": 11,
-  "js": "",
-  "query": "play"
+  "query": "play",
+  "eval": ""
  },
  {
   "name": "meia-lua.side.3",
   "frames": 14,
-  "js": "",
-  "query": "play"
+  "query": "play",
+  "eval": ""
  },
  {
   "name": "meia-lua.side.4-after",
@@ -67,26 +67,26 @@
  {
   "name": "armada.front.0-ready",
   "frames": 40,
-  "js": "B.intent(0, null); B.place(0, 0, 0, Math.PI / 2); B.camera({ yaw: 1.5708, pitch: 0.1, idle: 0 });",
-  "query": "play"
+  "query": "play",
+  "eval": "bend.intent(0, null); bend.place(0, 0, 0, Math.PI / 2); bend.camera({ yaw: 1.5708, pitch: 0.1, idle: 0 });"
  },
  {
   "name": "armada.front.1",
   "frames": 18,
-  "js": "B.move(0, 'armada');",
-  "query": "play"
+  "query": "play",
+  "eval": "bend.move(0, 'armada');"
  },
  {
   "name": "armada.front.2",
   "frames": 16,
-  "js": "",
-  "query": "play"
+  "query": "play",
+  "eval": ""
  },
  {
   "name": "armada.front.3",
   "frames": 17,
-  "js": "",
-  "query": "play"
+  "query": "play",
+  "eval": ""
  },
  {
   "name": "armada.front.4-after",
@@ -96,26 +96,26 @@
  {
   "name": "armada.side.0-ready",
   "frames": 40,
-  "js": "B.intent(0, null); B.place(0, 0, 0, Math.PI / 2); B.camera({ yaw: 0.0000, pitch: 0.1, idle: 0 });",
-  "query": "play"
+  "query": "play",
+  "eval": "bend.intent(0, null); bend.place(0, 0, 0, Math.PI / 2); bend.camera({ yaw: 0.0000, pitch: 0.1, idle: 0 });"
  },
  {
   "name": "armada.side.1",
   "frames": 18,
-  "js": "B.move(0, 'armada');",
-  "query": "play"
+  "query": "play",
+  "eval": "bend.move(0, 'armada');"
  },
  {
   "name": "armada.side.2",
   "frames": 16,
-  "js": "",
-  "query": "play"
+  "query": "play",
+  "eval": ""
  },
  {
   "name": "armada.side.3",
   "frames": 17,
-  "js": "",
-  "query": "play"
+  "query": "play",
+  "eval": ""
  },
  {
   "name": "armada.side.4-after",
@@ -125,26 +125,26 @@
  {
   "name": "martelo.front.0-ready",
   "frames": 40,
-  "js": "B.intent(0, null); B.place(0, 0, 0, Math.PI / 2); B.camera({ yaw: 1.5708, pitch: 0.1, idle: 0 });",
-  "query": "play"
+  "query": "play",
+  "eval": "bend.intent(0, null); bend.place(0, 0, 0, Math.PI / 2); bend.camera({ yaw: 1.5708, pitch: 0.1, idle: 0 });"
  },
  {
   "name": "martelo.front.1",
   "frames": 9,
-  "js": "B.move(0, 'martelo');",
-  "query": "play"
+  "query": "play",
+  "eval": "bend.move(0, 'martelo');"
  },
  {
   "name": "martelo.front.2",
   "frames": 6,
-  "js": "",
-  "query": "play"
+  "query": "play",
+  "eval": ""
  },
  {
   "name": "martelo.front.3",
   "frames": 9,
-  "js": "",
-  "query": "play"
+  "query": "play",
+  "eval": ""
  },
  {
   "name": "martelo.front.4-after",
@@ -154,26 +154,26 @@
  {
   "name": "martelo.side.0-ready",
   "frames": 40,
-  "js": "B.intent(0, null); B.place(0, 0, 0, Math.PI / 2); B.camera({ yaw: 0.0000, pitch: 0.1, idle: 0 });",
-  "query": "play"
+  "query": "play",
+  "eval": "bend.intent(0, null); bend.place(0, 0, 0, Math.PI / 2); bend.camera({ yaw: 0.0000, pitch: 0.1, idle: 0 });"
  },
  {
   "name": "martelo.side.1",
   "frames": 9,
-  "js": "B.move(0, 'martelo');",
-  "query": "play"
+  "query": "play",
+  "eval": "bend.move(0, 'martelo');"
  },
  {
   "name": "martelo.side.2",
   "frames": 6,
-  "js": "",
-  "query": "play"
+  "query": "play",
+  "eval": ""
  },
  {
   "name": "martelo.side.3",
   "frames": 9,
-  "js": "",
-  "query": "play"
+  "query": "play",
+  "eval": ""
  },
  {
   "name": "martelo.side.4-after",
@@ -183,26 +183,26 @@
  {
   "name": "bencao.front.0-ready",
   "frames": 40,
-  "js": "B.intent(0, null); B.place(0, 0, 0, Math.PI / 2); B.camera({ yaw: 1.5708, pitch: 0.1, idle: 0 });",
-  "query": "play"
+  "query": "play",
+  "eval": "bend.intent(0, null); bend.place(0, 0, 0, Math.PI / 2); bend.camera({ yaw: 1.5708, pitch: 0.1, idle: 0 });"
  },
  {
   "name": "bencao.front.1",
   "frames": 10,
-  "js": "B.move(0, 'bencao');",
-  "query": "play"
+  "query": "play",
+  "eval": "bend.move(0, 'bencao');"
  },
  {
   "name": "bencao.front.2",
   "frames": 8,
-  "js": "",
-  "query": "play"
+  "query": "play",
+  "eval": ""
  },
  {
   "name": "bencao.front.3",
   "frames": 11,
-  "js": "",
-  "query": "play"
+  "query": "play",
+  "eval": ""
  },
  {
   "name": "bencao.front.4-after",
@@ -212,26 +212,26 @@
  {
   "name": "bencao.side.0-ready",
   "frames": 40,
-  "js": "B.intent(0, null); B.place(0, 0, 0, Math.PI / 2); B.camera({ yaw: 0.0000, pitch: 0.1, idle: 0 });",
-  "query": "play"
+  "query": "play",
+  "eval": "bend.intent(0, null); bend.place(0, 0, 0, Math.PI / 2); bend.camera({ yaw: 0.0000, pitch: 0.1, idle: 0 });"
  },
  {
   "name": "bencao.side.1",
   "frames": 10,
-  "js": "B.move(0, 'bencao');",
-  "query": "play"
+  "query": "play",
+  "eval": "bend.move(0, 'bencao');"
  },
  {
   "name": "bencao.side.2",
   "frames": 8,
-  "js": "",
-  "query": "play"
+  "query": "play",
+  "eval": ""
  },
  {
   "name": "bencao.side.3",
   "frames": 11,
-  "js": "",
-  "query": "play"
+  "query": "play",
+  "eval": ""
  },
  {
   "name": "bencao.side.4-after",
@@ -241,26 +241,26 @@
  {
   "name": "rasteira.front.0-ready",
   "frames": 40,
-  "js": "B.intent(0, null); B.place(0, 0, 0, Math.PI / 2); B.camera({ yaw: 1.5708, pitch: 0.1, idle: 0 });",
-  "query": "play"
+  "query": "play",
+  "eval": "bend.intent(0, null); bend.place(0, 0, 0, Math.PI / 2); bend.camera({ yaw: 1.5708, pitch: 0.1, idle: 0 });"
  },
  {
   "name": "rasteira.front.1",
   "frames": 12,
-  "js": "B.move(0, 'rasteira');",
-  "query": "play"
+  "query": "play",
+  "eval": "bend.move(0, 'rasteira');"
  },
  {
   "name": "rasteira.front.2",
   "frames": 13,
-  "js": "",
-  "query": "play"
+  "query": "play",
+  "eval": ""
  },
  {
   "name": "rasteira.front.3",
   "frames": 14,
-  "js": "",
-  "query": "play"
+  "query": "play",
+  "eval": ""
  },
  {
   "name": "rasteira.front.4-after",
@@ -270,26 +270,26 @@
  {
   "name": "rasteira.side.0-ready",
   "frames": 40,
-  "js": "B.intent(0, null); B.place(0, 0, 0, Math.PI / 2); B.camera({ yaw: 0.0000, pitch: 0.1, idle: 0 });",
-  "query": "play"
+  "query": "play",
+  "eval": "bend.intent(0, null); bend.place(0, 0, 0, Math.PI / 2); bend.camera({ yaw: 0.0000, pitch: 0.1, idle: 0 });"
  },
  {
   "name": "rasteira.side.1",
   "frames": 12,
-  "js": "B.move(0, 'rasteira');",
-  "query": "play"
+  "query": "play",
+  "eval": "bend.move(0, 'rasteira');"
  },
  {
   "name": "rasteira.side.2",
   "frames": 13,
-  "js": "",
-  "query": "play"
+  "query": "play",
+  "eval": ""
  },
  {
   "name": "rasteira.side.3",
   "frames": 14,
-  "js": "",
-  "query": "play"
+  "query": "play",
+  "eval": ""
  },
  {
   "name": "rasteira.side.4-after",
@@ -299,26 +299,26 @@
  {
   "name": "strike.front.0-ready",
   "frames": 40,
-  "js": "B.intent(0, null); B.place(0, 0, 0, Math.PI / 2); B.camera({ yaw: 1.5708, pitch: 0.1, idle: 0 });",
-  "query": "play"
+  "query": "play",
+  "eval": "bend.intent(0, null); bend.place(0, 0, 0, Math.PI / 2); bend.camera({ yaw: 1.5708, pitch: 0.1, idle: 0 });"
  },
  {
   "name": "strike.front.1",
   "frames": 9,
-  "js": "B.move(0, 'strike');",
-  "query": "play"
+  "query": "play",
+  "eval": "bend.move(0, 'strike');"
  },
  {
   "name": "strike.front.2",
   "frames": 5,
-  "js": "",
-  "query": "play"
+  "query": "play",
+  "eval": ""
  },
  {
   "name": "strike.front.3",
   "frames": 5,
-  "js": "",
-  "query": "play"
+  "query": "play",
+  "eval": ""
  },
  {
   "name": "strike.front.4-after",
@@ -328,26 +328,26 @@
  {
   "name": "strike.side.0-ready",
   "frames": 40,
-  "js": "B.intent(0, null); B.place(0, 0, 0, Math.PI / 2); B.camera({ yaw: 0.0000, pitch: 0.1, idle: 0 });",
-  "query": "play"
+  "query": "play",
+  "eval": "bend.intent(0, null); bend.place(0, 0, 0, Math.PI / 2); bend.camera({ yaw: 0.0000, pitch: 0.1, idle: 0 });"
  },
  {
   "name": "strike.side.1",
   "frames": 9,
-  "js": "B.move(0, 'strike');",
-  "query": "play"
+  "query": "play",
+  "eval": "bend.move(0, 'strike');"
  },
  {
   "name": "strike.side.2",
   "frames": 5,
-  "js": "",
-  "query": "play"
+  "query": "play",
+  "eval": ""
  },
  {
   "name": "strike.side.3",
   "frames": 5,
-  "js": "",
-  "query": "play"
+  "query": "play",
+  "eval": ""
  },
  {
   "name": "strike.side.4-after",
@@ -357,26 +357,26 @@
  {
   "name": "throw.front.0-ready",
   "frames": 40,
-  "js": "B.intent(0, null); B.place(0, 0, 0, Math.PI / 2); B.camera({ yaw: 1.5708, pitch: 0.1, idle: 0 });",
-  "query": "play"
+  "query": "play",
+  "eval": "bend.intent(0, null); bend.place(0, 0, 0, Math.PI / 2); bend.camera({ yaw: 1.5708, pitch: 0.1, idle: 0 });"
  },
  {
   "name": "throw.front.1",
   "frames": 11,
-  "js": "B.move(0, 'throw');",
-  "query": "play"
+  "query": "play",
+  "eval": "bend.move(0, 'throw');"
  },
  {
   "name": "throw.front.2",
   "frames": 22,
-  "js": "",
-  "query": "play"
+  "query": "play",
+  "eval": ""
  },
  {
   "name": "throw.front.3",
   "frames": 23,
-  "js": "",
-  "query": "play"
+  "query": "play",
+  "eval": ""
  },
  {
   "name": "throw.front.4-after",
@@ -386,26 +386,26 @@
  {
   "name": "throw.side.0-ready",
   "frames": 40,
-  "js": "B.intent(0, null); B.place(0, 0, 0, Math.PI / 2); B.camera({ yaw: 0.0000, pitch: 0.1, idle: 0 });",
-  "query": "play"
+  "query": "play",
+  "eval": "bend.intent(0, null); bend.place(0, 0, 0, Math.PI / 2); bend.camera({ yaw: 0.0000, pitch: 0.1, idle: 0 });"
  },
  {
   "name": "throw.side.1",
   "frames": 11,
-  "js": "B.move(0, 'throw');",
-  "query": "play"
+  "query": "play",
+  "eval": "bend.move(0, 'throw');"
  },
  {
   "name": "throw.side.2",
   "frames": 22,
-  "js": "",
-  "query": "play"
+  "query": "play",
+  "eval": ""
  },
  {
   "name": "throw.side.3",
   "frames": 23,
-  "js": "",
-  "query": "play"
+  "query": "play",
+  "eval": ""
  },
  {
   "name": "throw.side.4-after",
@@ -415,26 +415,26 @@
  {
   "name": "au.front.0-ready",
   "frames": 40,
-  "js": "B.intent(0, null); B.place(0, 0, 0, Math.PI / 2); B.camera({ yaw: 1.5708, pitch: 0.1, idle: 0 });",
-  "query": "play"
+  "query": "play",
+  "eval": "bend.intent(0, null); bend.place(0, 0, 0, Math.PI / 2); bend.camera({ yaw: 1.5708, pitch: 0.1, idle: 0 });"
  },
  {
   "name": "au.front.1",
   "frames": 16,
-  "js": "B.move(0, 'au');",
-  "query": "play"
+  "query": "play",
+  "eval": "bend.move(0, 'au');"
  },
  {
   "name": "au.front.2",
   "frames": 15,
-  "js": "",
-  "query": "play"
+  "query": "play",
+  "eval": ""
  },
  {
   "name": "au.front.3",
   "frames": 15,
-  "js": "",
-  "query": "play"
+  "query": "play",
+  "eval": ""
  },
  {
   "name": "au.front.4-after",
@@ -444,26 +444,26 @@
  {
   "name": "au.side.0-ready",
   "frames": 40,
-  "js": "B.intent(0, null); B.place(0, 0, 0, Math.PI / 2); B.camera({ yaw: 0.0000, pitch: 0.1, idle: 0 });",
-  "query": "play"
+  "query": "play",
+  "eval": "bend.intent(0, null); bend.place(0, 0, 0, Math.PI / 2); bend.camera({ yaw: 0.0000, pitch: 0.1, idle: 0 });"
  },
  {
   "name": "au.side.1",
   "frames": 16,
-  "js": "B.move(0, 'au');",
-  "query": "play"
+  "query": "play",
+  "eval": "bend.move(0, 'au');"
  },
  {
   "name": "au.side.2",
   "frames": 15,
-  "js": "",
-  "query": "play"
+  "query": "play",
+  "eval": ""
  },
  {
   "name": "au.side.3",
   "frames": 15,
-  "js": "",
-  "query": "play"
+  "query": "play",
+  "eval": ""
  },
  {
   "name": "au.side.4-after",
@@ -473,26 +473,26 @@
  {
   "name": "macaco.front.0-ready",
   "frames": 40,
-  "js": "B.intent(0, null); B.place(0, 0, 0, Math.PI / 2); B.camera({ yaw: 1.5708, pitch: 0.1, idle: 0 });",
-  "query": "play"
+  "query": "play",
+  "eval": "bend.intent(0, null); bend.place(0, 0, 0, Math.PI / 2); bend.camera({ yaw: 1.5708, pitch: 0.1, idle: 0 });"
  },
  {
   "name": "macaco.front.1",
   "frames": 16,
-  "js": "B.move(0, 'macaco');",
-  "query": "play"
+  "query": "play",
+  "eval": "bend.move(0, 'macaco');"
  },
  {
   "name": "macaco.front.2",
   "frames": 15,
-  "js": "",
-  "query": "play"
+  "query": "play",
+  "eval": ""
  },
  {
   "name": "macaco.front.3",
   "frames": 15,
-  "js": "",
-  "query": "play"
+  "query": "play",
+  "eval": ""
  },
  {
   "name": "macaco.front.4-after",
@@ -502,26 +502,26 @@
  {
   "name": "macaco.side.0-ready",
   "frames": 40,
-  "js": "B.intent(0, null); B.place(0, 0, 0, Math.PI / 2); B.camera({ yaw: 0.0000, pitch: 0.1, idle: 0 });",
-  "query": "play"
+  "query": "play",
+  "eval": "bend.intent(0, null); bend.place(0, 0, 0, Math.PI / 2); bend.camera({ yaw: 0.0000, pitch: 0.1, idle: 0 });"
  },
  {
   "name": "macaco.side.1",
   "frames": 16,
-  "js": "B.move(0, 'macaco');",
-  "query": "play"
+  "query": "play",
+  "eval": "bend.move(0, 'macaco');"
  },
  {
   "name": "macaco.side.2",
   "frames": 15,
-  "js": "",
-  "query": "play"
+  "query": "play",
+  "eval": ""
  },
  {
   "name": "macaco.side.3",
   "frames": 15,
-  "js": "",
-  "query": "play"
+  "query": "play",
+  "eval": ""
  },
  {
   "name": "macaco.side.4-after",
@@ -531,26 +531,26 @@
  {
   "name": "role.front.0-ready",
   "frames": 40,
-  "js": "B.intent(0, null); B.place(0, 0, 0, Math.PI / 2); B.camera({ yaw: 1.5708, pitch: 0.1, idle: 0 });",
-  "query": "play"
+  "query": "play",
+  "eval": "bend.intent(0, null); bend.place(0, 0, 0, Math.PI / 2); bend.camera({ yaw: 1.5708, pitch: 0.1, idle: 0 });"
  },
  {
   "name": "role.front.1",
   "frames": 12,
-  "js": "B.move(0, 'role');",
-  "query": "play"
+  "query": "play",
+  "eval": "bend.move(0, 'role');"
  },
  {
   "name": "role.front.2",
   "frames": 11,
-  "js": "",
-  "query": "play"
+  "query": "play",
+  "eval": ""
  },
  {
   "name": "role.front.3",
   "frames": 11,
-  "js": "",
-  "query": "play"
+  "query": "play",
+  "eval": ""
  },
  {
   "name": "role.front.4-after",
@@ -560,26 +560,26 @@
  {
   "name": "role.side.0-ready",
   "frames": 40,
-  "js": "B.intent(0, null); B.place(0, 0, 0, Math.PI / 2); B.camera({ yaw: 0.0000, pitch: 0.1, idle: 0 });",
-  "query": "play"
+  "query": "play",
+  "eval": "bend.intent(0, null); bend.place(0, 0, 0, Math.PI / 2); bend.camera({ yaw: 0.0000, pitch: 0.1, idle: 0 });"
  },
  {
   "name": "role.side.1",
   "frames": 12,
-  "js": "B.move(0, 'role');",
-  "query": "play"
+  "query": "play",
+  "eval": "bend.move(0, 'role');"
  },
  {
   "name": "role.side.2",
   "frames": 11,
-  "js": "",
-  "query": "play"
+  "query": "play",
+  "eval": ""
  },
  {
   "name": "role.side.3",
   "frames": 11,
-  "js": "",
-  "query": "play"
+  "query": "play",
+  "eval": ""
  },
  {
   "name": "role.side.4-after",
@@ -589,26 +589,26 @@
  {
   "name": "esquiva.front.0-ready",
   "frames": 40,
-  "js": "B.intent(0, null); B.place(0, 0, 0, Math.PI / 2); B.camera({ yaw: 1.5708, pitch: 0.1, idle: 0 });",
-  "query": "play"
+  "query": "play",
+  "eval": "bend.intent(0, null); bend.place(0, 0, 0, Math.PI / 2); bend.camera({ yaw: 1.5708, pitch: 0.1, idle: 0 });"
  },
  {
   "name": "esquiva.front.1",
   "frames": 9,
-  "js": "B.move(0, 'esquiva');",
-  "query": "play"
+  "query": "play",
+  "eval": "bend.move(0, 'esquiva');"
  },
  {
   "name": "esquiva.front.2",
   "frames": 8,
-  "js": "",
-  "query": "play"
+  "query": "play",
+  "eval": ""
  },
  {
   "name": "esquiva.front.3",
   "frames": 8,
-  "js": "",
-  "query": "play"
+  "query": "play",
+  "eval": ""
  },
  {
   "name": "esquiva.front.4-after",
@@ -618,26 +618,26 @@
  {
   "name": "esquiva.side.0-ready",
   "frames": 40,
-  "js": "B.intent(0, null); B.place(0, 0, 0, Math.PI / 2); B.camera({ yaw: 0.0000, pitch: 0.1, idle: 0 });",
-  "query": "play"
+  "query": "play",
+  "eval": "bend.intent(0, null); bend.place(0, 0, 0, Math.PI / 2); bend.camera({ yaw: 0.0000, pitch: 0.1, idle: 0 });"
  },
  {
   "name": "esquiva.side.1",
   "frames": 9,
-  "js": "B.move(0, 'esquiva');",
-  "query": "play"
+  "query": "play",
+  "eval": "bend.move(0, 'esquiva');"
  },
  {
   "name": "esquiva.side.2",
   "frames": 8,
-  "js": "",
-  "query": "play"
+  "query": "play",
+  "eval": ""
  },
  {
   "name": "esquiva.side.3",
   "frames": 8,
-  "js": "",
-  "query": "play"
+  "query": "play",
+  "eval": ""
  },
  {
   "name": "esquiva.side.4-after",
@@ -647,26 +647,26 @@
  {
   "name": "block.front.0-ready",
   "frames": 40,
-  "js": "B.intent(0, null); B.place(0, 0, 0, Math.PI / 2); B.camera({ yaw: 1.5708, pitch: 0.1, idle: 0 });",
-  "query": "play"
+  "query": "play",
+  "eval": "bend.intent(0, null); bend.place(0, 0, 0, Math.PI / 2); bend.camera({ yaw: 1.5708, pitch: 0.1, idle: 0 });"
  },
  {
   "name": "block.front.1",
   "frames": 8,
-  "js": "B.move(0, 'block');",
-  "query": "play"
+  "query": "play",
+  "eval": "bend.move(0, 'block');"
  },
  {
   "name": "block.front.2",
   "frames": 7,
-  "js": "",
-  "query": "play"
+  "query": "play",
+  "eval": ""
  },
  {
   "name": "block.front.3",
   "frames": 7,
-  "js": "",
-  "query": "play"
+  "query": "play",
+  "eval": ""
  },
  {
   "name": "block.front.4-after",
@@ -676,26 +676,26 @@
  {
   "name": "block.side.0-ready",
   "frames": 40,
-  "js": "B.intent(0, null); B.place(0, 0, 0, Math.PI / 2); B.camera({ yaw: 0.0000, pitch: 0.1, idle: 0 });",
-  "query": "play"
+  "query": "play",
+  "eval": "bend.intent(0, null); bend.place(0, 0, 0, Math.PI / 2); bend.camera({ yaw: 0.0000, pitch: 0.1, idle: 0 });"
  },
  {
   "name": "block.side.1",
   "frames": 8,
-  "js": "B.move(0, 'block');",
-  "query": "play"
+  "query": "play",
+  "eval": "bend.move(0, 'block');"
  },
  {
   "name": "block.side.2",
   "frames": 7,
-  "js": "",
-  "query": "play"
+  "query": "play",
+  "eval": ""
  },
  {
   "name": "block.side.3",
   "frames": 7,
-  "js": "",
-  "query": "play"
+  "query": "play",
+  "eval": ""
  },
  {
   "name": "block.side.4-after",
@@ -705,26 +705,26 @@
  {
   "name": "spin.front.0-ready",
   "frames": 40,
-  "js": "B.intent(0, null); B.place(0, 0, 0, Math.PI / 2); B.camera({ yaw: 1.5708, pitch: 0.1, idle: 0 });",
-  "query": "play"
+  "query": "play",
+  "eval": "bend.intent(0, null); bend.place(0, 0, 0, Math.PI / 2); bend.camera({ yaw: 1.5708, pitch: 0.1, idle: 0 });"
  },
  {
   "name": "spin.front.1",
   "frames": 16,
-  "js": "B.move(0, 'spin');",
-  "query": "play"
+  "query": "play",
+  "eval": "bend.move(0, 'spin');"
  },
  {
   "name": "spin.front.2",
   "frames": 15,
-  "js": "",
-  "query": "play"
+  "query": "play",
+  "eval": ""
  },
  {
   "name": "spin.front.3",
   "frames": 15,
-  "js": "",
-  "query": "play"
+  "query": "play",
+  "eval": ""
  },
  {
   "name": "spin.front.4-after",
@@ -734,26 +734,26 @@
  {
   "name": "spin.side.0-ready",
   "frames": 40,
-  "js": "B.intent(0, null); B.place(0, 0, 0, Math.PI / 2); B.camera({ yaw: 0.0000, pitch: 0.1, idle: 0 });",
-  "query": "play"
+  "query": "play",
+  "eval": "bend.intent(0, null); bend.place(0, 0, 0, Math.PI / 2); bend.camera({ yaw: 0.0000, pitch: 0.1, idle: 0 });"
  },
  {
   "name": "spin.side.1",
   "frames": 16,
-  "js": "B.move(0, 'spin');",
-  "query": "play"
+  "query": "play",
+  "eval": "bend.move(0, 'spin');"
  },
  {
   "name": "spin.side.2",
   "frames": 15,
-  "js": "",
-  "query": "play"
+  "query": "play",
+  "eval": ""
  },
  {
   "name": "spin.side.3",
   "frames": 15,
-  "js": "",
-  "query": "play"
+  "query": "play",
+  "eval": ""
  },
  {
   "name": "spin.side.4-after",
@@ -763,26 +763,26 @@
  {
   "name": "pirueta.front.0-ready",
   "frames": 40,
-  "js": "B.intent(0, null); B.place(0, 0, 0, Math.PI / 2); B.camera({ yaw: 1.5708, pitch: 0.1, idle: 0 });",
-  "query": "play"
+  "query": "play",
+  "eval": "bend.intent(0, null); bend.place(0, 0, 0, Math.PI / 2); bend.camera({ yaw: 1.5708, pitch: 0.1, idle: 0 });"
  },
  {
   "name": "pirueta.front.1",
   "frames": 22,
-  "js": "B.move(0, 'pirueta');",
-  "query": "play"
+  "query": "play",
+  "eval": "bend.move(0, 'pirueta');"
  },
  {
   "name": "pirueta.front.2",
   "frames": 21,
-  "js": "",
-  "query": "play"
+  "query": "play",
+  "eval": ""
  },
  {
   "name": "pirueta.front.3",
   "frames": 21,
-  "js": "",
-  "query": "play"
+  "query": "play",
+  "eval": ""
  },
  {
   "name": "pirueta.front.4-after",
@@ -792,26 +792,26 @@
  {
   "name": "pirueta.side.0-ready",
   "frames": 40,
-  "js": "B.intent(0, null); B.place(0, 0, 0, Math.PI / 2); B.camera({ yaw: 0.0000, pitch: 0.1, idle: 0 });",
-  "query": "play"
+  "query": "play",
+  "eval": "bend.intent(0, null); bend.place(0, 0, 0, Math.PI / 2); bend.camera({ yaw: 0.0000, pitch: 0.1, idle: 0 });"
  },
  {
   "name": "pirueta.side.1",
   "frames": 22,
-  "js": "B.move(0, 'pirueta');",
-  "query": "play"
+  "query": "play",
+  "eval": "bend.move(0, 'pirueta');"
  },
  {
   "name": "pirueta.side.2",
   "frames": 21,
-  "js": "",
-  "query": "play"
+  "query": "play",
+  "eval": ""
  },
  {
   "name": "pirueta.side.3",
   "frames": 21,
-  "js": "",
-  "query": "play"
+  "query": "play",
+  "eval": ""
  },
  {
   "name": "pirueta.side.4-after",

@@ -4,19 +4,19 @@
   "query": "play&two",
   "wake": true,
   "frames": 520,
-  "js": "B.set('camera', { followDist: 4.6, followFov: 48, followPitch: 0.22 }); B.place(0, -1.4, 0.8, Math.PI / 2); B.place(1, 1.4, -0.6, -Math.PI / 2); B.camera({ yaw: 0.9, pitch: 0.22 });"
+  "eval": "bend.set('camera', { followDist: 4.6, followFov: 48, followPitch: 0.22 }); bend.place(0, -1.4, 0.8, Math.PI / 2); bend.place(1, 1.4, -0.6, -Math.PI / 2); bend.camera({ yaw: 0.9, pitch: 0.22 });"
  },
  {
   "name": "free.follow",
   "frames": 100,
-  "js": "B.intent(0, { moveX: 1, moveZ: 0.4 });",
-  "query": "play&two"
+  "query": "play&two",
+  "eval": "bend.intent(0, { moveX: 1, moveZ: 0.4 });"
  },
  {
   "name": "lock.0",
   "frames": 1,
-  "js": "B.intent(0, null); B.lock(true);",
-  "query": "play&two"
+  "query": "play&two",
+  "eval": "bend.intent(0, null); bend.lock(true);"
  },
  {
   "name": "lock.1",
@@ -36,38 +36,38 @@
  {
   "name": "ledges.jump",
   "frames": 18,
-  "js": "B.place(0, -2.6, 0); B.place(1, 2.6, 0); B.intent(0, { jump: true, jumpHeld: true }); B.intent(1, { jump: true, jumpHeld: true });",
-  "query": "play&two"
+  "query": "play&two",
+  "eval": "bend.place(0, -2.6, 0); bend.place(1, 2.6, 0); bend.intent(0, { jump: true, jumpHeld: true }); bend.intent(1, { jump: true, jumpHeld: true });"
  },
  {
   "name": "ledges.on",
   "frames": 80,
-  "js": "B.intent(0, { jumpHeld: false }); B.intent(1, { jumpHeld: false });",
-  "query": "play&two"
+  "query": "play&two",
+  "eval": "bend.intent(0, { jumpHeld: false }); bend.intent(1, { jumpHeld: false });"
  },
  {
   "name": "ledges.high",
   "frames": 22,
-  "js": "B.place(0, -0.3, 0); B.intent(0, { jump: true, jumpHeld: true });",
-  "query": "play&two"
+  "query": "play&two",
+  "eval": "bend.place(0, -0.3, 0); bend.intent(0, { jump: true, jumpHeld: true });"
  },
  {
   "name": "ledges.high2",
   "frames": 70,
-  "js": "B.intent(0, { jump: true, jumpHeld: true });",
-  "query": "play&two"
+  "query": "play&two",
+  "eval": "bend.intent(0, { jump: true, jumpHeld: true });"
  },
  {
   "name": "ledges.kick",
   "frames": 30,
-  "js": "B.intent(0, { jumpHeld: false }); B.move(1, 'meia-lua');",
-  "query": "play&two"
+  "query": "play&two",
+  "eval": "bend.intent(0, { jumpHeld: false }); bend.move(1, 'meia-lua');"
  },
  {
   "name": "unlock.1",
   "frames": 20,
-  "js": "B.lock(false);",
-  "query": "play&two"
+  "query": "play&two",
+  "eval": "bend.lock(false);"
  },
  {
   "name": "unlock.2",

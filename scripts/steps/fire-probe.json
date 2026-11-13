@@ -1,0 +1,5 @@
+[
+  { "name": "fire-probe", "params": { "dance": { "auto": false } }, "wake": true,
+    "eval": "bend.loadout(0, { layers: [{ kind: 'fire', share: 1 }] }); bend.loadout(1, { layers: [{ kind: 'plasma', share: 1 }] });",
+    "frames": 720, "shot": "wide", "timings": true }
+]

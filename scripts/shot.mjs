@@ -7,8 +7,10 @@
 // the page are printed, and counted at the end.
 //
 // A step: { name, query?, world?, wake?, goto?, next?, shot?, params?: { group: { key: value } }, frames?, yaw?, dist?,
-//   pitch?, lock?, js?: 'async body, B = bend', swipe?: y, hold?: [x, y, seconds], after?, frames2? }. A step with its own `query` opens the page
-//   again with it. --api lapidary drives the original Gem Dancers (window.lapidary) with the same steps, for comparison.
+//   pitch?, lock?, swipe?: y, hold?: [x, y, seconds], after?, frames2?, eval?, eval2? }. A step with its own `query`
+//   opens the page again with it. eval / eval2 are scripts run in the page with `bend` (async): eval before the step's
+//   frames, eval2 after them (then frames2 more). --api lapidary drives the original Gem Dancers (window.lapidary) with
+//   the same steps, for comparison.
 import { writeFileSync, mkdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { launch, adapterName, takeLock } from './lib/browser.mjs';
@@ -90,12 +92,15 @@ for (const s of steps) {
     if (s.next) B.next();
     if (s.shot) B.shoot(s.shot);
     if (s.lock !== undefined) B.lock(s.lock);
-    // a step may script the page first (an async function body with B = window.bend): bend.intent, bend.move…
-    if (s.js) await new Function('B', `return (async () => { ${s.js} })()`)(B);
+    // eval: the step's own script (an async body run with `bend`), before its camera fields and its frames: a loadout,
+    // a form, an arc, bend.intent / move / place for a player. (One mechanism for every step file: the dancers' steps
+    // used to call this `js` with `B`.) eval2 runs after the frames, then frames2 more.
+    if (s.eval) await new Function('bend', `return (async () => { ${s.eval} })()`)(B);
     const cam = {};
     for (const k of ['yaw', 'dist', 'pitch', 'height', 'idle']) if (s[k] !== undefined) cam[k] = s[k];
     if (Object.keys(cam).length) B.camera(cam);
     await B.step(s.frames ?? 120);
+    if (s.eval2) { await new Function('bend', `return (async () => { ${s.eval2} })()`)(B); await B.step(s.frames2 ?? 1); }
     const c = document.getElementById('stage'), r = c.getBoundingClientRect();
     if (s.swipe) {
       for (let i = 0; i < 24; i++) { B.point(r.width * (0.2 + 0.6 * i / 24), r.height * s.swipe); await B.step(1); }

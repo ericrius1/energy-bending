@@ -43,6 +43,12 @@ export const LIMITS = {
   fieldProbes: 16,
   /** Steam puffs (src/matter/reactions): 32 bytes each, so 2 MB; a desktop runs 12k to 24k, a phone 4k. */
   steam: 65_536,
+  /** Flame particles across every fire and plasma dancer (matter/fire). 48 bytes of state and 32 of home each, so
+   *  262k is about 21 MB. One fire dancer on a desktop runs ~150k; a mandala of fire dancers shares the cap. */
+  flames: 262_144,
+  /** Line segments of plasma arcs drawn in one frame (matter/plasma/arcs.ts): an arc with its forks is ~30, so this
+   *  holds well over a hundred arcs. 32 bytes each. */
+  arcSegments: 4096,
 } as const;
 
 export type Limits = typeof LIMITS;
