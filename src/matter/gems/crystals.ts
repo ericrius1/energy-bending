@@ -58,7 +58,7 @@ export interface CrystalParams { crystalSpring: number; crystalLag: number; refo
 
 export class Crystals {
   /** the Crystals uniform's rows: pos (xyz, grown), rot, size (xyz, dancer), look (kind, glow, flash, shape) */
-  readonly rows = new Float32Array(MAX_CRYSTALS * 16);
+  readonly rows = Array.from({ length: MAX_CRYSTALS }, () => ({ pos: [0, 0, 0, 0], rot: [0, 0, 0, 1], size: [0, 0, 0, 0], look: [0, 0, 0, 0] }));
   /** per shape (SHAPES order): the first instance and how many */
   readonly runs = SHAPES.map(() => ({ first: 0, count: 0 }));
   /** per capsule slot: 1 while a standing crystal covers it (its stones hide) */
@@ -104,7 +104,7 @@ export class Crystals {
     this.list = next;
     this.runs.forEach((r) => { r.first = 0; r.count = 0; });
     next.forEach((c, i) => { const r = this.runs[c.shape]; if (!r.count) r.first = i; r.count++; });
-    this.rows.fill(0);
+    for (const r of this.rows) r.pos[3] = 0;
   }
 
   /**
@@ -155,9 +155,10 @@ export class Crystals {
       else c.whole = Math.min(1, c.whole + step * 2.5);
       if (c.whole > 0.5) for (const s of c.slots) this.hide[s] = 1;
       // the uniform's row
-      const r = n * 16, R = this.rows;
+      const row = this.rows[n];
       const grow = c.whole <= 0 ? 0 : 0.55 + 0.45 * smooth(c.whole);
-      R.set([c.pos[0], c.pos[1], c.pos[2], grow, ...c.rot, c.size[0], c.size[1], c.size[2], c.dancer, c.kind, c.glow, 1 - smooth(Math.min(1, c.whole * 1.2)), c.shape], r);
+      row.pos = [c.pos[0], c.pos[1], c.pos[2], grow]; row.rot = [...c.rot]; row.size = [c.size[0], c.size[1], c.size[2], c.dancer];
+      row.look = [c.kind, c.glow, c.whole > 0 ? 1 - smooth(Math.min(1, c.whole * 1.2)) : 0, c.shape];
     });
   }
 }

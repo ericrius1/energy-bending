@@ -40,13 +40,13 @@ export const gemParams = defineParams('gems', {
   /** how far (m) a stone may trail its home when its limb is slow (a third of it when fast) */
   trailCap: 0.16,
   /** how much of speedShed's steady leak is left (the rest comes off in bursts at peaks and impacts) */
-  leak: 0.12,
+  leak: 0.06,
   /** the share of a limb's stones a burst throws, at full strength */
-  burst: 0.16,
+  burst: 0.07,
   /** a limb end faster than this (m/s) that starts to slow is a peak (a kick at full stretch) */
-  peakSpeed: 4.2,
+  peakSpeed: 5.5,
   /** a limb end slowing faster than this (m/s²) has hit something */
-  impact: 70,
+  impact: 140,
   /** how much a landing squashes the body */
   landSquash: 3,
   // the large crystals (crystals.ts)
@@ -56,9 +56,9 @@ export const gemParams = defineParams('gems', {
   /** seconds a cracked crystal waits before it re-forms */
   reform: 1.5,
   /** the share of its stones a cracking crystal throws */
-  crackBurst: 0.6,
+  crackBurst: 0.35,
   /** a peak at least this strong (0 … 1) cracks a crystal */
-  crackAt: 0.5,
+  crackAt: 0.7,
   /** the crystals' extra dispersion (× a stone's) */
   crystal: 2.4,
   // the hearts (hearts.ts)

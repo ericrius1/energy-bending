@@ -22,6 +22,8 @@ export interface Peak { slot: number; strength: number; speed: number }
 
 // the joint whose speed says how fast a capsule's matter is going: its far end
 const ENDS = CAPSULES.map((c) => JOINT[c.child as keyof typeof JOINT] ?? JOINT[c.joint as keyof typeof JOINT] ?? 0);
+// the capsules whose far end can hit the floor (a hand or a foot): only they burst on an impact
+const STRIKES = CAPSULES.map((c) => /Foot|Toe|Finger|HandIndex/.test(c.joint));
 const FEET = [JOINT.LeftFoot, JOINT.LeftToeBase, JOINT.RightFoot, JOINT.RightToeBase];
 
 export class GemMotion {
@@ -37,7 +39,10 @@ export class GemMotion {
   private prevPos = new Float32Array(D * J * 3);
   private fresh = new Array(D).fill(true);
   private speed = new Float32Array(D * SEGS);
+  private abs = new Float32Array(D * SEGS);
   private rising = new Uint8Array(D * SEGS);
+  /** seconds until a capsule may burst again (a burst is an event, not a rattle) */
+  private rest = new Float32Array(D * SEGS);
   private sq = new Float32Array(D * 2);   // squash, its rate
   private hipsVy = new Float32Array(D);
   /** counts for stats */
@@ -94,21 +99,26 @@ export class GemMotion {
     }
     this.fresh[d] = false;
 
+    // (a peak is measured against the hips: a kick is a limb moving on the body, a jump's apex is not)
+    const hx = w[8], hy = w[9], hz = w[10];
     // peaks: a capsule's far end was fast and has just started to slow (a kick at full stretch), or slowed hard in a
     // frame (a hand or a foot meeting the floor)
     for (let c = 0; c < CAPSULES.length; c++) {
       const e = ENDS[c] * JOINT_FLOATS, i = d * SEGS + c;
-      const v = Math.hypot(w[e + 8], w[e + 9], w[e + 10]);
+      const v = Math.hypot(w[e + 8] - hx, w[e + 9] - hy, w[e + 10] - hz);
       const was = this.speed[i];
       this.speed[i] = v;
+      const va = Math.hypot(w[e + 8], w[e + 9], w[e + 10]), wasA = this.abs[i];
+      this.abs[i] = va;
+      this.rest[i] = Math.max(0, this.rest[i] - dt);
       if (still) { this.rising[i] = 0; continue; }
-      const decel = (was - v) / dt;
-      if (v > was) { this.rising[i] = 1; continue; }
+      const decel = STRIKES[c] ? (wasA - va) / dt : 0;
+      if (v > was && decel <= P.impact) { this.rising[i] = 1; continue; }
       let strength = 0;
-      if (this.rising[i] && was > P.peakSpeed) strength = Math.min(1, (was - P.peakSpeed) / P.peakSpeed + 0.35);
-      if (decel > P.impact && was > 1.5) strength = Math.max(strength, Math.min(1, decel / (P.impact * 2) + 0.3));
+      if (this.rising[i] && v <= was && was > P.peakSpeed) strength = Math.min(1, (was - P.peakSpeed) / P.peakSpeed + 0.35);
+      if (decel > P.impact && wasA > 2.5) strength = Math.max(strength, Math.min(1, decel / (P.impact * 2) + 0.3));
       this.rising[i] = 0;
-      if (strength > 0) { this.peaks.push({ slot: i, strength, speed: was }); this.bursts++; }
+      if (strength > 0 && this.rest[i] <= 0) { this.rest[i] = 0.7; this.peaks.push({ slot: i, strength, speed: was }); this.bursts++; }
     }
 
     // a landing: the hips were falling and have stopped; the body squashes onto the ground and springs back

@@ -145,7 +145,7 @@ fn ambient(N: vec3f, ao: f32, p: vec3f) -> vec3f { return worldAmbient(N, ao, p)
     let g = pow(max(dot(R, key.dir), 0.0), 900.0) * 60.0 + pow(max(dot(R, rimDir), 0.0), 240.0) * 8.0 * rim.rgb;
     col += g * look.glint * key.glint * step(0.4, fh) * mix(vec3f(1.0), hue(body), 0.35);
     // its core's glow, and deep in a hollow the most
-    col += hue(body) * K.crystal.w * look.emissive * (0.25 + 0.75 * depth) * mix(0.5, 1.4, 1.0 - i.ao) * (0.5 + 0.5 * fh) * 0.55;
+    col += hue(body) * K.crystal.w * look.emissive * (0.25 + 0.75 * depth) * mix(0.5, 1.4, 1.0 - i.ao) * (0.5 + 0.5 * fh) * 0.3;
     // the minerals' traits (as on the stones)
     if (K.fx.x > 0.0) {
       let q = i.local * 2.4;
