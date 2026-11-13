@@ -8,7 +8,7 @@
 //
 // Pure logic and a Float32Array of shards (ice/shards.wgsl SetShard): no GPU here (ice/ice.ts uploads it).
 import { mulberry32 } from 'math/random';
-import type { StagePlane } from '../../engine/camera';
+import { planeNormal, type StagePlane } from '../../engine/camera';
 import { iceParams, SET_SHARDS_MAX } from './params';
 
 type V3 = [number, number, number];
@@ -178,8 +178,8 @@ export class SetIce {
         if (this.now < p.born + (along + seg) / GROW_SPEED) break;
         along += seg;
         const da = sub(a, plane.origin), db = sub(b, plane.origin);
-        const lim = reach + p.width / 2;
-        if (Math.abs(dot(da, plane.normal)) > lim || Math.abs(dot(db, plane.normal)) > lim) continue;
+        const lim = reach + p.width / 2, n = planeNormal(plane);
+        if (Math.abs(dot(da, n)) > lim || Math.abs(dot(db, n)) > lim) continue;
         let x0 = dot(da, plane.right), x1 = dot(db, plane.right), y0 = da[1] + top, y1 = db[1] + top;
         if (x1 < x0) { [x0, x1] = [x1, x0]; [y0, y1] = [y1, y0]; }
         if (x1 - x0 < 1e-3) continue;
