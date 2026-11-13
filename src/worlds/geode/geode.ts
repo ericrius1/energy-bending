@@ -85,6 +85,9 @@ export class Geode implements World {
   readonly id = 'geode';
   readonly light = 0;
   readonly mood = -0.2;
+  /** the locked view's dim beyond the stage (World.stageDim; 9-stage.md): the gem dome's stars and bokeh are busy
+   *  behind the pair, so a little more than the default */
+  readonly stageDim = 0.65;
   readonly shared: Record<string, Texture>;
   readonly stages: StagePlane[];
   readonly portals: PortalDef[];

@@ -1,0 +1,115 @@
+[
+ {
+  "name": "partner-temple-lock",
+  "query": "jogo=partner&world=temple&dress=fire,water",
+  "fps": 5,
+  "seconds": 30,
+  "warm": 1,
+  "setup": "bend.set('temple', { tideHold: 0.42 }); await bend.jogo.start(); window.lockLog = []; window.roots = [];",
+  "cues": {
+   "4.0": "bend.move(0,'meia-lua')",
+   "5.5": "bend.move(0,'esquiva')",
+   "7.0": "bend.move(0,'armada')",
+   "8.5": "bend.move(0,'spin')",
+   "10.0": "bend.move(0,'martelo')",
+   "11.5": "bend.move(0,'au')",
+   "13.0": "bend.move(0,'block')",
+   "14.5": "bend.move(0,'meia-lua')",
+   "16.0": "bend.move(0,'role')",
+   "17.5": "bend.move(0,'armada')",
+   "19.0": "bend.move(0,'meia-lua')",
+   "20.5": "bend.move(0,'esquiva')",
+   "22.0": "bend.move(0,'armada')",
+   "23.5": "bend.move(0,'spin')",
+   "25.0": "bend.move(0,'martelo')",
+   "26.5": "bend.move(0,'au')",
+   "28.0": "bend.move(0,'block')",
+   "29.5": "bend.move(0,'meia-lua')",
+   "29.8": "const L = window.lockLog; console.warn('lock', JSON.stringify({ widest: Math.max(...L.map((l) => l[3])), nearest: Math.min(...L.map((l) => l[2])), maxTurn: Math.max(...L.map((l) => Math.abs(l[1]))), blockedFrames: L.filter((l) => l[4] > 0).length, frames: L.length, lowestEye: Math.min(...L.map((l) => l[5])) })); console.warn('roots', JSON.stringify(window.roots));"
+  },
+  "each": "window.lockLog.push([+t.toFixed(1), +bend.rig.dodge.toFixed(3), +bend.rig.lockD.toFixed(2), +bend.rig.fovNow.toFixed(1), bend.rig.sight.blocking.length, +bend.rig.eye[1].toFixed(2)]); if (Math.round(t * 5) % 10 === 0) window.roots.push([+t.toFixed(0), ...bend.show.dancers.slice(0, 2).map((d) => +d.skeleton.world[0].toFixed(2))]);",
+  "sheet": {
+   "cols": 10,
+   "rows": 3,
+   "width": 260
+  },
+  "stills": [
+   8,
+   16,
+   24
+  ]
+ },
+ {
+  "name": "gate-forge",
+  "query": "play&dress=fire",
+  "fps": 5,
+  "seconds": 15,
+  "warm": 30,
+  "setup": "const g = [...bend.gates.gates.values()].find((g) => g.world === 'geode' && g.partner && g.partner.world === 'forge'); const n = g.n, P = [g.at[0] + n[0] * 4, g.at[2] + n[2] * 4];\n      bend.wake(); bend.set('camera', { followDist: 3.6, followFov: 44, followPitch: 0.1 });\n      bend.place(0, P[0], P[1], Math.atan2(-n[0], -n[2])); bend.camera({ yaw: Math.atan2(n[0], n[2]) });\n      bend.intent(0, { moveZ: 1, walk: true }); window.walk = [];",
+  "each": "const p = bend.players()[0], r = bend.rig, W = bend.gates.rigWorld;\n      let disc = 99;\n      for (const g of bend.gates.gates.values()) { if (g.world !== W) continue; const l = g.local(r.eye), rad = Math.hypot(l[0], l[1]); disc = Math.min(disc, rad < g.reach ? Math.abs(g.side(r.eye)) : Math.hypot(rad - g.reach, g.side(r.eye))); }\n      window.walk.push([+t.toFixed(2), +p.x.toFixed(3), +p.z.toFixed(3), bend.gates.worldOf(bend.show.dancers[0]), r.eye.map((v) => +v.toFixed(2)), +Math.hypot(r.eye[0] - r.look[0], r.eye[1] - r.look[1], r.eye[2] - r.look[2]).toFixed(2), !!r.through, +disc.toFixed(2), +p.y.toFixed(2)]);",
+  "cues": {
+   "6.2": "bend.intent(0, { moveZ: 0 });",
+   "6.8": "const g = [...bend.gates.gates.values()].find((g) => g.world === 'geode' && g.partner && g.partner.world === 'forge'); const b = g.partner, p = bend.players()[0]; bend.camera({ yaw: Math.atan2(p.x - b.at[0], p.z - b.at[2]) });",
+   "7.4": "bend.intent(0, { moveZ: 1, walk: true });",
+   "14.6": "const W = window.walk;\n        console.warn('walk-far', JSON.stringify(W.filter((w) => w[3] === 'forge').map((w) => [w[0], w[1], w[2], w[8], w[7], w[5]])));\n        console.warn('walk-sum', JSON.stringify({ lowestFeet: Math.min(...W.map((w) => w[8])), nearestDisc: Math.min(...W.map((w) => w[7])), nearestDiscAt: W.reduce((m, w) => (w[7] < m[7] ? w : m))[0], framesNearDisc: W.filter((w) => w[7] < 0.35 && !w[6]).length, worlds: [...new Set(W.map((w) => w[3]))] }));"
+  },
+  "sheet": {
+   "cols": 10,
+   "rows": 8,
+   "width": 200
+  },
+  "stills": [
+   3,
+   6.6,
+   9,
+   11,
+   14
+  ]
+ },
+ {
+  "name": "w-geode",
+  "query": "play&two&dress=fire,water&world=geode",
+  "fps": 4,
+  "seconds": 12,
+  "warm": 300,
+  "setup": "bend.set('camera', { followDist: 8, followFov: 44, followPitch: 0.18, followSwing: 0 }); bend.wake(); bend.place(0,-0.8,0.3,Math.PI/2); bend.place(1,0.8,0.3,-Math.PI/2); window.ins = [];",
+  "each": "bend.camera({ yaw: t * 0.52 }); const S = bend.rig.solids, e = [...bend.rig.eye]; window.ins.push([+t.toFixed(2), S ? S.inside(e, 0) : false, S ? S.inside(e, 0.2) : false, +Math.hypot(e[0] - bend.rig.look[0], e[1] - bend.rig.look[1], e[2] - bend.rig.look[2]).toFixed(2)]);",
+  "cues": {
+   "11.7": "const I = window.ins; console.warn('inside', JSON.stringify({ frames: I.length, inside: I.filter((i) => i[1]).map((i) => i[0]), within20cm: I.filter((i) => i[2]).map((i) => i[0]), shortestBoom: Math.min(...I.map((i) => i[3])), solids: bend.rig.solids?.list.length ?? 0 }));"
+  },
+  "sheet": {
+   "cols": 8,
+   "rows": 3,
+   "width": 250
+  },
+  "stills": [
+   0,
+   3,
+   6,
+   9
+  ]
+ },
+ {
+  "name": "w-forge",
+  "query": "play&two&dress=fire,water&world=forge",
+  "fps": 4,
+  "seconds": 12,
+  "warm": 300,
+  "setup": "bend.set('camera', { followDist: 8, followFov: 44, followPitch: 0.18, followSwing: 0 }); bend.wake(); bend.place(0,-0.8,0.3,Math.PI/2); bend.place(1,0.8,0.3,-Math.PI/2); window.ins = [];",
+  "each": "bend.camera({ yaw: t * 0.52 }); const S = bend.rig.solids, e = [...bend.rig.eye]; window.ins.push([+t.toFixed(2), S ? S.inside(e, 0) : false, S ? S.inside(e, 0.2) : false, +Math.hypot(e[0] - bend.rig.look[0], e[1] - bend.rig.look[1], e[2] - bend.rig.look[2]).toFixed(2)]);",
+  "cues": {
+   "11.7": "const I = window.ins; console.warn('inside', JSON.stringify({ frames: I.length, inside: I.filter((i) => i[1]).map((i) => i[0]), within20cm: I.filter((i) => i[2]).map((i) => i[0]), shortestBoom: Math.min(...I.map((i) => i[3])), solids: bend.rig.solids?.list.length ?? 0 }));"
+  },
+  "sheet": {
+   "cols": 8,
+   "rows": 3,
+   "width": 250
+  },
+  "stills": [
+   0,
+   3,
+   6,
+   9
+  ]
+ }
+]

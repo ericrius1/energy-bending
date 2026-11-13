@@ -15,7 +15,7 @@ import type { ScenePass } from '../../engine/scene';
 import type { FrameCtx } from '../../engine/frame';
 import { defineParams, hex, onParams } from '../../engine/params';
 import { ledgeY, stagePlane, spawnsOf, type StagePlane } from '../stage';
-import { layoutForge, solidsOfForge, STAGE_SLABS, type ForgeLayout } from './layout';
+import { floorAt, layoutForge, solidsOfForge, STAGE_SLABS, type ForgeLayout } from './layout';
 import { clearOf, type Solid } from '../solids';
 import { JOINT } from '../../skeleton/rig';
 
@@ -61,6 +61,9 @@ export class Forge implements World {
   readonly id = 'forge';
   readonly light = 4;
   readonly mood = 0.8;
+  /** the locked view's dim beyond the stage (World.stageDim; 9-stage.md): the frame is mostly dark, and the red-lit
+   *  rock hanging behind is all that gives it depth: dimmed little */
+  readonly stageDim = 0.3;
   readonly shared;
   readonly stages: StagePlane[];
   /** off the slabs a body falls; below this it has fallen out and re-forms at a spawn (before the catch floor) */
@@ -99,8 +102,10 @@ export class Forge implements World {
       spawns: [[-2.3, 0], [2.3, 0]], lens: 20,
     })];
     this.spawns = spawnsOf(this.stages[0]);
-    // one gate, back to the geode: on the anvil's lobe behind the stage's left end, facing the middle
-    this.portals = [{ id: 'forge.geode', at: [-5.7, 1.35, -3.5], normal: [0.7, 0, 0.71], radius: 1.25, to: { world: 'geode', portal: 'geode.forge' } }];
+    // one gate, back to the geode: on the anvil's lobe behind the stage's left end, facing the stage's middle exactly
+    // (it faced 0.17 rad further left, and the way in from it ran 0.9 m from the left float's lowest column: the
+    // camera behind a player walking in, and in front of one walking back, came in to 0.9 m for that column: 9-stage.md)
+    this.portals = [{ id: 'forge.geode', at: [-5.7, 1.35, -3.5], normal: [0.852, 0, 0.523], radius: 1.25, to: { world: 'geode', portal: 'geode.forge' } }];
     this.upload();
     onParams(forgeParams, () => this.upload());
   }
@@ -150,19 +155,11 @@ export class Forge implements World {
     }
   }
 
-  /** the top of the slab under (x, z) (the bobbing ones where they are now), or far below where the game catches you */
   /** the camera's clearance (World.clear): the segment against the stage's columns (a 40 cm margin) */
   clear(a: [number, number, number], b: [number, number, number]) { return clearOf(this.solids, a, b); }
+  /** the top of the slab under (x, z) (the bobbing ones where they are now), or far below where the game catches you */
   groundAt(x: number, z: number) {
-    const L = this.layout;
-    let best = CATCH;
-    for (let i = 0; i < L.stageColumns; i++) {
-      const o = i * 8, cx = L.columns[o], cz = L.columns[o + 1], R = L.columns[o + 3];
-      if (Math.hypot(x - cx, z - cz) > R * 0.9) continue;
-      const s = L.slabs[L.columns[o + 5]];
-      best = Math.max(best, s.ledge ? ledgeY(s.ledge, this.beat) : L.columns[o + 2]);
-    }
-    return best;
+    return floorAt(this.layout, x, z, (s, top) => (s.ledge ? ledgeY(s.ledge, this.beat) : top), CATCH);
   }
   exposure() { return 1.0; }
   tone() { return { water: 14000, cave: 0.15, hearth: 0.9, depth: 0.8, forest: 0 }; }

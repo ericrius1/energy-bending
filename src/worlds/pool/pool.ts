@@ -72,6 +72,9 @@ export class Pool implements World {
   readonly id = 'pool';
   readonly light = 2;
   readonly mood = -0.5;
+  /** the locked view's dim beyond the stage (World.stageDim; 9-stage.md): the backdrop is nearly black already, and
+   *  the moon and its path on the water are what is there: dimmed little */
+  readonly stageDim = 0.3;
   readonly shared;
   readonly stages: StagePlane[];
   readonly portals: PortalDef[];

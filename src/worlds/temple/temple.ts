@@ -98,8 +98,9 @@ export class Temple implements World {
   readonly id = 'temple';
   readonly light = 3;
   readonly mood = 0.1;
-  /** the moon over the far gate is the lock's backdrop: dimmed less than other worlds' */
-  readonly stageDim = 0.35;
+  /** the moon over the far gate is the lock's backdrop, but the moonlit cloud round it is the brightest thing behind a
+   *  water dancer: a little under the default (9-stage.md; the moon stays white at 0.75) */
+  readonly stageDim = 0.5;
   readonly shared;
   readonly stages: StagePlane[];
   readonly portals: PortalDef[];
@@ -147,7 +148,11 @@ export class Temple implements World {
     const L = this.layout.ledges;
     this.stages = [stagePlane({
       id: 'court', origin: [0, 0, STAGE_Z], right: [1, 0, 0], halfWidth: 5.75, ground: 0, ledges: L,
-      spawns: [[-4.2, L[0].y], [4.3, L[2].y]], lens: 19, yaw: 0.14, pitch: 0,
+      // (the seats start on the open flagstones just off the altar's ends, not on the pillars' tops: a dancer who only
+      // dances there stayed up on the left pillar a third of a take, and the pair met at the court's left edge with the
+      // pillar filling the frame beside them. Near the altar, because the partner circles to the far side of whoever
+      // stands still, a metre and a half beyond them: from here that is still clear of the pillar: 9-stage.md)
+      spawns: [[-2.0, 0], [2.05, 0]], lens: 19, yaw: 0.14, pitch: 0,
     })];
     this.spawns = spawnsOf(this.stages[0]);
     // one gate, back to the geode: on the court to the left of the stage, facing across it, the flagstones clear round it
