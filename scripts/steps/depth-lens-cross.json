@@ -1,0 +1,9 @@
+[
+  { "name": "cross-0", "query": "play&two&dress=fire,water&world=pool",
+    "eval": "bend.set('redwoods', { hour: 19.4, dayGoes: false }); bend.set('camera', { followDist: 3.6, followFov: 46, followPitch: 0.12, followSwing: 0 }); bend.gates.close('geode.redwoods'); bend.gates.close('redwoods.geode'); bend.gates.open({ id: 'pool.rw', world: 'pool', at: [0, 1.35, -4.6], normal: [0, 0, 1], radius: 1.35, to: { world: 'redwoods', portal: 'rw.pool' } }, { id: 'rw.pool', world: 'redwoods', at: [-6.5, 1.35, -5.5], normal: [0.76, 0, 0.65], radius: 1.35, to: { world: 'pool', portal: 'pool.rw' } }); bend.wake(); bend.place(0, -0.45, -1.6, Math.PI); bend.place(1, 0.45, -1.2, Math.PI); await bend.step(120); bend.camera({ yaw: 0 }); bend.intent(0,{ moveZ: 0.75 }); bend.intent(1,{ moveZ: 0.75 });",
+    "frames": 60 },
+  { "name": "cross-1", "query": "play&two&dress=fire,water&world=pool", "frames": 30 },
+  { "name": "cross-2", "query": "play&two&dress=fire,water&world=pool", "frames": 20 },
+  { "name": "cross-3", "query": "play&two&dress=fire,water&world=pool", "frames": 20 },
+  { "name": "cross-4", "query": "play&two&dress=fire,water&world=pool", "eval": "console.log('world now', bend.stats().world)", "frames": 30 }
+]

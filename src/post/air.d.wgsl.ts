@@ -151,6 +151,15 @@ export interface KeyLight {
   plain: Vec3;
   glint: number;
 }
+export interface Air {
+  col: Vec3;
+  opaque: number;
+  focus: number;
+}
+export interface MainOut {
+  col: Vec4;
+  focus: Vec4;
+}
 
-declare const shader: Shader<{ Frame: Frame; FullscreenOut: FullscreenOut; Geode: Geode; Forest: Forest; Pool: Pool; Temple: Temple; Forge: Forge; FireLight: FireLight; FireLights: FireLights; WorldLight: WorldLight; KeyLight: KeyLight }, 'frame' | 'worldLight' | 'poolWaves' | 'templeWaves' | 'src' | 'samp_linear' | 'samp_repeat' | 'samp_nearest' | 'samp_shadow'>;
+declare const shader: Shader<{ Frame: Frame; FullscreenOut: FullscreenOut; Geode: Geode; Forest: Forest; Pool: Pool; Temple: Temple; Forge: Forge; FireLight: FireLight; FireLights: FireLights; WorldLight: WorldLight; KeyLight: KeyLight; Air: Air; MainOut: MainOut }, 'frame' | 'worldLight' | 'poolWaves' | 'templeWaves' | 'src' | 'glow' | 'focus0' | 'focus1' | 'focus2' | 'opaque' | 'surfaced' | 'samp_linear' | 'samp_repeat' | 'samp_nearest' | 'samp_shadow'>;
 export default shader;

@@ -5,6 +5,10 @@
 //
 // Things that come and go (a world not on screen, the ?pip inset) are still in the list: their `enabled` decides.
 // That keeps the list fixed, as weft intends (declare once, at setup).
+//
+// An item can bring followers (`follow`): whoever adds it to a stage adds them right after it, in the same stage. A
+// view's scene pass brings its glow pass that way, so the main view (main.ts) and the gates' views (src/portals) get
+// it without knowing it is there.
 import type { Kit, RunEntry } from '@ericrius1/weft';
 import type { Dancer } from '../dancer/dancer';
 import type { ViewCtx } from './views';
@@ -15,8 +19,11 @@ export const STAGES = [
   'cull',   // per view: level-of-detail culls that fill draw lists for that view's camera
   'gates',  // the views through live gates (src/portals): each one's scene and air, deepest first, so the views that
             // show them (the main one last) can sample them in their own scene pass this frame
-  'scene',  // per view: the scene pass (the world, then the matter in it)
-  'air',    // per view: light in the air, fog
+  'scene',  // per view: the scene pass (the world, then the matter in it), then its glow pass (what translucent matter
+            // adds, kept off the opaque scene: engine/views.ts)
+  'surface', // per view with its own air (the main one, the inset): the world's surface step on the opaque scene (the
+            // pool's and the temple's water, the forge's heat), before anything translucent is composited over it
+  'air',    // per view: the water bodies' surface, the glow's trails, then the light in the air and the glow over it
   'post',   // the main view's depth of field, trails, bloom
   'out',    // to the canvas (or the film's frames), and insets over it
   'end',    // swaps of ping-pong pairs
@@ -59,6 +66,10 @@ export interface FrameCtx {
 }
 
 interface Entry { stage: Stage; item: RunEntry; owner: string }
+
+const followers = new WeakMap<object, RunEntry[]>();
+/** run `next` right after `item`, in whatever stage `item` is added to (engine/views.ts: a scene pass's glow pass) */
+export function follow(item: object, ...next: RunEntry[]) { followers.set(item, [...(followers.get(item) ?? []), ...next]); }
 interface Tick { phase: Phase; fn: (f: FrameCtx) => void; owner: string }
 
 export class FrameBuilder {
@@ -71,6 +82,7 @@ export class FrameBuilder {
   add(stage: Stage, item: RunEntry, owner = '?') {
     if (this.built) throw new Error(`frame: '${owner}' added work after the frame was built (declare at setup)`);
     this.items.push({ stage, item, owner });
+    if (item && typeof item === 'object') for (const n of followers.get(item) ?? []) this.items.push({ stage, item: n, owner });
   }
 
   /** CPU work each frame, before the GPU work, under a phase */
