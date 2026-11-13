@@ -1,0 +1,5 @@
+[
+  { "name": "try-water", "query": "dress=water,gems", "params": { "dance": { "auto": false } }, "wake": true, "frames": 1000, "shot": "close", "timings": true },
+  { "name": "try-half", "query": "dress=water,gems", "params": { "water": { "form": 0.5 } }, "frames": 150 },
+  { "name": "try-ice", "query": "dress=water,gems", "params": { "water": { "form": 1 }, "ice": { "demo": "bridge" } }, "frames": 240, "shot": "wide", "timings": true }
+]
