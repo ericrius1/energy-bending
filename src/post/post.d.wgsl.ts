@@ -48,10 +48,22 @@ export interface Post {
   saturation: number;
   contrast: number;
   tonemap: number;
-  pad: number;
+  smear: number;
   focus: number;
   blur: number;
+  bloomSat: number;
+  wide: number;
+  gradeOn: number;
+  protect: number;
+  stub: number;
+  lift: Vec4;
+  gamma: Vec4;
+  gain: Vec4;
+  shadows: Vec4;
+  highs: Vec4;
+  look: Vec4;
+  warm: Vec4;
 }
 
-declare const shader: Shader<{ Frame: Frame; FullscreenOut: FullscreenOut; Post: Post }, 'frame' | 'post' | 'src' | 'prev' | 'bloomTex' | 'samp_linear' | 'samp_repeat' | 'samp_nearest' | 'samp_shadow'>;
+declare const shader: Shader<{ Frame: Frame; FullscreenOut: FullscreenOut; Post: Post }, 'frame' | 'post' | 'src' | 'prev' | 'bloomTex' | 'focusTex' | 'blurTex' | 'samp_linear' | 'samp_repeat' | 'samp_nearest' | 'samp_shadow'>;
 export default shader;

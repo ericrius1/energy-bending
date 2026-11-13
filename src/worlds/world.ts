@@ -30,6 +30,27 @@ export interface PortalDef {
 /** matter a world is built of, placed once: { kind: 'gems', ...that kind's own fields } */
 export interface Fixture { kind: string; [field: string]: unknown }
 
+/** a world's colour identity: a grade laid after the tone map (src/post/grade.ts). Every field is optional; a world
+ *  that sets no grade is drawn exactly as without one. Colours are linear, after the tone map (0 … 1) */
+export interface Grade {
+  /** added to the shadows (rgb, about 0 … 0.05) */
+  lift?: V3;
+  /** the midtones' power per channel (1: none; above 1 brightens) */
+  gamma?: V3;
+  /** multiplies the highlights per channel */
+  gain?: V3;
+  /** tints of the shadows and of the highlights (1, 1, 1: none), and where one turns into the other (luma, 0.25) */
+  shadows?: V3;
+  highlights?: V3;
+  split?: number;
+  /** saturation (1: as is) and contrast (1: as is) about a pivot (0.18) */
+  saturation?: number;
+  contrast?: number;
+  pivot?: number;
+  /** how much of a saturated colour (an element's) the grade leaves alone, 0 … 1 (0.6) */
+  protect?: number;
+}
+
 /** what a world is handed when it loads */
 export interface WorldCtx {
   kit: Kit;
@@ -78,6 +99,8 @@ export interface World {
   /** a world with no ground everywhere (the forge): a body that falls below this height has fallen out of the world
    *  and re-forms at a spawn (the dancers' physics, free or locked). Leave it out where there is always a floor */
   readonly fallY?: number;
+  /** its colour identity (src/post/grade.ts); left out, no grade */
+  readonly grade?: Grade;
   /** the exposure it wants now (× the post chain's), and how it sounds there */
   exposure(): number;
   tone(): Tone;

@@ -11,9 +11,10 @@
 //   update(f)        each frame, in the 'matter' phase: its uniforms (from its parameters, the hand, the world);
 //   resize(budget)   how many particles to run (a programme, the device, the panel).
 // The shared body buffers (joints, capsules, the hand) are bind group 3: include matter/core/body.wgsl and use them.
-import type { Kit } from '@ericrius1/weft';
+import type { Kit, Texture } from '@ericrius1/weft';
 import type { FrameBuilder, FrameCtx } from '../../engine/frame';
 import type { ScenePass } from '../../engine/scene';
+import type { ViewCtx } from '../../engine/views';
 import type { World } from '../../worlds/world';
 import type { BodyBuffers } from './bodies';
 import type { Hand } from './touch';
@@ -96,6 +97,7 @@ export interface MatterPasses {
   declarePost?(post: PostChain): void;
   /** numbers for bend.stats() */
   stats?(): Record<string, number | string>;
+  focus?(view: ViewCtx): Texture | null;
 }
 
 /** one dancer's particles carried by a rigid move (a column-major 4×4) */

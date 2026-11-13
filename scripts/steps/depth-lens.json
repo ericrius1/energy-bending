@@ -1,0 +1,21 @@
+[
+  { "name": "pool-fire-close", "query": "play&dress=fire&world=pool",
+    "eval": "bend.set('camera', { followDist: 2.3, followFov: 40, followPitch: 0.1, followSwing: 0 }); bend.wake(); bend.place(0, 0, 0, Math.PI/2); await bend.step(240);",
+    "yaw": 0.25, "frames": 18 },
+  { "name": "pool-fire-armada", "query": "play&dress=fire&world=pool",
+    "eval": "bend.camera({ yaw: 0.27 }); bend.move(0,'armada');", "frames": 36 },
+  { "name": "pool-water-close", "query": "play&dress=water&world=pool",
+    "eval": "bend.set('camera', { followDist: 2.3, followFov: 40, followPitch: 0.1, followSwing: 0 }); bend.wake(); bend.place(0, 0, 0, Math.PI/2); await bend.step(240); bend.camera({ yaw: 0.25 }); bend.move(0,'armada'); await bend.step(36);",
+    "frames": 1 },
+  { "name": "geode-fire-moves", "query": "play&two&dress=fire,water&world=geode",
+    "eval": "bend.set('camera', { followDist: 4.2, followFov: 42, followPitch: 0.08, followSwing: 0 }); bend.wake(); bend.place(0,-0.75,0,Math.PI/2); bend.place(1,0.75,0,-Math.PI/2); await bend.step(200); bend.camera({ yaw: 0.15 }); await bend.step(30); bend.move(0,'armada'); await bend.step(12); bend.move(1,'esquiva');",
+    "frames": 15 },
+  { "name": "ice-au-a", "query": "play&dress=ice&world=pool",
+    "eval": "bend.set('camera', { followDist: 2.3, followFov: 40, followPitch: 0.1, followSwing: 0 }); bend.wake(); bend.place(0, 0, 0, Math.PI/2); await bend.step(240); bend.camera({ yaw: 0.25 }); bend.move(0,'au');",
+    "frames": 20 },
+  { "name": "ice-au-b", "query": "play&dress=ice&world=pool", "frames": 8 },
+  { "name": "ice-au-c", "query": "play&dress=ice&world=pool", "frames": 8 },
+  { "name": "kick-gems", "query": "play&dress=gems&world=geode",
+    "eval": "bend.set('camera', { followDist: 2.6, followFov: 40, followPitch: 0.1, followSwing: 0 }); bend.wake(); bend.place(0, 0, 0, Math.PI/2); await bend.step(240); bend.camera({ yaw: 0.25 }); bend.move(0,'meia-lua');",
+    "frames": 22 }
+]

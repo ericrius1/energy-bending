@@ -1,0 +1,17 @@
+[
+  { "name": "w-geode", "query": "play&two&dress=fire,water&world=geode",
+    "eval": "bend.set('camera', { followDist: 4.6, followFov: 44, followPitch: 0.1, followSwing: 0 }); bend.wake(); bend.place(0,-0.8,0,Math.PI/2); bend.place(1,0.8,0,-Math.PI/2); await bend.step(240); bend.camera({ yaw: 0.3 });",
+    "frames": 30 },
+  { "name": "w-redwoods", "query": "play&two&dress=fire,water&world=redwoods",
+    "eval": "bend.set('redwoods', { hour: 19.4, dayGoes: false }); bend.set('camera', { followDist: 4.6, followFov: 44, followPitch: 0.1, followSwing: 0 }); bend.wake(); bend.place(0,-0.8,0,Math.PI/2); bend.place(1,0.8,0,-Math.PI/2); await bend.step(240); bend.camera({ yaw: 0.3 });",
+    "frames": 30 },
+  { "name": "w-pool", "query": "play&two&dress=fire,water&world=pool",
+    "eval": "bend.set('camera', { followDist: 4.6, followFov: 44, followPitch: 0.1, followSwing: 0 }); bend.wake(); bend.place(0,-0.8,0,Math.PI/2); bend.place(1,0.8,0,-Math.PI/2); await bend.step(240); bend.camera({ yaw: 0.3 });",
+    "frames": 30 },
+  { "name": "w-temple", "query": "play&two&dress=plasma,ice&world=temple",
+    "eval": "bend.set('camera', { followDist: 4.6, followFov: 44, followPitch: 0.1, followSwing: 0 }); bend.wake(); bend.place(0,-0.8,0,Math.PI/2); bend.place(1,0.8,0,-Math.PI/2); await bend.step(240); bend.camera({ yaw: 0.3 });",
+    "frames": 30 },
+  { "name": "w-forge", "query": "play&two&dress=fire,water&world=forge",
+    "eval": "bend.set('camera', { followDist: 4.6, followFov: 44, followPitch: 0.1, followSwing: 0 }); bend.wake(); bend.place(0,-0.8,0,Math.PI/2); bend.place(1,0.8,0,-Math.PI/2); await bend.step(240); bend.camera({ yaw: 0.3 });",
+    "frames": 30 }
+]
