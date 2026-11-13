@@ -214,6 +214,14 @@ export interface FireLights {
   pad2: number;
   lights: Partial<FireLight>[];
 }
+export interface WorldLight {
+  fire: FireLights;
+  geode: Geode;
+  forest: Forest;
+  pool: Pool;
+  temple: Temple;
+  forge: Forge;
+}
 export interface KeyLight {
   dir: Vec3;
   col: Vec3;
@@ -246,5 +254,5 @@ export interface DOut {
   col: Vec3;
 }
 
-declare const shader: Shader<{ Frame: Frame; Joint: Joint; Seg: Seg; Particle: Particle; Home: Home; BodyStep: BodyStep; WaterSim: WaterSim; Aux: Aux; Geode: Geode; Forest: Forest; Pool: Pool; Temple: Temple; Forge: Forge; FireLight: FireLight; FireLights: FireLights; KeyLight: KeyLight; Seen: Seen; ViewSeen: ViewSeen; Drops: Drops; DOut: DOut }, 'frame' | 'geode' | 'forest' | 'pool' | 'temple' | 'forge' | 'fireLights' | 'sim' | 'drops' | 'seen' | 'state' | 'aux' | 'homes' | 'poolWaves' | 'templeWaves' | 'samp_linear' | 'samp_repeat' | 'samp_nearest' | 'samp_shadow'>;
+declare const shader: Shader<{ Frame: Frame; Joint: Joint; Seg: Seg; Particle: Particle; Home: Home; BodyStep: BodyStep; WaterSim: WaterSim; Aux: Aux; Geode: Geode; Forest: Forest; Pool: Pool; Temple: Temple; Forge: Forge; FireLight: FireLight; FireLights: FireLights; WorldLight: WorldLight; KeyLight: KeyLight; Seen: Seen; ViewSeen: ViewSeen; Drops: Drops; DOut: DOut }, 'frame' | 'worldLight' | 'sim' | 'drops' | 'seen' | 'state' | 'aux' | 'homes' | 'poolWaves' | 'templeWaves' | 'samp_linear' | 'samp_repeat' | 'samp_nearest' | 'samp_shadow'>;
 export default shader;

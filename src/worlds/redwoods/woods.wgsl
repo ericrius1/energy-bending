@@ -21,9 +21,9 @@ fn groundAt(p: vec3f, uv: vec2f, dx: vec2f, dy: vec2f) -> vec3f {
   // more moss out in the open, more needles and duff round the trunks' feet (and darker there: their shade)
   var ao = 1.0;
   var duff = 0.0;
-  let n = min(u32(forest.air.w), 16u);
+  let n = min(u32(worldLight.forest.air.w), 16u);
   for (var k = 0u; k < n; k++) {
-    let tr = forest.trunks[k];
+    let tr = worldLight.forest.trunks[k];
     let gap = length(p.xz - tr.xy) - tr.z * 1.85;
     ao *= mix(0.4, 1.0, smoothstep(-0.2, 2.8, gap));
     duff = max(duff, smoothstep(5.0, 0.3, gap));
@@ -33,10 +33,10 @@ fn groundAt(p: vec3f, uv: vec2f, dx: vec2f, dy: vec2f) -> vec3f {
   ao *= mix(0.35, 1.0, smoothstep(-0.1, 1.2, off));
   duff = max(duff, smoothstep(1.0, 0.0, off) * 0.7);
   albedo = mix(albedo, albedo * vec3f(0.85, 0.6, 0.45), duff * 0.55);
-  let open = smoothstep(forest.clock.w * 0.85, forest.clock.w * 0.3, length(p.xz));
+  let open = smoothstep(worldLight.forest.clock.w * 0.85, worldLight.forest.clock.w * 0.3, length(p.xz));
   albedo *= mix(vec3f(1.0), vec3f(0.9, 1.08, 0.82), open * 0.5);
   let up = vec3f(0.0, 1.0, 0.0);
-  let key = forest.keyCol.rgb * forest.key.w * keyLight(p) * max(forest.key.y, 0.0);
+  let key = worldLight.forest.keyCol.rgb * worldLight.forest.key.w * keyLight(p) * max(worldLight.forest.key.y, 0.0);
   return albedo * (key + woodsAmbient(up) * ao + lampLight(p, up, 0.0));
 }
 
@@ -56,19 +56,19 @@ fn groundAt(p: vec3f, uv: vec2f, dx: vec2f, dy: vec2f) -> vec3f {
     c = groundAt(p, uv, dx, dy);
   } else {
     // the canopy's underside overhead, or the sky through a gap in it
-    let H = forest.keyCol.w;
+    let H = worldLight.forest.keyCol.w;
     let t = (H - cam.y) / max(d.y, 1e-4);
     let q = cam.xz + d.xz * t;
     let dens = canopyAt(q);
     let sky = skyAt(d) + heavens(d);
     // leaves lit from above: dark undersides, glowing where the light comes through them towards you
-    let through = pow(max(dot(d, forest.key.xyz), 0.0), 4.0);
+    let through = pow(max(dot(d, worldLight.forest.key.xyz), 0.0), 4.0);
     let fleck = smoothstep(0.75, 0.95, vnoise2(q * 0.9 + 2.0));
-    let leaves = (forest.shade.rgb * 0.05 + forest.keyCol.rgb * forest.key.w * (0.0015 + 0.025 * through + 0.008 * fleck)) * vec3f(0.5, 0.8, 0.35);
+    let leaves = (worldLight.forest.shade.rgb * 0.05 + worldLight.forest.keyCol.rgb * worldLight.forest.key.w * (0.0015 + 0.025 * through + 0.008 * fleck)) * vec3f(0.5, 0.8, 0.35);
     c = mix(sky, leaves, dens);
     depth = mix(400.0, min(t, 400.0), step(0.5, dens)) * dot(d, frame.camFwd);
     // low down, the wood goes on: trunk after trunk into the mist (darker the lower you look)
-    let far = forest.mist.rgb * 1.1 + forest.shade.rgb * vec3f(0.12, 0.16, 0.18);
+    let far = worldLight.forest.mist.rgb * 1.1 + worldLight.forest.shade.rgb * vec3f(0.12, 0.16, 0.18);
     let level = smoothstep(0.42, 0.08, d.y);
     c = mix(c, far, level);
     depth = mix(depth, 140.0 * dot(d, frame.camFwd), level);

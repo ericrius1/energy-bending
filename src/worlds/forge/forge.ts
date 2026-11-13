@@ -4,8 +4,9 @@
 // glow), and the heat shimmer over what's far (laid over the scene in the air pass). No ground: fall off and the game
 // catches you (groundAt says how far down that is). The anvil is the floor; two floats and the crown bob with the bass:
 // `ledgeY(ledge, beat)` (worlds/stage.ts) for physics and drawing alike.
-import type { Kit, UniformBuffer } from '@ericrius1/weft';
-import lightShader, { type Forge as ForgeU } from '../light.wgsl';
+import type { Kit } from '@ericrius1/weft';
+import type { Forge as ForgeU } from '../light.wgsl';
+import { lightSlot, type LightSlot } from '../shared';
 import backdropShader from './backdrop.wgsl';
 import slabShader from './slabs.wgsl';
 import emberShader from './embers.wgsl';
@@ -70,7 +71,7 @@ export class Forge implements World {
   readonly room = 24;
   readonly maxDist = 22;
   readonly layout: ForgeLayout;
-  private u: UniformBuffer<ForgeU>;
+  private u: LightSlot<ForgeU>;
   private buf: ReturnType<Kit['storage']>;
   private beat = 0;
   private bob = new Float32Array(STAGE_SLABS);
@@ -83,8 +84,8 @@ export class Forge implements World {
     const { kit, coarse } = ctx;
     this.layout = layoutForge({ coarse });
     this.buf = kit.storage({ label: 'forge.columns', data: this.layout.columns, usage: ['storage'] });
-    this.u = kit.uniforms(lightShader.structs.Forge, 'forge.light');
-    this.shared = { forge: this.u };
+    this.u = lightSlot(kit, 'forge');
+    this.shared = {};
     if (coarse) forgeParams.embers = 400;
     this.stages = [stagePlane({
       id: 'anvil', origin: [0, 0, 0], right: [1, 0, 0], halfWidth: 5.75, ground: null, ledges: this.layout.ledges,

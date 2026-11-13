@@ -5,8 +5,10 @@
 // Light that depends on the world is chosen per pipeline, not per pixel: worlds/light.wgsl switches on an
 // `override WORLD` constant, and each world's `light` is the number of its case there. A matter kind declares one
 // draw per world with `constants: { WORLD: world.light }` (engine/scene.ts asks it once per world and view). The
-// worlds' light uniforms are one shared bind group (group 2) that every shader including worlds/light.wgsl sees.
-import type { Kit, Texture, UniformBuffer } from '@ericrius1/weft';
+// worlds' light is one shared bind group (group 2) that every shader including worlds/light.wgsl sees: one uniform
+// buffer with a slot per world (a world writes its own with `lightSlot(kit, 'name')`, worlds/shared.ts) and the
+// textures worlds hand over in `shared`.
+import type { Kit, Texture } from '@ericrius1/weft';
 import type { FrameBuilder, FrameCtx } from '../engine/frame';
 import type { ScenePass } from '../engine/scene';
 import type { StagePlane } from '../engine/camera';
@@ -48,9 +50,10 @@ export interface World {
   readonly light: number;
   /** its emotional temperature, -1 (still, cool) … 1 (bright, warm), for the music and brains to read */
   readonly mood: number;
-  /** its uniforms (and textures: the water's height field) in the shared light group (worlds/light.wgsl's binding
-   *  names), made in the constructor */
-  readonly shared: Record<string, UniformBuffer<any> | Texture>;
+  /** its textures in the shared light group, by worlds/light.wgsl's binding names (the water's height field), made in
+   *  the constructor; `{}` for most worlds. Its light uniform is not here: it is its slot of the one shared buffer
+   *  (`lightSlot(kit, 'name')`, worlds/shared.ts) */
+  readonly shared: Record<string, Texture>;
   /** stage planes the view can lock to, portals, where dancers may start */
   readonly stages: StagePlane[];
   readonly portals: PortalDef[];

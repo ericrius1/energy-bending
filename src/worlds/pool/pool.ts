@@ -4,8 +4,8 @@
 // water's surface is laid over the scene in the air pass (pool.wgsl poolScene): the dancers reflected, the reflection
 // bent by a live ripple field (water/ripples.ts) that the dancers' feet and hands stir by themselves and that the game
 // can push with `ripple(x, z, strength, radius)`. Flat, no ledges: the pure stage.
-import type { UniformBuffer } from '@ericrius1/weft';
-import lightShader, { type Pool as PoolU } from '../light.wgsl';
+import type { Pool as PoolU } from '../light.wgsl';
+import { lightSlot, type LightSlot } from '../shared';
 import backdropShader from './backdrop.wgsl';
 import type { PortalDef, World, WorldCtx } from '../world';
 import type { ScenePass } from '../../engine/scene';
@@ -58,20 +58,20 @@ export class Pool implements World {
   readonly mirrorFloor = false;
   readonly room = 40;
   readonly maxDist = 16;
-  private u: UniformBuffer<PoolU>;
+  private u: LightSlot<PoolU>;
   private waves: Ripples;
   private seen = -1;
   private live = { waves: [0, 0, 1, 1] as [number, number, number, number], march: [20, 14, 0, 0] as [number, number, number, number] };
 
   constructor(ctx: WorldCtx) {
     const { kit, frame, coarse } = ctx;
-    this.u = kit.uniforms(lightShader.structs.Pool, 'pool.light');
+    this.u = lightSlot(kit, 'pool');
     this.waves = new Ripples(kit, frame, {
       label: 'pool', cells: coarse ? 192 : 320, cell: coarse ? 0.08 : 0.05,
       speed: poolParams.waveSpeed, fade: poolParams.waveFade, feet: poolParams.feet,
       enabled: () => this.seen === kit.frameIndex,
     });
-    this.shared = { pool: this.u, poolWaves: this.waves.tex };
+    this.shared = { poolWaves: this.waves.tex };
     this.live.march[0] = coarse ? 12 : 22;
     // the pure stage: a flat floor 11.5 m wide, nothing on it
     this.stages = [stagePlane({ id: 'pool', origin: [0, 0, 0], right: [1, 0, 0], halfWidth: 5.75, ground: 0, ledges: [], spawns: [[-2.45, 0], [2.45, 0]], lens: 18 })];

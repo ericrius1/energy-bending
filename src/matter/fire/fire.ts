@@ -10,7 +10,7 @@
 //
 // What other code uses:
 //   form[d]            per dancer slot, 0 … 1, added to each layer's own form (read-only: a copy of Dancer.form)
-//   fireLights(kit)    the world light (matter/fire/lights.ts, light.wgsl): one point light per flame dancer
+//   fireLights(kit)    the world light (lights.ts): the `fire` slot of the worlds' light uniform, a light per dancer
 //   handForm(d)        the form of the flame on dancer d's hands (the plasma kind arcs between hands past 0.4)
 //   resize(budget)     the show's stone count scales the flames (budget.count / 15000 × fireParams.perDancer)
 import type { Kit, StorageBuffer, Texture, UniformBuffer } from '@ericrius1/weft';
@@ -28,6 +28,7 @@ import { layoutHomes } from '../core/layout';
 import { JOINT, JOINT_FLOATS } from '../../skeleton/rig';
 import { fireParams } from './params';
 import { fireLights, writeFireLights, type FlameLight } from './lights';
+import type { LightSlot } from '../../worlds/shared';
 import type { FireLights } from './light.wgsl';
 
 const MAXN = LIMITS.flames;
@@ -56,7 +57,7 @@ export class FirePasses implements MatterPasses {
   readonly form = new Float32Array(LIMITS.dancers);
   readonly sim: UniformBuffer<FireSim>;
   readonly flames: StorageBuffer;
-  readonly lights: UniformBuffer<FireLights>;
+  readonly lights: LightSlot<FireLights>;
   private homes: StorageBuffer;
   private noise: Texture;
   private homeData = new Float32Array(MAXN * HOME_FLOATS);
