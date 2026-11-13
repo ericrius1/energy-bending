@@ -136,6 +136,14 @@ export interface FireLights {
   pad2: number;
   lights: Partial<FireLight>[];
 }
+export interface WorldLight {
+  fire: FireLights;
+  geode: Geode;
+  forest: Forest;
+  pool: Pool;
+  temple: Temple;
+  forge: Forge;
+}
 export interface KeyLight {
   dir: Vec3;
   col: Vec3;
@@ -148,5 +156,5 @@ export interface Flag {
   id: Vec2;
 }
 
-declare const shader: Shader<{ Frame: Frame; FullscreenOut: FullscreenOut; Geode: Geode; Forest: Forest; Pool: Pool; Temple: Temple; Forge: Forge; FireLight: FireLight; FireLights: FireLights; KeyLight: KeyLight; Flag: Flag }, 'frame' | 'geode' | 'forest' | 'pool' | 'temple' | 'forge' | 'fireLights' | 'poolWaves' | 'templeWaves' | 'samp_linear' | 'samp_repeat' | 'samp_nearest' | 'samp_shadow'>;
+declare const shader: Shader<{ Frame: Frame; FullscreenOut: FullscreenOut; Geode: Geode; Forest: Forest; Pool: Pool; Temple: Temple; Forge: Forge; FireLight: FireLight; FireLights: FireLights; WorldLight: WorldLight; KeyLight: KeyLight; Flag: Flag }, 'frame' | 'light' | 'poolWaves' | 'templeWaves' | 'samp_linear' | 'samp_repeat' | 'samp_nearest' | 'samp_shadow'>;
 export default shader;

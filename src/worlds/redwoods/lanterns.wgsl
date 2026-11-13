@@ -31,8 +31,8 @@ fn shapeAt(lat: f32) -> vec2f {
   let c = array<vec2u, 6>(vec2u(0u, 0u), vec2u(1u, 0u), vec2u(1u, 1u), vec2u(0u, 0u), vec2u(1u, 1u), vec2u(0u, 1u))[vi % 6u];
   let a = f32(quad % AROUND + c.x) / f32(AROUND) * 6.2831853;
   let lat = f32(quad / AROUND + c.y) / f32(DOWN);
-  let l = forest.lamps[ii];
-  let anchor = forest.anchors[ii];
+  let l = light.forest.lamps[ii];
+  let anchor = light.forest.anchors[ii];
   let up = normalize(anchor.xyz - l.xyz);
   let e1 = normalize(cross(up, vec3f(0.0, 0.0, 1.0)));
   let e2 = cross(up, e1);
@@ -50,7 +50,7 @@ fn shapeAt(lat: f32) -> vec2f {
 @fragment fn fs(i: LOut) -> @location(0) vec4f {
   let V = normalize(frame.camPos - i.wp);
   let N = normalize(i.n);
-  let l = forest.lamps[i.k];
+  let l = light.forest.lamps[i.k];
   let h = rnd3(i.k * 9u + 2u);
   // each its own paper: cream, warm white, amber, a pale rose
   let paper = array<vec3f, 4>(vec3f(1.0, 0.86, 0.66), vec3f(1.0, 0.93, 0.82), vec3f(1.0, 0.68, 0.38), vec3f(1.0, 0.74, 0.66))[u32(h.x * 3.99)];
@@ -60,13 +60,13 @@ fn shapeAt(lat: f32) -> vec2f {
   let rim = smoothstep(0.035, 0.0, i.lat) + smoothstep(0.965, 1.0, i.lat);
   // lit from inside: brightest looking through the paper at the flame, dimmer at its edge (more paper to go through)
   let through = 0.4 + 0.6 * pow(max(dot(N, V), 0.0), 0.7);
-  var c = paper * forest.lampCol.rgb * l.w * 1.4 * through * rib * fibres;
+  var c = paper * light.forest.lampCol.rgb * l.w * 1.4 * through * rib * fibres;
   // and from outside: paper in the daylight (thin: the sun glows through it from behind too)
-  let L = forest.key.xyz;
+  let L = light.forest.key.xyz;
   let ndl = dot(N, L);
   let sky = mix(vec3f(luma(woodsAmbient(N))), woodsAmbient(N), 0.4) * 3.0;
-  c += paper * 0.6 * (forest.keyCol.rgb * forest.key.w * (max(ndl, 0.0) + 0.5 * max(-ndl, 0.0)) * leafLight(i.wp) + sky) * rib * fibres;
-  c = mix(c, vec3f(0.02, 0.018, 0.016) * (1.0 + forest.key.w * 0.1), rim);
+  c += paper * 0.6 * (light.forest.keyCol.rgb * light.forest.key.w * (max(ndl, 0.0) + 0.5 * max(-ndl, 0.0)) * leafLight(i.wp) + sky) * rib * fibres;
+  c = mix(c, vec3f(0.02, 0.018, 0.016) * (1.0 + light.forest.key.w * 0.1), rim);
   return vec4f(c, dot(i.wp - frame.camPos, frame.camFwd));
 }
 
@@ -76,8 +76,8 @@ struct COut { @builtin(position) pos: vec4f, @location(0) wp: vec3f }
 
 @vertex fn vs_cord(@builtin(vertex_index) vi: u32, @builtin(instance_index) ii: u32) -> COut {
   var o: COut;
-  let l = forest.lamps[ii];
-  let anchor = forest.anchors[ii];
+  let l = light.forest.lamps[ii];
+  let anchor = light.forest.anchors[ii];
   let up = normalize(anchor.xyz - l.xyz);
   let top = l.xyz + up * anchor.w * 1.08 * cos(0.2 * 3.14159265);
   let c = array<vec2f, 6>(vec2f(0.0, 0.0), vec2f(1.0, 0.0), vec2f(1.0, 1.0), vec2f(0.0, 0.0), vec2f(1.0, 1.0), vec2f(0.0, 1.0))[vi];
@@ -89,7 +89,7 @@ struct COut { @builtin(position) pos: vec4f, @location(0) wp: vec3f }
 }
 
 @fragment fn fs_cord(i: COut) -> @location(0) vec4f {
-  let c = vec3f(0.03, 0.025, 0.02) * (woodsAmbient(vec3f(0.0, 1.0, 0.0)) * 2.0 + forest.keyCol.rgb * forest.key.w * 0.15 + lampLight(i.wp, vec3f(0.0, -1.0, 0.0), 1.0) * 0.6);
+  let c = vec3f(0.03, 0.025, 0.02) * (woodsAmbient(vec3f(0.0, 1.0, 0.0)) * 2.0 + light.forest.keyCol.rgb * light.forest.key.w * 0.15 + lampLight(i.wp, vec3f(0.0, -1.0, 0.0), 1.0) * 0.6);
   return vec4f(c, dot(i.wp - frame.camPos, frame.camFwd));
 }
 
@@ -105,9 +105,9 @@ struct FOut {
   var o: FOut;
   let h = rnd3(ii * 7u + 1u);
   let h2 = rnd3(ii * 13u + 5u);
-  let t = forest.clock.x;
+  let t = light.forest.clock.x;
   // a home over the meadow (most low among the flowers), and a slow wander round it
-  let r = 1.2 + (forest.clock.w - 1.5) * sqrt(h.x);
+  let r = 1.2 + (light.forest.clock.w - 1.5) * sqrt(h.x);
   let a = h.y * 6.2831853;
   let home = vec3f(cos(a) * r, 0.12 + 2.4 * h.z * h.z, sin(a) * r);
   let p = home + vec3f(sin(t * 0.21 + h.x * 40.0) * 0.9 + sin(t * 0.53 + h2.x * 20.0) * 0.25,
@@ -117,7 +117,7 @@ struct FOut {
   let period = 2.4 + 3.6 * h2.z;
   let ph = fract(t / period + h2.x);
   let flash = smoothstep(0.0, 0.035, ph) * (1.0 - smoothstep(0.05, 0.16, ph));
-  o.bright = forest.night * (flash + 0.04);
+  o.bright = light.forest.night * (flash + 0.04);
   let c = array<vec2f, 6>(vec2f(-1.0, -1.0), vec2f(1.0, -1.0), vec2f(1.0, 1.0), vec2f(-1.0, -1.0), vec2f(1.0, 1.0), vec2f(-1.0, 1.0))[vi];
   o.uv = c;
   let size = 0.035 + 0.02 * h2.y;

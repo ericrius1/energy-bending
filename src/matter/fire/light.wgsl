@@ -1,10 +1,9 @@
-// The light a body of fire (or plasma) gives the world: one point light per dancer wearing flame, in a small
-// uniform the fire kind fills each frame (matter/fire/lights.ts). This file has no bindings, so a world shader can
-// include it and bind the buffer wherever it likes:
+// The light a body of fire (or plasma) gives the world: one point light per dancer wearing flame, a FireLights the
+// fire kind fills each frame (matter/fire/lights.ts). It rides in the worlds' one light uniform as its `fire` member
+// (WorldLight, worlds/light.wgsl), so plasma, which is fire's violet form, and any later kind of light-giving matter
+// add no buffer of their own. This file has no bindings; a shader that includes worlds/light.wgsl reads it as:
 //
-//   #include "../../matter/fire/light"
-//   @group(1) @binding(N) var<uniform> fireLights: FireLights;     // bind: { fireLights: fireLights(kit) }
-//   col += albedo * fireLightAt(fireLights, worldPos, normal);
+//   col += albedo * fireLightAt(light.fire, worldPos, normal);     // or worldFire(worldPos, normal)
 //
 // Each light sits in its dancer's middle, a little above the hips (where the flame is densest), with a radius the size
 // of a body; its colour is warm for fire and violet-white for plasma, and its intensity flickers with the flame and

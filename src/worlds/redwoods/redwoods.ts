@@ -7,8 +7,9 @@
 // Stage: a plane through the clearing aimed at the biggest tree of the ring, with a fallen giant lying along it on the
 // left and two boughs from that tree reaching in along it, low and high (stage.ts: the ledges and the logs that make
 // them, from one description, in the trunks' bark).
-import type { Kit, Texture, UniformBuffer } from '@ericrius1/weft';
-import lightShader, { type Forest } from '../light.wgsl';
+import type { Kit, Texture } from '@ericrius1/weft';
+import type { Forest } from '../light.wgsl';
+import { lightSlot, type LightSlot } from '../shared';
 import woodsShader from './woods.wgsl';
 import trunkShader from './trunks.wgsl';
 import grassShader from './grass.wgsl';
@@ -59,7 +60,7 @@ export class Redwoods implements World {
   readonly id = 'redwoods';
   readonly light = 1;
   readonly mood = 0.3;
-  readonly shared: Record<string, UniformBuffer<any>>;
+  readonly shared: Record<string, Texture>;
   readonly stages: StagePlane[];
   readonly portals: PortalDef[];
   readonly spawns: [number, number, number][];
@@ -69,7 +70,7 @@ export class Redwoods implements World {
   readonly room = ROOM;
   readonly maxDist = ROOM;
   readonly woods: Woods;
-  private forest: UniformBuffer<Forest>;
+  private forest: LightSlot<Forest>;
   private tex: { bark: Texture; barkH: Texture; ground: Texture };
   private loading: Promise<void> | null = null;
   private q: { grass: number; blades: number; flowers: number; spires: number; ferns: number; fronds: number; trunks: number; steps: number; flies: number };
@@ -95,9 +96,9 @@ export class Redwoods implements World {
     this.spawns = spawnsOf(this.stages[0]);
     // one gate, back to the geode: in the open meadow behind the stage's left end, clear of the log and the trees' feet
     this.portals = [{ id: 'redwoods.geode', at: [-6.5, 1.35, -5.5], normal: [0.76, 0, 0.65], radius: 1.3, to: { world: 'geode', portal: 'geode.redwoods' } }];
-    this.forest = kit.uniforms(lightShader.structs.Forest, 'redwoods.light');
+    this.forest = lightSlot(kit, 'forest');
     this.forest.set(this.woods.values);
-    this.shared = { forest: this.forest };
+    this.shared = {};
     const t = (label: string, srgb: boolean) => kit.texture({ label, format: srgb ? 'rgba8unorm-srgb' : 'rgba8unorm', size: [1024, 1024], mips: 'full', usage: ['sample', 'copy-dst'] });
     this.tex = { bark: t('redwoods.bark', true), barkH: t('redwoods.bark.height', false), ground: t('redwoods.ground', true) };
   }

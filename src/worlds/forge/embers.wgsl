@@ -12,7 +12,7 @@ struct EOut {
 @vertex fn vs(@builtin(vertex_index) vi: u32, @builtin(instance_index) ii: u32) -> EOut {
   var o: EOut;
   let h = rnd3(ii * 9u + 3u);
-  let t = forge.heat.y;
+  let t = light.forge.heat.y;
   // a column of rising air twenty metres across round the stage, from far below to well above
   let speed = 0.6 + 1.4 * h.y;
   let span = 46.0;
@@ -29,7 +29,7 @@ struct EOut {
   // white-yellow when it leaves the fire, deep red as it cools, gone by the top
   let cool = smoothstep(0.0, 1.0, life);
   let flick = 0.6 + 0.4 * sin(t * (6.0 + 9.0 * h.z) + h.x * 50.0);
-  o.col = mix(vec3f(1.0, 0.75, 0.35), vec3f(0.9, 0.18, 0.04), cool) * (1.0 - cool * cool) * flick * forge.seam.w * 0.5;
+  o.col = mix(vec3f(1.0, 0.75, 0.35), vec3f(0.9, 0.18, 0.04), cool) * (1.0 - cool * cool) * flick * light.forge.seam.w * 0.5;
   return o;
 }
 

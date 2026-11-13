@@ -30,7 +30,7 @@ const QUAD = array<vec2u, 6>(vec2u(0u, 0u), vec2u(1u, 0u), vec2u(1u, 1u), vec2u(
 
 fn light(o: ptr<function, LOut>, albedo: vec3f, wp: vec3f, n: vec3f, ao: f32) {
   (*o).col = albedo * (woodsAmbient(n) * ao + lampLight(wp, n, 0.5));
-  (*o).key = albedo * forest.keyCol.rgb * forest.key.w * keyLight(wp) * ao;
+  (*o).key = albedo * light.forest.keyCol.rgb * light.forest.key.w * keyLight(wp) * ao;
   (*o).wp = wp;
   (*o).n = n;
   (*o).pos = frame.viewProj * vec4f(wp, 1.0);
@@ -45,7 +45,7 @@ fn light(o: ptr<function, LOut>, albedo: vec3f, wp: vec3f, n: vec3f, ao: f32) {
   let cell = 2.0 * REACH / f32(GRID);
   let root = (vec2f(f32(ros % GRID), f32(ros / GRID)) + h.xy) * cell - REACH;
   let r = length(root);
-  let ring = forest.clock.w;
+  let ring = light.forest.clock.w;
   // thick along the ring of trees, scattered through the wood, none out in the clearing
   let keep = smoothstep(ring - 2.6, ring - 1.2, r) * mix(0.9, 0.4, smoothstep(ring + 4.0, ring + 9.0, r));
   if (r > REACH || h.z > keep || !onScreen(vec3f(root.x, 0.6, root.y), 1.8) || !clearOfTrunks(root, 0.3)) { return o; }
@@ -57,7 +57,7 @@ fn light(o: ptr<function, LOut>, albedo: vec3f, wp: vec3f, n: vec3f, ao: f32) {
   let sideDir = vec3f(-sin(phi), 0.0, cos(phi));
   let el0 = 1.05 + 0.35 * f3.z;
   let arch = 1.25 + 0.4 * f3.x;
-  let t = forest.clock.x;
+  let t = light.forest.clock.x;
   let wind = windAt(root, t + f3.y * 2.0);
   let base = vec3f(root.x, 0.0, root.y);
   // a point s of the way along the rachis, and its direction
@@ -106,7 +106,7 @@ fn light(o: ptr<function, LOut>, albedo: vec3f, wp: vec3f, n: vec3f, ao: f32) {
 
 @fragment fn fs(i: LOut) -> @location(0) vec4f {
   let V = normalize(frame.camPos - i.wp);
-  let L = forest.key.xyz;
+  let L = light.forest.key.xyz;
   var N = normalize(i.n);
   if (dot(N, V) < 0.0) { N = -N; }
   let diff = (max(dot(N, L), 0.0) + 0.25) / 1.25;
@@ -114,7 +114,7 @@ fn light(o: ptr<function, LOut>, albedo: vec3f, wp: vec3f, n: vec3f, ao: f32) {
   let H = normalize(L + V);
   // sword ferns are glossy
   let gloss = pow(max(dot(N, H), 0.0), 60.0) * 0.5;
-  let c = i.col + i.key * (diff + through) + forest.keyCol.rgb * forest.key.w * gloss * length(i.key) * 0.6;
+  let c = i.col + i.key * (diff + through) + light.forest.keyCol.rgb * light.forest.key.w * gloss * length(i.key) * 0.6;
   return vec4f(c, dot(i.wp - frame.camPos, frame.camFwd));
 }
 
@@ -140,7 +140,7 @@ fn light(o: ptr<function, LOut>, albedo: vec3f, wp: vec3f, n: vec3f, ao: f32) {
   } else {
     // up a trunk of the ring: its sprouts, tufts reaching out of the bark (more of them low down)
     let t = ii / SPRAYS - LIMBS;
-    let tr = forest.trunks[t % 9u];
+    let tr = light.forest.trunks[t % 9u];
     let y = 1.5 + 24.0 * pow(h.x, 1.6);
     let a = h.y * 6.2831853;
     let rd = vec3f(cos(a), 0.0, sin(a));
@@ -153,7 +153,7 @@ fn light(o: ptr<function, LOut>, albedo: vec3f, wp: vec3f, n: vec3f, ao: f32) {
   let row = vi / 6u + c.y;
   let x = f32(row) / 2.0;
   let y = select(-1.0, 1.0, c.x == 1u);
-  let t = forest.clock.x;
+  let t = light.forest.clock.x;
   let wind = windAt(at.xz, t * 1.3 + h.x * 3.0);
   let p = at + outward * size * x + vec3f(0.0, -0.18 * size * x * x, 0.0) + across * y * size * 0.32 + vec3f(wind.x, 0.0, wind.y) * x * x * 0.6;
   o.uv = vec2f(x, y);
@@ -200,7 +200,7 @@ struct SprayOut { @location(0) c: vec4f, @builtin(sample_mask) mask: u32 }
   o.mask = (1u << m) - 1u;
   if (o.mask == 0u) { discard; }
   let V = normalize(frame.camPos - i.wp);
-  let L = forest.key.xyz;
+  let L = light.forest.key.xyz;
   var N = normalize(i.n);
   if (dot(N, V) < 0.0) { N = -N; }
   let diff = (max(dot(N, L), 0.0) + 0.3) / 1.3;

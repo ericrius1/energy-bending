@@ -132,6 +132,14 @@ export interface FireLights {
   pad2: number;
   lights: Partial<FireLight>[];
 }
+export interface WorldLight {
+  fire: FireLights;
+  geode: Geode;
+  forest: Forest;
+  pool: Pool;
+  temple: Temple;
+  forge: Forge;
+}
 export interface KeyLight {
   dir: Vec3;
   col: Vec3;
@@ -243,5 +251,5 @@ export interface GOut {
   f: number;
 }
 
-declare const shader: Shader<{ Frame: Frame; Geode: Geode; Forest: Forest; Pool: Pool; Temple: Temple; Forge: Forge; FireLight: FireLight; FireLights: FireLights; KeyLight: KeyLight; Joint: Joint; Seg: Seg; Particle: Particle; Home: Home; BodyStep: BodyStep; Bodies: Bodies; Touch: Touch; Goal: Goal; Touched: Touched; Stepped: Stepped; GOut: GOut }, 'frame' | 'geode' | 'forest' | 'pool' | 'temple' | 'forge' | 'fireLights' | 'bodies' | 'touch' | 'joints' | 'segs' | 'poolWaves' | 'templeWaves' | 'samp_linear' | 'samp_repeat' | 'samp_nearest' | 'samp_shadow'>;
+declare const shader: Shader<{ Frame: Frame; Geode: Geode; Forest: Forest; Pool: Pool; Temple: Temple; Forge: Forge; FireLight: FireLight; FireLights: FireLights; WorldLight: WorldLight; KeyLight: KeyLight; Joint: Joint; Seg: Seg; Particle: Particle; Home: Home; BodyStep: BodyStep; Bodies: Bodies; Touch: Touch; Goal: Goal; Touched: Touched; Stepped: Stepped; GOut: GOut }, 'frame' | 'light' | 'bodies' | 'touch' | 'joints' | 'segs' | 'poolWaves' | 'templeWaves' | 'samp_linear' | 'samp_repeat' | 'samp_nearest' | 'samp_shadow'>;
 export default shader;

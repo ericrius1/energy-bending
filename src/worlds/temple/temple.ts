@@ -7,8 +7,9 @@
 // Stage: the plane z = STAGE_Z (behind the middle) seen from the front (+z), the moon behind it in the gate. Ledges: two broken pillars, the
 // altar, a lintel on two columns standing just behind the stage (all solid but the lintel). layout.ts builds the
 // ledges and the stones that make them from one description.
-import type { Kit, UniformBuffer } from '@ericrius1/weft';
-import lightShader, { type Temple as TempleU } from '../light.wgsl';
+import type { Kit } from '@ericrius1/weft';
+import type { Temple as TempleU } from '../light.wgsl';
+import { lightSlot, type LightSlot } from '../shared';
 import backdropShader from './backdrop.wgsl';
 import stoneShader from './stones.wgsl';
 import type { PortalDef, World, WorldCtx } from '../world';
@@ -87,7 +88,7 @@ export class Temple implements World {
   readonly layout: TempleLayout;
   /** the tide now (m over the floor), as last set by update */
   tide = 0;
-  private u: UniformBuffer<TempleU>;
+  private u: LightSlot<TempleU>;
   private waves: Ripples;
   private seen = -1;
   private packed: ReturnType<typeof packStones>;
@@ -107,13 +108,13 @@ export class Temple implements World {
     this.layout = layoutTemple({ coarse });
     this.packed = packStones(this.layout.stones);
     this.buf = kit.storage({ label: 'temple.stones', data: this.packed.data, usage: ['storage'] });
-    this.u = kit.uniforms(lightShader.structs.Temple, 'temple.light');
+    this.u = lightSlot(kit, 'temple');
     this.waves = new Ripples(kit, frame, {
       label: 'temple', cells: coarse ? 160 : 288, cell: coarse ? 0.09 : 0.055,
       speed: templeParams.waveSpeed, fade: templeParams.waveFade, feet: templeParams.feet,
       enabled: () => this.seen === kit.frameIndex,
     });
-    this.shared = { temple: this.u, templeWaves: this.waves.tex };
+    this.shared = { templeWaves: this.waves.tex };
     const L = this.layout.ledges;
     this.stages = [stagePlane({
       id: 'court', origin: [0, 0, STAGE_Z], right: [1, 0, 0], halfWidth: 5.75, ground: 0, ledges: L,

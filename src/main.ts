@@ -30,6 +30,7 @@ import type { GemPasses } from './matter/gems/gems';
 import { Portals } from './portals/portals';
 import { gatesDebug } from './portals/debug';
 import { LIMITS } from './engine/limits';
+import { BASELINE_LIMITS } from './engine/baseline';
 
 import.meta.glob(['./matter/*/index.ts', './worlds/*/index.ts'], { eager: true });
 
@@ -46,7 +47,8 @@ if (filmSize) Object.assign(canvas.style, { width: `${filmSize[0]}px`, height: `
 // ---------------------------------------------------------------- the kit and the assets
 let kit: Kit;
 try {
-  kit = await createKit(canvas, { maxPixelRatio: FILM ? 1 : 2 });
+  // ?baseline: only WebGPU's default limits (a phone's budget), so going over one fails on this PC too
+  kit = await createKit(canvas, { maxPixelRatio: FILM ? 1 : 2, limits: query.has('baseline') ? BASELINE_LIMITS : undefined });
 } catch (e) {
   status.textContent = e instanceof WebGPUUnavailable ? `${e.message} Try a recent Chrome, Edge or Safari.` : String(e);
   throw e;

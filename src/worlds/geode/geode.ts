@@ -6,8 +6,9 @@
 // stage's crystal shelves (shelves.ts: blades of selenite grown out of the back wall, their flat tops the ledges).
 //
 // It is the hub: a gate to every other world stands round its floor (portals), facing the middle.
-import type { UniformBuffer } from '@ericrius1/weft';
-import lightShader, { type Geode as GeodeU } from '../light.wgsl';
+import type { Texture } from '@ericrius1/weft';
+import type { Geode as GeodeU } from '../light.wgsl';
+import { lightSlot, type LightSlot } from '../shared';
 import backdropShader from './backdrop.wgsl';
 import moteShader from './motes.wgsl';
 import shelfShader from './shelves.wgsl';
@@ -74,14 +75,14 @@ export class Geode implements World {
   readonly id = 'geode';
   readonly light = 0;
   readonly mood = -0.2;
-  readonly shared: Record<string, UniformBuffer<any>>;
+  readonly shared: Record<string, Texture>;
   readonly stages: StagePlane[];
   readonly portals: PortalDef[];
   readonly spawns: [number, number, number][];
   readonly fixtures: Fixture[];
   readonly mirrorFloor = true;
   readonly maxDist = 14;
-  private u: UniformBuffer<GeodeU>;
+  private u: LightSlot<GeodeU>;
   private pool = [0, 0, 2.2, 0];
   private shaft = [0, 0, 1.15, 0];
   private live = { pool: this.pool, shaft: this.shaft };
@@ -91,8 +92,8 @@ export class Geode implements World {
   constructor(ctx: WorldCtx) {
     const P = geodeParams;
     if (ctx.coarse) Object.assign(P, { caveStones: 700, motes: 700 });
-    this.u = ctx.kit.uniforms(lightShader.structs.Geode, 'geode.light');
-    this.shared = { geode: this.u };
+    this.u = lightSlot(ctx.kit, 'geode');
+    this.shared = {};
     // a stage through the middle, seen from the front, its ledges the crystal shelves grown out of the wall; the lens
     // long enough to flatten it but the camera inside the wall (7.1 m out at most)
     const shelves = layoutShelves({ caveRadius: P.caveRadius });

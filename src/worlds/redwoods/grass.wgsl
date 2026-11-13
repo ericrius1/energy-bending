@@ -47,7 +47,7 @@ fn trodden(root: vec2f) -> vec3f {
   let cell = 2.0 * REACH / f32(GRID);
   let root0 = (vec2f(f32(tuft % GRID), f32(tuft / GRID)) + h.xy) * cell - REACH;
   let r = length(root0);
-  let ring = forest.clock.w;
+  let ring = light.forest.clock.w;
   // the meadow is the clearing and a little way into the trees, thinning out under them
   if (r > REACH || h.z > smoothstep(ring + 3.5, ring - 1.5, r) * 0.92 + 0.08 * step(r, ring + 3.5)) { return o; }
   if (!onScreen(vec3f(root0.x, 0.2, root0.y), 0.6) || !clearOfTrunks(root0, 0.15)) { return o; }
@@ -58,14 +58,14 @@ fn trodden(root: vec2f) -> vec3f {
   let b = rnd3(ii * 13u + 5u);
   let b2 = rnd3(ii * 29u + 11u);
   // short where they dance, longer by the trees; a few long stems everywhere
-  let tall = mix(0.09, 0.36, smoothstep(ring * 0.42, ring * 0.72, r)) * (0.55 + 0.9 * b.x * b.x) * (1.0 + step(0.93, b2.z) * 1.4) * forest.clock.z;
+  let tall = mix(0.09, 0.36, smoothstep(ring * 0.42, ring * 0.72, r)) * (0.55 + 0.9 * b.x * b.x) * (1.0 + step(0.93, b2.z) * 1.4) * light.forest.clock.z;
   let yaw = b.y * 6.2831853;
   let outward = vec2f(cos(yaw), sin(yaw));
   let root = root0 + outward * 0.035 * b.z;
   let lean = 0.15 + 0.55 * b.z;
   let width = mix(0.0045, 0.009, b2.x) * mix(0.8, 1.25, smoothstep(ring * 0.4, ring * 0.8, r)) * sqrt(thin);
   // the wind, and anyone dancing on it
-  let t = forest.clock.x;
+  let t = light.forest.clock.x;
   let wind = windAt(root, t + b2.y * 0.4);
   let foot = trodden(root);
   // the strip: two vertices a level, five levels, then the tip
@@ -91,14 +91,14 @@ fn trodden(root: vec2f) -> vec3f {
   let albedo = mix(green * 0.35, tip, pow(f, 0.8));
   let ao = mix(0.35, 1.0, f);
   o.col = albedo * (woodsAmbient(nrm) * ao + lampLight(wp, nrm, 0.6) * mix(0.5, 1.0, f));
-  o.key = albedo * forest.keyCol.rgb * forest.key.w * keyLight(wp) * ao;
+  o.key = albedo * light.forest.keyCol.rgb * light.forest.key.w * keyLight(wp) * ao;
   o.pos = frame.viewProj * vec4f(wp, 1.0);
   return o;
 }
 
 @fragment fn fs(i: GOut, @builtin(front_facing) front: bool) -> @location(0) vec4f {
   let V = normalize(frame.camPos - i.wp);
-  let L = forest.key.xyz;
+  let L = light.forest.key.xyz;
   var N = normalize(i.n);
   if (!front) { N = -N; }
   // light on the face (wrapped: a blade is thin), through it from behind, and a sheen along it
@@ -106,6 +106,6 @@ fn trodden(root: vec2f) -> vec3f {
   let through = pow(max(dot(-V, L), 0.0), 4.0) * 1.8 * (0.4 + 0.6 * i.f);
   let H = normalize(L + V);
   let sheen = pow(max(dot(N, H), 0.0), 40.0) * 0.25;
-  let c = i.col + i.key * (diff + through) + forest.keyCol.rgb * forest.key.w * sheen * length(i.key) * 0.6;
+  let c = i.col + i.key * (diff + through) + light.forest.keyCol.rgb * light.forest.key.w * sheen * length(i.key) * 0.6;
   return vec4f(c, dot(i.wp - frame.camPos, frame.camFwd));
 }

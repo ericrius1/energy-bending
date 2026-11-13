@@ -10,12 +10,12 @@
 @fragment fn fs(i: FullscreenOut) -> @location(0) vec4f {
   let d = viewRay(i.uv);
   let cam = frame.camPos;
-  if (d.y < -1e-4 && cam.y > pool.water.x) {
-    let t = (pool.water.x - cam.y) / d.y;
+  if (d.y < -1e-4 && cam.y > light.pool.water.x) {
+    let t = (light.pool.water.x - cam.y) / d.y;
     // the floor a hand's depth down: black, with the faintest sheen of the glow on it
     let p = cam + d * t;
-    let sheen = pool.glow.rgb * pool.glow.w * 0.002 * vnoise2(p.xz * 0.7);
-    return vec4f(pool.deep.rgb + sheen, min(t * dot(d, frame.camFwd), 30000.0));
+    let sheen = light.pool.glow.rgb * light.pool.glow.w * 0.002 * vnoise2(p.xz * 0.7);
+    return vec4f(light.pool.deep.rgb + sheen, min(t * dot(d, frame.camFwd), 30000.0));
   }
   return vec4f(poolSky(d, 1.0), 30000.0);
 }

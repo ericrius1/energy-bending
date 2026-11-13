@@ -144,6 +144,14 @@ export interface FireLights {
   pad2: number;
   lights: Partial<FireLight>[];
 }
+export interface WorldLight {
+  fire: FireLights;
+  geode: Geode;
+  forest: Forest;
+  pool: Pool;
+  temple: Temple;
+  forge: Forge;
+}
 export interface KeyLight {
   dir: Vec3;
   col: Vec3;
@@ -188,5 +196,5 @@ export interface SOut {
   dist: Vec2;
 }
 
-declare const shader: Shader<{ Frame: Frame; FieldBox: FieldBox; FieldSample: FieldSample; Geode: Geode; Forest: Forest; Pool: Pool; Temple: Temple; Forge: Forge; FireLight: FireLight; FireLights: FireLights; KeyLight: KeyLight; Puff: Puff; Steam: Steam; SOut: SOut }, 'frame' | 'fieldBox' | 'geode' | 'forest' | 'pool' | 'temple' | 'forge' | 'fireLights' | 'steam' | 'puffs' | 'fieldA' | 'fieldB' | 'poolWaves' | 'templeWaves' | 'sceneTex' | 'samp_linear' | 'samp_repeat' | 'samp_nearest' | 'samp_shadow'>;
+declare const shader: Shader<{ Frame: Frame; FieldBox: FieldBox; FieldSample: FieldSample; Geode: Geode; Forest: Forest; Pool: Pool; Temple: Temple; Forge: Forge; FireLight: FireLight; FireLights: FireLights; WorldLight: WorldLight; KeyLight: KeyLight; Puff: Puff; Steam: Steam; SOut: SOut }, 'frame' | 'fieldBox' | 'light' | 'steam' | 'puffs' | 'fieldA' | 'fieldB' | 'poolWaves' | 'templeWaves' | 'sceneTex' | 'samp_linear' | 'samp_repeat' | 'samp_nearest' | 'samp_shadow'>;
 export default shader;
