@@ -73,6 +73,10 @@ export interface Forest {
   march: Vec4;
   stageLog: Vec4;
   stagePlate: Vec4;
+  gate: Vec4;
+  near: Vec4;
+  dancers: ArrayLike<number> | Vec4[];
+  kicks: ArrayLike<number> | Vec4[];
   lamps: ArrayLike<number> | Vec4[];
   anchors: ArrayLike<number> | Vec4[];
   trunks: ArrayLike<number> | Vec4[];
@@ -102,6 +106,9 @@ export interface Temple {
   stone: Vec4;
   fire: Vec4;
   march: Vec4;
+  tide: Vec4;
+  glitter: Vec4;
+  tide2: Vec4;
   lights: ArrayLike<number> | Vec4[];
   glow: ArrayLike<number> | Vec4[];
   cols: ArrayLike<number> | Vec4[];
@@ -164,6 +171,12 @@ export interface SprayOut {
   c: Vec4;
   mask: number;
 }
+export interface Piece {
+  a: Vec4;
+  b: Vec4;
+  ends: Vec4;
+  kind: Vec4;
+}
 
-declare const shader: Shader<{ Frame: Frame; Geode: Geode; Forest: Forest; Pool: Pool; Temple: Temple; Forge: Forge; FireLight: FireLight; FireLights: FireLights; WorldLight: WorldLight; KeyLight: KeyLight; Log: Log; LOut: LOut; SprayOut: SprayOut }, 'frame' | 'worldLight' | 'logs' | 'poolWaves' | 'templeWaves' | 'samp_linear' | 'samp_repeat' | 'samp_nearest' | 'samp_shadow'>;
+declare const shader: Shader<{ Frame: Frame; Geode: Geode; Forest: Forest; Pool: Pool; Temple: Temple; Forge: Forge; FireLight: FireLight; FireLights: FireLights; WorldLight: WorldLight; KeyLight: KeyLight; Log: Log; LOut: LOut; SprayOut: SprayOut; Piece: Piece }, 'frame' | 'worldLight' | 'logs' | 'stage' | 'poolWaves' | 'templeWaves' | 'samp_linear' | 'samp_repeat' | 'samp_nearest' | 'samp_shadow'>;
 export default shader;

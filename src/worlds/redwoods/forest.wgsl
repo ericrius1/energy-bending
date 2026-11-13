@@ -27,6 +27,10 @@ struct Forest {
   march: vec4f,     // x: the steps the air is marched in
   stageLog: vec4f,  // the fallen log on the stage: its axis on the ground (x0, z0, x1, z1)
   stagePlate: vec4f,// x: its radius; yzw: its root plate (x, z, radius)
+  gate: vec4f,      // the gate's worn path: xz where it starts (at the gate), xz where it fades into the meadow
+  near: vec4f,      // w: how many dancers are in `dancers`
+  dancers: array<vec4f, 4>,         // each dancer: where its chest is, w: 1 (fireflies gather round them)
+  kicks: array<vec4f, 4>,           // the last landing of each dancer: where its feet came down, w: when (clock.x)
   lamps: array<vec4f, MAXLAMP>,     // each lantern: its centre, w: how brightly it's lit
   anchors: array<vec4f, MAXLAMP>,   // where its cord is tied, w: its radius
   trunks: array<vec4f, MAXTRUNK>,   // each trunk (the nearest first): xz of its foot, its radius above the flare, its height
@@ -114,6 +118,20 @@ fn offLog(xz: vec2f) -> f32 {
   let h = clamp(dot(xz - a, ba) / max(dot(ba, ba), 1e-4), 0.0, 1.0);
   let side = length(xz - a - ba * h) - worldLight.forest.stagePlate.x;
   return min(side, length(xz - worldLight.forest.stagePlate.yz) - worldLight.forest.stagePlate.w * 0.5);
+}
+
+/** how worn the ground is at xz by the path from the gate into the clearing (0 … 1): a winding track, widest and barest
+ *  at the gate, fading out into the meadow */
+fn pathAt(xz: vec2f) -> f32 {
+  let a = worldLight.forest.gate.xy;
+  let ba = worldLight.forest.gate.zw - a;
+  let l2 = max(dot(ba, ba), 1e-4);
+  let h = clamp(dot(xz - a, ba) / l2, 0.0, 1.0);
+  let side = vec2f(-ba.y, ba.x) * inverseSqrt(l2);
+  // (it winds a little)
+  let c = a + ba * h + side * sin(h * 5.0 + 1.3) * 0.35 * h;
+  let w = mix(0.55, 0.3, h) * (0.85 + 0.3 * vnoise2(xz * 1.7));
+  return smoothstep(w, w * 0.35, length(xz - c)) * smoothstep(1.0, 0.65, h);
 }
 
 /** whether xz is clear of the trunks' feet (by `room` past their flare) and of the fallen log; only the ring and its
@@ -250,6 +268,7 @@ fn woodsAir(s: vec4f, px: vec2i, d: vec3f) -> vec3f {
   let cosT = dot(d, worldLight.forest.key.xyz);
   let hg = (1.0 - g * g) / pow(max(1.0 + g * g - 2.0 * g * cosT, 1e-4), 1.5);
   let keyC = worldLight.forest.keyCol.rgb * worldLight.forest.key.w * worldLight.forest.air.y * mix(1.0, hg, 0.6) * 0.7;
+  let keyOn = max(keyC.r, max(keyC.g, keyC.b)) > 1e-5;
   var T = 1.0;
   var acc = vec3f(0.0);
   for (var k = 0; k < steps; k++) {
@@ -260,7 +279,10 @@ fn woodsAir(s: vec4f, px: vec2i, d: vec3f) -> vec3f {
     let dt = tb - ta;
     let p = frame.camPos + d * t;
     let dens = mistAt(p);
-    acc += T * dens * dt * (keyC * keyLight(p) + worldLight.forest.mist.rgb);
+    // (the shafts' test, the march's cost, only while there is a key light to make them: not once the moon is down)
+    var lit = worldLight.forest.mist.rgb;
+    if (keyOn) { lit += keyC * keyLight(p); }
+    acc += T * dens * dt * lit;
     T *= exp(-dens * dt);
   }
   var glow = 0.0;

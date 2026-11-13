@@ -1,7 +1,8 @@
 // The Tide Temple: a drowned stone court at dusk under a large moon. Its light is case 3 of worlds/light.wgsl
-// (temple.wgsl). What it draws: the sky, the flagstones and the sea bed (the backdrop), the stones (stones.wgsl: the
-// altar, the broken pillars, the lintel, the gate, the colonnades, the walls), and the water over all of it, laid over
-// the scene in the air pass with the pool's water code, ripples and all. The sea comes in over the court and goes out
+// (temple.wgsl). What it draws: the sky (the moon with its corona and a thin cloud across it), the flagstones and the
+// sea bed (the backdrop), the stones (stones.wgsl: the altar, the broken pillars, the lintel, the gate, the colonnades,
+// the walls, the fallen columns, and the drowned court going on out in the sea), and the water over all of it, laid over
+// the scene in the air pass with the pool's water code, ripples and all, the moon's glitter path on it. The sea comes in over the court and goes out
 // again over eight bars of the music: `tideY(beat)` is its height, for physics and drawing alike.
 //
 // Stage: the plane z = STAGE_Z (behind the middle) seen from the front (+z), the moon behind it in the gate. Ledges: two broken pillars, the
@@ -40,12 +41,22 @@ export const templeParams = defineParams('temple', {
   stars: 0.8,
   stone: '#a89d8c',
   wetGloss: 1,
+  /** the afterglow's low light on the stones' fronts (it rakes the carving) */
+  afterglow: 0.5,
+  /** how quickly the stone dries once the tide has left it (per cycle of the tide) */
+  dry: 4,
+  /** the moon's path on the water: how bright, how wide (the facets' slope), how fine its sparkle (per m) */
+  glitter: 1.2,
+  glitterWidth: 0.11,
+  sparkle: 7,
+  /** the thin cloud across the moon (how thick) */
+  veil: 0.75,
   sea: '#06141c',
   depthDim: 1.2,
   mirror: 0.05,
   ripples: 1,
   wind: 0.06,
-  haze: 0.006,
+  haze: 0.009,
   /** how far the dancers' own light reaches (m), and a light for every dancer (for stills; the game sets each its own) */
   fireReach: 6,
   firelight: 0,
@@ -61,6 +72,9 @@ export const templeParams = defineParams('temple', {
   moonSize: { min: 0.5, max: 12 },
   moonHeight: { min: 1, max: 40 },
   firelight: { min: 0, max: 4, label: "dancers' light" },
+  afterglow: { min: 0, max: 2 },
+  glitter: { min: 0, max: 4 },
+  veil: { min: 0, max: 1 },
   wind: { min: 0, max: 0.2, step: 0.005 },
   haze: { min: 0, max: 0.05, step: 0.001 },
   stone: { color: true },
@@ -100,7 +114,7 @@ export class Temple implements World {
   private march: [number, number, number, number] = [22, 16, 0, 0];
   private live = {
     water: [0, 0, 1, 0] as [number, number, number, number], waves: [0, 0, 1, 1] as [number, number, number, number],
-    fire: [6, 0, 0, 0.5] as [number, number, number, number], lights: this.lights, glow: this.glows,
+    fire: [6, 0, 0, 0.5] as [number, number, number, number],       lights: this.lights, glow: this.glows, tide: [0, 0, 0, 0] as [number, number, number, number],
   };
 
   constructor(private ctx: WorldCtx) {
@@ -141,6 +155,7 @@ export class Temple implements World {
       zenith: [...hex(P.zenith), P.stars], horizon: [...hex(P.horizon), 0], dusk: [...hex(P.dusk), P.duskAmt], duskDir: [0, 0, 1, 2.2],
       moon: [Math.sin(az) * Math.cos(el), Math.sin(el), -Math.cos(az) * Math.cos(el), (P.moonSize * Math.PI) / 360],
       moonCol: [...hex(P.moonCol), P.moonLight], sea: [...hex(P.sea), P.depthDim], stone: [...hex(P.stone), P.wetGloss],
+      glitter: [P.glitter, P.glitterWidth, P.sparkle, P.veil], tide2: [P.afterglow, 0, 0, 0],
     });
     this.march[2] = P.haze;
     this.u.set({ march: this.march });
@@ -168,6 +183,9 @@ export class Temple implements World {
       this.glows.set([g[0], g[1], g[2], 0], d * 4);
     }
     v.fire[0] = P.fireReach; v.fire[1] = f.t; v.fire[2] = D; v.fire[3] = P.tideHigh + 0.04;
+    // where the tide's cycle is (for how long the stone above the water has been drying)
+    const ph = P.tideHold >= 0 ? P.tideHold : f.beat.beats / (P.tideBars * 4);
+    v.tide[0] = P.tideLow; v.tide[1] = P.tideHigh; v.tide[2] = ph - Math.floor(ph); v.tide[3] = P.dry;
     this.u.set(v);
   }
 
@@ -179,10 +197,16 @@ export class Temple implements World {
     } else if (s.phase === 'opaque') {
       const N = 4;
       pass.draw(stoneShader, { label: 'temple.blocks', vertex: 'vs_block', bind: { stones: this.buf }, count: 6 * N * N * 6, instances: k.blocks, constants: { FIRST: 0, N }, cull: 'none', enabled: on });
-      const SIDES = coarse ? 28 : 48, RINGS = coarse ? 6 : 10, CAPR = coarse ? 3 : 4;
+      // the court's drums with their flutes in the mesh (six sides a flute; a phone has them in the light only), the far
+      // ones out in the sea in less
+      const SIDES = coarse ? 40 : 120, RINGS = coarse ? 6 : 10, CAPR = coarse ? 3 : 4;
       pass.draw(stoneShader, {
         label: 'temple.drums', vertex: 'vs_drum', bind: { stones: this.buf }, count: SIDES * (RINGS - 1 + CAPR * 2) * 6, instances: k.drums,
         constants: { FIRST: k.blocks, SIDES, RINGS, CAPR }, cull: 'none', enabled: on,
+      });
+      pass.draw(stoneShader, {
+        label: 'temple.drums.far', vertex: 'vs_drum', bind: { stones: this.buf }, count: 32 * (6 - 1 + 2 * 2) * 6, instances: k.farDrums,
+        constants: { FIRST: k.blocks + k.drums, SIDES: 32, RINGS: 6, CAPR: 2 }, cull: 'none', enabled: on,
       });
     }
   }

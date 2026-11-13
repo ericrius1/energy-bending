@@ -2,11 +2,13 @@
 // is case 1 of worlds/light.wgsl: the sun or the moon through the leaves and past the trunks, the soft light under
 // the trees, the lanterns. What it draws: the forest floor and the sky (the backdrop), the trunks and limbs, the
 // limbs' sprays, ferns, grass (pushed aside by the dancers' feet), flowers and spires, the lanterns and their cords;
-// pollen in the light and, after dark, fireflies (its glows).
+// pollen in the light, the lanterns' halos, dust kicked up by a landing and, after dark, fireflies that gather round
+// the dancers (its glows).
 //
 // Stage: a plane through the clearing aimed at the biggest tree of the ring, with a fallen giant lying along it on the
 // left and two boughs from that tree reaching in along it, low and high (stage.ts: the ledges and the logs that make
-// them, from one description, in the trunks' bark).
+// them, from one description, in the trunks' bark; ferns and shelf fungus growing on them). Its gate back to the geode
+// stands between two trees of the ring on the camera's side, out of the locked view, a worn path leading from it.
 import type { Kit, Texture } from '@ericrius1/weft';
 import type { Forest } from '../light.wgsl';
 import { lightSlot, type LightSlot } from '../shared';
@@ -26,6 +28,7 @@ import { fillTexture } from './textures';
 import { defineParams } from '../../engine/params';
 import { layoutStage, packPieces, type RedwoodsStage } from './stage';
 import { stagePlane, spawnsOf, toPlane } from '../stage';
+import { JOINT } from '../../skeleton/rig';
 
 export const redwoodsParams = defineParams('redwoods', {
   /** the time of day (hours), and whether it goes by on its own (a whole day and night in dayMinutes) */
@@ -95,7 +98,11 @@ export class Redwoods implements World {
     })];
     this.spawns = spawnsOf(this.stages[0]);
     // one gate, back to the geode: in the open meadow behind the stage's left end, clear of the log and the trees' feet
-    this.portals = [{ id: 'redwoods.geode', at: [-6.5, 1.35, -5.5], normal: [0.76, 0, 0.65], radius: 1.3, to: { world: 'geode', portal: 'geode.redwoods' } }];
+    // one gate, back to the geode: between two trees of the ring on the camera's side of the stage (out of the locked
+    // view, which looks the other way), facing the clearing, a path worn from it into the meadow
+    const gate: [number, number, number] = [-10.03, 1.35, 5.23], gn: [number, number, number] = [0.885, 0, -0.466];
+    this.portals = [{ id: 'redwoods.geode', at: gate, normal: gn, radius: 1.3, to: { world: 'geode', portal: 'geode.redwoods' } }];
+    this.woods.values.gate = [gate[0] + gn[0] * 0.2, gate[2] + gn[2] * 0.2, gate[0] + gn[0] * 7.5, gate[2] + gn[2] * 7.5];
     this.forest = lightSlot(kit, 'forest');
     this.forest.set(this.woods.values);
     this.shared = {};
@@ -115,7 +122,35 @@ export class Redwoods implements World {
     // (a film moves the hour itself)
     if (P.dayGoes && !this.ctx.film) P.hour = (P.hour + (f.dt * 24) / (P.dayMinutes * 60)) % 24;
     this.woods.update(f.danceDt, P);
+    this.watch(f);
     this.forest.set(this.woods.values);
+  }
+
+  /** the dancers here, for the fireflies to gather round, and their landings, for the dust they kick up: a landing is
+   *  the hips coming down fast and stopping with a foot on the ground (or on the log) */
+  private was: { y: number; vy: number }[] = [];
+  private watch(f: FrameCtx) {
+    const v = this.woods.values, dt = f.danceDt;
+    let n = 0;
+    for (let d = 0; d < f.dancers.length && n < 4; d++) {
+      const dn = f.dancers[d];
+      if (dn.world && dn.world !== this.id) continue;
+      const w = dn.skeleton.world, c = JOINT.Spine1 * 12;
+      v.dancers.set([w[c], w[c + 1], w[c + 2], dn.presence], n * 4);
+      const hy = w[JOINT.Hips * 12 + 1];
+      const lf = JOINT.LeftFoot * 12, rf = JOINT.RightFoot * 12;
+      const fx = (w[lf] + w[rf]) / 2, fz = (w[lf + 2] + w[rf + 2]) / 2, fy = Math.min(w[lf + 1], w[rf + 1]);
+      const was = (this.was[n] ??= { y: hy, vy: 0 });
+      if (dt > 0) {
+        const vy = (hy - was.y) / dt;
+        const floor = this.groundAt(fx, fz);
+        if (was.vy < -1.6 && vy > -0.4 && fy < floor + 0.25) v.kicks.set([fx, floor, fz, v.clock[0]], n * 4);
+        was.vy = vy;
+      }
+      was.y = hy;
+      n++;
+    }
+    v.near[3] = n;
   }
 
   declareScene(s: ScenePass) {
@@ -128,9 +163,25 @@ export class Redwoods implements World {
         label: 'redwoods.trunks', bind: { logs, barkTex: this.tex.bark, barkH: this.tex.barkH }, count: 47 * 44 * 6, instances: L.near,
         constants: { SIDES: 44, RINGS: 48, FIRST: 0 }, enabled: on,
       });
+      // the stage's logs: the fallen giant, its root plate and roots in detail (its hollow end needs the rings), then the
+      // boughs' many short pieces in less
+      const st = this.stage, big = st.big, boughs = st.pieces.length - big;
       pass.draw(trunkShader, {
-        label: 'redwoods.stage', vertex: 'vs_stage', fragment: 'fs_stage', bind: { stage: this.pieces(), barkTex: this.tex.bark, barkH: this.tex.barkH }, count: 28 * (14 + 4 * 2 - 1) * 6,
-        instances: this.stage.pieces.length, constants: { SIDES: 28, RINGS: 14, CAPR: 4 }, cull: 'none', enabled: on,
+        label: 'redwoods.stage', vertex: 'vs_stage', fragment: 'fs_stage', bind: { stage: this.pieces(), barkTex: this.tex.bark, barkH: this.tex.barkH }, count: 28 * (14 + 6 * 2 - 1) * 6,
+        instances: big, constants: { SIDES: 28, RINGS: 14, CAPR: 6, SFIRST: 0 }, cull: 'none', enabled: on,
+      });
+      pass.draw(trunkShader, {
+        label: 'redwoods.boughs', vertex: 'vs_stage', fragment: 'fs_stage', bind: { stage: this.pieces(), barkTex: this.tex.bark, barkH: this.tex.barkH }, count: 20 * (2 + 2 * 2 - 1) * 6,
+        instances: boughs, constants: { SIDES: 20, RINGS: 2, CAPR: 2, SFIRST: big }, cull: 'none', enabled: on,
+      });
+      // what grows on them: ferns and shelf fungus down the log's flanks, ferns along the boughs
+      pass.draw(fernShader, {
+        label: 'redwoods.epiphytes.log', vertex: 'vs_epi', bind: { stage: this.pieces() }, count: 60, instances: 2 * (q.ferns > 30 ? 44 : 24),
+        constants: { EFIRST: 0, PER: q.ferns > 30 ? 44 : 24 }, cull: 'none', enabled: on,
+      });
+      pass.draw(fernShader, {
+        label: 'redwoods.epiphytes.boughs', vertex: 'vs_epi', bind: { stage: this.pieces() }, count: 60, instances: boughs * 2,
+        constants: { EFIRST: big, PER: 2 }, cull: 'none', enabled: on,
       });
       pass.draw(trunkShader, {
         label: 'redwoods.trunks.far', bind: { logs, barkTex: this.tex.bark, barkH: this.tex.barkH }, count: 19 * 16 * 6, instances: L.far + L.limbs,
@@ -150,10 +201,16 @@ export class Redwoods implements World {
       });
       pass.draw(flowerShader, { label: 'redwoods.flowers', count: 174, instances: q.flowers * q.flowers, constants: { GRID: q.flowers }, cull: 'none', enabled: on });
       pass.draw(flowerShader, { label: 'redwoods.spires', vertex: 'vs_spire', count: 288, instances: q.spires * q.spires, constants: { SPIRES: q.spires }, cull: 'none', enabled: on });
-      pass.draw(lanternShader, { label: 'redwoods.lanterns', count: 18 * 12 * 6, instances: L.lanterns.length, cull: 'none', enabled: on });
+      pass.draw(lanternShader, { label: 'redwoods.lanterns', count: 24 * (2 + 9 * 4 + 2) * 6, instances: L.lanterns.length, constants: { AROUND: 24, HOOPS: 9, BAY: 4 }, cull: 'none', enabled: on });
       pass.draw(lanternShader, { label: 'redwoods.cords', vertex: 'vs_cord', fragment: 'fs_cord', count: 6, instances: L.lanterns.length, cull: 'none', enabled: on });
     } else {
       pass.draw(pollenShader, { label: 'redwoods.pollen', count: 6, instances: () => (this.ctx.coarse ? 700 : 1400), blend: 'add', depthWrite: false, cull: 'none', enabled: on });
+      pass.draw(pollenShader, { label: 'redwoods.kicks', vertex: 'vs_kick', count: 6, instances: 4 * 40, constants: { KICK: 40 }, blend: 'add', depthWrite: false, cull: 'none', enabled: on });
+      // each lit lantern's halo in the mist
+      pass.draw(lanternShader, {
+        label: 'redwoods.halos', vertex: 'vs_halo', fragment: 'fs_halo', count: 6, instances: L.lanterns.length, blend: 'add', depthWrite: false, cull: 'none',
+        enabled: () => on() && redwoodsParams.lanterns > 0,
+      });
       // fireflies, once it's dark
       pass.draw(lanternShader, {
         label: 'redwoods.fireflies', vertex: 'vs_fly', fragment: 'fs_fly', count: 6, instances: () => Math.round(q.flies * redwoodsParams.fireflies),
