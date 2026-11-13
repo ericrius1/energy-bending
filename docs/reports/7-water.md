@@ -222,6 +222,12 @@ The brief's own list:
 7. The gate view (`fs_scene`) has no refraction (as before) and its single alpha approximates the per-channel
    absorption.
 
+## Checks
+
+`npm run typecheck`, `npm run build` (weft at the tip of dist/weft, 63205ac) and `npm test` (limits; the binding
+budget: the water composite's fragment stage stays at 9 of 12 uniforms, nothing new bound; src, audio, gates, net):
+all clean. The dev server (port 5452) is stopped; every capture released the render lock on exit.
+
 ## Edits outside my folders
 
 - `scripts/steps/water-7-gen.mjs`, `water-7.json`, `water-7-ab.json`, `water-7-timings.json`: my step files.
