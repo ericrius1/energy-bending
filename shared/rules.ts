@@ -79,6 +79,12 @@ export const RULES = {
     'tour':     { attack: false, flow: 2 },
     'quebra':   { attack: false, flow: 2 },
     'palmas':   { attack: false, flow: 1, echo: false },
+    // the partner's low game and inversions (integration 8, procedural in src/dancer/moves.ts), and the bow to end on
+    'negativa':  { attack: false, flow: 4 },
+    'cocorinha': { attack: false, flow: 3 },
+    'compasso':  { attack: true,  flow: 7 },
+    'queda-de-rins': { attack: false, flow: 5 },
+    'bow':      { attack: false, flow: 1, echo: false },
   } as Record<string, { attack: boolean; flow: number; echo?: boolean }>,
   // Exchange results, reported by the dancer being attacked. streak: true extends the streak, false resets.
   xch: {

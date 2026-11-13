@@ -1,0 +1,50 @@
+[
+ {
+  "name": "moves-new",
+  "query": "play&two&dress=gems,gems&world=geode",
+  "fps": 10,
+  "seconds": 7.2,
+  "warm": 400,
+  "setup": "bend.set('camera', { followDist: 4.2, followFov: 40, followPitch: 0.05, followSwing: 0 }); bend.wake(); bend.place(0,-1.2,0,Math.PI/2); bend.place(1,1.2,0,-Math.PI/2);",
+  "cues": {
+   "0.3": "bend.move(0,'negativa'); bend.move(1,'cocorinha')",
+   "1.8": "bend.move(0,'compasso'); bend.move(1,'queda-de-rins')",
+   "3.6": "bend.move(0,'cocorinha'); bend.move(1,'negativa')",
+   "4.6": "bend.move(0,'bow'); bend.move(1,'bow')"
+  },
+  "each": "bend.camera({ yaw: 0, pitch: 0.05, dist: 4.2 });",
+  "sheet": {
+   "cols": 9,
+   "rows": 8,
+   "width": 220
+  },
+  "stills": [
+   0.7,
+   2.3,
+   2.6,
+   3,
+   5.6
+  ]
+ },
+ {
+  "name": "moves-new-34",
+  "query": "play&two&dress=gems,gems&world=geode",
+  "fps": 10,
+  "seconds": 3.4,
+  "warm": 400,
+  "setup": "bend.set('camera', { followDist: 3.6, followFov: 40, followPitch: 0.1, followSwing: 0 }); bend.wake(); bend.place(0,-1.2,0,Math.PI/2); bend.place(1,1.2,0,-Math.PI/2);",
+  "cues": {
+   "0.3": "bend.move(0,'compasso'); bend.move(1,'queda-de-rins')"
+  },
+  "each": "bend.camera({ yaw: 0.8, pitch: 0.12, dist: 3.6 });",
+  "sheet": {
+   "cols": 9,
+   "rows": 4,
+   "width": 220
+  },
+  "stills": [
+   0.9,
+   1.2
+  ]
+ }
+]

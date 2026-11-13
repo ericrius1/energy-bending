@@ -282,7 +282,8 @@ export class PartnerBrain implements Brain {
       const c = sh.cue;
       if (c.offer && MOVES[c.offer]) {
         // (an offer on the cue's line: the breath comes in for it from where they are)
-        this.intend = { kind: 'offer', name: c.offer, want: this.responsive < 0.35 ? 'near' : 'touch', line: Math.max(line, nextEighth(sb + 0.5)), until: line + 4, lead: null, leadLine: line, cued: true };
+        // (until a little past the next bar line, so the next back step is still in time when the other was busy)
+        this.intend = { kind: 'offer', name: c.offer, want: this.responsive < 0.35 ? 'near' : 'touch', line: Math.max(line, nextEighth(sb + 0.5)), until: line + 4.5, lead: null, leadLine: line, cued: true };
         this.planIntend(s, o);
         this.note(s, `cue: offer ${c.offer} on ${line}`);
       } else if (c.side) {
@@ -304,6 +305,12 @@ export class PartnerBrain implements Brain {
   private takeTurn(s: Sight, o: Other, mood: Mood, A: Asked | null) {
     const m = this.mind, P = this.p, c = s.self;
     const live = liveMove(o, s.bpm), sb = startBeat(s.beatPrev, s.beat);
+    // while a director asks it to circle, it circles: an offer of its own is let go and none is taken (answers still
+    // come, and a cued offer keeps its moment)
+    if (A?.circle === 'left' || A?.circle === 'right') {
+      if (this.intend && !this.intend.cued) this.dropIntend(s, 'directed to circle');
+      if (!this.intend) return;
+    }
     if (this.intend) {
       const it = this.intend;
       // (an attack of theirs meanwhile is answered; the offer still waits for its moment, which checks they are free)

@@ -417,6 +417,35 @@ const esquivaT = track([
   [0.82, { hip: [-0.02, 0.26, -0.02], pitch: -0.05, roll: -0.15, lh: [-0.18, 0.3, 0.06], rh: [0.06, 0.48, 0.15] }],
   [1.00, base()],
 ]);
+// cocorinha: down into the squat (LOCO.crouch's pose), held, up again
+const COCO = { hip: [0, 0.16, -0.03], pitch: 0.42, crunch: 0.95, lf: [-0.14, 0.02, -0.02], rf: [0.14, 0.02, 0.03],
+  lkp: [-0.8, 0.2, 0.7], rkp: [0.8, 0.2, 0.7], rh: [0.03, 0.46, 0.17], lh: [-0.1, 0.1, 0.17] };
+const cocorinhaT = track([
+  [0.00, base()],
+  [0.18, { ...COCO }],
+  [0.72, { ...COCO, hip: [0, 0.155, -0.035], rh: [0.03, 0.465, 0.17] }],
+  [1.00, base()],
+]);
+// negativa: the left hand and the right foot carry it; the left leg out along the floor ahead; leaning back and to the
+// left side, the head turned away (to the right), the right hand guarding the face
+const negativaT = track([
+  [0.00, base()],
+  [0.18, { hip: [-0.06, 0.1, -0.04], pitch: -0.2, roll: -0.45, yaw: 0.2, head: [0.025, 0, 0], crunch: 0.95,
+    lh: [-0.24, 0.0, -0.06], rh: [0.0, 0.3, 0.12], lf: [-0.1, 0.0, 0.36], rf: [0.1, 0, -0.02], rkp: [0.6, 0.4, 1], lkp: [-0.2, 1, 0.2] }],
+  [0.62, { hip: [-0.065, 0.095, -0.045], lf: [-0.11, 0.0, 0.37] }],
+  [0.82, { hip: [-0.02, 0.24, -0.02], pitch: 0.05, roll: -0.1, yaw: 0.05, head: [0, 0, 0], lh: [-0.16, 0.3, 0.06], rh: [0.08, 0.45, 0.14],
+    lf: [-0.13, 0, 0.04], rf: [0.13, 0, 0] }],
+  [1.00, base()],
+]);
+// the bow: the feet drawn together, the hands meet before the chest, the torso and head bow, held, then up
+const bowT = track([
+  [0.00, base()],
+  [0.22, { hip: [0, 0.32, 0], pitch: 0.0, lf: [-0.06, 0, 0], rf: [0.06, 0, 0], lh: [-0.015, 0.47, 0.11], rh: [0.015, 0.47, 0.11], head: [0, 0, 0] }],
+  [0.42, { hip: [0, 0.31, -0.03], pitch: 0.62, head: [0, -0.02, 0.01], lh: [-0.015, 0.4, 0.15], rh: [0.015, 0.4, 0.15] }],
+  [0.68, { hip: [0, 0.31, -0.03], pitch: 0.64, head: [0, -0.022, 0.012] }],
+  [0.86, { hip: [0, 0.32, 0], pitch: 0.02, head: [0, 0, 0], lh: [-0.1, 0.4, 0.1], rh: [0.1, 0.42, 0.12] }],
+  [1.00, base()],
+]);
 const blockT = track([
   [0.00, base()],
   [0.12, { hip: [0, 0.28, -0.03], pitch: 0.0, lf: [-0.14, 0, -0.06], rf: [0.13, 0, 0.04], lh: [0.0, 0.63, 0.1], rh: [0.04, 0.55, 0.13], lep: [-0.3, -1, 0.4], rep: [0.3, -1, 0.4] }],
@@ -643,6 +672,91 @@ const MOVE_DEFS: Record<string, Omit<MoveInput, 'name'>> = {
     cancelInto: ['jump', 'meia-lua', 'armada', 'martelo', 'bencao', 'rasteira', 'strike', 'au', 'role', 'macaco', 'esquiva'], aimW: 0,
     style: () => ({ hands: ['open', 'open'] }),
     pose(u, _ctx, out) { return rig(blockT(u), out); },
+  },
+
+  // (integration 8: the four moves the partner brain asked for, 7-partner.md, and a bow to end a film on)
+
+  // cocorinha: the squat on the balls of the feet, knees open, one forearm guarding the head (LOCO.crouch's pose as a
+  // move), a beat long: under a high kick, then back up into the ginga
+  cocorinha: {
+    dur: 0.6, iframes: [0.05, 0.9], evade: true, aimW: 0,
+    cancelInto: ['compasso', 'rasteira', 'meia-lua', 'au', 'esquiva', 'jump'],
+    style: () => ({ hands: ['relaxed', 'open'] }),
+    pose(u, _ctx, out) { return rig(cocorinhaT(u), out); },
+  },
+
+  // negativa: dropped to the floor on one side, the left hand and the right foot down, the left leg stretched out low
+  // along the floor, the head turned away from the kick and the right hand guarding it; then back up into the ginga
+  negativa: {
+    dur: 0.8, iframes: [0.1, 0.7], evade: true, aimW: 0,
+    cancelInto: ['rasteira', 'compasso', 'au', 'role', 'esquiva', 'jump'],
+    style: (u) => ({ hands: [u > 0.12 && u < 0.82 ? 'floor' : 'relaxed', 'open'], feet: ['flex', 'auto'] }),
+    pose(u, _ctx, out) {
+      rig(negativaT(u), out);
+      // the hand and the foot that carry it stay on the floor while it is down
+      const low = smooth(u / 0.18) * (1 - smooth((u - 0.78) / 0.2));
+      if (low > 0) shiftPose(out, 0, -lowest(out, [J.LW, J.RA, J.LA]) * low, 0);
+      return out;
+    },
+  },
+
+  // meia-lua de compasso: from a low step the body turns its back, both hands go to the floor and the heel of the
+  // straight right leg sweeps a full circle behind and up, at a ducking head's height (the armada's turn with the torso
+  // pitched to the floor)
+  compasso: {
+    dur: 1.1, active: [0.45, 0.75], attack: true, hit: { a: 'RK', b: 'RA', r: R(0.07) }, travel: { z: 0.03 * FU, u0: 0.1, u1: 0.4 },
+    cancelInto: others('compasso'), aimW: 0.3,
+    style: (u) => { const on = u > 0.22 && u < 0.85; return { hands: on ? ['floor', 'floor'] : ['fist', 'fist'], feet: ['auto', 'flex'] }; },
+    pose(u, _ctx, out) {
+      const down = smooth(u / 0.3) * (1 - smooth((u - 0.82) / 0.18));
+      const turn = smooth(u / 0.38), sweep = smooth((u - 0.38) / 0.42), up = Math.sin(Math.PI * clamp((u - 0.36) / 0.48, 0, 1));
+      const P = base({ yaw: -Math.PI * turn - Math.PI * sweep, pitch: mix(0.12, 1.3, down), crunch: mix(1, 0.92, down),
+        hip: [0, mix(0.3, 0.17, down), 0], head: [0, 0, 0] });
+      // the standing (left) leg bent under the hips; the right sweeps straight behind and up through the active window
+      P.lfB = mix3([-0.1, -0.3, 0], [-0.1, -0.16, 0.06], down);
+      P.rfB = mix3(mix3([0.1, -0.3, 0], [0.14, -0.15, -0.12], down), [0.16, 0.28, -0.16], up);
+      P.lkp = [-0.4, 0.3, 1]; P.rkp = [0.3, 0.2, -1];
+      delete P.lf; delete P.rf;
+      // the hands go down to the floor ahead of the shoulders (the shoulders' forward points to the floor when pitched)
+      P.lhB = mix3([-0.08, -0.06, 0.15], [-0.07, 0.02, 0.21], down); P.rhB = mix3([0.08, -0.04, 0.16], [0.07, 0.02, 0.21], down);
+      delete P.lh; delete P.rh;
+      rig(P, out);
+      if (down > 0) shiftPose(out, 0, -lowest(out, [J.LW, J.RW, J.LA]) * down, 0);
+      return out;
+    },
+  },
+
+  // queda de rins: one elbow tucked into the hip, that hand and the head toward the floor, the body tipped over
+  // sideways onto them with the legs tucked up in the air, then back down: to change sides and to travel
+  'queda-de-rins': {
+    dur: 1.2, travel: { z: 0.4 * FU, u0: 0.15, u1: 0.8 }, iframes: [0.2, 0.8], evade: true, aimW: 0,
+    cancelInto: ['compasso', 'meia-lua', 'au', 'jump'],
+    style: (u) => { const on = u > 0.18 && u < 0.84; return { hands: [on ? 'floor' : 'relaxed', 'open'], feet: ['point', 'point'] }; },
+    pose(u, _ctx, out) {
+      const w = smooth(u / 0.28), e = smooth((u - 0.74) / 0.26), on = w * (1 - e);
+      const P = base({ hip: [0, mix(0.3, 0.2, on), 0], pitch: mix(0.12, 0.55, on), crunch: mix(1, 0.88, on),
+        rotZ: 1.25 * on, pivot: [-0.06, 0.12 * on, 0.04] });
+      // the left elbow into the hip, its hand under the shoulder; the right arm out for balance
+      P.lhB = mix3([-0.06, -0.14, 0.12], [-0.02, -0.17, 0.05], on); P.rhB = mix3([0.06, -0.14, 0.12], [0.16, 0.04, 0.12], on);
+      P.lep = [-1, -0.3, -0.5];
+      delete P.lh; delete P.rh;
+      // the legs tucked up and together, then let out in the air
+      const tuck = Math.sin(Math.PI * clamp((u - 0.15) / 0.7, 0, 1));
+      P.lfB = mix3([-0.1, -0.3, 0], [-0.06, -0.1, 0.14 - 0.08 * tuck], on); P.rfB = mix3([0.1, -0.3, 0], [0.05, -0.08, 0.16 - 0.1 * tuck], on);
+      delete P.lf; delete P.rf;
+      rig(P, out);
+      // whatever is lowest on the floor: the feet on the way in and out, the hand and the head (its middle 0.1 m above
+      // the floor it rests on) tipped over
+      shiftPose(out, 0, -Math.min(lowest(out, [J.LW, J.LA, J.RA]), out[3 * J.HEAD + 1] - 0.1), 0);
+      return out;
+    },
+  },
+
+  // a bow to end on: the feet together, the hands meet before the chest, the head and torso bow and hold, then rise
+  bow: {
+    dur: 2.4, aimW: 0, cancelInto: ['*'],
+    style: () => ({ hands: ['open', 'open'] }),
+    pose(u, _ctx, out) { return rig(bowT(u), out); },
   },
 
   // the spin flourish: a full pirouette on the balls of the feet, arms open and sweeping, rising overhead
