@@ -28,23 +28,20 @@ struct FireSim {
   heat: f32,             // @range(0.2, 3) temperature at birth
   cling: f32,            // @range(0, 400) plasma's spring to its home (1/s²)
   blast: vec4f,          // xyz centre, w strength: a shatter this frame
-  // the draw
-  intensity: f32,        // @range(0, 4)
-  stretch: f32,          // @range(0, 0.2) seconds of motion a flame is stretched along (its streak)
-  erode: f32,            // @range(0, 1.5) how much noise eats a flame's edge (the dark gaps between tongues)
-  reflect: f32,          // @range(0, 1) the mirror floor's copy
+  // the embers' draw (draw.wgsl); the body of the flames is drawn by the field (field.wgsl FireField)
+  stretch: f32,          // @range(0, 0.2) seconds of motion a spark is stretched along
   emberGlow: f32,        // @range(0, 8)
-  smoke: f32,            // @range(0, 1) how dark the smoke is
-  plasmaGlow: f32,       // @range(0, 4)
-  flicker: f32,          // @range(0, 1) plasma's electric flicker
-  tongues: f32,          // @range(0, 1) how much the climbing noise in the air splits the fire into tongues and gaps
+  pad0: f32, pad1: f32,
   form: array<vec4f, 2>, // per dancer slot (MAX_DANCERS = 8): the game's form, 0 fire … 1 plasma
 }
 
 /** temperature to colour, fire: deep red, orange at 1, yellow-white past 1.5 (docs/element-looks.md, 1) */
 fn fireRamp(T: f32) -> vec3f {
   let t = clamp(T, 1e-4, 3.2);
-  return pow(vec3f(t), vec3f(1.0, 2.0, 3.6)) * vec3f(1.75, 0.95, 0.6);
+  let c = pow(vec3f(t), vec3f(1.0, 2.0, 3.6)) * vec3f(1.75, 0.95, 0.6);
+  // past T ~1.6 the reference's blue term overtakes the others: a hot core is held to a warm white instead of going
+  // blue-violet (the 2D original seldom got that hot; a summed field does)
+  return vec3f(c.r, min(c.g, c.r * 1.05), min(c.b, c.g * 0.82));
 }
 /** temperature to colour, plasma: violet, magenta-pink, white-hot (docs/element-looks.md, 4) */
 fn plasmaRamp(T: f32) -> vec3f {

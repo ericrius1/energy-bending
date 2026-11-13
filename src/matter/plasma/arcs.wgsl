@@ -1,7 +1,7 @@
 // Plasma arcs drawn: every segment of every bolt (built on the CPU each frame, matter/plasma/arcs.ts) as a
 // camera-facing capsule added into the scene: a white-hot core and a violet glow round it (docs/element-looks.md,
 // "Lightning arcs"). The core is kept at least about a pixel wide whatever the distance, so a far bolt still reads as a
-// line and blooms; its distance is min-blended into the scene's alpha, as the flames' is, so it stays in focus.
+// line and blooms. It adds light only: the scene's alpha (the opaque view distance) is left alone.
 #include "weft/frame"
 
 /** a: one end (xyz) and the core's half width (m); b: the other end and the intensity */
@@ -60,6 +60,5 @@ const REACH = 9.0;
   let col = vec3f(1.0, 0.92, 1.0) * exp(-1.5 * d * d) * 2.6 + vec3f(0.55, 0.22, 1.0) * exp(-0.55 * d) * 0.35 * look.glow;
   // fade the quad's edge so the glow ends softly
   let edge = smoothstep(REACH, REACH * 0.6, d);
-  // the bolt's distance into the scene's alpha (min-blended) where its core is, so the depth of field keeps it sharp
-  return vec4f(col * i.intensity * edge, select(1e5, i.dist, d < 1.5));
+  return vec4f(col * i.intensity * edge, 0.0);
 }

@@ -97,6 +97,10 @@ export interface MatterPasses {
   declarePost?(post: PostChain): void;
   /** numbers for bend.stats() */
   stats?(): Record<string, number | string>;
+  /** translucent matter that the depth of field should focus on (fire, water): an r16float texture of any size
+   *  holding the view distance where the matter is dense enough, and "nothing" (≥ 1e4: fire writes 6e4, water 1e5,
+   *  which a half float stores as +∞) elsewhere. Compare against 1e4; never do arithmetic on the "nothing" value.
+   *  The post chain binds at most FOCUS_SLOTS (engine/scene.ts focusSources) */
   focus?(view: ViewCtx): Texture | null;
 }
 

@@ -83,15 +83,10 @@ export interface FireSim {
   heat: number;
   cling: number;
   blast: Vec4;
-  intensity: number;
   stretch: number;
-  erode: number;
-  reflect: number;
   emberGlow: number;
-  smoke: number;
-  plasmaGlow: number;
-  flicker: number;
-  tongues: number;
+  pad0: number;
+  pad1: number;
   form: ArrayLike<number> | Vec4[];
 }
 export interface Bodies {
@@ -176,6 +171,15 @@ export interface FieldSample {
   a: Vec4;
   b: Vec4;
 }
+export interface Curl {
+  boxes: ArrayLike<number> | Vec4[];
+  grid: ArrayLike<number> | Vec4[];
+  dims: Vec4;
+  grids: number;
+  count: number;
+  strength: number;
+  maxForce: number;
+}
 
-declare const shader: Shader<{ Joint: Joint; Seg: Seg; Particle: Particle; Home: Home; BodyStep: BodyStep; Flame: Flame; FireSim: FireSim; Bodies: Bodies; Touch: Touch; Goal: Goal; Touched: Touched; Stepped: Stepped; Frame: Frame; FieldBox: FieldBox; FieldSample: FieldSample }, 'bodies' | 'touch' | 'frame' | 'fieldBox' | 'sim' | 'joints' | 'segs' | 'homes' | 'flames' | 'fieldA' | 'fieldB' | 'samp_linear' | 'samp_repeat' | 'samp_nearest' | 'samp_shadow'>;
+declare const shader: Shader<{ Joint: Joint; Seg: Seg; Particle: Particle; Home: Home; BodyStep: BodyStep; Flame: Flame; FireSim: FireSim; Bodies: Bodies; Touch: Touch; Goal: Goal; Touched: Touched; Stepped: Stepped; Frame: Frame; FieldBox: FieldBox; FieldSample: FieldSample; Curl: Curl }, 'bodies' | 'touch' | 'frame' | 'fieldBox' | 'sim' | 'curl' | 'joints' | 'segs' | 'homes' | 'flames' | 'curlForce' | 'fieldA' | 'fieldB' | 'samp_linear' | 'samp_repeat' | 'samp_nearest' | 'samp_shadow'>;
 export default shader;

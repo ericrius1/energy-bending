@@ -113,15 +113,10 @@ export interface FireSim {
   heat: number;
   cling: number;
   blast: Vec4;
-  intensity: number;
   stretch: number;
-  erode: number;
-  reflect: number;
   emberGlow: number;
-  smoke: number;
-  plasmaGlow: number;
-  flicker: number;
-  tongues: number;
+  pad0: number;
+  pad1: number;
   form: ArrayLike<number> | Vec4[];
 }
 export interface Seen {
@@ -141,10 +136,9 @@ export interface ViewSeen {
 export interface FOut {
   pos: Vec4;
   uv: Vec2;
-  look: Vec4;
-  info: Vec4;
+  look: Vec3;
   clip: number;
 }
 
-declare const shader: Shader<{ Frame: Frame; Joint: Joint; Seg: Seg; Particle: Particle; Home: Home; BodyStep: BodyStep; Flame: Flame; FireSim: FireSim; Seen: Seen; ViewSeen: ViewSeen; FOut: FOut }, 'frame' | 'sim' | 'seen' | 'flames' | 'homes' | 'noiseTex' | 'samp_linear' | 'samp_repeat' | 'samp_nearest' | 'samp_shadow'>;
+declare const shader: Shader<{ Frame: Frame; Joint: Joint; Seg: Seg; Particle: Particle; Home: Home; BodyStep: BodyStep; Flame: Flame; FireSim: FireSim; Seen: Seen; ViewSeen: ViewSeen; FOut: FOut }, 'frame' | 'sim' | 'seen' | 'flames' | 'homes' | 'samp_linear' | 'samp_repeat' | 'samp_nearest' | 'samp_shadow'>;
 export default shader;
