@@ -54,8 +54,9 @@ try {
   console.log('adapter:', await adapterName(page));
   if (takes.has('times')) for (const s of [0.3, 1, 3, 10]) await shot(`t${s}`, { at: s });
   if (takes.has('rest')) {
-    await shot('rest', { at: 6 });
     await page.mouse.move(W * 0.3, H * 0.3); await page.mouse.move(W * 0.32, H * 0.31);
+    await new Promise((r) => setTimeout(r, 700));
+    await shot('rest', { at: 6 });
     await new Promise((r) => setTimeout(r, 5200));
     await shot('idle', { frames: 1 });
     await page.mouse.move(W * 0.4, H * 0.4);

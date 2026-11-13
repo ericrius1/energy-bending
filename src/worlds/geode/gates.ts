@@ -2,6 +2,13 @@
 // importing a shader). One gate to each world, round the floor facing the middle: the stage's shelves behind, the
 // director's shots in front, the wall's crystals well clear of a 1.3 m disc.
 
+import { defineParams } from '../../engine/params';
+
+/** what the hub draws for the front of the game: the high blade (the shelf reaching out over the stage from behind
+ *  it, a ledge in play) is left out while the front is up, where the camera stands low behind the stage and would see
+ *  its underside as a flat slab over the dancers (dancer/show.ts turns it off and on) */
+export const hubParams = defineParams('hub', { highBlade: true }, { highBlade: { label: 'high blade' } });
+
 /** each gate's place on the floor (x, z), by the world it opens on */
 export const HUB_GATES: Record<string, [number, number]> = { pool: [-6.0, 3.0], temple: [6.0, 3.0], forge: [-2.9, 6.0], redwoods: [2.9, 6.0] };
 

@@ -17,6 +17,7 @@
 import { isFront } from '../../dancer/show';
 import type { Show } from '../../dancer/show';
 import type { Music } from '../../audio/music';
+import type { World } from '../world';
 import { budget, deviceClass } from '../../engine/perf';
 import { setParams } from '../../engine/params';
 
@@ -140,7 +141,7 @@ async function install() {
 async function startHere(bend: Bend, mode: string, q: URLSearchParams, world: string) {
   if (typeof bend.front?.begin === 'function') return bend.front.begin(mode, q);
   const frame = bend.gates?.ctx?.frame, field = bend.show.kinds.find((k) => k.id === 'field') as { field?: unknown } | undefined;
-  const main = bend.views?.[0];
+  const main = bend.gates?.ctx?.main;
   if (!frame || !field?.field || !main) return null;
   if (world !== main.world) await bend.setWorld(world);
   const play = await import('../../play');
@@ -149,7 +150,7 @@ async function startHere(bend: Bend, mode: string, q: URLSearchParams, world: st
     kit: bend.kit, frame, show: bend.show, rig: bend.rig, gates: bend.gates, music: bend.music, field: field.field as never,
     kinds: bend.show.kinds, main, query: q, canvas: document.getElementById('stage') as HTMLCanvasElement,
     motion: bend.show.motion, travel, coarse: !!bend.device?.coarse, film: false,
-    wake: () => bend.wake(), worldOf: (id: string) => bend.worlds?.find?.((w: { id: string }) => w.id === id) ?? bend.worlds?.[0],
+    wake: () => bend.wake(), worldOf: (id: string) => { const ws = bend.gates.ctx.worlds as World[]; return ws.find((w) => w.id === id) ?? ws[0]; },
     setWorld: (id: string) => bend.setWorld(id),
   }, mode);
 }

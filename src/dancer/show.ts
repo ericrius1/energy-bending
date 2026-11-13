@@ -3,6 +3,10 @@
 // (the dancers, their loadouts, how many particles each matter kind runs and where they live), and acts the
 // programme's moments on every matter kind (rise, shatter, settle). A debug flag can swap the programme's cast for a
 // demo (dancer/demos.ts) while everything else carries on.
+// On the front of the game (the plain address) it opens already dancing: the two bodies last chosen (fire and water the
+// first time), the rise a quick flourish under the page's fade-in, the camera turned so the hub's gates stand behind
+// the pair (worlds/geode/front.ts joins the menu to it: a body chosen re-dresses its dancer with a flourish, a world
+// chosen turns to its gate). A jogo or a demo taking the cast ends it.
 import type { Motion } from '../skeleton/clips';
 import { Track } from '../skeleton/clips';
 import { Dancer } from './dancer';
@@ -17,7 +21,7 @@ import { LIMITS } from '../engine/limits';
 import { matterParams as showParams } from '../matter/core/params';
 import { budget } from '../engine/perf';
 import { SHOTS } from '../engine/shots';
-import { HUB_GATES, HUB_OPENING } from '../worlds/geode/gates';
+import { HUB_GATES, HUB_OPENING, hubParams } from '../worlds/geode/gates';
 
 /** the address keys that make the page something other than the front of the game (src/play/index.ts keeps the same
  *  list for its menus; the front also gives way to ?jogo and a film) */
@@ -38,7 +42,7 @@ export function lastDress(): [string, string] {
 const keepDress = (d: string[]) => { try { localStorage.setItem(DRESS_KEY, JSON.stringify(d.slice(0, 2))); } catch { /* private window */ } };
 const wrap = (a: number) => Math.atan2(Math.sin(a), Math.cos(a));
 /** the opening's rush: dance time runs this many times its pace at the first frame, easing to 1 over RUSH_S seconds */
-const RUSH = 3, RUSH_S = 1.4;
+const RUSH = 4, RUSH_S = 1.6;
 
 /** what the show needs from the sound (audio/score.ts) */
 export interface ShowSound { setKey(key: number): void; rise(seconds: number): void; blast(strength: number): void }
@@ -73,8 +77,6 @@ export class Show implements Stagehand {
   private faceT = 0;
   /** the dance's own pace, while the opening rushes it (0: not rushing) */
   private speed = 0;
-  /** a body being changed on the front: its matter has fallen, the new one rises at `at` (dance time) */
-  private redressing: { d: number; name: string; at: number } | null = null;
   private pieces: Map<string, Motion['pieces'][number]>;
   private baseCount: number;
 
@@ -98,24 +100,27 @@ export class Show implements Stagehand {
     this.rig.idle = Math.max(this.rig.idle, 4);
   }
 
-  /** the front: change dancer d's body with a flourish (its matter falls away, the new matter rises on it), and keep
-   *  the choice for the next visit */
+  /** the front: change dancer d's body at once, with a flourish, and keep the choice for the next visit. The new layout
+   *  is the flourish: matter the dancer no longer wears becomes spare and falls off it, the new matter rises from where
+   *  it rested, feet first (a short rise: only what lies on the floor answers it; a blast would knock the partner too) */
   redress(d: number, name: string) {
-    if (this.dress[d] === name && !this.redressing) return;
-    if (!this.awake || !this.dancers[d]) { this.setDress(d, name); keepDress(this.dress); return; }
-    const hips = this.dancers[d].skeleton.world;
-    for (const k of this.kinds) k.acts?.shatter(hips[0], hips[1], hips[2], 0.9);
-    this.redressing = { d, name, at: this.t + 0.45 };
+    if (this.dress[d] === name) return;
+    this.setDress(d, name);
+    keepDress(this.dress);
+    if (this.awake && this.wakeAt > 0) this.rise(0.7);
   }
 
   /** the front's opening (the first frame): awake, the rise a quick flourish already under way, the camera framed on
    *  the pair with a gate behind them from the first frame (the springs take it from there) */
   private open() {
     this.opened = true;
+    hubParams.highBlade = false;
     this.speed = danceParams.speed;
     this.programme.open(FRONT);
     const s = SHOTS[this.program.shots[0]];
-    Object.assign(this.rig, { dist: s.dist, pitch: s.pitch, height: s.height, fov: s.fov, idle: 0 });
+    // (a little further back than the shot, so the feet stand clear of the menu's strip)
+    this.rig.zoom = 1.15;
+    Object.assign(this.rig, { dist: s.dist * this.rig.zoom, pitch: s.pitch, height: s.height, fov: s.fov, idle: 0 });
     if (this.facing) this.rig.yaw = this.yawFor(this.facing, 0);
   }
 
@@ -129,6 +134,7 @@ export class Show implements Stagehand {
   private stageFront(dt: number) {
     if (this.castOverride || this.you) {
       this.facing = null;
+      if (this.opened) hubParams.highBlade = true;
       if (this.speed > 0) { danceParams.speed = this.speed; this.speed = 0; }
       return;
     }
@@ -141,13 +147,6 @@ export class Show implements Stagehand {
       const k = Math.min(1, this.faceT / RUSH_S);
       danceParams.speed = this.speed * (1 + (RUSH - 1) * (1 - k * k * (3 - 2 * k)));
       if (k >= 1) this.speed = 0;
-    }
-    const r = this.redressing;
-    if (r && this.t >= r.at) {
-      this.redressing = null;
-      this.setDress(r.d, r.name);
-      keepDress(this.dress);
-      this.rise(0.9);
     }
     // someone dragged the camera: it's theirs until a world is chosen again
     if (this.rig.idle < 4) { this.facing = null; return; }

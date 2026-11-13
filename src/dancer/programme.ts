@@ -2,6 +2,8 @@
 // it rises into the first dancers, feet first; each dance plays for a while, the camera's shot changing now and then;
 // then the dancers shatter and the matter settles on the floor and rises again as the next dance (dressed as the last
 // one shatters, so what it needs is already falling with the rest). The camera rig eases to the shot it names.
+// The front of the game (dancer/show.ts) opens it awake on a programme of its own (FRONT), the rise a quick flourish,
+// and keeps to that one dance: its two bodies are the ones being chosen.
 import type { Shot } from '../engine/shots';
 import type { CameraRig } from '../engine/camera';
 import { defineParams } from '../engine/params';
@@ -38,9 +40,9 @@ export const PROGRAMS: Program[] = [
   { title: 'Breaking', note: 'malachite and emerald', piece: 'breaking', suites: ['Forest'], key: 50, seconds: 28, shots: ['low', 'feet', 'orbit'] },
 ];
 
-/** the front of the game's own dance: the salsa couple (two bodies: the ones being chosen), framed close and low so the
- *  gates stand behind them and the hub's high blade stays above the frame */
-export const FRONT: Program = { ...PROGRAMS[0], title: 'Front', note: 'the two bodies being chosen', seconds: 48, shots: ['close', 'low'] };
+/** the front of the game's own dance: the salsa couple (two bodies: the ones being chosen), framed low, whole, with the
+ *  gates standing behind them and the hub's high blade above the frame (one shot: the front turns it slowly itself) */
+export const FRONT: Program = { ...PROGRAMS[0], title: 'Front', note: 'the two bodies being chosen', seconds: 48, shots: ['low'] };
 
 export const danceParams = defineParams('dance', {
   /** slowed, like dancing under water (it slows the matter too) */
@@ -93,7 +95,7 @@ export class Programme {
 
   /** the front's opening: awake at once, the rise a quick flourish (`spread` s, feet to head) that is dancing within
    *  `dancingIn` s, on programme p (staged now), kept to it. No sound: the first gesture starts it (a browser's rule) */
-  open(p: Program, spread = 0.8, dancingIn = 1.2) {
+  open(p: Program, spread = 0.6, dancingIn = 1.2) {
     this.own = p;
     this.hand.stage(p);
     this.act = 'rising';
