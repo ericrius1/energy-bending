@@ -205,6 +205,43 @@
   ]
  },
  {
+  "name": "waterline-temple",
+  "query": "play&two&dress=fire,water&world=temple",
+  "size": "1920x1080",
+  "fps": 5,
+  "seconds": 1.2,
+  "warm": 300,
+  "setup": "bend.set('camera', { followFov: 34, followSwing: 0, followDist: 7.7, followPitch: 0.045 }); bend.wake(); bend.place(0,-0.9,0.3,Math.PI/2); bend.place(1,0.9,0.3,-Math.PI/2);",
+  "each": "bend.camera({ yaw: 0.1 }); if (t > 0.5) { const w = bend.worlds.find((x) => x.id === 'temple'); for (const d of bend.show.dancers) { const J = d.skeleton.world; for (let k = 0; k < 3; k++) w.ripple(J[0] + Math.sin(t * 9 + k * 2.1) * 0.5, J[2] + Math.cos(t * 7 + k * 2.1) * 0.5, 1.2, 0.18); } }",
+  "sheet": {
+   "cols": 6,
+   "rows": 1,
+   "width": 320
+  },
+  "stills": [
+   0.2,
+   1
+  ]
+ },
+ {
+  "name": "partner-temple-24",
+  "query": "jogo=partner&world=temple&dress=fire,water",
+  "fps": 1,
+  "seconds": 3,
+  "warm": 1380,
+  "setup": "await bend.jogo.start();",
+  "sheet": {
+   "cols": 3,
+   "rows": 1,
+   "width": 640
+  },
+  "stills": [
+   0,
+   1,
+   2
+  ]
+ },
+ {
   "name": "dim-geode",
   "query": "jogo=partner&world=geode&dress=fire,water",
   "fps": 2,
@@ -347,6 +384,70 @@
   "seconds": 0.5,
   "warm": 300,
   "setup": "bend.set('camera', { followDist: 6, followFov: 40, followPitch: 0.08 });bend.wake(); bend.place(0,-0.65,0.3,Math.PI/2); bend.place(1,0.65,0.3,-Math.PI/2);",
+  "timings": true,
+  "sheet": {
+   "cols": 1,
+   "rows": 1,
+   "width": 640
+  }
+ },
+ {
+  "name": "t-hub-gates-0",
+  "query": "play&two&dress=fire,water",
+  "size": "1920x1080",
+  "fps": 2,
+  "seconds": 0.5,
+  "warm": 200,
+  "setup": "bend.set('camera', { followDist: 6, followFov: 40, followPitch: 0.08, followSwing: 0 });bend.wake(); bend.place(0,-0.65,0.3,Math.PI/2); bend.place(1,0.65,0.3,-Math.PI/2);bend.camera({ yaw: 0 });",
+  "each": "bend.camera({ yaw: 0 });",
+  "timings": true,
+  "sheet": {
+   "cols": 1,
+   "rows": 1,
+   "width": 640
+  }
+ },
+ {
+  "name": "t-hub-gates-1p6",
+  "query": "play&two&dress=fire,water",
+  "size": "1920x1080",
+  "fps": 2,
+  "seconds": 0.5,
+  "warm": 200,
+  "setup": "bend.set('camera', { followDist: 6, followFov: 40, followPitch: 0.08, followSwing: 0 });bend.wake(); bend.place(0,-0.65,0.3,Math.PI/2); bend.place(1,0.65,0.3,-Math.PI/2);bend.camera({ yaw: 1.6 });",
+  "each": "bend.camera({ yaw: 1.6 });",
+  "timings": true,
+  "sheet": {
+   "cols": 1,
+   "rows": 1,
+   "width": 640
+  }
+ },
+ {
+  "name": "t-hub-gates-3p1",
+  "query": "play&two&dress=fire,water",
+  "size": "1920x1080",
+  "fps": 2,
+  "seconds": 0.5,
+  "warm": 200,
+  "setup": "bend.set('camera', { followDist: 6, followFov: 40, followPitch: 0.08, followSwing: 0 });bend.wake(); bend.place(0,-0.65,0.3,Math.PI/2); bend.place(1,0.65,0.3,-Math.PI/2);bend.camera({ yaw: 3.1 });",
+  "each": "bend.camera({ yaw: 3.1 });",
+  "timings": true,
+  "sheet": {
+   "cols": 1,
+   "rows": 1,
+   "width": 640
+  }
+ },
+ {
+  "name": "t-hub-gates-4p7",
+  "query": "play&two&dress=fire,water",
+  "size": "1920x1080",
+  "fps": 2,
+  "seconds": 0.5,
+  "warm": 200,
+  "setup": "bend.set('camera', { followDist: 6, followFov: 40, followPitch: 0.08, followSwing: 0 });bend.wake(); bend.place(0,-0.65,0.3,Math.PI/2); bend.place(1,0.65,0.3,-Math.PI/2);bend.camera({ yaw: 4.7 });",
+  "each": "bend.camera({ yaw: 4.7 });",
   "timings": true,
   "sheet": {
    "cols": 1,

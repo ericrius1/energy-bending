@@ -62,10 +62,10 @@ export const postParams = defineParams('post', {
   focusStub: 0,
   /** the highlight shoulder (post.wgsl toneMap): how much, the peak where it starts and where it is whole, and the
    *  peak past which a colour may go white (all white at 4 ×): hot cores keep their hue and structure */
-  shoulder: 0.85,
-  shoulderFrom: 0.7,
-  shoulderTo: 2.5,
-  whiteFrom: 5,
+  shoulder: 0.8,
+  shoulderFrom: 2,
+  shoulderTo: 6,
+  whiteFrom: 10,
   /** the bloom's curve: the most one pixel gives the halo (what passes the threshold rolls off toward it), and the
    *  knee as a share of the threshold */
   bloomCap: 3,

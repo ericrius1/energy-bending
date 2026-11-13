@@ -45,6 +45,14 @@ for (const world of ['pool', 'temple']) {
     });
   }
 }
+// the temple's waterline (film 2's opening dolly at 8 m, where the critic saw the glitter row) and the strong ripple
+// there; and the partner in the temple at 24 s (the critic's fire-through-water still), fewer frames
+takes.push({
+  name: 'waterline-temple', query: 'play&two&dress=fire,water&world=temple', size: '1920x1080', fps: 5, seconds: 1.2, warm: 300,
+  setup: "bend.set('camera', { followFov: 34, followSwing: 0, followDist: 7.7, followPitch: 0.045 }); bend.wake(); bend.place(0,-0.9,0.3,Math.PI/2); bend.place(1,0.9,0.3,-Math.PI/2);",
+  each: `bend.camera({ yaw: 0.1 }); if (t > 0.5) { ${stir('temple')} }`, sheet: { cols: 6, rows: 1, width: 320 }, stills: [0.2, 1.0],
+});
+takes.push({ name: 'partner-temple-24', query: 'jogo=partner&world=temple&dress=fire,water', fps: 1, seconds: 3, warm: 1380, setup: 'await bend.jogo.start();', sheet: { cols: 3, rows: 1, width: 640 }, stills: [0, 1, 2] });
 // the locked view's stage dim: 0, then a tasteful value, in each world
 for (const world of ['geode', 'redwoods', 'pool', 'temple', 'forge']) {
   takes.push({
@@ -57,6 +65,11 @@ takes.push({ name: 't-temple-pair', query: 'play&two&dress=fire,water&world=temp
 takes.push({ name: 't-pool-pair', query: 'play&two&dress=fire,water&world=pool', size: '1920x1080', fps: 2, seconds: 0.5, warm: 300, setup: "bend.set('camera', { followDist: 4, followFov: 40, followPitch: 0.08 });" + pair, timings: true, sheet: { cols: 1, rows: 1, width: 640 } });
 takes.push({ name: 't-redwoods-pair', query: 'play&two&dress=fire,water&world=redwoods', size: '1920x1080', fps: 2, seconds: 0.5, warm: 300, setup: "bend.set('camera', { followDist: 4, followFov: 40, followPitch: 0.08 });" + pair, timings: true, sheet: { cols: 1, rows: 1, width: 640 } });
 takes.push({ name: 't-hub-pair', query: 'play&two&dress=fire,water', size: '1920x1080', fps: 2, seconds: 0.5, warm: 300, setup: "bend.set('camera', { followDist: 6, followFov: 40, followPitch: 0.08 });" + pair, timings: true, sheet: { cols: 1, rows: 1, width: 640 } });
+
+// the hub's gates: timings facing four ways (the passes named glow.gN / air.gN are the live gate views)
+for (const yaw of [0, 1.6, 3.1, 4.7]) {
+  takes.push({ name: `t-hub-gates-${String(yaw).replace('.', 'p')}`, query: 'play&two&dress=fire,water', size: '1920x1080', fps: 2, seconds: 0.5, warm: 200, setup: "bend.set('camera', { followDist: 6, followFov: 40, followPitch: 0.08, followSwing: 0 });" + pair + `bend.camera({ yaw: ${yaw} });`, each: `bend.camera({ yaw: ${yaw} });`, timings: true, sheet: { cols: 1, rows: 1, width: 640 } });
+}
 
 writeFileSync(new URL('./hl7.json', import.meta.url), JSON.stringify(takes, null, 1) + '\n');
 console.log(`${takes.length} takes: ${takes.map((t) => t.name).join(' ')}`);
