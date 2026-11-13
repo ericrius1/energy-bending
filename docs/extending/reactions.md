@@ -156,7 +156,7 @@ The pair is read off the field there: plasma is dry (`fieldDry` past 0.06 to 0.2
 contact, 0.12 s each, born again every frame: a crisp line that follows the contact and is gone when the bodies part),
 **wisps** (vapour boiling out of the contact and up, gone within about a second), **drips** (flame on ice) and
 **sparks** (plasma on water). Wisps are drawn at half resolution into their own target and composited after the depth
-of field with a soft blur and a per-pixel cap (`cap` 0.55 of what is behind, never brighter than `maxBright` 0.85
+of field with a soft blur and a per-pixel cap (`cap` 0.45 of what is behind, never brighter than `maxBright` 0.85
 of white); fronts, drips and sparks go on top at full resolution, the only steam allowed past 0.85.
 
 ## Looking at it

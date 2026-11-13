@@ -31,7 +31,7 @@ export const steamParams = defineParams('steam', {
   /** how much the field's heat below a wisp lights its underside orange */
   warmth: 0.6,
   /** the most of what is behind that steam may cover in any pixel, however dense (both dancers stay visible) */
-  cap: 0.55,
+  cap: 0.45,
   /** the brightest steam may be (of white), the fronts aside */
   maxBright: 0.85,
   /** how far apart two bodies' surfaces may be for their meeting to make a front (m) */
@@ -40,7 +40,7 @@ export const steamParams = defineParams('steam', {
    *  bright it burns (HDR: it blooms) */
   frontRate: 1,
   frontLife: 0.12,
-  frontGlow: 3.2,
+  frontGlow: 2.0,
   /** flame on ice throws a jet of vapour (m/s); plasma on ice: how fast its cold vapour sinks before it rises (× rise) */
   jet: 1.6,
   sink: 0.9,

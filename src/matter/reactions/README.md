@@ -11,7 +11,7 @@ Each reaction is a matter kind with no homes on a body, registered from `index.t
   white with a warm underside, flame and ice a hard bright crack and a jet of vapour, plasma and water violet-white
   with small arcs, plasma and ice cold blue-violet vapour that sinks before it rises. Wisps are drawn at half
   resolution into their own target and composited after the depth of field, blurred a little, under a per-pixel cap
-  (at most `cap` 0.55 of what is behind, never brighter than 0.85 of white); the fronts, drips and sparks go on top at
+  (at most `cap` 0.45 of what is behind, never brighter than 0.85 of white); the fronts, drips and sparks go on top at
   full resolution. A fusion staged in the field (`field.fuse`) gives steam its look: steam, prism, storm, aurora.
 
 Not yet: smoke (flame in wet), quench, melting and freezing as their own matter (the kinds read `fieldHeat` /
