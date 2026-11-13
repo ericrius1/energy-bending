@@ -103,6 +103,7 @@ const show = new Show(motion, kinds, bodies, rig, {
 }, coarse);
 if (query.has('landmarks')) show.castOverride = landmarksDemo();
 if (query.has('wander')) { const t = await travelling; show.castOverride = wanderDemo(motion, t); }
+if (query.has('net')) show.castOverride = await (await import('./net/demo')).netDemo(motion, frame, query);
 const beat = new BeatClock();
 
 function wake() {
