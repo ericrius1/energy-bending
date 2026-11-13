@@ -218,12 +218,14 @@ fn bodyStep(p: ptr<function, Particle>, H: Goal, goal: vec3f, T: Touched, rest: 
       let fast = smoothstep(1.2, 6.0, length(H.vel)) * b.hold;
       spring(p, goal, H.vel, k, max(sqrt(k) * 1.4, 9.0 * fast), force * 60.0 + T.bdir * (T.bw * 300.0) + turn * k * 0.05 + H.acc * fast, dt);
       let off = (*p).pos - goal;
-      let reach = mix(3.0, 0.5, fast);
+      let reach = mix(3.0, 0.3, fast);
       if (length(off) > reach) { (*p).pos = goal + normalize(off) * reach; }
     } else {
       spring(p, goal, H.vel, k, sqrt(k) * 1.4, force * 60.0 + T.bdir * (T.bw * 300.0) + turn * k * 0.05, dt);
     }
-    if (length(goal - (*p).pos) < 0.02 || (*p).life > 3.5) {
+    // (with hold, close is home enough: the body's spring takes it from there, so none hang about just short of it)
+    let arrive = select(0.02, 0.1, b.hold > 0.0);
+    if (length(goal - (*p).pos) < arrive || (*p).life > 3.5) {
       (*p).mode = ON_BODY;
       (*p).life = 10.0;
       s.ev |= EV_HOME;
