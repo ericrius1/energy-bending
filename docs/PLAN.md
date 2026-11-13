@@ -112,8 +112,9 @@ interface World {
 - **Shading that depends on the world** (environment light, fog) is selected with WGSL `override`
   constants per pipeline, never with runtime `if (forest.on)` branches threaded through shared shaders.
 - **The scene is declared per view**, so a portal can draw its destination with the same code.
-- **The matter field** is a coarse 3D grid that follows the dancers. Kinds deposit into it and sample it:
-  `fieldWind(p)`, `fieldHeat(p)`, `fieldWet(p)`. Limbs stir the wind, so flame and spray trail a kick.
+- **The matter field** is a coarse 3D grid that follows the dancers (of the main view's world). It lays itself down
+  from the bodies' auras (what each part wears, at the dancer's form and presence); the CPU can deposit into it; kinds
+  sample it: `fieldWind(p)`, `fieldHeat(p)`, `fieldWet(p)`. Limbs stir the wind, so flame and spray trail a kick.
   Heat and wet are how elements react: water in heat becomes steam, flame in wet dies to smoke, ice near
   heat melts to water, water in cold (near ice) freezes.
 
@@ -176,6 +177,9 @@ Write `AGENTS.md` and the first `docs/extending/` guides.
 | net | `src/net`, `shared`, `server` | the prototype's server and netcode, in TypeScript, on landmarks |
 | audio | `src/audio` | the music engine joined with the stone score and the offline recorder |
 | brains | `src/ai` | the partner and NPC dancers on motion matching and the move library |
+
+Wave 1 is built and merged into `master`, its seams joined (`docs/reports/2-integration.md`: what joins what, what was
+verified, the open items).
 
 **Wave 2 (one agent, then helpers).** `src/play`: the jogo end to end, fusion, building, HUD, menus,
 same-screen and online.
