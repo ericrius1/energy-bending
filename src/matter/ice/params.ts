@@ -28,7 +28,9 @@ export const iceParams = defineParams('ice', {
   /** mist and dust */
   mist: 1,
   dust: 1,
-  mistSize: 0.14,
+  /** (smaller puffs, each brighter by the square of the change: the same haze for a third of the fill, which was
+   *  most of a close ice body's cost) */
+  mistSize: 0.08,
   dustSize: 0.006,
   /** the chance a second that a dead mote is reborn (scaled per frame) */
   breath: 3,
