@@ -15,7 +15,8 @@ import type { ScenePass } from '../../engine/scene';
 import type { FrameCtx } from '../../engine/frame';
 import { defineParams, hex, onParams } from '../../engine/params';
 import { ledgeY, stagePlane, spawnsOf, type StagePlane } from '../stage';
-import { layoutForge, STAGE_SLABS, type ForgeLayout } from './layout';
+import { layoutForge, solidsOfForge, STAGE_SLABS, type ForgeLayout } from './layout';
+import { clearOf, type Solid } from '../solids';
 import { JOINT } from '../../skeleton/rig';
 
 export const forgeParams = defineParams('forge', {
@@ -74,6 +75,8 @@ export class Forge implements World {
   readonly room = 24;
   readonly maxDist = 22;
   readonly layout: ForgeLayout;
+  /** the stage's columns as simple shapes (World.solids) */
+  readonly solids: readonly Solid[];
   private u: LightSlot<ForgeU>;
   private buf: ReturnType<Kit['storage']>;
   private beat = 0;
@@ -86,6 +89,7 @@ export class Forge implements World {
   constructor(ctx: WorldCtx) {
     const { kit, coarse } = ctx;
     this.layout = layoutForge({ coarse });
+    this.solids = solidsOfForge(this.layout);
     this.buf = kit.storage({ label: 'forge.columns', data: this.layout.columns, usage: ['storage'] });
     this.u = lightSlot(kit, 'forge');
     this.shared = {};
@@ -147,6 +151,8 @@ export class Forge implements World {
   }
 
   /** the top of the slab under (x, z) (the bobbing ones where they are now), or far below where the game catches you */
+  /** the camera's clearance (World.clear): the segment against the stage's columns (a 40 cm margin) */
+  clear(a: [number, number, number], b: [number, number, number]) { return clearOf(this.solids, a, b); }
   groundAt(x: number, z: number) {
     const L = this.layout;
     let best = CATCH;

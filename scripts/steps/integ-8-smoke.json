@@ -1,0 +1,6 @@
+[
+  { "name": "smoke-front", "query": "", "frames": 90 },
+  { "name": "smoke-temple-lock", "query": "world=temple&lock&dress=fire,water", "wake": true, "frames": 150 },
+  { "name": "smoke-redwoods-jogo", "query": "jogo=script&world=redwoods&dress=fire,water", "frames": 420 },
+  { "name": "smoke-pool", "query": "world=pool&dress=fire,water", "wake": true, "frames": 150, "dist": 4, "pitch": 0.15 }
+]

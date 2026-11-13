@@ -89,7 +89,8 @@ export function layoutWoods(seed = 7): Layout {
 }
 
 /** the trees as the camera's solids (World.solids), from the logs they're drawn from: each trunk a tall cylinder of its
- *  radius and a short fat one round its flared foot (the buttresses), each limb two capsules following its droop */
+ *  radius and a short fat one round its flared foot (the buttresses), each limb two capsules following its droop, each
+ *  lantern a ball */
 export function solidsOfWoods(L: Layout): Solid[] {
   const out: Solid[] = [];
   const g = L.logs;
@@ -102,6 +103,11 @@ export function solidsOfWoods(L: Layout): Solid[] {
     const o = i * LOG, R = g[o + 3], len = g[o + 7], droop = g[o + 10];
     const at = (u: number): [number, number, number] => [g[o] + g[o + 4] * len * u, g[o + 1] + g[o + 5] * len * u - droop * u * u, g[o + 2] + g[o + 6] * len * u];
     out.push({ kind: 'capsule', a: at(0), b: at(0.5), r: R }, { kind: 'capsule', a: at(0.5), b: at(1), r: R * 0.7 });
+  }
+  // the lanterns, a ball where each hangs, wide enough for its swing (the cameras agent's reading)
+  for (const l of L.lanterns) {
+    const p: [number, number, number] = [l.anchor[0], l.anchor[1] - l.cord, l.anchor[2]];
+    out.push({ kind: 'capsule', a: p, b: [...p], r: l.size * 1.6 + 0.15 });
   }
   return out;
 }

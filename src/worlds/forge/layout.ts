@@ -5,6 +5,7 @@
 // islands far off in the sky round it, for the place to be a place. Laid out once from a seed.
 import { mulberry32 } from 'math/random';
 import type { Ledge } from '../stage';
+import { boxOn, type Solid } from '../solids';
 
 /** a column: centre xz, its top, its radius (centre to corner); how far it hangs down, which slab it's in, a seed */
 export const COLUMN_FLOATS = 8;
@@ -97,4 +98,17 @@ export function layoutForge(o: { coarse: boolean; seed?: number }): ForgeLayout 
   }
   islands.forEach((s, i) => add(s, STAGE_SLABS + i, true));
   return { slabs: [...stage, ...islands], ledges, columns: new Float32Array(cols), stageColumns, count: cols.length / COLUMN_FLOATS };
+}
+
+/** the stage's columns as the camera's solids (World.solids): each a box from its flat top down `hang`, the bobbing ones
+ *  (the floats and the crown) as high as they rise. The far islands are out of the camera's reach (the cameras agent's
+ *  reading, moved here so the forge says its own) */
+export function solidsOfForge(L: ForgeLayout): Solid[] {
+  const out: Solid[] = [];
+  for (let i = 0; i < L.stageColumns; i++) {
+    const o = i * COLUMN_FLOATS, x = L.columns[o], z = L.columns[o + 1], top = L.columns[o + 2], R = L.columns[o + 3], hang = L.columns[o + 4];
+    const bob = L.slabs[L.columns[o + 5]]?.bob ?? 0;
+    out.push(boxOn([x, top - hang - bob, z], [Math.sqrt(3) * R, hang + 2 * bob, 2 * R]));
+  }
+  return out;
 }

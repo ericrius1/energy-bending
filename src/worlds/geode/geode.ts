@@ -16,7 +16,8 @@ import backdropShader from './backdrop.wgsl';
 import moteShader from './motes.wgsl';
 import shelfShader from './shelves.wgsl';
 import crystalShader from './crystals.wgsl';
-import { layoutShelves, packBlades } from './shelves';
+import { layoutShelves, packBlades, solidsOfShelves } from './shelves';
+import { clearOf, type Solid } from '../solids';
 import { stagePlane, spawnsOf } from '../stage';
 import type { Grade, Fixture, PortalDef, World, WorldCtx } from '../world';
 import type { ScenePass } from '../../engine/scene';
@@ -104,6 +105,8 @@ export class Geode implements World {
   private pointBuf: ReturnType<WorldCtx['kit']['storage']>;
   /** each gate's xz, its path's half width, its world's tint */
   private gates: number[];
+  /** the blades and the bigger crystal points as simple shapes (World.solids), from the shelves' layout */
+  readonly solids: readonly Solid[];
 
   constructor(ctx: WorldCtx) {
     const P = geodeParams;
@@ -127,6 +130,7 @@ export class Geode implements World {
     this.blades = shelves.blades;
     this.bladeBuf = ctx.kit.storage({ label: 'geode.shelves', data: packBlades(this.blades), usage: ['storage'] });
     this.points = shelves.points;
+    this.solids = solidsOfShelves(this.blades, this.points);
     this.pointBuf = ctx.kit.storage({ label: 'geode.crystals', data: packBlades(this.points), usage: ['storage'] });
     this.stages = [stagePlane({
       id: 'centre', origin: [0, 0, 0], right: [1, 0, 0], halfWidth: 5.75, ground: 0, ledges: shelves.ledges,
@@ -180,6 +184,8 @@ export class Geode implements World {
   }
 
   groundAt() { return 0; }
+  /** the camera's clearance (World.clear): the segment against the blades and the big crystal points (a 40 cm margin) */
+  clear(a: [number, number, number], b: [number, number, number]) { return clearOf(this.solids, a, b); }
   exposure() { return 1; }
   tone() { const P = geodeParams; return { water: P.water, cave: P.echo, hearth: P.hearth, depth: P.depth, forest: 0 }; }
   ambience() { return null; }

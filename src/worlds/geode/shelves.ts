@@ -8,6 +8,7 @@
 // crystals.wgsl, one instance each.
 import { mulberry32 } from 'math/random';
 import type { Ledge } from '../stage';
+import type { Solid } from '../solids';
 
 /** a blade: where its top's middle leaves the wall (x, y, z), its turn about up (0: it grows along +z; a quarter turn along +x)
  *  and its tilt up from level; its width, thickness and length; how long its chisel tip is; a seed; its tint (-1
@@ -120,5 +121,29 @@ export function layoutShelves(o: { caveRadius: number; gates?: GateSite[]; seed?
 export function packBlades(blades: Blade[]) {
   const out = new Float32Array(blades.length * BLADE_FLOATS);
   blades.forEach((b, i) => out.set([...b.at, b.yaw, b.w, b.thick, b.len, b.pitch, b.tip, b.seed, b.tint ?? -1, b.glow ?? 0], i * BLADE_FLOATS));
+  return out;
+}
+
+/** the blades and the bigger crystal points as the camera's solids (World.solids): a blade a box from its top's root,
+ *  across ±w/2, down `thick`, along `len`, turned `yaw` and tipped `pitch` (as shelves.wgsl builds it); a point longer
+ *  than 45 cm a capsule along the same axis, about w/2 round (the small ones round the gates are left to the gates' own
+ *  clearance). The cameras agent's reading, moved here so the geode says its own */
+export function solidsOfShelves(blades: readonly Blade[], points: readonly Blade[]): Solid[] {
+  type V3 = [number, number, number];
+  const out: Solid[] = [];
+  const axes = (b: Blade) => {
+    const cy = Math.cos(b.yaw), sy = Math.sin(b.yaw), cp = Math.cos(b.pitch), sp = Math.sin(b.pitch);
+    return { x: [cy, 0, -sy] as V3, y: [-sp * sy, cp, -sp * cy] as V3, z: [cp * sy, sp, cp * cy] as V3 };
+  };
+  for (const b of blades) {
+    const { x, y, z } = axes(b);
+    const c = [0, 1, 2].map((k) => b.at[k] - y[k] * b.thick / 2 + z[k] * b.len / 2) as V3;
+    out.push({ kind: 'box', c, x, y, z, h: [b.w / 2, b.thick / 2, b.len / 2] });
+  }
+  for (const b of points) {
+    if (b.len < 0.45) continue;
+    const { z } = axes(b), r = b.w * 0.6;
+    out.push({ kind: 'capsule', a: [...b.at], b: [b.at[0] + z[0] * (b.len - r), b.at[1] + z[1] * (b.len - r), b.at[2] + z[2] * (b.len - r)], r });
+  }
   return out;
 }

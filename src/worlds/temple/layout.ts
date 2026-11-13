@@ -8,7 +8,7 @@
 // section), drawn by stones.wgsl.
 import { mulberry32 } from 'math/random';
 import type { Ledge } from '../stage';
-import { cylinder, type Solid } from '../solids';
+import { box, cylinder, type Solid } from '../solids';
 
 type V3 = [number, number, number];
 
@@ -228,7 +228,7 @@ export function solidsOf(stones: Stone[]): Solid[] {
   };
   for (const s of stones) {
     if (s.open) continue;
-    if (s.kind === 'block') out.push({ kind: 'box', c: [s.at[0], s.at[1] + s.size[1] / 2, s.at[2]], half: [s.size[0] / 2, s.size[1] / 2, s.size[2] / 2], yaw: s.yaw });
+    if (s.kind === 'block') out.push(box([s.at[0], s.at[1] + s.size[1] / 2, s.at[2]], [s.size[0] / 2, s.size[1] / 2, s.size[2] / 2], s.yaw));
     else {
       const R = s.size[0], H = s.size[1], r = Math.max(R, s.size[2] || R);
       if (s.tilt) out.push(cylinder(turn(s, [0, R, -H / 2]), turn(s, [0, R, H / 2]), r));

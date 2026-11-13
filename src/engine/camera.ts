@@ -24,6 +24,7 @@
 // y up from the origin's height. Ledges are spans of it (one-way unless solid, bobbing with the music when they say so,
 // at the height `ledgeY(ledge, beat)` gives); the ground is a floor at y (or null: a pit). The dancers' physics
 // (dancer/character.ts) collides with it when locked; the camera stands on the side `planeNormal` points to.
+import { boxOn, type Solid } from '../worlds/solids';
 import { spring } from 'math/time';
 import type { Camera } from '@ericrius1/weft';
 import { SHOTS, fitSetOf, samplePath, type Shot, type CameraPath, type PathSpace } from './shots';
@@ -93,21 +94,10 @@ export interface Approach extends Disc { side: number; w: number }
 
 // ---------------------------------------------------------------- solids (what the eye keeps out of)
 
-/** a solid thing in a world as the camera sees it, in the rig's coordinates: a capsule (a segment and a radius:
- *  trunks, columns, boughs, crystal points; a sphere when a = b) or a box (its middle, three unit axes and the half
- *  extents along them: blocks, slabs, blades). Rough is fine: a proxy a few centimetres fat is better than one thin */
-export type Solid =
-  | { kind: 'capsule'; a: V3; b: V3; r: number }
-  | { kind: 'box'; c: V3; x: V3; y: V3; z: V3; h: V3 };
-
-/** a box standing on `foot` (the middle of its underside), turned `yaw` about up (local x → (cos, 0, −sin), local z →
- *  (sin, 0, cos), the temple's and the geode's convention), and tipped `pitch` up about its own x */
-export function boxOn(foot: V3, size: V3, yaw = 0, pitch = 0): Solid {
-  const cy = Math.cos(yaw), sy = Math.sin(yaw), cp = Math.cos(pitch), sp = Math.sin(pitch);
-  const x: V3 = [cy, 0, -sy], y: V3 = [-sp * sy, cp, -sp * cy], z: V3 = [cp * sy, sp, cp * cy];
-  const h: V3 = [size[0] / 2, size[1] / 2, size[2] / 2];
-  return { kind: 'box', c: [foot[0] + y[0] * h[1], foot[1] + y[1] * h[1], foot[2] + y[2] * h[1]], x, y, z, h };
-}
+/** a solid thing in a world as the camera sees it (src/worlds/solids.ts, World.solids: one description for the camera,
+ *  World.clear and the brains), in the rig's coordinates: a capsule or a box */
+export type { Solid };
+export { boxOn };
 
 /** a world's solids, with a bounding sphere each (x, y, z, r) so a segment far from one costs four multiplies */
 export class Solids {
