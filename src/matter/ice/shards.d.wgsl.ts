@@ -220,6 +220,20 @@ export interface KeyLight {
   plain: Vec3;
   glint: number;
 }
+export interface Seen {
+  x: Vec4;
+  y: Vec4;
+  z: Vec4;
+  q: Vec4;
+  clip: Vec4;
+}
+export interface ViewSeen {
+  d: Partial<Seen>[];
+  keep: number;
+  grow: number;
+  pad0: number;
+  pad1: number;
+}
 export interface IceLook {
   size: number;
   frost: number;
@@ -247,7 +261,8 @@ export interface VOut {
   fresh: number;
   wet: number;
   local: Vec3;
+  clip: number;
 }
 
-declare const shader: Shader<{ Frame: Frame; Joint: Joint; Seg: Seg; Particle: Particle; Home: Home; BodyStep: BodyStep; WaterSim: WaterSim; Aux: Aux; Geode: Geode; Forest: Forest; Pool: Pool; Temple: Temple; Forge: Forge; FireLight: FireLight; FireLights: FireLights; KeyLight: KeyLight; IceLook: IceLook; SetShard: SetShard; VOut: VOut }, 'frame' | 'geode' | 'forest' | 'pool' | 'temple' | 'forge' | 'fireLights' | 'sim' | 'look' | 'state' | 'aux' | 'homes' | 'sets' | 'poolWaves' | 'templeWaves' | 'samp_linear' | 'samp_repeat' | 'samp_nearest' | 'samp_shadow'>;
+declare const shader: Shader<{ Frame: Frame; Joint: Joint; Seg: Seg; Particle: Particle; Home: Home; BodyStep: BodyStep; WaterSim: WaterSim; Aux: Aux; Geode: Geode; Forest: Forest; Pool: Pool; Temple: Temple; Forge: Forge; FireLight: FireLight; FireLights: FireLights; KeyLight: KeyLight; Seen: Seen; ViewSeen: ViewSeen; IceLook: IceLook; SetShard: SetShard; VOut: VOut }, 'frame' | 'geode' | 'forest' | 'pool' | 'temple' | 'forge' | 'fireLights' | 'sim' | 'look' | 'seen' | 'state' | 'aux' | 'homes' | 'sets' | 'poolWaves' | 'templeWaves' | 'samp_linear' | 'samp_repeat' | 'samp_nearest' | 'samp_shadow'>;
 export default shader;

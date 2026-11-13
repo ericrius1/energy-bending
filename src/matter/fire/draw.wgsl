@@ -8,12 +8,18 @@
 // a min blend, so the depth of field and the air treat a body of fire as being where it is, not where the wall
 // behind it is); `fs_smoke` darkens (premultiplied over, alpha left alone), for wet, dying flames; MIRROR draws the
 // copy the geode's polished floor reflects.
+//
+// A dancer's flames are drawn where this view sees them (engine/seen.wgsl: only in the world the dancer is in, carried
+// through a gate and cut at its door, fewer and bigger in a gate's small view).
 #include "weft/frame"
 #include "./flame"
+#include "../../engine/seen"
 
 @group(1) @binding(0) var<uniform> sim: FireSim;
 @group(1) @binding(1) var<storage, read> flames: array<Flame>;
 @group(1) @binding(2) var noiseTex: texture_2d<f32>;
+@group(1) @binding(3) var<storage, read> homes: array<Home>;
+@group(1) @binding(4) var<uniform> seen: ViewSeen;
 
 override MIRROR: u32 = 0u;
 override SMOKE: u32 = 0u;
@@ -25,6 +31,8 @@ struct FOut {
   @location(1) @interpolate(flat) look: vec4f,
   // a random number, ember (1) or flame (0), the view distance, the mirror's fade
   @location(2) @interpolate(flat) info: vec4f,
+  /** which side of this view's door (engine/seen.wgsl): discarded below 0 */
+  @location(3) clip: f32,
 }
 
 const CORNERS = array<vec2f, 6>(vec2f(-1.0, -1.0), vec2f(1.0, -1.0), vec2f(1.0, 1.0), vec2f(-1.0, -1.0), vec2f(1.0, 1.0), vec2f(-1.0, 1.0));
@@ -41,14 +49,19 @@ fn smokeOf(f: Flame, u: f32) -> f32 {
   if (ii >= sim.count) { return o; }
   let f = flames[ii];
   if (!alive(f)) { return o; }
+  // a gate's view draws a share of them (grown below to look as full)
+  if (rnd(pcg(ii * 2654435761u + 17u)) > seen.keep) { return o; }
+  let sd = seen.d[min(dancerOf(homes[ii]), MAX_DANCERS - 1u)];
   let u = clamp(f.age / max(f.life, 1e-3), 0.0, 1.0);
   let form = f.look.x;
   let ember = f.look.z < 0.0;
   let smoke = select(smokeOf(f, u), 0.0, ember);
   if (SMOKE == 1u && smoke < 0.02) { return o; }
-  var p = f.pos;
-  var v = f.vel;
+  var p = seenPos(sd, f.pos);
+  var v = seenDir(sd, f.vel);
   var fade = 1.0;
+  o.clip = seenClip(sd, p);
+  if (o.clip < -0.3) { return o; }
   if (MIRROR == 1u) {
     let below = p.y - sim.body.floorY;
     p.y = sim.body.floorY - below;
@@ -57,7 +70,7 @@ fn smokeOf(f: Flame, u: f32) -> f32 {
   }
   let size = abs(f.look.z);
   // a flame swells as it rises and cools; plasma stays thin; smoke billows
-  var w = size * select(mix(0.55, 1.45, u) * mix(1.0, 0.4, form), 1.0, ember) * (1.0 + smoke * 1.5);
+  var w = seen.grow * size * select(mix(0.55, 1.45, u) * mix(1.0, 0.4, form), 1.0, ember) * (1.0 + smoke * 1.5);
   let speed = length(v);
   let streak = min(speed * sim.stretch * mix(1.0, 2.2, form) * select(1.0, 1.6, ember), 0.18);
   // a streak gets thinner as it gets longer (the same light spread along it), so a fast limb leaves a sheet of thin
@@ -76,6 +89,7 @@ fn smokeOf(f: Flame, u: f32) -> f32 {
   let wp = centre + ax * (c.y * along) + side * (c.x * w);
   o.pos = frame.viewProj * vec4f(wp, 1.0);
   o.uv = c;
+  o.clip = seenClip(sd, wp);
   // tongues: a noise in the air, tall and thin, climbing at about a metre a second; where it is low the flames are
   // dim, so a body of thousands of sprites splits into licking tongues with dark gaps between (the 2D original's
   // display noise, in the world instead of on the screen). Embers and plasma don't take it.
@@ -135,6 +149,7 @@ fn flameLight(i: FOut) -> vec4f {
 }
 
 @fragment fn fs(i: FOut) -> @location(0) vec4f {
+  if (i.clip < 0.0) { discard; }
   let l = flameLight(i);
   // the smoke takes over from the light as a flame goes to smoke
   let rgb = l.rgb * sim.intensity * i.info.w * (1.0 - i.look.w);
@@ -145,6 +160,7 @@ fn flameLight(i: FOut) -> vec4f {
 }
 
 @fragment fn fs_smoke(i: FOut) -> @location(0) vec4f {
+  if (i.clip < 0.0) { discard; }
   let uv = i.uv;
   let r2 = dot(uv, uv);
   let body = max(0.0, 1.0 - r2);

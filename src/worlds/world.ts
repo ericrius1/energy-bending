@@ -18,7 +18,12 @@ type V3 = [number, number, number];
 
 /** a gate to another world: where its disc's centre stands, which way it faces (the side you walk in from), how big
  *  it is. The world chooses the site (a clear, flat approach); src/portals draws it and makes the crossing */
-export interface PortalDef { id: string; at: V3; normal: V3; radius: number; to: { world: string; portal: string } }
+export interface PortalDef {
+  id: string; at: V3; normal: V3; radius: number; to: { world: string; portal: string };
+  /** the disc's own up (unit, in its plane): needed for a gate lying in a floor or opening in a sky, where the normal is
+   *  vertical; a standing gate leaves it out (world up) */
+  up?: V3;
+}
 
 /** matter a world is built of, placed once: { kind: 'gems', ...that kind's own fields } */
 export interface Fixture { kind: string; [field: string]: unknown }

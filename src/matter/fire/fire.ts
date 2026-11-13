@@ -15,8 +15,10 @@
 //   resize(budget)     the show's stone count scales the flames (budget.count / 15000 × fireParams.perDancer)
 import type { Kit, StorageBuffer, Texture, UniformBuffer } from '@ericrius1/weft';
 import simShader, { type FireSim } from './sim.wgsl';
+import carryShader from './carry.wgsl';
+import { CarryStep } from '../core/carry';
 import drawShader from './draw.wgsl';
-import type { MatterCtx, MatterLayer, MatterPasses, Budget, MatterActs } from '../core/kind';
+import type { MatterCtx, MatterLayer, MatterPasses, Budget, MatterActs, Carry } from '../core/kind';
 import type { ScenePass } from '../../engine/scene';
 import type { MatterEars } from '../../audio/matter';
 import { fastestLimb, middleOf, seeded, Trigger } from '../core/sounding';
@@ -80,6 +82,8 @@ export class FirePasses implements MatterPasses {
     this.sim = kit.uniforms(simShader.structs.FireSim, 'fire.sim');
     this.lights = fireLights(kit);
     this.noise = noiseTexture(kit);
+    // a dancer carried through a gate takes its flames in the air with it (before the step: src/portals)
+    this.carrier = new CarryStep(kit, ctx.frame, { label: 'fire.carry', owner: 'fire', shader: carryShader, homes: this.homes, bind: { flames: this.flames }, count: () => this.count });
     const step = kit.compute(simShader, {
       label: 'fire.sim', threads: () => [Math.max(1, this.count)], enabled: () => this.count > 0,
       bind: { sim: this.sim, homes: this.homes, flames: this.flames },
@@ -96,7 +100,8 @@ export class FirePasses implements MatterPasses {
   // ---------------------------------------------------------------- draws
   declareView(s: ScenePass) {
     if (s.phase !== 'glow') return;
-    const bind = { sim: this.sim, flames: this.flames, noiseTex: this.noise };
+    // (seen: what this view sees of each dancer, src/portals; homes: whose each flame is)
+    const bind = { sim: this.sim, flames: this.flames, noiseTex: this.noise, homes: this.homes, seen: s.view.seen };
     const on = () => s.on() && this.count > 0;
     const common = { count: 6, instances: () => this.count, depthWrite: false, cull: 'none' as const };
     if (s.world.mirrorFloor) {
@@ -198,6 +203,8 @@ export class FirePasses implements MatterPasses {
     for (const fd of this.dancers) {
       const dancer = f.dancers[fd.dancer];
       if (!dancer) continue;
+      // (a flame dancer in another world lights that world, not this one: the light uniform is the main view's)
+      if (dancer.world && f.views[0]?.world && dancer.world !== f.views[0].world) continue;
       const w = dancer.skeleton.world, h = JOINT.Hips * JOINT_FLOATS, c = JOINT.Spine1 * JOINT_FLOATS;
       const form = Math.min(1, fd.form + this.form[fd.dancer]);
       const t = f.t * 1, k = fd.dancer * 1.7;
@@ -217,6 +224,10 @@ export class FirePasses implements MatterPasses {
   // ---------------------------------------------------------------- its voice (audio/matter/fire.ts)
   private ears: MatterEars | null = null;
   private flares: Trigger[] = [];
+  private carrier: CarryStep;
+  /** dancers carried through a gate this frame (src/portals): their flames go with them */
+  carry(moves: readonly Carry[]) { this.carrier.carry(moves); }
+
   /** the music hands the ears once (docs/extending/sound.md) */
   hear(ears: MatterEars) { this.ears = ears; }
   /** each flame dancer roars while it burns (louder as a limb sweeps through it), crackles now and then, and flares

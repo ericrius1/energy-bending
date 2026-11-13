@@ -58,7 +58,8 @@ export class WaterSurface {
     const A = tex('smoothA', 'rgba32float');
     const B = tex('smoothB', 'rgba32float');
     const copy = tex('behind', 'rgba16float', view.scale);
-    const bind = { sim: pool.sim, state: pool.state, aux: pool.aux, homes: pool.homes };
+    // (seen: what this view sees of each dancer, engine/seen.wgsl)
+    const bind = { sim: pool.sim, state: pool.state, aux: pool.aux, homes: pool.homes, seen: view.seen };
 
     const splatD = kit.pass({ label: `water.splat.depth${id}`, color: [{ target: dist, clear: [0, 0, 0, 0] }], depth: { target: depth, clear: 0 }, view: v, enabled: on });
     splatD.draw(splatShader, { label: `water.splat.depth${id}`, fragment: 'fs_depth', bind, count: 6, instances: () => pool.count(), cull: 'none' });

@@ -172,6 +172,21 @@ export class CameraRig {
     this.pitch = clampPitch(this.pitch + dy * 0.004);
     this.idle = 0;
   }
+  /** carried through a gate (src/portals) by a rigid move (column-major 4×4): the target and every eased point move
+   *  with it, the orbit turns by the move's turn about up and rises with it. The rig is an orbit and holds no roll or
+   *  tilt: what of the move it can't hold (a floor gate to a wall gate) the portals keep as a residual over its pose
+   *  and ease out. A locked plane stays the old world's: the caller locks to the new world's stage */
+  carry(m: Float32Array) {
+    const pt = (p: V3) => {
+      const x = p[0], y = p[1], z = p[2];
+      p[0] = m[0] * x + m[4] * y + m[8] * z + m[12]; p[1] = m[1] * x + m[5] * y + m[9] * z + m[13]; p[2] = m[2] * x + m[6] * y + m[10] * z + m[14];
+    };
+    const y0 = this.target[1];
+    for (const p of [this.target, this.freeEye, this.freeLook, this.lockC, this.lockEye, this.eye, this.look]) pt(p);
+    this.height += this.target[1] - y0;
+    this.yaw += Math.atan2(m[8], m[10]);
+  }
+
   /** the follow camera turned by a look rate (a stick's -1..1, a mouse's more) over dt seconds */
   lookBy(x: number, y: number, dt: number) {
     if (Math.abs(x) + Math.abs(y) < 1e-3) return;

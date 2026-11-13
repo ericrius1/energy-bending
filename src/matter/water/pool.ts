@@ -13,7 +13,7 @@ import simShader, { type WaterSim } from './sim.wgsl';
 import surfaceShader, { type Surf } from './surface.wgsl';
 import smoothShader from './smooth.wgsl';
 import dropsShader from './drops.wgsl';
-import type { MatterCtx, MatterLayer, Budget, MatterActs, MatterPasses } from '../core/kind';
+import type { MatterCtx, MatterLayer, Budget, MatterActs, MatterPasses, Carry } from '../core/kind';
 import type { ScenePass } from '../../engine/scene';
 import type { FrameCtx } from '../../engine/frame';
 import { layoutHomes } from '../core/layout';
@@ -24,6 +24,8 @@ import { waterParams, WATER_MAX } from './params';
 import { WaterSurface } from './surface';
 import { IceDraws } from '../ice/ice';
 import { iceParams } from '../ice/params';
+import carryShader from '../core/carry.wgsl';
+import { CarryStep } from '../core/carry';
 import type { MatterEars } from '../../audio/matter';
 import { fastestLimb, jointAt, middleOf, seeded } from '../core/sounding';
 import { JOINT } from '../../skeleton/rig';
@@ -87,6 +89,8 @@ export class WaterPool {
       if (k === 'perDancer') this.dirty = true;
       this.uploadLook();
     });
+    // a dancer carried through a gate takes its water and ice with it (before the step: src/portals)
+    this.carrier = new CarryStep(kit, ctx.frame, { label: 'water.carry', owner: 'water', shader: carryShader, homes: this.homes, bind: { state: this.state }, count: () => this._count });
     const step = kit.compute(simShader, { label: 'water.sim', threads: () => [this._count], enabled: () => this._count > 0, bind: { sim: this.sim, homes: this.homes, state: this.state, aux: this.aux } });
     ctx.frame.add('sim', step, 'water');
     this.ice = new IceDraws(ctx, {
@@ -165,18 +169,22 @@ export class WaterPool {
     if (this.declared.has(key)) return;
     this.declared.add(key);
     let surface = this.surfaces.get(s.view.id);
-    if (!surface) {
+    // A gate's view (src/portals) has no water surface: its scene and air run in the 'gates' stage, but the surface's
+    // splats, smoothing and composite are in 'cull' and 'air', so they would land after the gate was already shown.
+    // Through a gate a water body is its drops and its ice only (an open item: docs/reports/2-integration.md)
+    const gateView = s.view.id.startsWith('gate');
+    if (!surface && !gateView) {
       surface = new WaterSurface(this.kit, this.ctx.frame, s.view, {
         sim: this.sim, state: this.state, aux: this.aux, homes: this.homes, surf: this.surf, smoothX: this.smoothX, smoothY: this.smoothY,
         count: () => this._count, liquid: () => this._count > 0,
       });
       this.surfaces.set(s.view.id, surface);
     }
-    surface.addWorld(s.world);
+    surface?.addWorld(s.world);
     this.ice.declareView(s);
     if (s.phase === 'glow') {
       s.pass.draw(dropsShader, {
-        label: `water.drops.${s.world.id}`, bind: { sim: this.sim, drops: this.drops, state: this.state, aux: this.aux }, constants: { WORLD: s.world.light },
+        label: `water.drops.${s.world.id}`, bind: { sim: this.sim, drops: this.drops, state: this.state, aux: this.aux, homes: this.homes, seen: s.view.seen }, constants: { WORLD: s.world.light },
         count: 6, instances: () => this._count, blend: 'add', depthWrite: false, cull: 'none', enabled: () => s.on() && this._count > 0 && waterParams.drops > 0,
       });
     }
@@ -246,7 +254,15 @@ export class WaterPool {
     this.shatterNow = false;
     this.ice.update(f, dt, floorY);
     this.voice(f, floorY, shattered);
+    // set ice belongs to the world it was laid in: the main view's when its first piece appeared
+    const si = this.ice.setIce;
+    if (si.stats().pieces === 0) si.world = '';
+    else if (!si.world) si.world = f.views[0]?.world ?? '';
   }
+
+  private carrier: CarryStep;
+  /** dancers carried through a gate this frame (src/portals): their particles go with them */
+  carry(moves: readonly Carry[]) { this.carrier.carry(moves); }
 
   // ---------------------------------------------------------------- its voices (audio/matter/water.ts, ice.ts)
   private ears: MatterEars | null = null;
@@ -325,6 +341,8 @@ export class WaterPasses implements MatterPasses {
   layout(layers: MatterLayer[]) { this.pool.setLayers(this.id, layers); }
   update(f: FrameCtx) { if (this.pool.primary === this.id) this.pool.update(f); }
   hear(ears: MatterEars) { this.pool.hear(ears); }
+  /** (both faces forward; the pool's one step moves every particle of the dancer, water or ice) */
+  carry(moves: readonly Carry[]) { if (this.pool.primary === this.id) this.pool.carry(moves); }
   resize(budget: Budget) { this.pool.resize(budget); }
   stats() { return this.pool.primary === this.id ? this.pool.stats() : { sharedWith: this.pool.primary ?? '' }; }
 }

@@ -45,6 +45,20 @@ export class Skeleton {
   /** after a jump (a new controller, a teleport): the next commit starts the velocities from rest */
   reset() { this.fresh = true; }
 
+  /** carried by a rigid move (a gate, column-major 4×4): the posed joints and the last commit's positions move with it,
+   *  so the next commit's velocities go on from here (no jump, no restart). The `world` array is the caller's to move */
+  carry(m: Float32Array) {
+    const n = this.count, pr = this.prev;
+    const at = (x: number, y: number, z: number, o: Float32Array | number[], i: number) => {
+      o[i] = m[0] * x + m[4] * y + m[8] * z + m[12]; o[i + 1] = m[1] * x + m[5] * y + m[9] * z + m[13]; o[i + 2] = m[2] * x + m[6] * y + m[10] * z + m[14];
+    };
+    for (let k = 0; k < n; k++) {
+      at(pr[k * 3], pr[k * 3 + 1], pr[k * 3 + 2], pr, k * 3);
+      const p = this.pos[k];
+      at(p[0], p[1], p[2], p as unknown as number[], 0);
+    }
+  }
+
   /** lay pos and rot out for the GPU, with velocities from the last commit (smoothed by half: mocap is 30 fps) */
   commit(dt: number) {
     const w = this.world, n = this.count, inv = dt > 0 ? 1 / dt : 0;

@@ -73,6 +73,9 @@ function qFromUp(n: V3): [number, number, number, number] {
 export class SetIce {
   /** set ice's own clock (s): SetIce.update moves it on */
   now = 0;
+  /** the world the pieces were laid in (the water pool sets it to the main view's when the first appears; '' none):
+   *  they are drawn there only, and are ledges there only */
+  world = '';
   readonly pieces: SetPiece[] = [];
   /** the shards for the GPU (SetShard), and how many; `dirty` until uploaded */
   readonly shards = new Float32Array(SET_SHARDS_MAX * SHARD_FLOATS);

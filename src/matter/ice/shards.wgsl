@@ -6,9 +6,13 @@
 // dark, some lit), pale steel blue going to navy where the light goes deep, hard bright facet edges, a frosted white
 // rim at grazing angles broken up by fine noise, glints that flash one facet at a time a few times a second, and
 // refraction of the world inside with a little dispersion. One pipeline per world (WORLD) for its light.
+// A dancer's shards are drawn where this view sees them (engine/seen.wgsl: only in the dancer's world, carried
+// through a gate, cut at its door; fewer and bigger in a gate's small view).
+// Set ice belongs to no dancer (seen.d is not read for it).
 #include "weft/frame"
 #include "../water/water"
 #include "../../worlds/light"
+#include "../../engine/seen"
 
 override SET: u32 = 0u;
 
@@ -40,6 +44,7 @@ struct SetShard {
 @group(1) @binding(3) var<storage, read> aux: array<Aux>;
 @group(1) @binding(4) var<storage, read> homes: array<Home>;
 @group(1) @binding(5) var<storage, read> sets: array<SetShard>;
+@group(1) @binding(6) var<uniform> seen: ViewSeen;
 
 struct VOut {
   @builtin(position) pos: vec4f,
@@ -50,6 +55,8 @@ struct VOut {
   @location(4) @interpolate(flat) fresh: f32,     // 1 where it is just freezing (the frost front)
   @location(5) @interpolate(flat) wet: f32,       // 1 while it melts
   @location(6) local: vec3f,
+  /** which side of this view's door (engine/seen.wgsl): discarded below 0 */
+  @location(7) clip: f32,
 }
 
 /** one corner of the shard: 0..5 the ring at the top, 6..11 the ring at the bottom, 12 the top tip, 13 the bottom */
@@ -84,6 +91,8 @@ fn hidden() -> VOut { var o: VOut; o.pos = vec4f(2.0, 2.0, 2.0, 1.0); return o; 
   var seed: u32;
   var fresh = 0.0;
   var wet = 0.0;
+  var sd = seen.d[0];
+  var body = false;
   if (SET == 1u) {
     let sh = sets[ii];
     let t = look.setTime;
@@ -111,11 +120,14 @@ fn hidden() -> VOut { var o: VOut; o.pos = vec4f(2.0, 2.0, 2.0, 1.0); return o; 
     let a = aux[pid];
     let h = homes[pid];
     seed = pcg(pid * 7919u + 11u);
-    centre = p.pos;
+    if (rnd(seed ^ 0x5eu) > seen.keep) { return hidden(); }
+    sd = seen.d[min(dancerOf(h), MAX_DANCERS - 1u)];
+    body = true;
+    centre = seenPos(sd, p.pos);
     // a little tilt of its own, so the shards bristle rather than stand in rows
     let tilt = qaxis(normalize(vec3f(rnd(seed ^ 1u) - 0.5, 0.0, rnd(seed ^ 2u) - 0.5) + vec3f(1e-3, 0.0, 0.0)), (rnd(seed ^ 3u) - 0.2) * 1.4);
-    rot = qmul(p.rot, tilt);
-    size = h.look.y * look.size * sqrt(f32(sim.shardEvery)) * smoothstep(0.35, 0.8, a.ice) * (1.0 - a.gone) * (0.7 + 0.6 * rnd(seed ^ 4u));
+    rot = qmul(seenRot(sd, p.rot), tilt);
+    size = seen.grow * h.look.y * look.size * sqrt(f32(sim.shardEvery)) * smoothstep(0.35, 0.8, a.ice) * (1.0 - a.gone) * (0.7 + 0.6 * rnd(seed ^ 4u));
     fresh = smoothstep(0.35, 0.6, a.ice) * (1.0 - smoothstep(0.8, 1.0, a.ice));
     wet = clamp((a.was - a.ice) * 200.0, 0.0, 1.0);
   }
@@ -134,6 +146,8 @@ fn hidden() -> VOut { var o: VOut; o.pos = vec4f(2.0, 2.0, 2.0, 1.0); return o; 
   // facing out of the shard (its middle is near the axis)
   if (dot(n, (A + B + C) / 3.0 - vec3f(0.0, 0.2, 0.0)) < 0.0) { n = -n; }
   let wp = centre + qrot(rot, L * size);
+  o.clip = select(1.0, seenClip(sd, wp), body);
+  if (body && seenClip(sd, centre) < -size) { return hidden(); }
   o.pos = frame.viewProj * vec4f(wp, 1.0);
   o.wp = wp;
   o.n = qrot(rot, n);
@@ -146,6 +160,7 @@ fn hidden() -> VOut { var o: VOut; o.pos = vec4f(2.0, 2.0, 2.0, 1.0); return o; 
 }
 
 @fragment fn fs(i: VOut, @builtin(front_facing) front: bool) -> @location(0) vec4f {
+  if (i.clip < 0.0) { discard; }
   var N = normalize(i.n);
   if (!front) { N = -N; }
   let V = normalize(frame.camPos - i.wp);

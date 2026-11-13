@@ -30,9 +30,11 @@ export class PlasmaPasses implements MatterPasses {
   update(f: FrameCtx) {
     if (arcParams.handArcs) {
       // a stroke is on for a few frames, then off for one or two: decided per dancer on the frame number
+      const mainWorld = f.views[0]?.world ?? '';
       f.dancers.forEach((d, k) => {
         const form = this.flame.handForm(k);
-        if (form < 0.4) { this.buzz(f, k, null); return; }
+        // (a dancer in another world arcs there, not here: arcs are drawn in the main view only, see arcs.ts)
+        if (form < 0.4 || (d.world && mainWorld && d.world !== mainWorld)) { this.buzz(f, k, null); return; }
         const on = hash(f.frame * 31 + k * 977) < arcParams.handDuty;
         if (!on) { this.buzz(f, k, null); return; }
         const w = d.skeleton.world, l = JOINT.LeftHandIndex1 * JOINT_FLOATS, r = JOINT.RightHandIndex1 * JOINT_FLOATS;

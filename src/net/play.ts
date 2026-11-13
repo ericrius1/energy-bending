@@ -25,6 +25,8 @@ export interface NetPlayCtx {
   frame: FrameBuilder;
   world: () => World;
   query: URLSearchParams;
+  /** the gates (src/portals): the played dancer's crossings are sent as the room's `travel` */
+  gates?: { on(fn: (e: { who: string; dancer: number; to: string; partner: string }) => void): () => void };
 }
 
 export async function netPlay(ctx: NetPlayCtx) {
@@ -85,6 +87,11 @@ export async function netPlay(ctx: NetPlayCtx) {
       ice.setIce.warm(p.points[m] / 1000, p.points[m + 1] / 1000, p.points[m + 2] / 1000, p.width / 1000 + 1, 1, f.dt);
     }
   }, 'net: send the played pose, melt set pieces');
+  // the played dancer through a gate: the room moves it (a seat's travel moves the jogo's world). The other side's
+  // crossing needs nothing here: its poses arrive in the new world (NetController.carry) and the gates see it pass
+  ctx.gates?.on((e) => {
+    if (e.who === 'dancer' && show.dancers[e.dancer] === meDancer) session.send({ t: 'travel', world: e.to, portal: e.partner });
+  });
   (window as unknown as { bendNet: unknown }).bendNet = { session, seat, other, remote, pieces: () => [...local.entries()] };
   return session;
 }

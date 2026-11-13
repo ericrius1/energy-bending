@@ -14,6 +14,9 @@ export class Dancer {
   /** how much of its matter is on its body, 0 … 1: the show lowers it while the matter lies in a heap or is
    *  shattered, so a bare skeleton doesn't warm or wet the air (the field reads it) */
   presence = 1;
+  /** the world it is in (src/portals keeps it: main.ts copies gates.worldOf each frame; '' before the first frame,
+   *  which means the main view's). The field and the matter that belongs to no one body read it */
+  world = '';
   constructor(public readonly id: string, public controller: Controller, public loadout: Loadout) {
     this.skeleton = new Skeleton(controller.rig);
   }

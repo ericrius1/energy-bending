@@ -107,6 +107,17 @@ export class IntentController implements Controller {
   }
 
   /** lock to a stage plane (the dancer eases onto it) or free (null); the source's controls follow */
+  /** carried through a gate (src/portals): the body physics goes on in the new world, at the carried point, moving the
+   *  carried way, turned by the gate's turn about up (a gate that tilts the world tilts nothing here: the body stays
+   *  upright and keeps its speed) */
+  carry(m: Float32Array) {
+    const c = this.character, r = c.root, v = c.v;
+    const x = r[0], y = r[1], z = r[2];
+    c.root = [m[0] * x + m[4] * y + m[8] * z + m[12], m[1] * x + m[5] * y + m[9] * z + m[13], m[2] * x + m[6] * y + m[10] * z + m[14]];
+    c.v = [m[0] * v[0] + m[4] * v[1] + m[8] * v[2], m[1] * v[0] + m[5] * v[1] + m[9] * v[2], m[2] * v[0] + m[6] * v[1] + m[10] * v[2]];
+    c.yaw += Math.atan2(m[8], m[10]);
+  }
+
   setPlane(p: StagePlane | null) {
     this.character.setPlane(p);
     if (this.source) this.source.mode = p ? 'locked' : 'free';

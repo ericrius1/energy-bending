@@ -112,7 +112,7 @@ if (query.has('wander')) { const t = await travelling; show.castOverride = wande
 if (query.has('play')) {
   const play = await import('./dancer/play').then((m) => m.playDemo({ show, rig, frame, kit, canvas, world: () => worldOf(main.world), motion, travel: travelling, coarse, wake }));
   // ?play&net=ROOM: the played dancer online, the other seat through the network
-  if (query.has('net')) await (await import('./net/play')).netPlay({ show, play, frame, world: () => worldOf(main.world), query });
+  if (query.has('net')) await (await import('./net/play')).netPlay({ show, play, frame, world: () => worldOf(main.world), query, gates });
 } else if (query.has('net')) show.castOverride = await (await import('./net/demo')).netDemo(motion, frame, query);
 gatesDebug(gates, frame, query, () => show.dancers);
 // the music owns time: FrameCtx.beat is its clock, live and filming
@@ -149,6 +149,7 @@ frame.tick('dancers', (f) => {
   f.dancers = show.dancers;
   for (const d of show.dancers) d.update(f);
   bodies.upload(show.dancers, f.t);
+  for (const d of show.dancers) d.world = gates.worldOf(d);   // (Dancer.world: the field follows the main view's)
   const seen = gates.seen(main.world, show.dancers);
   Object.assign(centre, { x: seen.x, z: seen.z, ring: !!show.program.ring, dancers: show.dancers.length });
   field.update(f);

@@ -16,4 +16,9 @@ export interface Controller {
   readonly rig: Rig;
   /** pose `out` (its pos and rot) after `dt` seconds of dance time; ctx.t is the dance time now */
   update(dt: number, ctx: FrameCtx, out: Skeleton): void;
+  /** carried through a gate (src/portals) by a rigid move (column-major 4×4): a controller that owns where its body is
+   *  (body physics: IntentController) moves itself and goes on in the new world's coordinates; one whose poses already
+   *  arrive in the right world (NetController) does nothing. Without it the portals wrap the controller and carry
+   *  what it poses (portals/carried.ts) */
+  carry?(m: Float32Array): void;
 }

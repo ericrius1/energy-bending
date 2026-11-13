@@ -290,19 +290,25 @@ export class Portals implements SceneLayer {
 
   private carryDancer(d: Dancer, k: number, g: Gate, u: number, v: number, front: boolean, t: number, tell: boolean) {
     const G = g.through, b = g.partner!;
-    // the controller keeps posing where it thinks it is; the wrapper carries what it poses
-    let c = d.controller instanceof Carried ? d.controller : null;
-    if (!c) { c = new Carried(d.controller); d.controller = c; }
-    G.mul(c.move, c.move);
-    if (c.move.isIdentity(1e-6)) d.controller = c.inner;
-    // this frame's joints too (already committed and uploaded), and the next commit's velocities start again
-    // from here rather than from the far side of the world
+    const M = G.mat4();
+    if (!(d.controller instanceof Carried) && d.controller.carry) {
+      // a controller that owns where its body is (body physics) moves itself, and goes on in this world's coordinates
+      d.controller.carry(M);
+    } else {
+      // the controller keeps posing where it thinks it is; the wrapper carries what it poses
+      let c = d.controller instanceof Carried ? d.controller : null;
+      if (!c) { c = new Carried(d.controller); d.controller = c; }
+      G.mul(c.move, c.move);
+      if (c.move.isIdentity(1e-6)) d.controller = c.inner;
+    }
+    // this frame's joints too (already committed and uploaded), and the last commit's positions, so the next commit's
+    // velocities go on from here (Skeleton.carry) rather than from the far side of the world
     carryJoints(d.skeleton.world, d.skeleton.world, G, d.skeleton.count);
-    d.skeleton.reset();
+    d.skeleton.carry(M);
     this.homes.set(d, b.world);
     const r = this.roots.get(d);
     if (r) G.pt(r, r);
-    for (const m of this.kinds) m.carry?.([{ dancer: k, move: G.mat4() }]);
+    for (const m of this.kinds) m.carry?.([{ dancer: k, move: M }]);
     const suite = String(d.loadout.layers[0]?.params?.suite ?? '');
     const rim = SUITE_RIM[suite] ?? [0.9, 0.8, 1.0];
     for (const x of [g, b]) { x.rim = [...rim] as V3; x.flash = 1; }
@@ -361,10 +367,8 @@ export class Portals implements SceneLayer {
     else {
       // the rig is an orbit (a target, a turn and a tilt round it): carry the target and turn the orbit by the gate's
       // turn about up; what that can't hold (a tilt, a roll) is left as a residual and eased out
-      const tg: V3 = [rig.target[0], rig.target[1], rig.target[2]], tg2 = G.pt(tg);
-      rig.target[0] = tg2[0]; rig.target[1] = tg2[1]; rig.target[2] = tg2[2];
-      rig.height += tg2[1] - tg[1];
-      rig.yaw += G.yawTurn().yaw;
+      rig.carry(G.mat4());   // (CameraRig.carry: the target, the eased points, the orbit's turn and rise)
+      const tg2: V3 = [rig.target[0], rig.target[1], rig.target[2]];
       const e2 = after.t, off: V3 = [e2[0] - tg2[0], e2[1] - tg2[1], e2[2] - tg2[2]], len = Math.hypot(...off) || 1;
       rig.pitch = Math.max(-0.15, Math.min(1.5, Math.asin(Math.max(-1, Math.min(1, off[1] / len)))));
       // what the orbit will give next frame, to measure the residual against

@@ -23,6 +23,9 @@ export function standingPose(out: LandmarkPose = newLandmarkPose()) {
 }
 
 export class NetController extends LandmarkController {
+  /** carried through a gate: nothing to do. The sender's own body went through, so its poses arrive in the new world's
+   *  coordinates already (the buffer cuts on the jump: a root more than 3 m from the last) */
+  carry(_m: Float32Array) { /* the poses carry themselves */ }
   readonly kind: string = 'net';
   /** what the last frame got: ok, age (ms since the newest pose), flags, energy, world, move */
   info: RemoteInfo = { ok: false };

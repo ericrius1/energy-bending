@@ -64,7 +64,7 @@ export class IceDraws {
     if (this.declared.has(key)) return;
     this.declared.add(key);
     const { pass, world, on } = s, P = this.pool;
-    const bind = { sim: P.sim, look: this.look, state: P.state, aux: P.aux, homes: P.homes, sets: this.sets };
+    const bind = { sim: P.sim, look: this.look, state: P.state, aux: P.aux, homes: P.homes, sets: this.sets, seen: s.view.seen };
     if (s.phase === 'opaque') {
       pass.draw(shardShader, {
         label: `ice.shards.${world.id}`, bind, constants: { SET: 0, WORLD: world.light }, cull: 'back', count: 72,
@@ -73,12 +73,14 @@ export class IceDraws {
       });
       pass.draw(shardShader, {
         label: `ice.set.${world.id}`, bind, constants: { SET: 1, WORLD: world.light }, cull: 'back', count: 72,
-        instances: () => this.setIce.shardCount, enabled: () => on() && this.setIce.shardCount > 0,
+        // (set ice is drawn only in the world it was laid in)
+        instances: () => this.setIce.shardCount, enabled: () => on() && this.setIce.shardCount > 0 && (!this.setIce.world || this.setIce.world === s.view.world),
       });
     } else if (s.phase === 'glow') {
       pass.draw(mistDrawShader, {
         label: `ice.mist.${world.id}`, bind: { mist: this.mist, motes: this.motes }, count: 6, instances: MOTES,
-        blend: 'add', depthWrite: false, cull: 'none', enabled: () => on() && P.count() > 0 && P.maybeIce(),
+        // (the motes belong to no dancer: drawn in the main view only, like steam)
+        blend: 'add', depthWrite: false, cull: 'none', enabled: () => on() && s.view.id === 'main' && P.count() > 0 && P.maybeIce(),
       });
     }
   }

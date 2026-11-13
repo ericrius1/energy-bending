@@ -10,7 +10,8 @@ import { Rigid, cross, dot, norm, type V3 } from './rigid';
 
 /** a gate as the game opens it: a PortalDef (worlds/world.ts) plus the world it is in, and (optionally) which way is
  *  its up: a wall gate's is the world's up; a floor or ceiling gate needs one (default: -z) */
-export interface GateDef extends PortalDef { world: string; up?: V3 }
+/** a world's PortalDef (its `up` included), with the world it stands in */
+export interface GateDef extends PortalDef { world: string }
 
 const FLIP = Rigid.frame([-1, 0, 0], [0, 1, 0], [0, 0, -1], [0, 0, 0]);
 

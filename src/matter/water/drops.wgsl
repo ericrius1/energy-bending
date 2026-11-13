@@ -1,9 +1,12 @@
 // Glints on flying water: a drop in the air catches the light as a tiny bright point that flickers as it tumbles.
 // Drawn additively in the scene's glow phase over the surface's own spheres (which give each drop its body once the
 // surface pass runs), one camera-facing sprite per flying liquid particle, lit by the world's key light.
+// A dancer's particles are drawn where this view sees them (engine/seen.wgsl: only in the dancer's world, carried
+// through a gate, cut at its door; fewer and bigger in a gate's small view).
 #include "weft/frame"
 #include "./water"
 #include "../../worlds/light"
+#include "../../engine/seen"
 
 struct Drops { strength: f32, size: f32, pad0: f32, pad1: f32 }
 
@@ -11,6 +14,8 @@ struct Drops { strength: f32, size: f32, pad0: f32, pad1: f32 }
 @group(1) @binding(1) var<uniform> drops: Drops;
 @group(1) @binding(2) var<storage, read> state: array<Particle>;
 @group(1) @binding(3) var<storage, read> aux: array<Aux>;
+@group(1) @binding(4) var<storage, read> homes: array<Home>;
+@group(1) @binding(5) var<uniform> seen: ViewSeen;
 
 struct DOut {
   @builtin(position) pos: vec4f,
@@ -27,10 +32,13 @@ const CORNERS = array<vec2f, 6>(vec2f(-1.0, -1.0), vec2f(1.0, -1.0), vec2f(1.0, 
   // a third of the flying drops glint at a time (the rest are only the surface's spheres)
   let tw = rnd(ii * 2654435761u + u32(frame.time * 9.0 + rnd(ii) * 9.0) * 747796405u);
   if (!modeIs(p.mode, FLYING) || a.ice > 0.5 || a.gone > 0.5 || tw < 0.66 || ii >= sim.count) { o.pos = vec4f(2.0, 2.0, 2.0, 1.0); return o; }
-  let key = worldKey(p.pos, false, 0.0);
+  let sd = seen.d[min(dancerOf(homes[ii]), MAX_DANCERS - 1u)];
+  let pos = seenPos(sd, p.pos);
+  if (seenClip(sd, pos) < 0.0 || rnd(ii * 2654435761u + 5u) > seen.keep) { o.pos = vec4f(2.0, 2.0, 2.0, 1.0); return o; }
+  let key = worldKey(pos, false, 0.0);
   let c = CORNERS[vi];
-  let size = drops.size * (0.6 + 0.8 * rnd(ii ^ 0x77u));
-  let wp = p.pos + (frame.camRight * c.x + frame.camUp * c.y) * size;
+  let size = drops.size * (0.6 + 0.8 * rnd(ii ^ 0x77u)) * seen.grow;
+  let wp = pos + (frame.camRight * c.x + frame.camUp * c.y) * size;
   o.pos = frame.viewProj * vec4f(wp, 1.0);
   o.uv = c;
   let flash = smoothstep(0.66, 1.0, tw);

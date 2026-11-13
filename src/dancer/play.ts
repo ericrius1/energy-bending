@@ -107,7 +107,7 @@ export async function playDemo(ctx: PlayCtx): Promise<PlayHandle> {
   const terrain = { groundAt: (x: number, z: number) => ctx.world().groundAt(x, z), get fallY() { return ctx.world().fallY; } };
   // set ice on the locked plane: its stretches as one-way ledges (sloped ones in flat steps)
   const ice = show.kinds.find((k) => k.id === 'ice' || k.id === 'water') as WaterPasses | undefined;
-  const iceLedges = (plane: StagePlane | null): Ledge[] => (ice && plane ? flatSteps(ice.setIce.ledgesIn(plane)) : []);
+  const iceLedges = (plane: StagePlane | null): Ledge[] => (ice && plane && (!ice.setIce.world || ice.setIce.world === ctx.world().id) ? flatSteps(ice.setIce.ledgesIn(plane)) : []);
   const controllers: IntentController[] = [];
   const dancers: Dancer[] = [];
   const addDancer = (seat: number) => {
