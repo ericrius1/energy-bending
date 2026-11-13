@@ -1,0 +1,554 @@
+[
+ {
+  "name": "g-el-ember-geode-wide",
+  "query": "play&dress=ember&world=geode",
+  "fps": 10,
+  "seconds": 3,
+  "warm": 240,
+  "setup": " bend.set('camera', { followDist: 6, followFov: 44, followPitch: 0.1, followSwing: 0 }); bend.wake(); bend.place(0, 0, 0, Math.PI/2);",
+  "cues": {
+   "0.6": "bend.move(0,'armada')",
+   "1.9": "bend.move(0,'au')"
+  },
+  "each": "bend.camera({ yaw: 0.25 + 0.06*t });",
+  "sheet": {
+   "cols": 6,
+   "rows": 5,
+   "width": 320
+  },
+  "stills": [
+   0.3,
+   1.2,
+   2.4
+  ]
+ },
+ {
+  "name": "g-el-ember-geode-close",
+  "query": "play&dress=ember&world=geode",
+  "fps": 10,
+  "seconds": 3,
+  "warm": 240,
+  "setup": " bend.set('camera', { followDist: 2.3, followFov: 40, followPitch: 0.1, followSwing: 0 }); bend.wake(); bend.place(0, 0, 0, Math.PI/2);",
+  "cues": {
+   "0.6": "bend.move(0,'armada')",
+   "1.9": "bend.move(0,'au')"
+  },
+  "each": "bend.camera({ yaw: 0.25 + 0.06*t });",
+  "sheet": {
+   "cols": 6,
+   "rows": 5,
+   "width": 320
+  },
+  "stills": [
+   0.3,
+   1.2,
+   2.4
+  ]
+ },
+ {
+  "name": "g-el-ember-redwoods-wide",
+  "query": "play&dress=ember&world=redwoods",
+  "fps": 10,
+  "seconds": 3,
+  "warm": 240,
+  "setup": "bend.set('redwoods', { hour: 19.4, dayGoes: false }); bend.set('camera', { followDist: 6, followFov: 44, followPitch: 0.1, followSwing: 0 }); bend.wake(); bend.place(0, 0, 0, Math.PI/2);",
+  "cues": {
+   "0.6": "bend.move(0,'armada')",
+   "1.9": "bend.move(0,'au')"
+  },
+  "each": "bend.camera({ yaw: 0.25 + 0.06*t });",
+  "sheet": {
+   "cols": 6,
+   "rows": 5,
+   "width": 320
+  },
+  "stills": [
+   0.3,
+   1.2,
+   2.4
+  ]
+ },
+ {
+  "name": "g-el-ember-redwoods-close",
+  "query": "play&dress=ember&world=redwoods",
+  "fps": 10,
+  "seconds": 3,
+  "warm": 240,
+  "setup": "bend.set('redwoods', { hour: 19.4, dayGoes: false }); bend.set('camera', { followDist: 2.3, followFov: 40, followPitch: 0.1, followSwing: 0 }); bend.wake(); bend.place(0, 0, 0, Math.PI/2);",
+  "cues": {
+   "0.6": "bend.move(0,'armada')",
+   "1.9": "bend.move(0,'au')"
+  },
+  "each": "bend.camera({ yaw: 0.25 + 0.06*t });",
+  "sheet": {
+   "cols": 6,
+   "rows": 5,
+   "width": 320
+  },
+  "stills": [
+   0.3,
+   1.2,
+   2.4
+  ]
+ },
+ {
+  "name": "g-el-tide-geode-wide",
+  "query": "play&dress=tide&world=geode",
+  "fps": 10,
+  "seconds": 3,
+  "warm": 240,
+  "setup": " bend.set('camera', { followDist: 6, followFov: 44, followPitch: 0.1, followSwing: 0 }); bend.wake(); bend.place(0, 0, 0, Math.PI/2);",
+  "cues": {
+   "0.6": "bend.move(0,'armada')",
+   "1.9": "bend.move(0,'au')"
+  },
+  "each": "bend.camera({ yaw: 0.25 + 0.06*t });",
+  "sheet": {
+   "cols": 6,
+   "rows": 5,
+   "width": 320
+  },
+  "stills": [
+   0.3,
+   1.2,
+   2.4
+  ]
+ },
+ {
+  "name": "g-el-tide-geode-close",
+  "query": "play&dress=tide&world=geode",
+  "fps": 10,
+  "seconds": 3,
+  "warm": 240,
+  "setup": " bend.set('camera', { followDist: 2.3, followFov: 40, followPitch: 0.1, followSwing: 0 }); bend.wake(); bend.place(0, 0, 0, Math.PI/2);",
+  "cues": {
+   "0.6": "bend.move(0,'armada')",
+   "1.9": "bend.move(0,'au')"
+  },
+  "each": "bend.camera({ yaw: 0.25 + 0.06*t });",
+  "sheet": {
+   "cols": 6,
+   "rows": 5,
+   "width": 320
+  },
+  "stills": [
+   0.3,
+   1.2,
+   2.4
+  ]
+ },
+ {
+  "name": "g-el-tide-redwoods-wide",
+  "query": "play&dress=tide&world=redwoods",
+  "fps": 10,
+  "seconds": 3,
+  "warm": 240,
+  "setup": "bend.set('redwoods', { hour: 19.4, dayGoes: false }); bend.set('camera', { followDist: 6, followFov: 44, followPitch: 0.1, followSwing: 0 }); bend.wake(); bend.place(0, 0, 0, Math.PI/2);",
+  "cues": {
+   "0.6": "bend.move(0,'armada')",
+   "1.9": "bend.move(0,'au')"
+  },
+  "each": "bend.camera({ yaw: 0.25 + 0.06*t });",
+  "sheet": {
+   "cols": 6,
+   "rows": 5,
+   "width": 320
+  },
+  "stills": [
+   0.3,
+   1.2,
+   2.4
+  ]
+ },
+ {
+  "name": "g-el-tide-redwoods-close",
+  "query": "play&dress=tide&world=redwoods",
+  "fps": 10,
+  "seconds": 3,
+  "warm": 240,
+  "setup": "bend.set('redwoods', { hour: 19.4, dayGoes: false }); bend.set('camera', { followDist: 2.3, followFov: 40, followPitch: 0.1, followSwing: 0 }); bend.wake(); bend.place(0, 0, 0, Math.PI/2);",
+  "cues": {
+   "0.6": "bend.move(0,'armada')",
+   "1.9": "bend.move(0,'au')"
+  },
+  "each": "bend.camera({ yaw: 0.25 + 0.06*t });",
+  "sheet": {
+   "cols": 6,
+   "rows": 5,
+   "width": 320
+  },
+  "stills": [
+   0.3,
+   1.2,
+   2.4
+  ]
+ },
+ {
+  "name": "g-el-geodeheart-geode-wide",
+  "query": "play&dress=geodeheart&world=geode",
+  "fps": 10,
+  "seconds": 3,
+  "warm": 240,
+  "setup": " bend.set('camera', { followDist: 6, followFov: 44, followPitch: 0.1, followSwing: 0 }); bend.wake(); bend.place(0, 0, 0, Math.PI/2);",
+  "cues": {
+   "0.6": "bend.move(0,'armada')",
+   "1.9": "bend.move(0,'au')"
+  },
+  "each": "bend.camera({ yaw: 0.25 + 0.06*t });",
+  "sheet": {
+   "cols": 6,
+   "rows": 5,
+   "width": 320
+  },
+  "stills": [
+   0.3,
+   1.2,
+   2.4
+  ]
+ },
+ {
+  "name": "g-el-geodeheart-geode-close",
+  "query": "play&dress=geodeheart&world=geode",
+  "fps": 10,
+  "seconds": 3,
+  "warm": 240,
+  "setup": " bend.set('camera', { followDist: 2.3, followFov: 40, followPitch: 0.1, followSwing: 0 }); bend.wake(); bend.place(0, 0, 0, Math.PI/2);",
+  "cues": {
+   "0.6": "bend.move(0,'armada')",
+   "1.9": "bend.move(0,'au')"
+  },
+  "each": "bend.camera({ yaw: 0.25 + 0.06*t });",
+  "sheet": {
+   "cols": 6,
+   "rows": 5,
+   "width": 320
+  },
+  "stills": [
+   0.3,
+   1.2,
+   2.4
+  ]
+ },
+ {
+  "name": "g-el-geodeheart-redwoods-wide",
+  "query": "play&dress=geodeheart&world=redwoods",
+  "fps": 10,
+  "seconds": 3,
+  "warm": 240,
+  "setup": "bend.set('redwoods', { hour: 19.4, dayGoes: false }); bend.set('camera', { followDist: 6, followFov: 44, followPitch: 0.1, followSwing: 0 }); bend.wake(); bend.place(0, 0, 0, Math.PI/2);",
+  "cues": {
+   "0.6": "bend.move(0,'armada')",
+   "1.9": "bend.move(0,'au')"
+  },
+  "each": "bend.camera({ yaw: 0.25 + 0.06*t });",
+  "sheet": {
+   "cols": 6,
+   "rows": 5,
+   "width": 320
+  },
+  "stills": [
+   0.3,
+   1.2,
+   2.4
+  ]
+ },
+ {
+  "name": "g-el-geodeheart-redwoods-close",
+  "query": "play&dress=geodeheart&world=redwoods",
+  "fps": 10,
+  "seconds": 3,
+  "warm": 240,
+  "setup": "bend.set('redwoods', { hour: 19.4, dayGoes: false }); bend.set('camera', { followDist: 2.3, followFov: 40, followPitch: 0.1, followSwing: 0 }); bend.wake(); bend.place(0, 0, 0, Math.PI/2);",
+  "cues": {
+   "0.6": "bend.move(0,'armada')",
+   "1.9": "bend.move(0,'au')"
+  },
+  "each": "bend.camera({ yaw: 0.25 + 0.06*t });",
+  "sheet": {
+   "cols": 6,
+   "rows": 5,
+   "width": 320
+  },
+  "stills": [
+   0.3,
+   1.2,
+   2.4
+  ]
+ },
+ {
+  "name": "g-el-monolith-geode-wide",
+  "query": "play&dress=monolith&world=geode",
+  "fps": 10,
+  "seconds": 3,
+  "warm": 240,
+  "setup": " bend.set('camera', { followDist: 6, followFov: 44, followPitch: 0.1, followSwing: 0 }); bend.wake(); bend.place(0, 0, 0, Math.PI/2);",
+  "cues": {
+   "0.6": "bend.move(0,'armada')",
+   "1.9": "bend.move(0,'au')"
+  },
+  "each": "bend.camera({ yaw: 0.25 + 0.06*t });",
+  "sheet": {
+   "cols": 6,
+   "rows": 5,
+   "width": 320
+  },
+  "stills": [
+   0.3,
+   1.2,
+   2.4
+  ]
+ },
+ {
+  "name": "g-el-monolith-geode-close",
+  "query": "play&dress=monolith&world=geode",
+  "fps": 10,
+  "seconds": 3,
+  "warm": 240,
+  "setup": " bend.set('camera', { followDist: 2.3, followFov: 40, followPitch: 0.1, followSwing: 0 }); bend.wake(); bend.place(0, 0, 0, Math.PI/2);",
+  "cues": {
+   "0.6": "bend.move(0,'armada')",
+   "1.9": "bend.move(0,'au')"
+  },
+  "each": "bend.camera({ yaw: 0.25 + 0.06*t });",
+  "sheet": {
+   "cols": 6,
+   "rows": 5,
+   "width": 320
+  },
+  "stills": [
+   0.3,
+   1.2,
+   2.4
+  ]
+ },
+ {
+  "name": "g-el-monolith-redwoods-wide",
+  "query": "play&dress=monolith&world=redwoods",
+  "fps": 10,
+  "seconds": 3,
+  "warm": 240,
+  "setup": "bend.set('redwoods', { hour: 19.4, dayGoes: false }); bend.set('camera', { followDist: 6, followFov: 44, followPitch: 0.1, followSwing: 0 }); bend.wake(); bend.place(0, 0, 0, Math.PI/2);",
+  "cues": {
+   "0.6": "bend.move(0,'armada')",
+   "1.9": "bend.move(0,'au')"
+  },
+  "each": "bend.camera({ yaw: 0.25 + 0.06*t });",
+  "sheet": {
+   "cols": 6,
+   "rows": 5,
+   "width": 320
+  },
+  "stills": [
+   0.3,
+   1.2,
+   2.4
+  ]
+ },
+ {
+  "name": "g-el-monolith-redwoods-close",
+  "query": "play&dress=monolith&world=redwoods",
+  "fps": 10,
+  "seconds": 3,
+  "warm": 240,
+  "setup": "bend.set('redwoods', { hour: 19.4, dayGoes: false }); bend.set('camera', { followDist: 2.3, followFov: 40, followPitch: 0.1, followSwing: 0 }); bend.wake(); bend.place(0, 0, 0, Math.PI/2);",
+  "cues": {
+   "0.6": "bend.move(0,'armada')",
+   "1.9": "bend.move(0,'au')"
+  },
+  "each": "bend.camera({ yaw: 0.25 + 0.06*t });",
+  "sheet": {
+   "cols": 6,
+   "rows": 5,
+   "width": 320
+  },
+  "stills": [
+   0.3,
+   1.2,
+   2.4
+  ]
+ },
+ {
+  "name": "g-el-mosaic-geode-wide",
+  "query": "play&dress=mosaic&world=geode",
+  "fps": 10,
+  "seconds": 3,
+  "warm": 240,
+  "setup": " bend.set('camera', { followDist: 6, followFov: 44, followPitch: 0.1, followSwing: 0 }); bend.wake(); bend.place(0, 0, 0, Math.PI/2);",
+  "cues": {
+   "0.6": "bend.move(0,'armada')",
+   "1.9": "bend.move(0,'au')"
+  },
+  "each": "bend.camera({ yaw: 0.25 + 0.06*t });",
+  "sheet": {
+   "cols": 6,
+   "rows": 5,
+   "width": 320
+  },
+  "stills": [
+   0.3,
+   1.2,
+   2.4
+  ]
+ },
+ {
+  "name": "g-el-mosaic-geode-close",
+  "query": "play&dress=mosaic&world=geode",
+  "fps": 10,
+  "seconds": 3,
+  "warm": 240,
+  "setup": " bend.set('camera', { followDist: 2.3, followFov: 40, followPitch: 0.1, followSwing: 0 }); bend.wake(); bend.place(0, 0, 0, Math.PI/2);",
+  "cues": {
+   "0.6": "bend.move(0,'armada')",
+   "1.9": "bend.move(0,'au')"
+  },
+  "each": "bend.camera({ yaw: 0.25 + 0.06*t });",
+  "sheet": {
+   "cols": 6,
+   "rows": 5,
+   "width": 320
+  },
+  "stills": [
+   0.3,
+   1.2,
+   2.4
+  ]
+ },
+ {
+  "name": "g-el-mosaic-redwoods-wide",
+  "query": "play&dress=mosaic&world=redwoods",
+  "fps": 10,
+  "seconds": 3,
+  "warm": 240,
+  "setup": "bend.set('redwoods', { hour: 19.4, dayGoes: false }); bend.set('camera', { followDist: 6, followFov: 44, followPitch: 0.1, followSwing: 0 }); bend.wake(); bend.place(0, 0, 0, Math.PI/2);",
+  "cues": {
+   "0.6": "bend.move(0,'armada')",
+   "1.9": "bend.move(0,'au')"
+  },
+  "each": "bend.camera({ yaw: 0.25 + 0.06*t });",
+  "sheet": {
+   "cols": 6,
+   "rows": 5,
+   "width": 320
+  },
+  "stills": [
+   0.3,
+   1.2,
+   2.4
+  ]
+ },
+ {
+  "name": "g-el-mosaic-redwoods-close",
+  "query": "play&dress=mosaic&world=redwoods",
+  "fps": 10,
+  "seconds": 3,
+  "warm": 240,
+  "setup": "bend.set('redwoods', { hour: 19.4, dayGoes: false }); bend.set('camera', { followDist: 2.3, followFov: 40, followPitch: 0.1, followSwing: 0 }); bend.wake(); bend.place(0, 0, 0, Math.PI/2);",
+  "cues": {
+   "0.6": "bend.move(0,'armada')",
+   "1.9": "bend.move(0,'au')"
+  },
+  "each": "bend.camera({ yaw: 0.25 + 0.06*t });",
+  "sheet": {
+   "cols": 6,
+   "rows": 5,
+   "width": 320
+  },
+  "stills": [
+   0.3,
+   1.2,
+   2.4
+  ]
+ },
+ {
+  "name": "g-el-single-geode-wide",
+  "query": "play&dress=single&world=geode",
+  "fps": 10,
+  "seconds": 3,
+  "warm": 240,
+  "setup": " bend.set('camera', { followDist: 6, followFov: 44, followPitch: 0.1, followSwing: 0 }); bend.wake(); bend.place(0, 0, 0, Math.PI/2);",
+  "cues": {
+   "0.6": "bend.move(0,'armada')",
+   "1.9": "bend.move(0,'au')"
+  },
+  "each": "bend.camera({ yaw: 0.25 + 0.06*t });",
+  "sheet": {
+   "cols": 6,
+   "rows": 5,
+   "width": 320
+  },
+  "stills": [
+   0.3,
+   1.2,
+   2.4
+  ]
+ },
+ {
+  "name": "g-el-single-geode-close",
+  "query": "play&dress=single&world=geode",
+  "fps": 10,
+  "seconds": 3,
+  "warm": 240,
+  "setup": " bend.set('camera', { followDist: 2.3, followFov: 40, followPitch: 0.1, followSwing: 0 }); bend.wake(); bend.place(0, 0, 0, Math.PI/2);",
+  "cues": {
+   "0.6": "bend.move(0,'armada')",
+   "1.9": "bend.move(0,'au')"
+  },
+  "each": "bend.camera({ yaw: 0.25 + 0.06*t });",
+  "sheet": {
+   "cols": 6,
+   "rows": 5,
+   "width": 320
+  },
+  "stills": [
+   0.3,
+   1.2,
+   2.4
+  ]
+ },
+ {
+  "name": "g-el-single-redwoods-wide",
+  "query": "play&dress=single&world=redwoods",
+  "fps": 10,
+  "seconds": 3,
+  "warm": 240,
+  "setup": "bend.set('redwoods', { hour: 19.4, dayGoes: false }); bend.set('camera', { followDist: 6, followFov: 44, followPitch: 0.1, followSwing: 0 }); bend.wake(); bend.place(0, 0, 0, Math.PI/2);",
+  "cues": {
+   "0.6": "bend.move(0,'armada')",
+   "1.9": "bend.move(0,'au')"
+  },
+  "each": "bend.camera({ yaw: 0.25 + 0.06*t });",
+  "sheet": {
+   "cols": 6,
+   "rows": 5,
+   "width": 320
+  },
+  "stills": [
+   0.3,
+   1.2,
+   2.4
+  ]
+ },
+ {
+  "name": "g-el-single-redwoods-close",
+  "query": "play&dress=single&world=redwoods",
+  "fps": 10,
+  "seconds": 3,
+  "warm": 240,
+  "setup": "bend.set('redwoods', { hour: 19.4, dayGoes: false }); bend.set('camera', { followDist: 2.3, followFov: 40, followPitch: 0.1, followSwing: 0 }); bend.wake(); bend.place(0, 0, 0, Math.PI/2);",
+  "cues": {
+   "0.6": "bend.move(0,'armada')",
+   "1.9": "bend.move(0,'au')"
+  },
+  "each": "bend.camera({ yaw: 0.25 + 0.06*t });",
+  "sheet": {
+   "cols": 6,
+   "rows": 5,
+   "width": 320
+  },
+  "stills": [
+   0.3,
+   1.2,
+   2.4
+  ]
+ }
+]

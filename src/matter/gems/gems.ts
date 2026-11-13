@@ -2,6 +2,8 @@
 // gems' own here (the body's motion is matter/core): the specimens and their levels of detail, the suites a layer
 // wears (its `params.suite`), the per-view LOD cull into indirect draw lists, the stones' shading, streaks and
 // sparkles, the sound events the GPU reports, the heap they rest in and the crystal fixtures a world is built of.
+// And the second scale of gem body, the large crystals (crystals.ts, shapes.ts, crystal.wgsl), how a gem body holds
+// together in the game's fast moves (motion.ts), and the hearts of mixed bodies (hearts.ts: other kinds read them).
 //
 // Buffers, in particle order: the dancers' stones [0, count), spares fading into the floor up to `simCount`, then
 // from LIMITS.stones the fixtures of every world (each world's run is its own; a view's cull takes its world's).
@@ -24,12 +26,20 @@ import { onParams } from '../../engine/params';
 import { layoutHomes } from '../core/layout';
 import { matterParams } from '../core/params';
 import { gemParams } from './params';
-import { STONES, SUITES, kindsOf } from './minerals';
+import { STONES, SUITES, kindsOf, glowOf } from './minerals';
+import { withBorrowed, type SpecimenIndex } from './specimens';
+import { buildShapes, SHAPES } from './shapes';
+import { Crystals } from './crystals';
+import { GemMotion } from './motion';
+import { heartsOf } from './hearts';
+import crystalShader, { type Crystals as CrystalsU } from './crystal.wgsl';
+import haloShader, { type Halo } from './halo.wgsl';
+import type { Motion } from './sim.wgsl';
+import type { Hearts } from './hearts.wgsl';
+import { JOINT, JOINT_FLOATS } from '../../skeleton/rig';
 import { buildDome, heap, shower } from './fixtures';
 import { SoundEvents } from './events';
 import { touchParams } from '../core/touch';
-
-interface SpecimenIndex { lods: number; specimens: { id: string; title: string; lods: { first: number; count: number }[] }[] }
 
 const MAXN = LIMITS.stones;
 const TOTAL = MAXN + LIMITS.fixtures;
@@ -85,8 +95,10 @@ export class GemPasses implements MatterPasses {
   private f: Sim & { body: Sim['body'] };
   private lastLayers: MatterLayer[] = [];
 
-  constructor(private ctx: MatterCtx, index: SpecimenIndex, bin: ArrayBuffer) {
+  constructor(private ctx: MatterCtx, fileIndex: SpecimenIndex, fileBin: ArrayBuffer) {
     const kit = (this.kit = ctx.kit);
+    // the file's specimens, and the minerals that borrow one of their shapes (opal, iron)
+    const { index, bin } = withBorrowed(fileIndex, fileBin);
     this.ids = index.specimens.map((s) => s.id);
     this.K = this.ids.length;
     this.L = index.lods;
@@ -113,6 +125,7 @@ export class GemPasses implements MatterPasses {
     this.events = new SoundEvents(kit);
 
     this.sim = kit.uniforms(simShader.structs.Sim, 'gems.sim');
+    this.motionU = kit.uniforms(simShader.structs.Motion, 'gems.motion');
     this.look = kit.uniforms(drawShader.structs.Look, 'gems.look');
     this.minerals = kit.uniforms(drawShader.structs.Minerals, 'gems.minerals');
     this.minerals.set({ k: kindsOf(this.ids) });
@@ -122,7 +135,7 @@ export class GemPasses implements MatterPasses {
     // ---------------------------------------------------------------- the simulation
     const step = kit.compute(simShader, {
       label: 'gems.sim', threads: () => [this.stoneCount],
-      bind: { sim: this.sim, minerals: this.minerals, homes: this.homes, state: this.state, sparks: this.sparks, counter: this.events.counter, events: this.events.events },
+      bind: { sim: this.sim, minerals: this.minerals, homes: this.homes, state: this.state, sparks: this.sparks, counter: this.events.counter, events: this.events.events, motion: this.motionU },
     });
     const sparkStep = kit.compute(sparkSimShader, { label: 'gems.sparks', threads: [LIMITS.sparks], bind: { sim: this.sim, sparks: this.sparks } });
     // a dancer carried through a gate this frame: its stones first, then the step (src/portals)
@@ -137,6 +150,14 @@ export class GemPasses implements MatterPasses {
     ctx.frame.add('sim', this.events.copy, 'gems');
     ctx.frame.add('sim', sparkStep, 'gems');
     ctx.frame.after((f) => this.events.read(f.now, (when, ev, n) => this.onStones?.(when, ev, n)), 'gems: sound events');
+
+    // ---------------------------------------------------------------- the large crystals, the motion, the hearts
+    const shapes = buildShapes();
+    this.shapeRanges = SHAPES.map((id) => shapes.ranges[id]);
+    this.crystalVerts = kit.storage({ label: 'gems.crystals.verts', data: shapes.verts, usage: ['storage'] });
+    this.crystalU = kit.uniforms(crystalShader.structs.Crystals, 'gems.crystals');
+    this.haloU = kit.uniforms(haloShader.structs.Halo, 'gems.halo');
+    this.hearts = heartsOf(kit);
 
     const z = { body: {} } as Sim;
     this.f = z as GemPasses['f'];
@@ -153,6 +174,18 @@ export class GemPasses implements MatterPasses {
     };
   }
 
+  private shapeRanges: { first: number; count: number }[] = [];
+  private crystalVerts!: StorageBuffer;
+  private crystalU!: UniformBuffer<CrystalsU>;
+  private motionU!: UniformBuffer<Motion>;
+  private haloU!: UniformBuffer<Halo>;
+  private hearts!: UniformBuffer<Hearts>;
+  private crystals = new Crystals();
+  private motion = new GemMotion();
+  private caps = new Float32Array(LIMITS.dancers * LIMITS.capsules * 4);
+  /** per dancer: its heart (strength 0: none) and colour */
+  private heartDefs = Array.from({ length: LIMITS.dancers }, () => ({ strength: 0, radius: 0.17, glow: [1, 1, 1] as number[] }));
+  private heartRows = Array.from({ length: LIMITS.dancers }, () => ({ at: [0, 0, 0, 0], glow: [0, 0, 0, 0] }));
   private carryU: UniformBuffer<CarryU>;
   private carrying = false;
   private carryData = { m: Array.from({ length: LIMITS.dancers }, () => new Float32Array(16)), q: Array.from({ length: LIMITS.dancers }, () => [0, 0, 0, 1]), mask: 0, count: 0 };
@@ -205,7 +238,7 @@ export class GemPasses implements MatterPasses {
   declareView(s: ScenePass) {
     const v = this.listsFor(s.view);
     const { pass, world, on } = s, { K, L } = this;
-    const bind = { sim: this.sim, look: this.look, minerals: this.minerals, state: this.state, verts: this.verts, homes: this.homes, homes2Prev: this.homes2Prev, seen: s.view.seen };
+    const bind = { sim: this.sim, look: this.look, minerals: this.minerals, state: this.state, verts: this.verts, homes: this.homes, homes2Prev: this.homes2Prev, seen: s.view.seen, hearts: this.hearts };
     if (s.phase === 'opaque') {
       if (world.mirrorFloor) {
         pass.draw(drawShader, {
@@ -219,7 +252,26 @@ export class GemPasses implements MatterPasses {
         cull: 'back', enabled: on,
         encode: (pe) => { for (let d = 0; d < K * L; d++) if (this.typeCount[Math.floor(d / L)] > 0) pe.drawIndirect(v.args.gpu, d * 16); },
       });
+      // the large crystals: one instanced draw per shape (crystals.ts keeps them sorted by shape)
+      const cbind = { crystals: this.crystalU, look: this.look, minerals: this.minerals, verts: this.crystalVerts, seen: s.view.seen, hearts: this.hearts };
+      const crystalDraw = (pe: GPURenderPassEncoder) => {
+        this.crystals.runs.forEach((r, k) => { if (r.count) pe.draw(this.shapeRanges[k].count, r.count, this.shapeRanges[k].first, r.first); });
+      };
+      if (world.mirrorFloor) {
+        pass.draw(crystalShader, {
+          label: `gems.crystals.reflection.${world.id}`, bind: cbind, constants: { MIRROR: 1, WORLD: world.light },
+          cull: 'front', blend: 'add', enabled: () => on() && gemParams.reflection && this.crystals.count > 0, encode: crystalDraw,
+        });
+      }
+      pass.draw(crystalShader, {
+        label: `gems.crystals.${world.id}`, bind: cbind, constants: { MIRROR: 0, WORLD: world.light },
+        cull: 'back', enabled: () => on() && this.crystals.count > 0, encode: crystalDraw,
+      });
     } else if (s.phase === 'glow') {
+      pass.draw(haloShader, {
+        label: `gems.hearts.${world.id}`, bind: { hearts: this.hearts, seen: s.view.seen, halo: this.haloU },
+        count: 6, instances: LIMITS.dancers, blend: 'add', depthWrite: false, cull: 'none', enabled: () => on() && this.hasHearts && gemParams.heartHalo > 0,
+      });
       pass.draw(streakShader, {
         label: `gems.streaks.${world.id}`, bind: { sim: this.sim, look: this.look, minerals: this.minerals, state: this.state, homes: this.homes, homes2Prev: this.homes2Prev, seen: s.view.seen },
         count: 6, instances: () => this.stoneCount, blend: 'add', depthWrite: false, cull: 'none', enabled: () => on() && gemParams.streakGlow > 0,
@@ -303,20 +355,51 @@ export class GemPasses implements MatterPasses {
       const ranges = layoutHomes(count, layers, this.homeData, { extremities: 1 + 3 * matterParams.trail });
       const h = this.homeData;
       layers.forEach((layer, k) => {
-        const suite = (SUITES[String(layer.layer.params?.suite ?? 'Violet')] ?? SUITES.Violet).map((id) => Math.max(0, this.ids.indexOf(id)));
+        const suite = this.suiteOf(layer);
         // a layer may grow its stones (params.size, ×; presets.ts's geode heart): the home's size is look.y
         const grow = Math.max(0.2, Number(layer.layer.params?.size ?? 1)) || 1;
-        for (let i = ranges[k].from; i < ranges[k].to; i++) { h[i * 8 + 4] = suite[h[i * 8 + 6]]; h[i * 8 + 5] *= grow; }
+        for (let i = ranges[k].from; i < ranges[k].to; i++) {
+          // a mosaic (a suite of more than three) mixes all its minerals in, the first three still leading their roles
+          const role = h[i * 8 + 6], r = h[i * 8 + 7];
+          h[i * 8 + 4] = suite.length > 3 && r < 0.55 ? suite[Math.floor((r / 0.55) * suite.length) % suite.length] : suite[role];
+          h[i * 8 + 5] *= grow;
+        }
       });
       this.homes.write(h.subarray(0, count * 8));
       for (let i = 0; i < count; i++) for (let a = 0; a < 4; a++) this.looks[i * 4 + a] = h[i * 8 + 4 + a];
     }
     this.homes.write(this.fixtureHomes, MAXN * 32);
+    this.layoutHearts(layers);
+    this.crystals.layout(layers, (l) => this.suiteOf(l), (l) => this.heartDefs[l.dancer]?.strength ?? 0);
     // stones raining in had no last look: they wear the new one from the start
     if (this.settling && this.rainTo > this.rainFrom) this.keepLooks(this.rainFrom, this.rainTo);
     this.rainFrom = this.rainTo = 0;
     this.recount();
   }
+
+  /** a layer's suite as specimen indices (a suite names minerals; an unknown name is Violet) */
+  private suiteOf(layer: MatterLayer): number[] {
+    const suite = (SUITES[String(layer.layer.params?.suite ?? 'Violet')] ?? SUITES.Violet).map((id) => Math.max(0, this.ids.indexOf(id)));
+    // params.one: every stone (and crystal) the suite's first mineral
+    return layer.layer.params?.one ? [suite[0], suite[0], suite[0]] : suite;
+  }
+
+  /** each dancer whose torso is gems has a heart: strong inside other matter (ember, gemwater, geodeheart), a quiet
+   *  inner glow in an all-gem body; a layer's params.heart sets it */
+  private layoutHearts(layers: MatterLayer[]) {
+    for (const h of this.heartDefs) h.strength = 0;
+    for (const l of layers) {
+      if (l.parts && !l.parts.includes('torso')) continue;
+      const def = this.heartDefs[l.dancer];
+      if (!def) continue;
+      const whole = !l.parts || (l.parts.includes('arms') && l.parts.includes('legs'));
+      def.strength = Number(l.layer.params?.heart ?? (whole ? 0.3 : 1));
+      def.radius = l.layer.params?.crystals ? 0.2 : 0.16;
+      def.glow = glowOf(this.ids[this.suiteOf(l)[0]] ?? 'amethyst');
+    }
+    this.hasHearts = this.heartDefs.some((h) => h.strength > 0);
+  }
+  private hasHearts = false;
 
   /** the panel changed the count: take it, then lay out again */
   remix() { this.resize({ count: matterParams.count }); this.layout(this.lastLayers); }
@@ -346,7 +429,7 @@ export class GemPasses implements MatterPasses {
     const P = gemParams;
     this.look.set({
       envIntensity: P.envIntensity, glint: P.glint, dispersion: P.dispersion, ior: 1.5, emissive: P.emissive, speedGlow: P.speedGlow,
-      reflect: P.reflect, sparkle: P.sparkle, sparkSize: P.sparkSize, streak: [P.streak, P.streakGlow, 0, 0],
+      reflect: P.reflect, sparkle: P.sparkle, sparkSize: P.sparkSize, crystal: P.crystal, heart: P.heart, pad0: 0, streak: [P.streak, P.streakGlow, 0, 0],
     });
   }
 
@@ -355,7 +438,9 @@ export class GemPasses implements MatterPasses {
     const dt = Math.min(f.dt, 1 / 30) * (f.danceDt / Math.max(f.dt, 1e-6));
     this.transition *= Math.exp(-f.dt * 1.1);
     for (let k = 0; k < K; k++) { this.types[k * 4 + 1] = this.typeCount[k]; this.types[k * 4 + 2] = STONES[this.ids[k]]?.size ?? 1; }
-    this.spareFade = Math.min(1, this.spareFade + f.dt / 2.5);
+    this.spareFade = Math.min(1, this.spareFade + f.dt / Math.max(0.1, P.spareFade));
+    // the spares have faded: park them (no longer simulated, culled or drawn; a later dance takes them back)
+    if (this.spareFade >= 1 && this.simCount > this.active) this.simCount = this.active;
     // once they're all up and dancing nobody wears the last dance's stones: the lists shrink back
     if (this.prevLook && this.wake > 0 && f.t > this.wake + Math.max(8, this.wakeSpread + 4)) { this.prevLook = 0; this.recount(); }
     s.count = this.stoneCount; s.inUse = this.activeCount; s.frameNo = f.frame; s.kinds = K;
@@ -370,6 +455,10 @@ export class GemPasses implements MatterPasses {
     b.returnMode = P.regrow ? 1 : 0; b.settle = this.settling ? 1 : 0; b.trail = this.dancing ? M.trail : 0; b.trailHold = M.trailHold;
     b.wake = this.wake; b.wakeSpread = this.wakeSpread; b.shatter = P.shatter; b.scatter = P.scatter;
     b.noiseAmp = P.noiseAmp + this.transition * 0.12; b.noiseFreq = P.noiseFreq; b.noiseSpeed = P.noiseSpeed; b.spin = P.spin; b.order = P.order;
+    // fast motion: the hold, and most of the steady leak at speed traded for bursts at the peaks
+    b.hold = P.hold; b.trailCap = P.trailCap; b.speedShed = P.speedShed * (1 - P.hold * (1 - P.leak));
+    this.moveBodies(f, shatter);
+    s.caps = this.caps;
     this.sim.set(s);
     this.shatterNow = false;
     for (const v of this.views.values()) {
@@ -380,11 +469,51 @@ export class GemPasses implements MatterPasses {
     this.events.begin();
   }
 
+  /** the fast motion (motion.ts), the crystals (crystals.ts), the bursts and the hearts, for this frame */
+  private moveBodies(f: FrameCtx, shatter: boolean) {
+    const P = gemParams, dt = Math.min(f.danceDt, 1 / 20);
+    this.motion.update(f.dancers, dt, P);
+    const standing = !this.settling && this.awake && f.t > this.wake + this.wakeSpread * 0.6;
+    this.crystals.update(f.dancers, dt, this.motion.peaks, this.motion.squash, standing, shatter, P);
+    const c = this.caps;
+    c.fill(0);
+    for (let k = 0; k < this.crystals.hide.length; k++) {
+      c[k * 4] = this.crystals.hide[k];
+      if (this.crystals.crack[k] > 0) { c[k * 4 + 1] = this.crystals.crack[k]; c[k * 4 + 2] = 1; }
+    }
+    // the peaks on limbs not under a standing crystal: a burst of their stones, onward with the limb
+    if (this.dancing && !this.settling) {
+      for (const pk of this.motion.peaks) {
+        if (c[pk.slot * 4] > 0.5) continue;
+        c[pk.slot * 4 + 1] = Math.max(c[pk.slot * 4 + 1], P.burst * pk.strength);
+        c[pk.slot * 4 + 2] = Math.max(c[pk.slot * 4 + 2], pk.strength);
+      }
+    }
+    this.crystalU.set({ c: this.crystals.rows } as unknown as CrystalsU);
+    this.motionU.set({ spin: this.motion.spin, accel: this.motion.accel, squash: this.motion.squash } as unknown as Motion);
+    this.haloU.set({ bright: P.heartHalo, size: P.haloSize, pad0: 0, pad1: 0 });
+    // the hearts: at the chest, beating with the music (a soft swell on each beat)
+    const beat = f.beat.beats % 1, pulse = 0.85 + 0.3 * Math.exp(-beat * 7);
+    const lit = this.awake && !this.settling && f.t > this.wake + this.wakeSpread * 0.5;
+    this.heartDefs.forEach((h, d) => {
+      const row = this.heartRows[d], w = f.dancers[d]?.skeleton.world;
+      if (!w || h.strength <= 0 || !lit) { row.at[3] = 0; row.glow[3] = 0; return; }
+      const a = JOINT.Spine1 * JOINT_FLOATS, b2 = JOINT.Spine * JOINT_FLOATS;
+      row.at = [w[a] * 0.7 + w[b2] * 0.3, w[a + 1] * 0.7 + w[b2 + 1] * 0.3, w[a + 2] * 0.7 + w[b2 + 2] * 0.3, h.radius];
+      row.glow = [h.glow[0], h.glow[1], h.glow[2], h.strength * pulse];
+    });
+    this.hearts.set({ h: this.heartRows } as unknown as Hearts);
+  }
+
   /** the stones drift to new homes (a jump between dances from the panel): loosen them for a moment */
   loosen() { this.transition = 1; }
 
   stats() {
-    return { stones: this.activeCount, simulated: this.stoneCount, fixtures: this.fixtures.reduce((a, x) => a + x.count, 0), specimens: this.K };
+    return {
+      stones: this.activeCount, simulated: this.stoneCount, fixtures: this.fixtures.reduce((a, x) => a + x.count, 0), specimens: this.K,
+      crystals: this.crystals.count, cracks: this.crystals.cracks, bursts: this.motion.bursts, landings: this.motion.landings,
+      hearts: this.heartDefs.filter((h) => h.strength > 0).length,
+    };
   }
 
   /** the main view's draw arguments (for a probe: how many of each specimen at each detail were drawn) */

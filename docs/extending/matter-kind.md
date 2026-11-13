@@ -55,6 +55,11 @@ struct FireSim { body: BodyStep, count: u32, /* … your own fields … */ }
 }
 ```
 
+`BodyStep` (your uniform's `body`) has two fields a kind may leave at 0: `hold` and `trailCap`. With `hold` above
+0, `bodyStep`'s on-the-body spring holds fast limbs harder (stiffer along the travel, fed `Goal.acc`, never more than
+`trailCap` behind its home); `homeOf` leaves `Goal.acc` zero, so a kind that opts in fills it (and usually a truer
+`Goal.vel`) itself. The gems do (gems/sim.wgsl, from gems/motion.ts); at 0 the spring is exactly the plain one.
+
 Count your storage buffers per stage: the shared group adds two (joints, segs) to every stage of a shader that
 includes body.wgsl. The baseline is eight. A draw that only needs particle data includes `../core/particle` instead
 (no bindings).
@@ -112,6 +117,11 @@ between dances. A kind with no such moments leaves `acts` out.
 - **`hear(ears)`**: the music hands your kind its ears once; tell them what happens each frame (holds and events:
   docs/extending/sound.md). `matter/core/sounding.ts` has the helpers (a body's middle, its fastest limb, a seeded
   number per frame, a trigger). Scale by `Dancer.presence`.
+- **hearts** (matter/gems/hearts.wgsl, hearts.ts): a mixed body's gem heart (ember, gemwater, gemice, geodeheart,
+  all) is one glowing sphere per dancer in a uniform the gems fill each frame. Matter drawn round a heart should let
+  it show: bind `hearts: heartsOf(kit)`, include `../gems/hearts`, and multiply your brightness and alpha by
+  `heartVeil(hearts, wp, frame.camPos)` (below 1 only between the camera and a heart), and add
+  `heartLight(hearts, wp)` for its glow. It is zero when nobody wears a heart. It costs one uniform buffer.
 - **`declarePost(post)`**: translucent matter with no one distance (steam) draws over the focused image, in the post
   chain's lens pass after the depth of field, testing the scene's distance by hand (`post.sceneTex`'s alpha). Matter
   that has a distance stays in the scene and min-blends it into the scene's alpha (fire does).
@@ -124,6 +134,7 @@ bend.loadout(0, { layers: [{ kind: 'gems', share: 0.4, parts: ['torso'], params:
 ```
 
 or by preset name: `?dress=fire,water` or `bend.dress(0, 'ember')` (matter/core/presets.ts: gems, fire, water, ice,
-plasma, ember, tide, gemwater, geodeheart, geodeheart-water; add yours there). The show keeps a dress on through
+plasma; the gem bodies gems, mosaic, single, monolith and single-<mineral> / monolith-<mineral>; the mixed ember,
+gemwater, gemice, tide, geodeheart, geodeheart-water and all; add yours there). The show keeps a dress on through
 restaging. Then check it: `node scripts/shot.mjs shots/fire` with a steps file that sets the loadout (a step's `eval`
 runs in the page with `bend`), and `bend.stats().passes` for its cost.

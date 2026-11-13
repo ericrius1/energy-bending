@@ -53,9 +53,9 @@ export interface BodyStep {
   noiseSpeed: number;
   spin: number;
   order: number;
+  hold: number;
+  trailCap: number;
   pad0: number;
-  pad1: number;
-  pad2: number;
 }
 export interface Sim {
   body: BodyStep;
@@ -76,6 +76,7 @@ export interface Sim {
   cullPx: number;
   envBase: number;
   types: ArrayLike<number> | Vec4[];
+  caps: ArrayLike<number> | Vec4[];
 }
 export interface CullView {
   fixBase: number;
@@ -90,6 +91,7 @@ export interface Kind {
   band2: Vec4;
   crystal: Vec4;
   extra: Vec4;
+  fx: Vec4;
 }
 export interface Minerals {
   k: Partial<Kind>[];
@@ -104,9 +106,9 @@ export interface Look {
   reflect: number;
   sparkle: number;
   sparkSize: number;
+  crystal: number;
+  heart: number;
   pad0: number;
-  pad1: number;
-  pad2: number;
   streak: Vec4;
 }
 export interface Spark {
@@ -142,6 +144,7 @@ export interface Goal {
   vel: Vec3;
   rot: Vec4;
   out: Vec3;
+  acc: Vec3;
 }
 export interface Touched {
   force: Vec3;
@@ -156,6 +159,11 @@ export interface Stepped {
   knock: number;
   slide: number;
 }
+export interface Motion {
+  spin: ArrayLike<number> | Vec4[];
+  accel: ArrayLike<number> | Vec4[];
+  squash: ArrayLike<number> | Vec4[];
+}
 
-declare const shader: Shader<{ Joint: Joint; Seg: Seg; Particle: Particle; Home: Home; BodyStep: BodyStep; Sim: Sim; CullView: CullView; Kind: Kind; Minerals: Minerals; Look: Look; Spark: Spark; Bodies: Bodies; Touch: Touch; Goal: Goal; Touched: Touched; Stepped: Stepped }, 'bodies' | 'touch' | 'sim' | 'minerals' | 'joints' | 'segs' | 'homes' | 'state' | 'sparks' | 'counter' | 'events'>;
+declare const shader: Shader<{ Joint: Joint; Seg: Seg; Particle: Particle; Home: Home; BodyStep: BodyStep; Sim: Sim; CullView: CullView; Kind: Kind; Minerals: Minerals; Look: Look; Spark: Spark; Bodies: Bodies; Touch: Touch; Goal: Goal; Touched: Touched; Stepped: Stepped; Motion: Motion }, 'bodies' | 'touch' | 'sim' | 'minerals' | 'motion' | 'joints' | 'segs' | 'homes' | 'state' | 'sparks' | 'counter' | 'events'>;
 export default shader;

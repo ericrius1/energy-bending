@@ -22,6 +22,9 @@ struct Sim {
   lod0: f32, lod1: f32, cullPx: f32,   // level-of-detail thresholds, in pixels of radius
   envBase: u32,      // where the fixtures start in the buffers
   types: array<vec4f, MAX_SPECIMENS>,   // per specimen: where its draw lists start, how many stones, size, -
+  /** per capsule slot (dancer × SEGS + capsule): x 1 while a large crystal stands over it (its stones on the body hide),
+   *  y this frame's burst (the share of its stones that break off: a peak, an impact, a crystal cracking), z how hard */
+  caps: array<vec4f, MAX_DANCERS * SEGS>,
 }
 
 /** a view's cull (one per view): which fixtures it sees (its world's), whether its floor mirrors */
@@ -35,6 +38,7 @@ struct Kind {
   band2: vec4f,    // rgb, band sharpness
   crystal: vec4f,  // rgb, glow
   extra: vec4f,    // clarity, crust sparkle, refraction index, iridescence
+  fx: vec4f,       // traits: fire-coloured fractures, play of colour, rust; dispersion (× the look's)
 }
 struct Minerals { k: array<Kind, MAX_SPECIMENS> }
 
@@ -42,7 +46,10 @@ struct Minerals { k: array<Kind, MAX_SPECIMENS> }
 struct Look {
   envIntensity: f32, glint: f32, dispersion: f32, ior: f32,
   emissive: f32, speedGlow: f32, reflect: f32, sparkle: f32,
-  sparkSize: f32, pad0: f32, pad1: f32, pad2: f32,
+  sparkSize: f32,
+  crystal: f32,    // the large crystals' extra refraction and fire (× the stones')
+  heart: f32,      // how much a heart (hearts.wgsl) lights the stones round it
+  pad0: f32,
   streak: vec4f,   // streaks behind flying stones: seconds of travel drawn, brightness
 }
 
@@ -52,3 +59,5 @@ struct Spark { pos: vec3f, life: f32, vel: vec3f, size: f32, col: vec4f }
 fn stoneSize(i: u32, radius: f32, s: f32, v: f32) -> f32 { return radius * s * (1.0 + (rnd(i * 7919u + 3u) - 0.5) * v); }
 /** a spare shrinks away into the floor */
 fn spareScale(i: u32, inUse: u32, fade: f32) -> f32 { return select(1.0, 1.0 - fade, i >= inUse); }
+/** a stone on the body under a standing crystal: not drawn (the crystal is) */
+fn underCrystal(p: Particle, caps: vec4f) -> bool { return caps.x > 0.5 && modeIs(p.mode, ON_BODY); }

@@ -53,9 +53,9 @@ export interface BodyStep {
   noiseSpeed: number;
   spin: number;
   order: number;
+  hold: number;
+  trailCap: number;
   pad0: number;
-  pad1: number;
-  pad2: number;
 }
 export interface Sim {
   body: BodyStep;
@@ -76,6 +76,7 @@ export interface Sim {
   cullPx: number;
   envBase: number;
   types: ArrayLike<number> | Vec4[];
+  caps: ArrayLike<number> | Vec4[];
 }
 export interface CullView {
   fixBase: number;
@@ -90,6 +91,7 @@ export interface Kind {
   band2: Vec4;
   crystal: Vec4;
   extra: Vec4;
+  fx: Vec4;
 }
 export interface Minerals {
   k: Partial<Kind>[];
@@ -104,9 +106,9 @@ export interface Look {
   reflect: number;
   sparkle: number;
   sparkSize: number;
+  crystal: number;
+  heart: number;
   pad0: number;
-  pad1: number;
-  pad2: number;
   streak: Vec4;
 }
 export interface Spark {

@@ -12,6 +12,10 @@
 //              its own sparks and sounds;
 //   bodyOrient a particle's rotation for its mode.
 // A kind fills a BodyStep inside its own uniform (gems: Sim.body) and calls these from its compute shader.
+// Fast motion (opt in with BodyStep.hold > 0; the gems do, every other kind leaves it 0 and moves exactly as before):
+// on the body the spring is stiffer along the limb's travel than across it, fed the home's acceleration (Goal.acc,
+// which the kind fills: homeOf leaves it zero) as the limb goes fast, and a particle never trails its home by more
+// than trailCap, less the faster the limb. So a kick, a roll or a fall holds together and the slow dance keeps its lag.
 #include "./particle"
 
 /** how many dancers there are this frame (and the floor's height) */
@@ -33,8 +37,8 @@ struct Touch {
 @group(3) @binding(2) var<uniform> bodies: Bodies;
 @group(3) @binding(3) var<uniform> touch: Touch;
 
-/** where a home is this frame */
-struct Goal { pos: vec3f, vel: vec3f, rot: vec4f, out: vec3f }
+/** where a home is this frame (acc: its acceleration, zero unless the kind fills it; read only with BodyStep.hold) */
+struct Goal { pos: vec3f, vel: vec3f, rot: vec4f, out: vec3f, acc: vec3f }
 
 fn homeOf(h: Home, i: u32, b: BodyStep) -> Goal {
   let hp = h.place;
@@ -98,6 +102,37 @@ fn spring(p: ptr<function, Particle>, goal: vec3f, tv: vec3f, k: f32, c: f32, f:
   (*p).pos += v * dt;
 }
 
+/** the same step with one stiffness and damping along `d` (a unit vector) and another across it */
+fn spring2(p: ptr<function, Particle>, goal: vec3f, tv: vec3f, d: vec3f, kA: f32, cA: f32, kB: f32, cB: f32, f: vec3f, dt: f32) {
+  let v = (*p).vel;
+  let e = goal - (*p).pos;
+  let va = dot(v, d); let ea = dot(e, d); let ta = dot(tv, d); let fa = dot(f, d);
+  let na = (va + dt * (kA * ea + cA * ta + fa)) / (1.0 + dt * cA + dt * dt * kA);
+  let nb = (v - d * va + dt * (kB * (e - d * ea) + cB * (tv - d * ta) + (f - d * fa))) / (1.0 + dt * cB + dt * dt * kB);
+  (*p).vel = d * na + nb;
+  (*p).pos += (*p).vel * dt;
+}
+
+/** on the body with BodyStep.hold > 0: held harder the faster its limb goes (see the file's opening note) */
+fn holdStep(p: ptr<function, Particle>, H: Goal, goal: vec3f, k: f32, c: f32, f: vec3f, b: BodyStep) {
+  let speed = length(H.vel);
+  let fast = smoothstep(1.2, 6.0, speed) * b.hold;
+  let d = select(vec3f(0.0, 1.0, 0.0), H.vel / max(speed, 1e-4), speed > 1e-3);
+  let kA = k * (1.0 + 7.0 * fast);
+  let kB = k * (1.0 + 1.5 * fast);
+  spring2(p, goal, H.vel, d, kA, c * sqrt(kA / k), kB, c * sqrt(kB / k), f + H.acc * fast, b.dt);
+  // never further behind than the cap (and the velocity that would carry it further goes)
+  let cap = b.trailCap * mix(1.0, 0.3, fast);
+  let off = (*p).pos - goal;
+  let dist = length(off);
+  if (dist > cap) {
+    let n = off / dist;
+    (*p).pos = goal + n * cap;
+    let away = dot((*p).vel - H.vel, n);
+    if (away > 0.0) { (*p).vel -= n * away; }
+  }
+}
+
 /** before the step: a spare (a particle no dancer needs now) comes off any body; between dances nothing flies home */
 fn bodyBegin(p: ptr<function, Particle>, i: u32, spare: bool, b: BodyStep) {
   if (spare && (modeIs((*p).mode, ON_BODY) || modeIs((*p).mode, RETURNING))) { (*p).mode = FLYING; (*p).life = 1.0; (*p).vel += sphereDir(pcg(i ^ 0x5eedu)) * 0.4; }
@@ -126,7 +161,8 @@ fn bodyStep(p: ptr<function, Particle>, H: Goal, goal: vec3f, T: Touched, rest: 
   if (modeIs((*p).mode, ON_BODY)) {
     let k = b.stiffness * mix(1.0, 0.04, b.transition);
     let c = b.damping * mix(1.0, 0.3, b.transition);
-    spring(p, goal, H.vel, k, c, force * 60.0, dt);
+    if (b.hold > 0.0) { holdStep(p, H, goal, k, c, force * 60.0, b); }
+    else { spring(p, goal, H.vel, k, c, force * 60.0, dt); }
     (*p).life += dt;
     let knock = b.shatter * smoothstep(0.5, 2.5, T.swipe) * 0.35 + T.bw * 0.8;
     let chance = (b.shedRate + b.speedShed * max(0.0, limbSpeed - 1.6) * 0.4) * dt + knock;
@@ -176,8 +212,20 @@ fn bodyStep(p: ptr<function, Particle>, H: Goal, goal: vec3f, T: Touched, rest: 
     let rxz = (*p).pos.xz - hips.xz;
     let far = clamp(length(goal - (*p).pos), 0.0, 1.5);
     let turn = vec3f(-rxz.y, 0.0, rxz.x) / max(length(rxz), 0.2) * far * 3.5 * calm * exp(-(*p).life * 0.8);
-    spring(p, goal, H.vel, k, sqrt(k) * 1.4, force * 60.0 + T.bdir * (T.bw * 300.0) + turn * k * 0.05, dt);
-    if (length(goal - (*p).pos) < 0.02 || (*p).life > 3.5) {
+    if (b.hold > 0.0) {
+      // (hold) flying home in the body's moving frame: matched to its velocity and acceleration quickly, so a jump or
+      // a roll doesn't leave a comet of returning matter behind, and never further than a body's length from home
+      let fast = smoothstep(1.2, 6.0, length(H.vel)) * b.hold;
+      spring(p, goal, H.vel, k, max(sqrt(k) * 1.4, 9.0 * fast), force * 60.0 + T.bdir * (T.bw * 300.0) + turn * k * 0.05 + H.acc * fast, dt);
+      let off = (*p).pos - goal;
+      let reach = mix(3.0, 0.3, fast);
+      if (length(off) > reach) { (*p).pos = goal + normalize(off) * reach; }
+    } else {
+      spring(p, goal, H.vel, k, sqrt(k) * 1.4, force * 60.0 + T.bdir * (T.bw * 300.0) + turn * k * 0.05, dt);
+    }
+    // (with hold, close is home enough: the body's spring takes it from there, so none hang about just short of it)
+    let arrive = select(0.02, 0.1, b.hold > 0.0);
+    if (length(goal - (*p).pos) < arrive || (*p).life > 3.5) {
       (*p).mode = ON_BODY;
       (*p).life = 10.0;
       s.ev |= EV_HOME;

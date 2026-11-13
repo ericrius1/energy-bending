@@ -1,0 +1,89 @@
+[
+ {
+  "name": "g-mo-role-classic",
+  "query": "play&dress=gems&world=geode",
+  "fps": 30,
+  "seconds": 1,
+  "warm": 240,
+  "setup": "bend.set('camera', { followDist: 3, followFov: 44, followPitch: 0.06, followSwing: 0 }); bend.wake(); bend.place(0,0,0,Math.PI/2); bend.camera({yaw:0}); ",
+  "cues": {
+   "0": "bend.move(0,'role')"
+  },
+  "each": "bend.camera({ yaw: 0 });",
+  "sheet": {
+   "cols": 6,
+   "rows": 5,
+   "width": 320
+  }
+ },
+ {
+  "name": "g-mo-macaco-classic",
+  "query": "play&dress=gems&world=geode",
+  "fps": 30,
+  "seconds": 1.2,
+  "warm": 240,
+  "setup": "bend.set('camera', { followDist: 3, followFov: 44, followPitch: 0.06, followSwing: 0 }); bend.wake(); bend.place(0,0,0,Math.PI/2); bend.camera({yaw:0}); ",
+  "cues": {
+   "0": "bend.move(0,'macaco')"
+  },
+  "each": "bend.camera({ yaw: 0 });",
+  "sheet": {
+   "cols": 6,
+   "rows": 5,
+   "width": 320
+  }
+ },
+ {
+  "name": "g-mo-jump-classic",
+  "query": "play&dress=gems&world=geode",
+  "fps": 30,
+  "seconds": 1.6,
+  "warm": 240,
+  "setup": "bend.set('camera', { followDist: 3, followFov: 44, followPitch: 0.06, followSwing: 0 }); bend.wake(); bend.place(0,0,0,Math.PI/2); bend.camera({yaw:0}); ",
+  "cues": {
+   "0": "bend.intent(0,{ jump: true, jumpHeld: true })",
+   "0.35": "bend.intent(0,{ jumpHeld: false, jump: false })"
+  },
+  "each": "bend.camera({ yaw: 0 });",
+  "sheet": {
+   "cols": 6,
+   "rows": 5,
+   "width": 320
+  }
+ },
+ {
+  "name": "g-mo-monolith-kick",
+  "query": "play&dress=monolith&world=geode",
+  "fps": 30,
+  "seconds": 3,
+  "warm": 240,
+  "setup": "bend.set('camera', { followDist: 3, followFov: 44, followPitch: 0.06, followSwing: 0 }); bend.wake(); bend.place(0,0,0,Math.PI/2); bend.camera({yaw:0}); ",
+  "cues": {
+   "0.1": "bend.move(0,'armada')",
+   "1.4": "bend.move(0,'martelo')"
+  },
+  "each": "bend.camera({ yaw: 0 });",
+  "sheet": {
+   "cols": 6,
+   "rows": 5,
+   "width": 320
+  }
+ },
+ {
+  "name": "g-mo-armada-classic",
+  "query": "play&dress=gems&world=geode",
+  "fps": 30,
+  "seconds": 1,
+  "warm": 240,
+  "setup": "bend.set('camera', { followDist: 3, followFov: 44, followPitch: 0.06, followSwing: 0 }); bend.wake(); bend.place(0,0,0,Math.PI/2); bend.camera({yaw:0}); ",
+  "cues": {
+   "0": "bend.move(0,'armada')"
+  },
+  "each": "bend.camera({ yaw: 0 });",
+  "sheet": {
+   "cols": 6,
+   "rows": 5,
+   "width": 320
+  }
+ }
+]

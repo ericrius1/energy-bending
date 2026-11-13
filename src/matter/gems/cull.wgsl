@@ -6,7 +6,7 @@
 // It runs once per view (weft's `view` option gives it that view's camera in `frame`), into that view's lists.
 // A dancer's stones are where the view sees them (engine/seen.wgsl): not at all in a world the dancer isn't in,
 // carried through a gate while it is part way through one, and not past the door's plane; a gate's view draws a
-// share of them (seen.keep), a little bigger.
+// share of them (seen.keep), a little bigger. Stones on the body under a standing large crystal are left out.
 #include "weft/frame"
 #include "./gem"
 #include "../../engine/seen"
@@ -49,6 +49,8 @@ fn main(@builtin(global_invocation_id) gid: vec3u) {
   var r = h2.y * 1.2;
   var pos = p.pos;
   if (i < sim.envBase) {
+    // under a standing crystal (crystals.ts): the crystal is drawn instead
+    if (i < sim.inUse && underCrystal(p, sim.caps[min(u32(homes[i].place.x), MAX_DANCERS * SEGS - 1u)])) { return; }
     r = stoneSize(i, h2.y, sim.gemScale * sim.types[t].z, sim.sizeVar) * 1.2 * spareScale(i, sim.inUse, sim.spareFade);
     let sd = seen.d[min(dancerOf(homes[i]), MAX_DANCERS - 1u)];
     pos = seenPos(sd, p.pos);

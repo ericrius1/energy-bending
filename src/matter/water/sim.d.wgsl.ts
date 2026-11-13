@@ -53,9 +53,9 @@ export interface BodyStep {
   noiseSpeed: number;
   spin: number;
   order: number;
+  hold: number;
+  trailCap: number;
   pad0: number;
-  pad1: number;
-  pad2: number;
 }
 export interface WaterSim {
   body: BodyStep;
@@ -110,6 +110,7 @@ export interface Goal {
   vel: Vec3;
   rot: Vec4;
   out: Vec3;
+  acc: Vec3;
 }
 export interface Touched {
   force: Vec3;
