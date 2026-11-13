@@ -11,7 +11,13 @@
 //   bend.wake/goto/next/shoot the programme: wake the dancers, jump to programme i, move on, frame a shot
 //   bend.point/press/touch    the hand (client pixels)
 //   bend.kit                  weft's kit (profiler, camera, frame index)
+//   bend.players()            the dancers driven by Intents (?play): index, source, mode, where, the move
+//   bend.intent(p, patch)     script player p's Intent: held fields stay until changed (null clears); edges fire once
+//   bend.move(p, name)        player p starts a move by name now (the library's, or a registered clip)
+//   bend.place(p, x, z, yaw?) stand player p somewhere (free) or at s = x on the locked plane
 import { Capture, type Kit } from '@ericrius1/weft';
+import type { IntentController } from '../dancer/intent-controller';
+import type { Intent } from '../input/intent';
 import { allParams, setParams } from './params';
 import type { FrameBuilder } from './frame';
 import type { CameraRig } from './camera';
@@ -46,6 +52,9 @@ export interface HookApp {
 export function installHooks(app: HookApp) {
   const { kit, rig, show, hand } = app;
   let capture: Capture | null = null;
+  /** the dancers driven by Intents, in seat order */
+  const players = () => show.dancers.map((d) => d.controller).filter((c): c is IntentController => c.kind === 'intent');
+  const player = (p: number) => { const c = players()[p]; if (!c) throw new Error(`no player ${p} (there are ${players().length}: open with ?play)`); return c; };
   const bend = {
     kit,
     get failed() { return app.failed; },
@@ -112,6 +121,17 @@ export function installHooks(app: HookApp) {
     point: (x: number, y: number, inside = true) => hand.point(x, y, inside),
     press: (down: boolean) => hand.press(down, kit.camera, (bend.params.touch as { burst: number }).burst),
     touch: (on: boolean) => hand.touch(on),
+    players: () => players().map((c, i) => {
+      const ch = c.character;
+      return { index: i, source: c.source?.name ?? null, locked: !!ch.plane, x: ch.x, y: ch.y, z: ch.z, yaw: ch.yaw, grounded: ch.grounded, move: ch.move?.name ?? null, mocap: +c.mocapW.toFixed(2) };
+    }),
+    intent: (p: number, patch: Partial<Intent> | null) => { player(p).script.set(patch); },
+    move: (p: number, name: string) => player(p).move(name),
+    place: (p: number, x: number, z: number, yaw?: number) => {
+      const ch = player(p).character;
+      if (ch.plane) ch.reset(x); else ch.reset(x, undefined, z);
+      if (yaw !== undefined) ch.yaw = yaw;
+    },
     show,
     rig,
     music: app.music,

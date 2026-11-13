@@ -104,6 +104,7 @@ const show = new Show(motion, kinds, bodies, rig, {
 if (query.has('landmarks')) show.castOverride = landmarksDemo();
 if (query.has('wander')) { const t = await travelling; show.castOverride = wanderDemo(motion, t); }
 if (query.has('net')) show.castOverride = await (await import('./net/demo')).netDemo(motion, frame, query);
+if (query.has('play')) await import('./dancer/play').then((m) => m.playDemo({ show, rig, frame, kit, canvas, world: () => worldOf(main.world), motion, travel: travelling, coarse, wake }));
 const beat = new BeatClock();
 
 function wake() {

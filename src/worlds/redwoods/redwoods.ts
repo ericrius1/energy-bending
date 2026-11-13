@@ -55,7 +55,7 @@ export class Redwoods implements World {
   readonly mood = 0.3;
   readonly shared: Record<string, UniformBuffer<any>>;
   readonly stages: StagePlane[] = [{
-    id: 'clearing', origin: [0, 0, 0], right: [1, 0, 0], normal: [0, 0, 1], halfWidth: 5, height: 3.5, ledges: [], lens: 18, maxDistance: ROOM,
+    id: 'clearing', origin: [0, 0, 0], right: [1, 0, 0], halfWidth: 5, ground: 0, ledges: [], spawns: [[-1.2, 0], [1.2, 0]],
   }];
   readonly portals = [];
   readonly spawns: [number, number, number][] = [[-1.2, 0, 0], [1.2, 0, 0]];
