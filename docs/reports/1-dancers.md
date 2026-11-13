@@ -171,7 +171,13 @@ an esquiva; aú; player two runs and jumps; armada against a spin), free with th
 stitched with ffmpeg into `shots/film-*.mp4` (not committed: media/ keeps only jpgs) with contact sheets
 `docs/reports/media/1-dancers-film-free.jpg`, `1-dancers-film-locked.jpg`.
 
-FILM_NOTES
+What I saw in them. Free (`1-dancers-film-free.jpg`): the meia-lua and the esquiva under it read as one exchange; the
+aú wheels; player two's run and 2 m jump hold together as a body at the apex; the armada against the spin reads; the
+follow camera swings round behind player one as they move, with no cut. Locked (`1-dancers-film-locked.jpg`): the
+same script side-on; the aú reads best from this side; player two lands on the right test ledge and dances there,
+standing on nothing visible; the framing eases too slowly at the start (the first frames cut player one at the left
+edge) and when player two leaps (cropped at the right edge for a few frames). No page errors in either run (the one
+console warning is weft's powerPreference notice, as in the foundation). 8 s each, 240 frames at 30 fps, 1280×800.
 
 ## Unverified
 
