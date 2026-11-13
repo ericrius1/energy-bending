@@ -296,7 +296,9 @@ fn woodsAir(s: vec4f, px: vec2i, d: vec3f) -> vec3f {
     let o = l.xyz - frame.camPos;
     let tc = dot(o, d);
     let h = sqrt(max(dot(o, o) - tc * tc, 0.0) + 0.02);
-    glow += l.w * (atan((tMax - tc) / h) - atan(-tc / h)) / h * mistAt(l.xyz);
+    // (the mist round a lantern by its height alone, its billows' mean: the same for every pixel, and no noise per lamp
+    // per pixel)
+    glow += l.w * (atan((tMax - tc) / h) - atan(-tc / h)) / h * worldLight.forest.mist.w * (0.05 + exp(-max(l.y, 0.0) / worldLight.forest.air.x));
   }
   return s.rgb * T + acc + worldLight.forest.lampCol.rgb * glow * 0.03 * sqrt(T);
 }

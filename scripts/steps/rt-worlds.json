@@ -207,5 +207,41 @@
   "stills": [
    0
   ]
+ },
+ {
+  "name": "rt-rw-time",
+  "query": "world=redwoods",
+  "fps": 1,
+  "seconds": 1,
+  "warm": 240,
+  "setup": "bend.set('camera',{ shots:false, autoOrbit:false });bend.set('redwoods', { hour: 19.4, dayGoes: false });",
+  "each": "bend.camera({ idle:0, yaw: 0.3, dist: 9, pitch: 0.1, height: 1.6, fov: 50 });",
+  "sheet": {
+   "cols": 1,
+   "rows": 1,
+   "width": 640
+  },
+  "stills": [
+   0
+  ],
+  "timings": true
+ },
+ {
+  "name": "rt-tm-time",
+  "query": "world=temple",
+  "fps": 1,
+  "seconds": 1,
+  "warm": 240,
+  "setup": "bend.set('camera',{ shots:false, autoOrbit:false });",
+  "each": "bend.camera({ idle:0, yaw: 0, dist: 9, pitch: 0.12, height: 1.6, fov: 50 });",
+  "sheet": {
+   "cols": 1,
+   "rows": 1,
+   "width": 640
+  },
+  "stills": [
+   0
+  ],
+  "timings": true
  }
 ]

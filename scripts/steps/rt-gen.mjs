@@ -57,6 +57,9 @@ const takes = [
     sheet: { cols: 4, rows: 2, width: 480 }, stills: [0, 1, 2, 3, 4, 5, 6],
   },
   { name: 'rt-tm-base', query: 'world=temple&dress=fire&baseline', fps: 1, seconds: 1, warm: 120, setup: free, each: 'bend.camera({ idle:0, yaw: 0, dist: 9, pitch: 0.12, height: 1.6, fov: 50 });', sheet: { cols: 1, rows: 1, width: 640 }, stills: [0] },
+  // the cost: gem dancers (the show's own), a wide free view at dusk / at moonrise, the profiler over 150 frames
+  { name: 'rt-rw-time', query: 'world=redwoods', fps: 1, seconds: 1, warm: 240, setup: free + dusk, each: 'bend.camera({ idle:0, yaw: 0.3, dist: 9, pitch: 0.1, height: 1.6, fov: 50 });', sheet: { cols: 1, rows: 1, width: 640 }, stills: [0], timings: true },
+  { name: 'rt-tm-time', query: 'world=temple', fps: 1, seconds: 1, warm: 240, setup: free, each: 'bend.camera({ idle:0, yaw: 0, dist: 9, pitch: 0.12, height: 1.6, fov: 50 });', sheet: { cols: 1, rows: 1, width: 640 }, stills: [0], timings: true },
 ];
 writeFileSync(new URL('./rt-worlds.json', import.meta.url), JSON.stringify(takes, null, 1) + '\n');
 console.log(takes.map((t) => t.name).join(' '));
