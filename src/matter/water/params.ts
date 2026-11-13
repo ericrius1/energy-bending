@@ -93,7 +93,7 @@ export const waterParams = defineParams('water', {
   tint: '#cfefff',
   /** its own faint light (the caustic rising through it): enough to read on black, far below a fire beside it */
   glowColor: '#3bace4',
-  glow: 0.12,
+  glow: 0.18,
   /** the rim, only on the side a light comes from (the world's key, each fire), × that light */
   rim: '#d8f4ff',
   rimStrength: 1,

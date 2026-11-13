@@ -193,12 +193,12 @@ fn edgeAt(uv: vec2f, wdims: vec2i) -> Edge {
   var d = W0.x;
   var frost = select(0.0, clamp(W0.w / max(W0.y, 1e-6), 0.0, 1.0), W0.y > 1e-6);
   if (d <= 0.0) {
-    // a pixel outside the water: is any near enough for a tongue to reach it? (rings, nearest first)
+    // a pixel outside the water: is any near enough for a tongue to reach it? (two rings, nearest first)
     let reachPx = f32(wdims.y) * 0.05;
-    for (var r = 1; r <= 3 && d <= 0.0; r++) {
+    for (var r = 1; r <= 2 && d <= 0.0; r++) {
       for (var k = 0; k < 8; k++) {
         let a = f32(k) * 0.785398 + f32(r) * 0.39;
-        let s = textureLoad(water, clamp(q0 + vec2i(round(vec2f(cos(a), sin(a)) * reachPx * f32(r) / 3.0)), vec2i(0), wdims - 1), 0);
+        let s = textureLoad(water, clamp(q0 + vec2i(round(vec2f(cos(a), sin(a)) * reachPx * f32(r) / 2.0)), vec2i(0), wdims - 1), 0);
         if (s.x > 0.0 && s.y > 0.0) { d = s.x; frost = max(frost, clamp(s.w / s.y, 0.0, 1.0)); break; }
       }
     }
@@ -216,7 +216,9 @@ fn edgeAt(uv: vec2f, wdims: vec2i) -> Edge {
   let t = surf.time;
   let sc = surf.wisp.w;
   // the body's motion here (its bone's, from the capsule the splats round it lie on): tongues stream behind it
-  let best = capsuleAt(q0, wdims);
+  // (only on the water: outside it no splat says which capsule)
+  var best = 0u;
+  if (W0.x > 0.0) { best = capsuleAt(q0, wdims); }
   var vs = vec2f(0.0);
   if (best > 0u) {
     let b = boneOf(best, vec3f(0.0), vec3f(0.0, 1.0, 0.0));
@@ -329,7 +331,6 @@ fn shade(q: vec2i, wdims: vec2i, W: vec4f, keep: f32) -> Shade {
   // noise lets it reach further in places
   let cosF = max(cosV, 0.32 + 0.35 * vnoise(wp * 23.0 + vec3f(0.0, -surf.time * 0.7, 0.0)));
   let F = 0.02 + 0.98 * pow(1.0 - cosF, 5.0);
-  let env = worldEnv(R, wp) * surf.reflect;
   let frost = clamp(W.w / max(W.y, 1e-5), 0.0, 1.0);
   let fi = smoothstep(0.25, 0.75, frost);
   let grain = vnoise(bone.p * 120.0);
@@ -345,68 +346,79 @@ fn shade(q: vec2i, wdims: vec2i, W: vec4f, keep: f32) -> Shade {
   let rimK = pow(1.0 - cosV, surf.ripple.z);
 
   // ---------------------------------------------------------------- water
-  // through it: absorbed by its thickness toward deep blue-green, and hidden by what it scatters (a little milky)
-  let milk = surf.tint.w * (1.0 - exp(-surf.absorb.w * Wr));
-  var wt = exp(-surf.absorb.rgb * Wr) * (1.0 - milk) * (1.0 - F);
-  // the light scattered inside is the world's, in the water's colour; its own faint light is the caustic rising
   let rp = fbm(bone.p * surf.caustic - bone.up * (surf.time * surf.rise * surf.caustic));
-  // (water scatters little: most of what it gives is what it reflects. The worlds' ambient is generous, made for
-  // stones and bark; in water only a little of it scatters back, while a key or a fire beside it lights it up)
-  // (and compressed: a world's key or a fire a metre off must tint it, not turn it into a lit solid)
-  let li = amb * 0.06 + keyD * 0.3 + fireD * 0.6 + heartL * 0.4;
-  var wc = surf.tint.rgb * li / (1.0 + luma(li)) * milk * 0.35;
-  wc += surf.glow.rgb * surf.glow.w * (0.3 + 1.6 * rp * rp) * (0.25 + milk);
-  // the world reflected, and its lights: the key's highlight (sharp, and a broad sheen), each fire's, the view's fill
-  wc += env * F;
-  let spec = key.col * (pow(max(dot(R, key.dir), 0.0), 260.0) * 14.0 + pow(max(dot(R, key.dir), 0.0), 26.0) * 0.5) * key.glint
-           + vec3f(0.85, 0.95, 1.0) * pow(max(dot(N, Lv), 0.0), 80.0) * 0.25;
-  wc += spec * surf.glint;
-  // a rim only on the side a light comes from: the key's, each fire's
-  let rimL = key.col * rimK * smoothstep(-0.15, 0.6, dot(N, key.dir)) * 1.6;
-  wc += (rimL * surf.rim.rgb) * surf.rim.w;
-  wc += fireSpec(wp, R, N, rimK * surf.rim.w) * surf.glint;
-  // foam: churned water turns white and dull where it is thin, lit like anything else
-  let foamy = clamp(W.z / max(W.y, 1e-5), 0.0, 1.0) * (1.0 - smoothstep(0.4, 1.2, Wr));
-  let foam = smoothstep(0.35, 0.9, foamy * (0.6 + 0.8 * grain)) * surf.foam;
-  wc = mix(wc, vec3f(0.85, 0.92, 1.0) * (lightIn * 0.7 + surf.glow.rgb * surf.glow.w * 0.5), foam);
-  wt *= 1.0 - foam * 0.8;
+  // (only where some of it is liquid: a body of ice skips it)
+  var milk = 0.0;
+  var wt = vec3f(1.0);
+  var wc = vec3f(0.0);
+  if (fi < 0.999) {
+    // through it: absorbed by its thickness toward deep blue-green, and hidden by what it scatters (a little milky)
+    milk = surf.tint.w * (1.0 - exp(-surf.absorb.w * Wr));
+    wt = exp(-surf.absorb.rgb * Wr) * (1.0 - milk) * (1.0 - F);
+    // the light scattered inside is the world's, in the water's colour; its own faint light is the caustic rising
+    // (water scatters little: most of what it gives is what it reflects. The worlds' ambient is generous, made for
+    // stones and bark; in water only a little of it scatters back, while a key or a fire beside it lights it up)
+    // (and compressed: a world's key or a fire a metre off must tint it, not turn it into a lit solid)
+    let li = amb * 0.06 + keyD * 0.3 + fireD * 0.6 + heartL * 0.4;
+    wc = surf.tint.rgb * li / (1.0 + luma(li)) * milk * 0.35;
+    wc += surf.glow.rgb * surf.glow.w * (0.3 + 1.6 * rp * rp) * (0.25 + milk);
+    // the world reflected, and its lights: the key's highlight (sharp, and a broad sheen), each fire's, the view's fill
+    wc += worldEnv(R, wp) * surf.reflect * F;
+    let spec = key.col * (pow(max(dot(R, key.dir), 0.0), 260.0) * 14.0 + pow(max(dot(R, key.dir), 0.0), 26.0) * 0.5) * key.glint
+             + vec3f(0.85, 0.95, 1.0) * pow(max(dot(N, Lv), 0.0), 80.0) * 0.25;
+    wc += spec * surf.glint;
+    // a rim only on the side a light comes from: the key's, each fire's
+    let rimL = key.col * rimK * smoothstep(-0.15, 0.6, dot(N, key.dir)) * 1.6;
+    wc += (rimL * surf.rim.rgb) * surf.rim.w;
+    wc += fireSpec(wp, R, N, rimK * surf.rim.w) * surf.glint;
+    // foam: churned water turns white and dull where it is thin, lit like anything else
+    let foamy = clamp(W.z / max(W.y, 1e-5), 0.0, 1.0) * (1.0 - smoothstep(0.4, 1.2, Wr));
+    let foam = smoothstep(0.35, 0.9, foamy * (0.6 + 0.8 * grain)) * surf.foam;
+    wc = mix(wc, vec3f(0.85, 0.92, 1.0) * (lightIn * 0.7 + surf.glow.rgb * surf.glow.w * 0.5), foam);
+    wt *= 1.0 - foam * 0.8;
+  }
 
   // ---------------------------------------------------------------- ice
-  let vr = voro3(bone.p * surf.iceThin.w);
-  let cid = vr.z;
-  let tilt = (vec3f(fract(cid * 13.7), fract(cid * 71.3), fract(cid * 37.1)) - 0.5) * 1.1;
-  // (ice is hard: its outline doesn't round off as water's does, so its facets turn on the depth's normal almost to
-  // the edge; otherwise every facet at the outline would face sideways and the outline would be one bright band)
-  var Ni = normalize(mix(Nt, Nd, smoothstep(0.02, 0.2, Wr)));
-  var fn_ = normalize(Ni + tilt);
-  if (dot(fn_, V) < 0.08) { fn_ = normalize(fn_ + V * (0.08 - dot(fn_, V))); }
-  let Rf = reflect(ray, fn_);
-  let cf = clamp(dot(fn_, V), 0.0, 1.0);
-  let Ff = 0.04 + 0.96 * pow(1.0 - cf, 5.0);
-  // each facet reflects its own part of the world (the moon in one, the dark in the next) and is lit by the key, the
-  // fire and the ambient as it is turned; the view's fill keeps a few bright in the darkest worlds
-  let envF = worldEnv(Rf, wp) * surf.reflect;
-  let keyF = max(dot(fn_, key.dir), 0.0);
-  let lit = max(dot(fn_, normalize(Lv + key.dir * 0.4)), 0.0);
-  let litIn = worldAmbient(fn_, 1.0, wp) * 0.6 + key.col * keyF + worldFire(wp, fn_) + heartL;
-  // each cell its own depth of blue (pale ones and navy ones side by side), deeper where the ice is thick: never a
-  // pale band of the same width round the outline
-  let body = mix(surf.iceThin.rgb, surf.iceThick.rgb, clamp(fract(cid * 5.31) * 0.85 + smoothstep(0.1, 0.9, Wr) * 0.35 - 0.1, 0.0, 1.0));
-  var ic = body * (litIn * (0.25 + 1.2 * keyF * keyF) + vec3f(0.05 + 0.2 * lit * lit * lit) + surf.glow.rgb * surf.glow.w * 0.3);
-  ic += envF * (0.12 + 0.88 * Ff);
-  // hairline edges between facets, catching the light that reaches them
-  ic += vec3f(0.40, 0.72, 1.0) * (1.0 - smoothstep(0.0, 0.06, vr.y)) * (0.06 + 0.5 * luma(lightIn)) * surf.edges;
-  // frost: where it would form, on edges that face up and on the hands, feet and head, never as a band all round
-  let upFace = smoothstep(0.15, 0.75, N.y) * (1.0 - smoothstep(0.35, 1.0, Wr));
-  let tips = extremity(bone.cap) * (1.0 - smoothstep(0.3, 1.1, Wr));
-  let frostA = clamp(max(upFace, tips) * (0.35 + 0.9 * grain), 0.0, 1.0) * surf.iceThick.w;
-  ic = mix(ic, vec3f(0.82, 0.92, 1.0) * (lightIn * 0.9 + vec3f(0.03)), frostA * 0.75);
-  // glints: one cell at a time catches the key
-  let tw = rnd(u32(cid * 1e6) * 113u + u32(floor(surf.time * 6.0 + cid * 17.0)));
-  let glint = smoothstep(0.9, 1.0, tw) * (1.0 - smoothstep(0.0, 0.2, vr.x));
-  ic += (key.col * (pow(max(dot(Rf, key.dir), 0.0), 60.0) * 6.0 + glint * 2.0) + vec3f(1.0) * glint * 0.25) * surf.iceGlint * key.glint;
-  ic += fireSpec(wp, Rf, fn_, rimK * 0.5) * surf.iceGlint;
-  let it = mix(vec3f(0.7, 0.85, 1.0), vec3f(0.35, 0.55, 0.8), smoothstep(0.2, 1.0, Wr)) * (1.0 - surf.iceOpacity) * (1.0 - Ff) * (1.0 - frostA * 0.7);
+  // (only where some of it is frozen: liquid water skips the voronoi and the second look at the world)
+  var ic = vec3f(0.0);
+  var it = vec3f(1.0);
+  if (fi > 0.001) {
+    let vr = voro3(bone.p * surf.iceThin.w);
+    let cid = vr.z;
+    let tilt = (vec3f(fract(cid * 13.7), fract(cid * 71.3), fract(cid * 37.1)) - 0.5) * 1.1;
+    // (ice is hard: its outline doesn't round off as water's does, so its facets turn on the depth's normal almost to
+    // the edge; otherwise every facet at the outline would face sideways and the outline would be one bright band)
+    var Ni = normalize(mix(Nt, Nd, smoothstep(0.02, 0.2, Wr)));
+    var fn_ = normalize(Ni + tilt);
+    if (dot(fn_, V) < 0.08) { fn_ = normalize(fn_ + V * (0.08 - dot(fn_, V))); }
+    let Rf = reflect(ray, fn_);
+    let cf = clamp(dot(fn_, V), 0.0, 1.0);
+    let Ff = 0.04 + 0.96 * pow(1.0 - cf, 5.0);
+    // each facet reflects its own part of the world (the moon in one, the dark in the next) and is lit by the key, the
+    // fire and the ambient as it is turned; the view's fill keeps a few bright in the darkest worlds
+    let envF = worldEnv(Rf, wp) * surf.reflect;
+    let keyF = max(dot(fn_, key.dir), 0.0);
+    let lit = max(dot(fn_, normalize(Lv + key.dir * 0.4)), 0.0);
+    let litIn = worldAmbient(fn_, 1.0, wp) * 0.6 + key.col * keyF + worldFire(wp, fn_) + heartL;
+    // each cell its own depth of blue (pale ones and navy ones side by side), deeper where the ice is thick: never a
+    // pale band of the same width round the outline
+    let body = mix(surf.iceThin.rgb, surf.iceThick.rgb, clamp(fract(cid * 5.31) * 0.85 + smoothstep(0.1, 0.9, Wr) * 0.35 - 0.1, 0.0, 1.0));
+    ic = body * (litIn * (0.25 + 1.2 * keyF * keyF) + vec3f(0.05 + 0.2 * lit * lit * lit) + surf.glow.rgb * surf.glow.w * 0.3);
+    ic += envF * (0.12 + 0.88 * Ff);
+    // hairline edges between facets, catching the light that reaches them
+    ic += vec3f(0.40, 0.72, 1.0) * (1.0 - smoothstep(0.0, 0.06, vr.y)) * (0.06 + 0.5 * luma(lightIn)) * surf.edges;
+    // frost: where it would form, on edges that face up and on the hands, feet and head, never as a band all round
+    let upFace = smoothstep(0.15, 0.75, N.y) * (1.0 - smoothstep(0.35, 1.0, Wr));
+    let tips = extremity(bone.cap) * (1.0 - smoothstep(0.3, 1.1, Wr));
+    let frostA = clamp(max(upFace, tips) * (0.35 + 0.9 * grain), 0.0, 1.0) * surf.iceThick.w;
+    ic = mix(ic, vec3f(0.82, 0.92, 1.0) * (lightIn * 0.9 + vec3f(0.03)), frostA * 0.75);
+    // glints: one cell at a time catches the key
+    let tw = rnd(u32(cid * 1e6) * 113u + u32(floor(surf.time * 6.0 + cid * 17.0)));
+    let glint = smoothstep(0.9, 1.0, tw) * (1.0 - smoothstep(0.0, 0.2, vr.x));
+    ic += (key.col * (pow(max(dot(Rf, key.dir), 0.0), 60.0) * 6.0 + glint * 2.0) + vec3f(1.0) * glint * 0.25) * surf.iceGlint * key.glint;
+    ic += fireSpec(wp, Rf, fn_, rimK * 0.5) * surf.iceGlint;
+    it = mix(vec3f(0.7, 0.85, 1.0), vec3f(0.35, 0.55, 0.8), smoothstep(0.2, 1.0, Wr)) * (1.0 - surf.iceOpacity) * (1.0 - Ff) * (1.0 - frostA * 0.7);
+  }
 
   // ---------------------------------------------------------------- one or the other, and the freeze between them
   var col = mix(wc, ic, fi);
