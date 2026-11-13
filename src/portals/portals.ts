@@ -275,11 +275,13 @@ export class Portals implements SceneLayer {
     f.dancers.forEach((d, k) => {
       if (k >= LIMITS.dancers) return;
       const J = d.skeleton.world, now: V3 = [J[ROOT * JOINT_FLOATS], J[ROOT * JOINT_FLOATS + 1], J[ROOT * JOINT_FLOATS + 2]];
-      const was = this.roots.get(d);
-      this.roots.set(d, now);
+      const was = this.roots.get(d), w = this.worldOf(d);
+      const onFace = [...this.gates.values()].some((g) => g.world === w && g.onFace(now));
+      if (!was || !onFace) this.roots.set(d, now);
       if (!was) return;
-      const c = this.crossed(was, now, this.worldOf(d), 0.15);
+      const c = this.crossed(was, now, w, 0.15);
       if (!c) return;
+      this.roots.set(d, now);
       this.carryDancer(d, k, c.gate, c.u, c.v, c.front, f.t, true);
       moved = true;
     });
@@ -327,7 +329,10 @@ export class Portals implements SceneLayer {
       const c = this.crossed(this.camWas.p, eye, main.world);
       if (c) { this.carryCamera(c.gate, c.u, c.v, c.front, f.t); cam.update(W, H); eye[0] = cam.position[0]; eye[1] = cam.position[1]; eye[2] = cam.position[2]; }
     }
-    this.camWas = { p: eye, world: main.world };
+    // (the last place it was strictly off every disc's plane: what the next crossing is measured from)
+    if (!this.camWas || this.camWas.world !== main.world || ![...this.gates.values()].some((g) => g.world === main.world && g.onFace(eye))) {
+      this.camWas = { p: eye, world: main.world };
+    }
     // ---- the views behind the gates, and what each view sees of the dancers
     this.assign(W, H);
     this.leanExposure(W, H, f.dt);
@@ -510,8 +515,12 @@ export class Portals implements SceneLayer {
       { v: main, cam: this.kit.camera, skip: null, order: Infinity, w: W, h: H, clip: NO_CLIP },
       ...this.slots.filter((s) => s.active).map((s) => ({ v: s.view, cam: s.cam, skip: s.gate!.partner, order: s.index, w: s.view.view.width, h: s.view.view.height, clip: [...s.cam.clip!] })),
     ];
+    // the side of each gate the eye was last strictly on (the main view's: where the camera was measured from)
+    const sideOf0 = (g: Gate, p: ArrayLike<number>) => (g.side(p) >= 0 ? 1 : -1);
     for (const { v, cam, skip, order, w, h, clip } of views) {
       const rows: GateRow[] = [];
+      const from = v === main && this.camWas ? this.camWas.p : cam.position;
+      const sideOf = (g: Gate) => sideOf0(g, from);
       for (const g of this.gates.values()) {
         if (g.world !== v.world || g === skip || !g.partner || g.open <= 0) continue;
         const sc = screenOf(g, cam, w, h);
@@ -531,7 +540,7 @@ export class Portals implements SceneLayer {
         const floor = worldOf(g.world)?.groundAt(g.at[0], g.at[2]) ?? 0;
         rows.push({
           at: [...g.at, g.radius], right: [...g.right, g.open], up: [...g.up, g.seed], n: [...g.n, slot], rect: sc.rect,
-          rim: [...g.rim, g.flash], look: [...hue, gain], info: [live, floor, P.glow, 0],
+          rim: [...g.rim, g.flash], look: [...hue, gain], info: [live, floor, P.glow, sideOf(g)],
           pokes: [0, 1, 2, 3].map((i) => { const p = g.pokes[i]; return p ? [p.u, p.v, this.t - p.t, p.s] : [0, 0, 0, 0]; }),
         });
       }
@@ -641,8 +650,9 @@ function coverage(g: Gate, c: CamLike, aspect: number) {
     const d = [c.forward[0] + c.right[0] * x * tx + c.up[0] * y * ty, c.forward[1] + c.right[1] * x * tx + c.up[1] * y * ty, c.forward[2] + c.right[2] * x * tx + c.up[2] * y * ty];
     const dn = dot(d, g.n);
     if (Math.abs(dn) < 1e-9) continue;
-    const t = -sd / dn;
-    if (t <= 0) continue;
+    // (an eye on the plane, inside the disc: every ray meets it there)
+    const t = Math.abs(sd) <= 1e-4 ? 0 : -sd / dn;
+    if (t < 0) continue;
     const p = [e[0] + d[0] * t, e[1] + d[1] * t, e[2] + d[2] * t], l = g.local(p);
     if (l[0] * l[0] + l[1] * l[1] <= g.reach * g.reach) hit++;
   }

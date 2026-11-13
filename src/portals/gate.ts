@@ -81,13 +81,23 @@ export class Gate {
    *  middle passes when it is within the disc's reach) */
   crossing(a: ArrayLike<number>, b: ArrayLike<number>, margin = 0): { u: number; v: number; front: boolean } | null {
     if (!this.passable) return null;
-    const sa = this.side(a), sb = this.side(b);
-    if ((sa > 0) === (sb > 0) || sa === sb) return null;
+    // (strictly from one side to the other: a point on the plane, within ON_PLANE, is on neither, and the caller
+    // keeps the last point it had strictly off the plane as `a`, so stopping on the plane and stepping back is no
+    // crossing, and once carried the point stands strictly in front of the partner)
+    const sa = this.side(a), sb = this.side(b), eps = ON_PLANE;
+    if (!((sa > eps && sb < -eps) || (sa < -eps && sb > eps))) return null;
     const k = sa / (sa - sb);
     const p: V3 = [a[0] + (b[0] - a[0]) * k, a[1] + (b[1] - a[1]) * k, a[2] + (b[2] - a[2]) * k];
     const l = this.local(p), r = this.reach + margin;
     if (l[0] * l[0] + l[1] * l[1] > r * r) return null;
-    return { u: l[0] / this.radius, v: l[1] / this.radius, front: sa > 0 };
+    return { u: l[0] / this.radius, v: l[1] / this.radius, front: sb < 0 };
+  }
+
+  /** whether a point is on the open disc's plane (within ON_PLANE) and inside it: neither side yet */
+  onFace(p: ArrayLike<number>) {
+    if (Math.abs(this.side(p)) > ON_PLANE) return false;
+    const l = this.local(p);
+    return l[0] * l[0] + l[1] * l[1] <= (this.reach + 0.2) ** 2;
   }
 
   /** start a ripple at a point of the disc (its own coordinates, -1 … 1); the partner ripples at the same place
@@ -98,5 +108,8 @@ export class Gate {
     if (echo) this.partner?.poke(-u, v, t, s, false);
   }
 }
+
+/** how near the plane (m) counts as on it */
+export const ON_PLANE = 1e-5;
 
 const smooth = (x: number) => { const k = Math.max(0, Math.min(1, x)); return k * k * (3 - 2 * k); };

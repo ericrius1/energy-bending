@@ -50,6 +50,27 @@ a.open = b.open = 1;
 ok(a.crossing([0.2, 1.3, -2], [0.2, 1.3, -4]) !== null, 'through the disc');
 ok(a.crossing([2.0, 1.3, -2], [2.0, 1.3, -4]) === null, 'beside the disc');
 ok(a.crossing([0.2, 1.3, -2], [0.2, 1.3, -2.5]) === null, 'not as far as the disc');
+// walking through in steps that land exactly on the plane: carried once, never straight back
+{
+  let world = 'A', carry = null, crossings = 0, prev = null;
+  for (let k = 0; k <= 40; k++) {
+    const z = 0.2 - k * 0.01;                 // the walk in A's coordinates (k = 20 lands on the plane)
+    const pA = [0.1, 1.25, a.at[2] + z];
+    const p = carry ? carry.pt(pA) : pA;
+    if (prev) {
+      const g = world === 'A' ? a : b, c = g.crossing(prev, p);
+      if (c) { crossings++; world = world === 'A' ? 'B' : 'A'; carry = world === 'B' ? a.through : null; prev = carry ? carry.pt(pA) : pA; continue; }
+    }
+    // (the walker keeps the last point it had strictly off the plane, as the portals do)
+    if (!prev || !(world === 'A' ? a : b).onFace(p)) prev = p;
+  }
+  ok(crossings === 1 && world === 'B', `stepping onto the plane crosses once (${crossings} crossings, ends in ${world})`);
+}
+// stopping on the plane and stepping back the way it came is no crossing
+{
+  const before = [0.1, 1.25, a.at[2] + 0.02], on = [0.1, 1.25, a.at[2]];
+  ok(a.crossing(before, on) === null && a.crossing(before, before) === null, 'on the plane is not through it');
+}
 a.open = 0.3;
 ok(a.crossing([0.2, 1.3, -2], [0.2, 1.3, -4]) === null, 'a gate still weaving open is not passable');
 

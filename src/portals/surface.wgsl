@@ -25,7 +25,8 @@ struct Gate {
   rect: vec4f,    // its bounds on this view's screen, ndc: x0, y0, x1, y1
   rim: vec4f,     // whoever last passed (linear rgb), a flash after a crossing
   look: vec4f,    // the far world's hue (the shimmer), the gain that matches the far world's exposure to this one's
-  info: vec4f,    // 1 live this frame, 0.5 last frame's, 0 nothing; the floor's height under it; glow; -
+  info: vec4f,    // 1 live this frame, 0.5 last frame's, 0 nothing; the floor's height under it; glow; the side the
+                  // eye was last strictly on (+1 front, -1 back: an eye on the plane looks through toward the other)
   pokes: array<vec4f, 4>,   // where (u, v), age (s), strength
 }
 /** a view's gates; `clip` is its own near plane when it looks through a gate (a disc behind that is not drawn) */
@@ -80,7 +81,7 @@ fn ripple(G: Gate, l: vec2f, t: f32) -> f32 {
     let d = length(l - P.xy);
     let a = P.z;
     let front = a * 0.55;
-    h += sin((d - front) * 26.0) * exp(-a * 1.4) * exp(-pow((d - front) * 4.0, 2.0)) * P.w * 0.035 * (1.0 - r2 * 0.6);
+    h += sin((d - front) * 26.0) * exp(-a * 1.4) * exp(-pow((d - front) * 4.0, 2.0)) * P.w * 0.005 * (1.0 - r2 * 0.6);
   }
   return h;
 }
@@ -112,8 +113,14 @@ fn screenUv(p: vec3f) -> vec2f {
   let n = G.n.xyz;
   let dn = dot(d, n);
   if (abs(dn) < 1e-6) { discard; }
-  let t = dot(G.at.xyz - eye, n) / dn;
-  if (t <= 0.0) { discard; }
+  // (an eye on the plane itself, inside the disc: a ray going on through, away from the side the eye came from,
+  // meets the disc where the eye is; one going back out doesn't)
+  let side = dot(eye - G.at.xyz, n);
+  var t = dot(G.at.xyz - eye, n) / dn;
+  if (abs(side) < 1e-4) {
+    if (dn * G.info.w > 0.0) { discard; }
+    t = 0.0;
+  } else if (t <= 0.0) { discard; }
   let p = eye + d * t;
   if (dot(gates.clip.xyz, p) + gates.clip.w < 0.0) { discard; }
   let q = p - G.at.xyz;
@@ -177,10 +184,11 @@ fn screenUv(p: vec3f) -> vec2f {
   let film = thinFilm(r * 0.9 + h0 * 40.0 + time * 0.04 + G.up.w) ;
   var col = far * (1.0 - 0.2 * F);
   col += film * (0.003 + 0.05 * F) * mix(vec3f(1.0), G.rim.rgb, 0.5) * calm;
-  col += G.rim.rgb * slope * slope * 0.6 * calm;
-  col += G.rim.rgb * pow(smoothstep(0.9, 1.0, r), 4.0) * (0.25 + G.rim.w * 2.0);
+  col += G.rim.rgb * min(slope * slope, 0.05) * 0.6 * calm;
+  // the rim's light, and a crossing's flash running round it (only round it: at the face the disc is the whole
+  // screen, and a veil over it would be a pop)
+  col += G.rim.rgb * pow(smoothstep(0.9, 1.0, r), 4.0) * (0.25 + G.rim.w * 2.0) * mix(0.3, 1.0, calm);
   col += G.rim.rgb * threadEdge * 2.0;
-  col += G.rim.rgb * G.rim.w * 0.15 * (1.0 - r);
 
   var o: DiscOut;
   // the plane's depth, a few millimetres toward the eye (a gate on a wall or a floor wins over it)
@@ -188,11 +196,11 @@ fn screenUv(p: vec3f) -> vec2f {
   o.depth = clamp(cd.z / cd.w, 0.0, 1.0);
   // alpha is the distance the air and the depth of field read. Far from the gate it is the gate's own (this world's
   // air lies over the disc as over a window); at the face it becomes the far view's path, so the depth of field
-  // doesn't see the whole screen as a few centimetres away as the eye passes through. Capped at a few metres (about
-  // where the camera focuses): this world's air over the far world's whole depth would darken it just before the face
+  // doesn't see the whole screen as a few centimetres away as the eye passes through. Capped at a metre (more
+  // of this world's haze over the far world's depth brightened the frame by an eighth just before the face)
   let here = dot(p - eye, frame.camFwd);
   var dist = here;
-  if (slot >= 0 && live > 0.75) { dist = mix(max(here, min(farDist(slot, suv), 3.5)), here, calm); }
+  if (slot >= 0 && live > 0.75) { dist = mix(max(here, min(farDist(slot, suv), 1.0)), here, calm); }
   o.col = vec4f(col, dist);
   return o;
 }
@@ -255,6 +263,9 @@ fn ringPoint(G: Gate, th: f32, strand: u32, time: f32) -> vec3f {
 
 // ---------------------------------------------------------------- the halo, and its light on the floor
 /** the far world's light, as it shows through the gate (a wide blur of its live view round the gate's middle) */
+/** the glows fade as the eye comes up to the disc: at the face there is no gate to see, only the other world */
+fn faceFade(G: Gate) -> f32 { return smoothstep(0.05, 0.8, abs(dot(frame.camPos - G.at.xyz, G.n.xyz)) / G.at.w); }
+
 fn farLight(G: Gate) -> vec3f {
   let slot = i32(G.n.w);
   if (slot < 0 || G.info.x < 0.25) { return G.look.rgb * 0.5; }
@@ -283,7 +294,7 @@ fn farLight(G: Gate) -> vec3f {
   let s = Rad * 2.4;
   o.pos = frame.viewProj * vec4f(ctr + (frame.camRight * c.x + frame.camUp * c.y) * s, 1.0);
   o.uv = c * 2.4;
-  o.col = (farLight(G) * 0.6 + G.rim.rgb * (0.25 + G.rim.w)) * smoothstep(0.2, 0.9, open) * G.info.z;
+  o.col = (farLight(G) * 0.6 + G.rim.rgb * (0.25 + G.rim.w)) * smoothstep(0.2, 0.9, open) * G.info.z * faceFade(G);
   return o;
 }
 
@@ -308,7 +319,7 @@ fn farLight(G: Gate) -> vec3f {
   let P = vec3f(G.at.x, G.info.y + 0.004, G.at.z) + vec3f(c.x, 0.0, c.y) * s;
   o.pos = frame.viewProj * vec4f(P, 1.0);
   o.uv = c * 2.2;
-  o.col = (farLight(G) * 0.8 + G.rim.rgb * (0.2 + G.rim.w)) * smoothstep(0.3, 1.0, open) * G.info.z;
+  o.col = (farLight(G) * 0.8 + G.rim.rgb * (0.2 + G.rim.w)) * smoothstep(0.3, 1.0, open) * G.info.z * faceFade(G);
   return o;
 }
 
@@ -344,7 +355,7 @@ fn farLight(G: Gate) -> vec3f {
   o.pos = frame.viewProj * vec4f(P + (frame.camRight * c.x + frame.camUp * c.y) * size, 1.0);
   o.uv = c;
   let life = smoothstep(0.0, 0.15, ph) * (1.0 - smoothstep(0.85, 1.0, ph));
-  o.col = mix(G.rim.rgb, vec3f(1.0), 0.5) * life * (1.5 + 2.5 * ph) * smoothstep(0.2, 0.7, open) * G.info.z;
+  o.col = mix(G.rim.rgb, vec3f(1.0), 0.5) * life * (1.5 + 2.5 * ph) * smoothstep(0.2, 0.7, open) * G.info.z * faceFade(G);
   return o;
 }
 
