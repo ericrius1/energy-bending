@@ -21,7 +21,6 @@ import { worlds as worldDefs, type World, type WorldCtx } from './worlds/world';
 import { shareWorldLight } from './worlds/shared';
 import { PostChain } from './post/post';
 import { Music } from './audio/music';
-import { BeatClock } from './audio/clock';
 import { Show } from './dancer/show';
 import { danceParams, PROGRAMS } from './dancer/programme';
 import { CameraController, Eyes } from './dancer/camera';
@@ -88,13 +87,9 @@ const post = new PostChain(kit, frame, main, worlds, { film: filmSize, coarse })
 if (pip) { post.declareAir(pip.view, worlds); post.inset(pip.view, pip.rect); }
 
 // ---------------------------------------------------------------- the show and its sound
-music = new Music(FILM, () => worldOf(main.world), gems?.ids ?? []);
+// (the camera is the listener: sounds are panned and distanced from it; kinds that can be heard get their ears)
+music = new Music(FILM, () => worldOf(main.world), gems?.ids ?? [], kit.camera, kinds);
 const score = music.score;
-score.pan = (x, y, z) => {
-  const c = kit.camera, dx = x - c.position[0], dy = y - c.position[1], dz = z - c.position[2];
-  const ahead = Math.max(0.5, dx * c.forward[0] + dy * c.forward[1] + dz * c.forward[2]);
-  return Math.max(-1, Math.min(1, ((dx * c.right[0] + dy * c.right[1] + dz * c.right[2]) / ahead) * 0.9));
-};
 if (gems) gems.onStones = (when, ev, n) => score.stones(when, ev, n);
 const show = new Show(motion, kinds, bodies, rig, {
   setKey: (k) => score.setKey(music!.now(), k),
@@ -105,7 +100,8 @@ if (query.has('landmarks')) show.castOverride = landmarksDemo();
 if (query.has('wander')) { const t = await travelling; show.castOverride = wanderDemo(motion, t); }
 if (query.has('net')) show.castOverride = await (await import('./net/demo')).netDemo(motion, frame, query);
 if (query.has('play')) await import('./dancer/play').then((m) => m.playDemo({ show, rig, frame, kit, canvas, world: () => worldOf(main.world), motion, travel: travelling, coarse, wake }));
-const beat = new BeatClock();
+// the music owns time: FrameCtx.beat is its clock, live and filming
+const beat = music.clock;
 
 function wake() {
   if (show.awake) return;

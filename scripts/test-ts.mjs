@@ -16,7 +16,8 @@ const files = [];
   for (const e of readdirSync(dir, { withFileTypes: true })) {
     const p = join(dir, e.name);
     if (e.isDirectory()) walk(p);
-    else if (e.name.endsWith('.test.ts') && p.includes(filter)) files.push(p);
+    // (src/audio/test exports its tests as a `tests` object instead: scripts/test-audio.mjs runs those)
+    else if (e.name.endsWith('.test.ts') && p.includes(filter) && !/[\\/]audio[\\/]test[\\/]/.test(p)) files.push(p);
   }
 })(join(root, 'src'));
 files.sort();
