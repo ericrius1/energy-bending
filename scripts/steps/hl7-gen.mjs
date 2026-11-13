@@ -1,6 +1,6 @@
 // Writes scripts/steps/hl7.json: the takes for report 7 (highlights, glows and reflections), each a few seconds, run
 // one at a time with scripts/critic-cap.mjs (the shared render lock is held for one take only):
-//   node scripts/critic-cap.mjs scripts/steps/hl7.json --only fw-temple --prefix 7 --shots shots/hl7
+//   node scripts/critic-cap.mjs scripts/steps/hl7.json --only fw-temple --prefix 7h --shots shots/hl7
 // fire behind and in front of water (temple, Pool), a fire core and a plasma hand close and at game distance, bloom
 // on gems and on the moon, reflections of fire, water and gem dancers at calm and at strong ripple, the locked view's
 // stage dim at 0 and at a tasteful value in each world. The critic's own takes are in critic6.json.
