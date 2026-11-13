@@ -109,8 +109,11 @@ const show = new Show(motion, kinds, bodies, rig, {
 }, coarse);
 if (query.has('landmarks')) show.castOverride = landmarksDemo();
 if (query.has('wander')) { const t = await travelling; show.castOverride = wanderDemo(motion, t); }
-if (query.has('net')) show.castOverride = await (await import('./net/demo')).netDemo(motion, frame, query);
-if (query.has('play')) await import('./dancer/play').then((m) => m.playDemo({ show, rig, frame, kit, canvas, world: () => worldOf(main.world), motion, travel: travelling, coarse, wake }));
+if (query.has('play')) {
+  const play = await import('./dancer/play').then((m) => m.playDemo({ show, rig, frame, kit, canvas, world: () => worldOf(main.world), motion, travel: travelling, coarse, wake }));
+  // ?play&net=ROOM: the played dancer online, the other seat through the network
+  if (query.has('net')) await (await import('./net/play')).netPlay({ show, play, frame, world: () => worldOf(main.world), query });
+} else if (query.has('net')) show.castOverride = await (await import('./net/demo')).netDemo(motion, frame, query);
 gatesDebug(gates, frame, query, () => show.dancers);
 // the music owns time: FrameCtx.beat is its clock, live and filming
 const beat = music.clock;

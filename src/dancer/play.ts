@@ -83,8 +83,10 @@ export function flatSteps(stretches: readonly IceLedge[]): Ledge[] {
 export interface PlayHandle {
   readonly hub: InputHub;
   readonly controllers: IntentController[];
-  /** the plane locking uses (the world's, with test ledges if it has none) */
+  /** the plane locking uses (the world's own stage) */
   plane(): StagePlane | null;
+  /** add a dancer played from elsewhere (the network's NetController): it joins the cast after the players */
+  addDancer(d: Dancer): void;
 }
 
 export async function playDemo(ctx: PlayCtx): Promise<PlayHandle> {
@@ -121,7 +123,9 @@ export async function playDemo(ctx: PlayCtx): Promise<PlayHandle> {
   };
   let lockedPlane: StagePlane | null = null;
   addDancer(0);
-  show.castOverride = () => dancers.slice();
+  /** dancers played from elsewhere (the network), after the players */
+  const others: Dancer[] = [];
+  show.castOverride = () => [...dancers, ...others];
 
   // ---------------------------------------------------------------- devices
   const project = (p: ArrayLike<number>) => {
@@ -206,5 +210,5 @@ export async function playDemo(ctx: PlayCtx): Promise<PlayHandle> {
     pad?.update();
   }, 'play: the lock, partners, the follow camera');
 
-  return { hub, controllers, plane: () => lockedPlane };
+  return { hub, controllers, plane: () => lockedPlane, addDancer: (d) => { others.push(d); show.stage(show.program); } };
 }
