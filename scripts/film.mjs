@@ -149,7 +149,12 @@ const shotKey = (s) => createHash('sha1').update(JSON.stringify({ shot: shotForP
 
 // ---------------------------------------------------------------- the plan: which takes each shot still needs
 const takeFrames = Number.isFinite(Q.take) ? Math.round(Q.take * Q.fps) : Infinity;
-const infoOf = (s) => (existsSync(join(s.dir, 'info.json')) ? JSON.parse(readFileSync(join(s.dir, 'info.json'), 'utf8')) : null);
+/** a shot's info: its whole render's, or (pictures only, --no-score) its first take's */
+const infoOf = (s) => {
+  if (existsSync(join(s.dir, 'info.json'))) return JSON.parse(readFileSync(join(s.dir, 'info.json'), 'utf8'));
+  const first = existsSync(s.dir) ? readdirSync(s.dir).find((f) => /^info-0-\d+\.json$/.test(f)) : null;
+  return first ? JSON.parse(readFileSync(join(s.dir, first), 'utf8')) : null;
+};
 /** each shot's place on the film and on the track, in order: its in-point's film time (`at`), the track's beat there
  *  (`track.beatAtIn`: the first shot's from its info, once rendered), its cache, and the frames it keeps (`keep`:
  *  its end on the track's nearest whole beat) */
@@ -352,7 +357,7 @@ for (const s of pick) {
   writeFileSync(lf, list([...Array(s.takes).keys()].map((k) => s.takePath(k))));
   s.joined = join(work, `${s.id}.mkv`);
   await ff(['-f', 'concat', '-safe', '0', '-i', lf, '-c', 'copy', '-frames:v', String(s.keep), s.joined]);
-  s.info = existsSync(join(s.dir, 'info.json')) ? JSON.parse(readFileSync(join(s.dir, 'info.json'), 'utf8')) : null;
+  s.info = infoOf(s);
 }
 if (TRACK) log(`track ${TRACK.id} (${TRACK.bpm.toFixed(3)} bpm, from ${relative(ROOT, TRACK.source)}): the film's first frame is its beat ${BEAT0?.toFixed(3)}; cuts at ${pick.map((s) => (s.at + s.len).toFixed(3)).join(', ')} s (beats ${pick.map((s) => (BEAT0 + (s.at + s.len) / SPB).toFixed(2)).join(', ')})`);
 const T = pick.reduce((a, s) => a + s.keep / Q.fps, 0);

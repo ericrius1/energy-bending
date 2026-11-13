@@ -18,8 +18,11 @@ import type { Room, Tone } from '../sound';
 import { wetOf } from '../sound';
 import { clamp, type Nodes } from './nodes';
 
-/** the levels (× the groove's) of the world's sounds, the effects and the jogo's sounds under a track */
-export const UNDER = { world: 0.5, fx: 0.55, sfx: 0.7 };
+/** the game's sounds under a track (× their levels without one): all of them (-14 dB), then the world's sounds
+ *  (stones, feet, matter: the held roars and pours are most of the game's loudness) 4.4 dB lower again, the effects 2 dB
+ *  lower, the jogo's sounds 4 dB higher (they say what happened). Measured on film 2's temple (a recorded score against
+ *  its track), the game's sounds come out about 10 dB under the track (docs/reports/9-music.md) */
+export const UNDER = { all: 0.2, world: 0.6, fx: 0.8, sfx: 1.6 };
 
 export class Mix {
   readonly master: GainNode;
@@ -168,13 +171,15 @@ export class Mix {
     }
   }
 
-  /** under a track (`amount` 1) the world (stones, feet, matter), the effects and the jogo's sounds sit lower: the track
-   *  is mastered loud and these were levelled against the groove; 0 puts them back */
-  under(t: number, amount: number, levels = UNDER) {
-    const a = clamp(amount, 0, 1), to = (p: AudioParam, v: number) => p.setTargetAtTime(1 + (v - 1) * a, t, 0.3);
-    to(this.world.gain, levels.world);
-    to(this.fxBus.gain, levels.fx);
-    to(this.sfxBus.gain, 0.9 * levels.sfx);
+  /** under a track (`amount` 1) everything the game sounds sits lower (the whole game's bus, so the reverb's sends
+   *  go down with what feeds them), the jogo's sounds a little less than the world's: the track is mastered loud, and
+   *  measured (a film's recorded score against its track) the game's own sounds were a decibel over it; 0 puts back */
+  under(t: number, amount: number, L = UNDER) {
+    const a = clamp(amount, 0, 1), to = (p: AudioParam, base: number, v: number) => p.setTargetAtTime(base * (1 + (v - 1) * a), t, 0.3);
+    to(this.master.gain, 0.85, L.all);
+    to(this.world.gain, 1, L.world);
+    to(this.fxBus.gain, 1, L.fx);
+    to(this.sfxBus.gain, 0.9, L.sfx);
   }
 
   /** the kick: the pad and the bass dip under it and come back */

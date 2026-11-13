@@ -147,8 +147,9 @@ tempo (`retempo`), so both players hear the same bar of the same track. The engi
 what is left (the matter voices, the stones, the feet, the players' melody, the jogo's sounds, the drop's sweep and
 hit) plays on the track's grid in its key: the harmony's mood is made from the track (`trackMood`: the key's
 pentatonic, its seven triads) and each bar's chord is the triad the analysis heard in that bar. Under a track the
-world's sounds, the effects and the jogo's sounds are turned down (`Mix.under`, `UNDER` in `synth/mix.ts`); the track
-comes in after the limiter, so the compressor never pumps it. Volume and mute work on everything as before.
+game's whole bus is turned down 14 dB, the world's sounds 4.4 dB more, the effects 2 dB more, the jogo's sounds 4 dB less (`Mix.under`,
+`UNDER` in `synth/mix.ts`), and the players' melody to half; the track comes in after the limiter, so the compressor
+never pumps it. Volume and mute work on everything as before.
 
 Loading: the first world's file is fetched and decoded (an OfflineAudioContext at 48 kHz) as the page loads, so the
 first touch starts it at once; the other files are fetched eight seconds later and decoded when their world comes.
