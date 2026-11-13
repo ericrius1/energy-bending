@@ -17,6 +17,8 @@ export class Dancer {
   /** the world it is in (src/portals keeps it: main.ts copies gates.worldOf each frame; '' before the first frame,
    *  which means the main view's). The field and the matter that belongs to no one body read it */
   world = '';
+  /** whether the camera follows and frames it (false for an onlooker: a roda's free dancer round a jogo) */
+  framed = true;
   constructor(public readonly id: string, public controller: Controller, public loadout: Loadout) {
     this.skeleton = new Skeleton(controller.rig);
   }

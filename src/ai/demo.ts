@@ -208,9 +208,15 @@ export async function rodaForJogo(ctx: BrainsCtx & { play: PlayHandle }, n: numb
   pb.rules = rules;
   const count = Math.max(0, Math.min(n, LIMITS.dancers - 2));
   const ring = rodaOf(count), w = ctx.world(), p = w.stages[0];
+  // they wear their own gems (the show's dress names the two seats; its last name would serve them too) and the
+  // camera frames the two seats, not the ring
+  const seated = Math.max(2, ctx.play.dancers.length);
+  while (ctx.show.dress.length < seated + count) ctx.show.dress.push('');
   for (let k = 0; k < count; k++) {
     const spot = p ? rodaSpot(p, ring[k], 0, w.room) : [Math.cos(k) * 5, Math.sin(k) * 3] as [number, number];
-    ctx.play.addDancer(pb.npc(new NpcBrain({ seed: 100 + k, clips: pb.clips, roda: ring[k], params: { energy: 0.3 + 0.6 * ((k * 0.37) % 1) } }), k, [spot[0] * 1.08, spot[1] * 1.15]));
+    const d = pb.npc(new NpcBrain({ seed: 100 + k, clips: pb.clips, roda: ring[k], params: { energy: 0.3 + 0.6 * ((k * 0.37) % 1) } }), k, [spot[0] * 1.08, spot[1] * 1.15]);
+    d.framed = false;
+    ctx.play.addDancer(d);
   }
   // the scene: the jogo's seats (simulated here or not) and the ring
   ctx.frame.tick('input', (f) => {

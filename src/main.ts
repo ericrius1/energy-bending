@@ -163,14 +163,14 @@ frame.tick('dancers', (f) => {
   for (const d of show.dancers) d.update(f);
   bodies.upload(show.dancers, f.t);
   for (const d of show.dancers) d.world = gates.worldOf(d);   // (Dancer.world: the field follows the main view's)
-  const seen = gates.seen(gates.rigWorld, show.dancers, 2);
+  const seen = gates.seen(gates.rigWorld, show.dancers.filter((d) => d.framed), 2);
   Object.assign(centre, { x: seen.x, z: seen.z, ring: !!show.program.ring, dancers: show.dancers.length });
   field.update(f);
 }, 'show: the programme, every dancer posed, joints to the GPU');
 
 frame.tick('camera', (f) => {
   // (the rig works in its player's world: from the moment they go through a gate, before the view follows)
-  const [w, h] = kit.size.render, world = worldOf(gates.rigWorld), here = gates.seen(gates.rigWorld, show.dancers, 2).joints, D = here.length;
+  const [w, h] = kit.size.render, world = worldOf(gates.rigWorld), here = gates.seen(gates.rigWorld, show.dancers.filter((d) => d.framed), 2).joints, D = here.length;
   const crowd = show.program.ring ? 1 : D >= 3 ? 1.35 : D === 2 ? 1.1 : 1;
   // what a locked view frames: every dancer's hips, head, hands and feet
   let n = 0;
