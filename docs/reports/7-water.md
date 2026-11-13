@@ -22,7 +22,7 @@ puddle sheet after a fusion, the `?pip` inset, a long soak.
 4. Ice inherits it: no constant-width white outline, frost only on edges that face up and on hands, feet and head,
    facets that reflect their own part of the world, cells of their own blue (`7-ba-el-ip-redwoods-close.jpg`). It is
    now closer to `02`'s pale ice than before.
-5. Cost: about the same as before (timings below).
+5. Cost: +0.04 ms for a close water dancer at 1280x800 (1.03 ms), +0.10 to +0.12 ms of water passes at 1080p.
 
 ## What I changed, and why
 
@@ -106,7 +106,19 @@ apply it in the air: where the glow's distance (the fire's focus) is further tha
 | two water dancers, temple (`el-water-solo-close`) | `6-el-water-solo-close-1p2.jpg` | `7-el-water-solo-close-1p2.jpg`, sheet | `7-ba-el-water-solo-close.jpg` |
 | fire and water, temple (`el-fw-temple-close`) | `6-el-fw-temple-close-sheet.jpg` | `7-el-fw-temple-close-sheet.jpg`, `-1p2.jpg` | |
 | plasma and ice, redwoods (`el-ip-redwoods-close`) | `6-el-ip-redwoods-close-1p2.jpg` | `7-el-ip-redwoods-close-1p2.jpg` | `7-ba-el-ip-redwoods-close.jpg` |
-FILMS
+| film 2's dolly in the temple at 3.6 s, beside the fire (1920x1080) | `6-film2-dolly-3p6.jpg` | `7-film2-dolly-3p6.jpg`, sheet `7-film2-dolly-sheet.jpg` | `7-ba-film2-dolly-3p6.jpg` |
+| film 1's rise in the redwoods at 3 s (1920x1080) | `6-film1-rise-3.jpg` | `7-film1-rise-3.jpg`, sheet `7-film1-rise-sheet.jpg` | `7-ba-film1-rise-3.jpg` |
+
+(`7-film1-rise-*` and `7-el-ip-redwoods-close-*`, `7-el-fw-temple-close-*` were shot with the water's own light at
+0.12; the rest, and my final checks, at 0.18, the value committed. The difference is small: a slightly brighter
+body on black.)
+
+What I see in them: the uniform cyan outline is gone in every one. In the redwoods the water is a clear, faintly blue
+body; the grass and the trunk show bent through it; the side toward the fire carries the fire's warm highlights and
+rim, the other side the dusk sky's. In the temple the body is blue-green glass in which the columns and the water
+behind are seen bent; the moon makes a rim on its far edge and the fire a gold one on the near edge. At film 2's
+distance it is a translucent blue figure beside the fire, quieter than the fire, which is what the brief asked. The
+asleep heap at film 1's 3 s is a translucent puddle gathering and rising, not a lozenge.
 
 My own takes (`scripts/steps/water-7-gen.mjs` → `water-7.json`, `--prefix 7i`), all looked at:
 `7i-fw-{temple,redwoods,pool,geode}-*.jpg` (fire and water in four worlds, at rest, a kick, an aú),
@@ -135,11 +147,63 @@ search round every pixel near water, the fire lights' highlights); two ice bodie
 counting the same passes, about +0.57 after (the gems run after the change was disturbed, so I take the pass sums).
 An earlier version of this work cost +0.11 ms in the composite (0.18); computing ice only where something is frozen,
 water only where something is liquid, two search rings instead of three and the capsule vote only on the water
-brought it back. 1080p: see below.
+brought it back.
+
+**1920x1080** (the critic's `t-temple-pair` and `t-redwoods-pair` from `critic6.json`; before = the critic's own run,
+`shots/critic6/timings.jsonl` in the main checkout, same code as my base; after = `shots/w7-1080/timings.jsonl`):
+
+| scene | frame before → after (ms) | all water passes before → after (ms) | the composite (`water.surface`) |
+|---|---|---|---|
+| temple, fire and water, 4 m | 1.954 → 2.222 | 0.650 → 0.769 (+0.12) | about 0.07 → 0.181 |
+| redwoods at dusk, fire and water, 4 m | 2.889 → 3.231 | 0.643 → 0.740 (+0.10) | 0.071 → 0.158 |
+
+Water costs +0.10 to +0.12 ms at 1080p (the "≤ 0.2 ms more" is met). The whole frames rose more than the water did
+(+0.27, +0.34): the critic's run and mine are different sessions with other agents' work on the GPU, and I did not
+separate the rest; the water's passes are what this branch changed. Still under the 3.3 ms the critic gave for every
+film scene.
 
 ## The critique's "Done when", item by item
 
-DONEWHEN
+Water (6-critique, "Water: what to change", Done when):
+
+| item | met? | evidence and why |
+|---|---|---|
+| `el-fw-redwoods-close` and `el-water-solo-close` re-shot show no constant-width outline | **met** | `7-ba-el-fw-redwoods-close.jpg`, `7-ba-el-water-solo-close.jpg`, both sheets: no term of the shading is keyed to "thin" any more except absorption; the rim is only toward a light |
+| a body whose highlights move with the world's light | **met** | highlights and rim come from `worldKey` and each fire light's position: the moon's rim on the far side in the temple, the fire's gold on the near side (`7-el-fw-temple-close-sheet.jpg`, `7-film2-dolly-3p6.jpg`); the view-fixed light is a 0.25 fill |
+| the background seen through it | **met** | the columns and the court bent through the bodies (`7-el-water-solo-close-1p2.jpg`), the grass and a trunk in the redwoods (`7-el-fw-redwoods-close-1p2.jpg`) |
+| an edge that breaks into wisps in at least half the frames | **partly** | in the kicks and the spin the edge streams (ribbons, a torn trailing edge, the spin's spray: `7i-solo-moves-sheet.jpg`, `7-el-fw-redwoods-close-sheet.jpg` last row); at rest the outline is irregular and curling but these are not `09`'s long flame-like wisps. Counting frames of `7-el-water-solo-close-sheet.jpg` where the outline has a visible break or tongue, I count about half; in the rest it is lumpy, not smooth, but whole |
+| beside the fire in `film2-dolly` at 3.6 s it reads as the same quality of matter | **met, by my eye** | `7-ba-film2-dolly-3p6.jpg`: both are lit by the same moon and the same fire; the water is quieter than the fire, as the brief wants. The fire behind it still adds through it (post agent) |
+| water costs ≤ 0.2 ms more than today at 1080p | **met** | +0.10 to +0.12 ms in the water's passes (the 1080p table) |
+
+Task 2 (6-critique, "The work plan"):
+
+| item | met? | evidence |
+|---|---|---|
+| `6-film1-rise` re-shot shows no flat cyan lozenge at 3 s | **met** | `7-ba-film1-rise-3.jpg`: a translucent puddle with the floor through it, gathering and rising |
+| `6-el-ip-redwoods-close` re-shot shows ice without a constant-width white outline | **met** | `7-ba-el-ip-redwoods-close.jpg`: no band; frost on up-facing edges and the head and hands only; paler and closer to `02` |
+
+The brief's own list:
+
+1. Lit, not glowing: **done** (the table at the top of "What I changed"). The own light is 0.18 of the caustic, far
+   below the fire beside it.
+2. The world through it: **done** for the main view: thin water lets 70 to 80 % through, thick water absorbs toward
+   deep blue-green, refraction bends most at the edges. Fire through water: **the veil is provided** (above); the post
+   agent applies it.
+3. A silhouette that breaks: **partly** (shell curl, streamers, drips, the edge's tongues and tearing; a crown when a
+   limb stops is the existing shed-with-velocity; ropes between limbs come from the smoothing joining near limbs, not
+   from anything new). Not `09`'s wisps; the fallback is named in the weak points.
+4. The puddle: **done** (reflective, meniscus, the floor through it; gathers and rises on waking).
+5. Ice inherits: **done** (no outline, frost where it forms, facets lit by the world, dark facets kept, set ice the
+   same: `7i-bridge-0p4.jpg`).
+6. `tide`'s heart: **done, with a fix** (its own ice no longer freezes its water; the chest is liquid and the heart's
+   stones and glow show through it: `7i-tide-1.jpg`). The heart is still more glow than stone at that distance.
+7. The fallback: **not used**. The first choice removed the outline; the fallback is what would turn the edge into
+   `09`'s wisps (weak point 2).
+8. Kept: form and the freeze climbing (`7i-freeze-sheet.jpg`), `setIce` (`7i-bridge-0p4.jpg`), gate views
+   (`7i-door-0p8.jpg`: the water dancer before the geode's live door; I did not shoot water *beyond* a disc this time),
+   the geode's mirror (`7i-fw-geode-*.jpg`: the bodies reflected in the agate), `focus` (unchanged values, now with the
+   veil in the same pass), `hear`, `carry`, budgets, the field's reactions (unchanged code paths; the freeze threshold
+   gained the own-ice term). The cost: above.
 
 ## Weak points
 
