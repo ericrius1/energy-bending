@@ -1,0 +1,597 @@
+[
+ {
+  "name": "pair-geode-wide",
+  "query": "play&two&dress=fire,water&world=geode",
+  "fps": 30,
+  "seconds": 3,
+  "warm": 300,
+  "setup": "bend.set('camera', { followDist: 7, followFov: 44, followPitch: 0.12, followSwing: 0 }); bend.wake(); bend.place(0,-0.8,0.3,Math.PI/2); bend.place(1,0.8,0.3,-Math.PI/2);",
+  "cues": {
+   "0.8": "bend.move(0,'armada')",
+   "1.8": "bend.move(1,'meia-lua')"
+  },
+  "each": "bend.camera({ yaw: 0.2 + 0.05*t });",
+  "sheet": {
+   "cols": 4,
+   "rows": 2,
+   "width": 400
+  },
+  "stills": [
+   1,
+   2.2
+  ]
+ },
+ {
+  "name": "pair-geode-close",
+  "query": "play&two&dress=fire,water&world=geode",
+  "fps": 30,
+  "seconds": 3,
+  "warm": 300,
+  "setup": "bend.set('camera', { followDist: 2.8, followFov: 44, followPitch: 0.12, followSwing: 0 }); bend.wake(); bend.place(0,-0.6,0.3,Math.PI/2); bend.place(1,0.6,0.3,-Math.PI/2);",
+  "cues": {
+   "0.8": "bend.move(0,'armada')",
+   "1.8": "bend.move(1,'meia-lua')"
+  },
+  "each": "bend.camera({ yaw: 0.2 + 0.05*t });",
+  "sheet": {
+   "cols": 4,
+   "rows": 2,
+   "width": 400
+  },
+  "stills": [
+   1,
+   2.2
+  ]
+ },
+ {
+  "name": "pair-redwoods-wide",
+  "query": "play&two&dress=fire,water&world=redwoods",
+  "fps": 30,
+  "seconds": 3,
+  "warm": 300,
+  "setup": "bend.set('redwoods', { hour: 19.4, dayGoes: false }); bend.set('camera', { followDist: 7, followFov: 44, followPitch: 0.12, followSwing: 0 }); bend.wake(); bend.place(0,-0.8,0.3,Math.PI/2); bend.place(1,0.8,0.3,-Math.PI/2);",
+  "cues": {
+   "0.8": "bend.move(0,'armada')",
+   "1.8": "bend.move(1,'meia-lua')"
+  },
+  "each": "bend.camera({ yaw: 0.2 + 0.05*t });",
+  "sheet": {
+   "cols": 4,
+   "rows": 2,
+   "width": 400
+  },
+  "stills": [
+   1,
+   2.2
+  ]
+ },
+ {
+  "name": "pair-redwoods-close",
+  "query": "play&two&dress=fire,water&world=redwoods",
+  "fps": 30,
+  "seconds": 3,
+  "warm": 300,
+  "setup": "bend.set('redwoods', { hour: 19.4, dayGoes: false }); bend.set('camera', { followDist: 2.8, followFov: 44, followPitch: 0.12, followSwing: 0 }); bend.wake(); bend.place(0,-0.6,0.3,Math.PI/2); bend.place(1,0.6,0.3,-Math.PI/2);",
+  "cues": {
+   "0.8": "bend.move(0,'armada')",
+   "1.8": "bend.move(1,'meia-lua')"
+  },
+  "each": "bend.camera({ yaw: 0.2 + 0.05*t });",
+  "sheet": {
+   "cols": 4,
+   "rows": 2,
+   "width": 400
+  },
+  "stills": [
+   1,
+   2.2
+  ]
+ },
+ {
+  "name": "pair-pool-wide",
+  "query": "play&two&dress=fire,water&world=pool",
+  "fps": 30,
+  "seconds": 3,
+  "warm": 300,
+  "setup": "bend.set('camera', { followDist: 7, followFov: 44, followPitch: 0.12, followSwing: 0 }); bend.wake(); bend.place(0,-0.8,0.3,Math.PI/2); bend.place(1,0.8,0.3,-Math.PI/2);",
+  "cues": {
+   "0.8": "bend.move(0,'armada')",
+   "1.8": "bend.move(1,'meia-lua')"
+  },
+  "each": "bend.camera({ yaw: 0.2 + 0.05*t });",
+  "sheet": {
+   "cols": 4,
+   "rows": 2,
+   "width": 400
+  },
+  "stills": [
+   1,
+   2.2
+  ]
+ },
+ {
+  "name": "pair-pool-close",
+  "query": "play&two&dress=fire,water&world=pool",
+  "fps": 30,
+  "seconds": 3,
+  "warm": 300,
+  "setup": "bend.set('camera', { followDist: 2.8, followFov: 44, followPitch: 0.12, followSwing: 0 }); bend.wake(); bend.place(0,-0.6,0.3,Math.PI/2); bend.place(1,0.6,0.3,-Math.PI/2);",
+  "cues": {
+   "0.8": "bend.move(0,'armada')",
+   "1.8": "bend.move(1,'meia-lua')"
+  },
+  "each": "bend.camera({ yaw: 0.2 + 0.05*t });",
+  "sheet": {
+   "cols": 4,
+   "rows": 2,
+   "width": 400
+  },
+  "stills": [
+   1,
+   2.2
+  ]
+ },
+ {
+  "name": "pair-temple-wide",
+  "query": "play&two&dress=fire,water&world=temple",
+  "fps": 30,
+  "seconds": 3,
+  "warm": 300,
+  "setup": "bend.set('camera', { followDist: 7, followFov: 44, followPitch: 0.12, followSwing: 0 }); bend.wake(); bend.place(0,-0.8,0.3,Math.PI/2); bend.place(1,0.8,0.3,-Math.PI/2);",
+  "cues": {
+   "0.8": "bend.move(0,'armada')",
+   "1.8": "bend.move(1,'meia-lua')"
+  },
+  "each": "bend.camera({ yaw: 0.2 + 0.05*t });",
+  "sheet": {
+   "cols": 4,
+   "rows": 2,
+   "width": 400
+  },
+  "stills": [
+   1,
+   2.2
+  ]
+ },
+ {
+  "name": "pair-temple-close",
+  "query": "play&two&dress=fire,water&world=temple",
+  "fps": 30,
+  "seconds": 3,
+  "warm": 300,
+  "setup": "bend.set('camera', { followDist: 2.8, followFov: 44, followPitch: 0.12, followSwing: 0 }); bend.wake(); bend.place(0,-0.6,0.3,Math.PI/2); bend.place(1,0.6,0.3,-Math.PI/2);",
+  "cues": {
+   "0.8": "bend.move(0,'armada')",
+   "1.8": "bend.move(1,'meia-lua')"
+  },
+  "each": "bend.camera({ yaw: 0.2 + 0.05*t });",
+  "sheet": {
+   "cols": 4,
+   "rows": 2,
+   "width": 400
+  },
+  "stills": [
+   1,
+   2.2
+  ]
+ },
+ {
+  "name": "pair-forge-wide",
+  "query": "play&two&dress=fire,water&world=forge",
+  "fps": 30,
+  "seconds": 3,
+  "warm": 300,
+  "setup": "bend.set('camera', { followDist: 7, followFov: 44, followPitch: 0.12, followSwing: 0 }); bend.wake(); bend.place(0,-0.8,0.3,Math.PI/2); bend.place(1,0.8,0.3,-Math.PI/2);",
+  "cues": {
+   "0.8": "bend.move(0,'armada')",
+   "1.8": "bend.move(1,'meia-lua')"
+  },
+  "each": "bend.camera({ yaw: 0.2 + 0.05*t });",
+  "sheet": {
+   "cols": 4,
+   "rows": 2,
+   "width": 400
+  },
+  "stills": [
+   1,
+   2.2
+  ]
+ },
+ {
+  "name": "pair-forge-close",
+  "query": "play&two&dress=fire,water&world=forge",
+  "fps": 30,
+  "seconds": 3,
+  "warm": 300,
+  "setup": "bend.set('camera', { followDist: 2.8, followFov: 44, followPitch: 0.12, followSwing: 0 }); bend.wake(); bend.place(0,-0.6,0.3,Math.PI/2); bend.place(1,0.6,0.3,-Math.PI/2);",
+  "cues": {
+   "0.8": "bend.move(0,'armada')",
+   "1.8": "bend.move(1,'meia-lua')"
+  },
+  "each": "bend.camera({ yaw: 0.2 + 0.05*t });",
+  "sheet": {
+   "cols": 4,
+   "rows": 2,
+   "width": 400
+  },
+  "stills": [
+   1,
+   2.2
+  ]
+ },
+ {
+  "name": "preset-ember",
+  "query": "play&two&dress=ember,gems&world=pool",
+  "fps": 30,
+  "seconds": 3,
+  "warm": 300,
+  "setup": "bend.set('camera', { followDist: 3.2, followFov: 44, followPitch: 0.12, followSwing: 0 }); bend.wake(); bend.place(0,-0.8,0.3,Math.PI/2); bend.place(1,0.8,0.3,-Math.PI/2);",
+  "cues": {
+   "0.8": "bend.move(0,'armada')",
+   "1.8": "bend.move(1,'meia-lua')"
+  },
+  "each": "bend.camera({ yaw: 0.2 + 0.05*t });",
+  "sheet": {
+   "cols": 4,
+   "rows": 2,
+   "width": 400
+  },
+  "stills": [
+   1,
+   2.2
+  ]
+ },
+ {
+  "name": "preset-tide",
+  "query": "play&two&dress=tide,gems&world=pool",
+  "fps": 30,
+  "seconds": 3,
+  "warm": 300,
+  "setup": "bend.set('camera', { followDist: 3.2, followFov: 44, followPitch: 0.12, followSwing: 0 }); bend.wake(); bend.place(0,-0.8,0.3,Math.PI/2); bend.place(1,0.8,0.3,-Math.PI/2);",
+  "cues": {
+   "0.8": "bend.move(0,'armada')",
+   "1.8": "bend.move(1,'meia-lua')"
+  },
+  "each": "bend.camera({ yaw: 0.2 + 0.05*t });",
+  "sheet": {
+   "cols": 4,
+   "rows": 2,
+   "width": 400
+  },
+  "stills": [
+   1,
+   2.2
+  ]
+ },
+ {
+  "name": "preset-geodeheart",
+  "query": "play&two&dress=geodeheart,gems&world=pool",
+  "fps": 30,
+  "seconds": 3,
+  "warm": 300,
+  "setup": "bend.set('camera', { followDist: 3.2, followFov: 44, followPitch: 0.12, followSwing: 0 }); bend.wake(); bend.place(0,-0.8,0.3,Math.PI/2); bend.place(1,0.8,0.3,-Math.PI/2);",
+  "cues": {
+   "0.8": "bend.move(0,'armada')",
+   "1.8": "bend.move(1,'meia-lua')"
+  },
+  "each": "bend.camera({ yaw: 0.2 + 0.05*t });",
+  "sheet": {
+   "cols": 4,
+   "rows": 2,
+   "width": 400
+  },
+  "stills": [
+   1,
+   2.2
+  ]
+ },
+ {
+  "name": "preset-monolith",
+  "query": "play&two&dress=monolith,all&world=geode",
+  "fps": 30,
+  "seconds": 3,
+  "warm": 300,
+  "setup": "bend.set('camera', { followDist: 3.2, followFov: 44, followPitch: 0.12, followSwing: 0 }); bend.wake(); bend.place(0,-0.8,0.3,Math.PI/2); bend.place(1,0.8,0.3,-Math.PI/2);",
+  "cues": {
+   "0.8": "bend.move(0,'armada')",
+   "1.8": "bend.move(1,'meia-lua')"
+  },
+  "each": "bend.camera({ yaw: 0.2 + 0.05*t });",
+  "sheet": {
+   "cols": 4,
+   "rows": 2,
+   "width": 400
+  },
+  "stills": [
+   1,
+   2.2
+  ]
+ },
+ {
+  "name": "preset-all",
+  "query": "play&two&dress=all,gems&world=pool",
+  "fps": 30,
+  "seconds": 3,
+  "warm": 300,
+  "setup": "bend.set('camera', { followDist: 3.2, followFov: 44, followPitch: 0.12, followSwing: 0 }); bend.wake(); bend.place(0,-0.8,0.3,Math.PI/2); bend.place(1,0.8,0.3,-Math.PI/2);",
+  "cues": {
+   "0.8": "bend.move(0,'armada')",
+   "1.8": "bend.move(1,'meia-lua')"
+  },
+  "each": "bend.camera({ yaw: 0.2 + 0.05*t });",
+  "sheet": {
+   "cols": 4,
+   "rows": 2,
+   "width": 400
+  },
+  "stills": [
+   1,
+   2.2
+  ]
+ },
+ {
+  "name": "plasma-ice",
+  "query": "play&two&dress=plasma,ice&world=pool",
+  "fps": 30,
+  "seconds": 3,
+  "warm": 300,
+  "setup": "bend.set('camera', { followDist: 2.6, followFov: 44, followPitch: 0.12, followSwing: 0 }); bend.wake(); bend.place(0,-0.275,0.3,Math.PI/2); bend.place(1,0.275,0.3,-Math.PI/2);",
+  "cues": {
+   "0.5": "bend.move(0,'armada')",
+   "1.5": "bend.move(1,'armada')"
+  },
+  "each": "bend.camera({ yaw: 0.2 + 0.05*t });",
+  "sheet": {
+   "cols": 4,
+   "rows": 2,
+   "width": 400
+  },
+  "stills": [
+   0.8,
+   1.6,
+   2.4
+  ]
+ },
+ {
+  "name": "react-kick",
+  "query": "play&two&dress=fire,water&world=pool",
+  "fps": 30,
+  "seconds": 3,
+  "warm": 300,
+  "setup": "bend.set('camera', { followDist: 2.6, followFov: 44, followPitch: 0.12, followSwing: 0 }); bend.wake(); bend.place(0,-0.65,0.3,Math.PI/2); bend.place(1,0.65,0.3,-Math.PI/2);",
+  "cues": {
+   "0.5": "bend.move(1,'armada')",
+   "1.5": "bend.move(1,'meia-lua')"
+  },
+  "each": "bend.camera({ yaw: 0.2 + 0.05*t });",
+  "sheet": {
+   "cols": 4,
+   "rows": 2,
+   "width": 400
+  },
+  "stills": [
+   0.9,
+   1.9
+  ]
+ },
+ {
+  "name": "react-thin",
+  "query": "play&two&dress=fire,water&world=pool",
+  "fps": 30,
+  "seconds": 4,
+  "warm": 300,
+  "setup": "bend.set('camera', { followDist: 2.2, followFov: 44, followPitch: 0.12, followSwing: 0 }); bend.wake(); bend.place(0,-0.225,0.3,Math.PI/2); bend.place(1,0.225,0.3,-Math.PI/2);",
+  "cues": {},
+  "each": "bend.camera({ yaw: 0.2 + 0.05*t });",
+  "sheet": {
+   "cols": 4,
+   "rows": 2,
+   "width": 400
+  },
+  "stills": [
+   1,
+   3.5
+  ]
+ },
+ {
+  "name": "react-freeze",
+  "query": "play&two&dress=ice,water&world=pool",
+  "fps": 30,
+  "seconds": 4,
+  "warm": 300,
+  "setup": "bend.set('camera', { followDist: 2.2, followFov: 44, followPitch: 0.12, followSwing: 0 }); bend.wake(); bend.place(0,-0.225,0.3,Math.PI/2); bend.place(1,0.225,0.3,-Math.PI/2);",
+  "cues": {},
+  "each": "bend.camera({ yaw: 0.2 + 0.05*t });",
+  "sheet": {
+   "cols": 4,
+   "rows": 2,
+   "width": 400
+  },
+  "stills": [
+   1,
+   3.5
+  ]
+ },
+ {
+  "name": "react-melt",
+  "query": "play&two&dress=fire,ice&world=pool",
+  "fps": 30,
+  "seconds": 4,
+  "warm": 300,
+  "setup": "bend.set('camera', { followDist: 2.2, followFov: 44, followPitch: 0.12, followSwing: 0 }); bend.wake(); bend.place(0,-0.225,0.3,Math.PI/2); bend.place(1,0.225,0.3,-Math.PI/2);",
+  "cues": {},
+  "each": "bend.camera({ yaw: 0.2 + 0.05*t });",
+  "sheet": {
+   "cols": 4,
+   "rows": 2,
+   "width": 400
+  },
+  "stills": [
+   1,
+   3.5
+  ]
+ },
+ {
+  "name": "baseline-geode",
+  "query": "baseline&play&two&dress=fire,water&world=geode",
+  "fps": 10,
+  "seconds": 1,
+  "warm": 240,
+  "setup": "bend.wake();",
+  "stills": [
+   0.5
+  ],
+  "sheet": {
+   "cols": 2,
+   "rows": 1,
+   "width": 640
+  }
+ },
+ {
+  "name": "baseline-redwoods",
+  "query": "baseline&play&two&dress=fire,water&world=redwoods",
+  "fps": 10,
+  "seconds": 1,
+  "warm": 240,
+  "setup": "bend.set('redwoods', { hour: 19.4, dayGoes: false }); bend.wake();",
+  "stills": [
+   0.5
+  ],
+  "sheet": {
+   "cols": 2,
+   "rows": 1,
+   "width": 640
+  }
+ },
+ {
+  "name": "baseline-pool",
+  "query": "baseline&play&two&dress=fire,water&world=pool",
+  "fps": 10,
+  "seconds": 1,
+  "warm": 240,
+  "setup": "bend.wake();",
+  "stills": [
+   0.5
+  ],
+  "sheet": {
+   "cols": 2,
+   "rows": 1,
+   "width": 640
+  }
+ },
+ {
+  "name": "baseline-temple",
+  "query": "baseline&play&two&dress=fire,water&world=temple",
+  "fps": 10,
+  "seconds": 1,
+  "warm": 240,
+  "setup": "bend.wake();",
+  "stills": [
+   0.5
+  ],
+  "sheet": {
+   "cols": 2,
+   "rows": 1,
+   "width": 640
+  }
+ },
+ {
+  "name": "baseline-forge",
+  "query": "baseline&play&two&dress=fire,water&world=forge",
+  "fps": 10,
+  "seconds": 1,
+  "warm": 240,
+  "setup": "bend.wake();",
+  "stills": [
+   0.5
+  ],
+  "sheet": {
+   "cols": 2,
+   "rows": 1,
+   "width": 640
+  }
+ },
+ {
+  "name": "jogo-pool",
+  "query": "jogo=script&script=pool-fire-water",
+  "fps": 5,
+  "seconds": 44,
+  "warm": 1,
+  "sheet": {
+   "cols": 6,
+   "rows": 4,
+   "width": 330
+  },
+  "stills": [
+   8,
+   14,
+   20,
+   26,
+   30,
+   34,
+   38,
+   42
+  ]
+ },
+ {
+  "name": "jogo-partner-redwoods",
+  "query": "jogo=partner&world=redwoods&dress=fire,water",
+  "fps": 5,
+  "seconds": 30,
+  "warm": 1,
+  "setup": "bend.set('redwoods', { hour: 19.4, dayGoes: false }); await bend.jogo.start();",
+  "cues": {
+   "4.0": "bend.move(0,'meia-lua')",
+   "5.5": "bend.move(0,'esquiva')",
+   "7.0": "bend.move(0,'armada')",
+   "8.5": "bend.move(0,'spin')",
+   "10.0": "bend.move(0,'martelo')",
+   "11.5": "bend.move(0,'au')",
+   "13.0": "bend.move(0,'block')",
+   "14.5": "bend.move(0,'meia-lua')",
+   "16.0": "bend.move(0,'role')",
+   "17.5": "bend.move(0,'armada')",
+   "19.0": "bend.move(0,'meia-lua')",
+   "20.5": "bend.move(0,'esquiva')",
+   "22.0": "bend.move(0,'armada')",
+   "23.5": "bend.move(0,'spin')",
+   "25.0": "bend.move(0,'martelo')",
+   "26.5": "bend.move(0,'au')",
+   "28.0": "bend.move(0,'block')",
+   "29.5": "bend.move(0,'meia-lua')"
+  },
+  "sheet": {
+   "cols": 6,
+   "rows": 4,
+   "width": 330
+  },
+  "stills": [
+   6,
+   12,
+   18,
+   24,
+   29
+  ]
+ },
+ {
+  "name": "roda-free",
+  "query": "jogo=partner&world=geode&dress=fire,water&free",
+  "fps": 5,
+  "seconds": 12,
+  "warm": 1,
+  "setup": "await bend.jogo.start(); bend.set('camera', { followDist: 8, followPitch: 0.3 });",
+  "cues": {
+   "3": "bend.move(0,'armada')",
+   "6": "bend.move(0,'au')"
+  },
+  "sheet": {
+   "cols": 4,
+   "rows": 3,
+   "width": 400
+  },
+  "stills": [
+   8,
+   11.5
+  ]
+ }
+]
