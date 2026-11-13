@@ -3,7 +3,7 @@
 import { defineParams } from '../engine/params';
 
 export const portalParams = defineParams('gates', {
-  /** live gate views at once (the rest show a shimmer, or their last view blurred) */
+  /** live gate views at once (the rest show their last view blurred, or their still) */
   live: 2,
   /** how deep gates seen through gates are drawn live (1: only gates seen from the main view; 2: one more) */
   depth: 2,
@@ -19,6 +19,10 @@ export const portalParams = defineParams('gates', {
   openTime: 1.8,
   /** seconds the camera's leftover turn (a gate that tilts the world) takes to ease out */
   settle: 0.9,
+  /** at the face, how much of the far view's path (m) the disc reports as its distance: this world's air lies over
+   *  that much of the disc (0: none, as it should be), and the depth of field reads it (0: the whole screen as
+   *  centimetres away) */
+  faceDist: 1,
   /** the glow round a gate, the halo and the light on the floor (0 off) */
   glow: 1,
   /** ?fly: the gate to fly through ('' off), where along the path (−1 … 1, the disc at 0), how fast (path lengths a

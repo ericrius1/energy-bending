@@ -1,21 +1,29 @@
-// Live gates between worlds. A gate pairs two discs in two worlds (portals/gate.ts). While a gate is on screen and
+/// Live gates between worlds. A gate pairs two discs in two worlds (portals/gate.ts). While a gate is on screen and
 // bigger than a few pixels, the world behind it is drawn live, this frame, from the view's camera carried through the
 // gate (portals/camera.ts: its near plane laid on the far disc), into a smaller view of its own (a "slot"), and shown
 // in the disc (portals/surface.wgsl). Slots are the frame's extra views (LIMITS.views): a few, rendered deepest first
-// in the 'gates' stage, so a gate seen through a gate is live one level down; past that a gate shows the last view it
-// had, blurred, or a shimmer.
+// in the 'gates' stage, so a gate seen through a gate is live one level down. The main view's slots go first to the
+// gate the followed player is heading for, then to a gate with a dancer seen through it, then to the biggest on screen.
+// A gate with no live view shows the last view it had, blurred, or its still: the far world seen square on through
+// it, taken by a slot nobody needed (each gate's once it opens, then now and then), soft and dim on the disc.
 //
 // Crossing is one rigid move. A dancer whose middle passes through a disc is carried (portals/carried.ts wraps its
 // controller, every joint goes through the move, and each matter kind carries its particles: MatterPasses.carry).
-// The camera passing through a disc carries the camera rig (and the main view goes to the other world with it). The
-// view was already live, so nothing is hidden: the exposure leans toward the far world's as a gate fills the screen,
-// and at the face the two agree. A dancer part way through is drawn in both worlds, each side cut at the door: each
-// view's `seen` uniform (engine/seen.wgsl) says, per dancer, whether it is in that view's world, carried how, and
-// which side of which plane is drawn.
+// The camera rig goes with the player it follows (or, for the director's camera, with the last dancer to leave its
+// world) in the same frame, by the same move (CameraRig.carry): from then on it works in that world's coordinates.
+// What is drawn does not jump: the main view is drawn from where the eye really is (`offset`, the rig's coordinates
+// back through the gate) until the eye itself comes through the disc, which the rig makes happen within a second or
+// two (CameraRig.through), on a line through the disc. The eye passing through a disc moves the main view to the
+// other world; a locked camera and a follow camera never pass through a disc on their own (`clear`: the rig keeps its
+// eye in front of any disc between it and what it looks at). The view was already live, so nothing is hidden: the
+// exposure leans toward the far world's as a gate fills the screen, and at the face the two agree. A dancer part way
+// through is drawn in both worlds, each side cut at the door: each view's `seen` uniform (engine/seen.wgsl) says, per
+// dancer, whether it is in that view's world, carried how, and which side of which plane is drawn.
 //
 // The API for the game: open(def), close(id), crossed(prev, next, world), pt / dir / quat through a gate, on(event),
-// worldOf(dancer) / place(dancer, world), seen(world, dancers) (the dancers as the main view's world sees them, for the
-// camera to follow), and travel(event) to apply a crossing the network reported.
+// worldOf(dancer) / place(dancer, world), rigWorld (the world the camera rig works in), seen(world, dancers) (the
+// dancers as a world sees them, for the camera to follow: seen(rigWorld, …)), and travel(event) to apply a crossing
+// the network reported. More gates than LIMITS.gates in a world is fine: each view draws the nearest.
 import type { Kit, Texture } from '@ericrius1/weft';
 import type { FrameBuilder, FrameCtx } from '../engine/frame';
 import { makeView, type ViewCtx } from '../engine/views';
@@ -733,7 +741,7 @@ export class Portals implements SceneLayer {
   private tables(W: number, H: number) {
     const main = this.ctx.main, worldOf = (id: string) => this.ctx.worlds.find((w) => w.id === id);
     const views: { v: ViewCtx; cam: CamLike; skip: Gate | null; order: number; w: number; h: number; clip: number[] }[] = [
-      { v: main, cam: this.kit.camera, skip: null, order: Infinity, w: W, h: H, clip: NO_CLIP },
+      { v: main, cam: this.kit.camera, skip: null, order: -1, w: W, h: H, clip: NO_CLIP },
       ...this.slots.filter((s) => s.active).map((s) => ({ v: s.view, cam: s.cam, skip: s.gate!.partner, order: s.index, w: s.view.view.width, h: s.view.view.height, clip: [...s.cam.clip!] })),
     ];
     // the side of each gate the eye was last strictly on (the main view's: where the camera was measured from)
@@ -749,7 +757,7 @@ export class Portals implements SceneLayer {
         // what to show: the slot that looks through it from this view (rendered before this view: a higher index),
         // or the one that showed it last frame, blurred
         let slot = -1, live = 0;
-        const s = this.slots.find((x) => x.active && x.gate === g && x.parent === v && x.index < order);
+        const s = this.slots.find((x) => x.active && x.gate === g && x.parent === v && x.index > order);
         if (s) { slot = s.index; live = 1; }
         else {
           const old = this.slots.find((x) => x.was === g && (!x.active || x.gate === g));
@@ -771,6 +779,7 @@ export class Portals implements SceneLayer {
       }
       // past LIMITS.gates in one view the farthest are left out (live ones first)
       rows.sort((a, b) => (a.key ?? 0) - (b.key ?? 0));
+      this.surfaces.face = P.faceDist;
       this.surfaces.fill(v, rows, this.t, clip);
     }
   }

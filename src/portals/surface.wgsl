@@ -34,7 +34,7 @@ struct Gate {
   pokes: array<vec4f, 4>,   // where (u, v), age (s), strength
 }
 /** a view's gates; `clip` is its own near plane when it looks through a gate (a disc behind that is not drawn) */
-struct GateView { g: array<Gate, MAX_GATES>, clip: vec4f, count: u32, motes: u32, time: f32, pad: f32 }
+struct GateView { g: array<Gate, MAX_GATES>, clip: vec4f, count: u32, motes: u32, time: f32, face: f32 }
 
 @group(1) @binding(0) var<uniform> gates: GateView;
 @group(1) @binding(1) var slot0: texture_2d<f32>;
@@ -222,7 +222,7 @@ fn screenUv(p: vec3f) -> vec2f {
   // of this world's haze over the far world's depth brightened the frame by an eighth just before the face)
   let here = dot(p - eye, frame.camFwd);
   var dist = here;
-  if (slot >= 0 && live > 0.75) { dist = mix(max(here, min(farDist(slot, suv), 1.0)), here, calm); }
+  if (slot >= 0 && live > 0.75) { dist = mix(max(here, min(farDist(slot, suv), gates.face)), here, calm); }
   o.col = vec4f(col, dist);
   return o;
 }

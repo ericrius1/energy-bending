@@ -22,6 +22,9 @@ export class Surfaces {
   private tables = new Map<string, { u: UniformBuffer<GateView>; count: number }>();
   /** motes per gate (fewer on a phone) */
   motes = 96;
+  /** how far (m) of the far view's path the disc reports as its distance at the face (the air and the depth of field
+   *  read it; see surface.wgsl) */
+  face = 1;
 
   constructor(private kit: Kit, private slots: () => readonly Texture[], private stills: Texture) {}
 
@@ -39,7 +42,7 @@ export class Surfaces {
   fill(view: ViewCtx, rows: GateRow[], time: number, clip: readonly number[]) {
     const t = this.table(view), n = Math.min(rows.length, LIMITS.gates);
     t.count = n;
-    t.u.set({ g: rows.slice(0, n).map(({ key: _k, ...r }) => r), clip: [...clip], count: n, motes: this.motes, time } as unknown as Parameters<typeof t.u.set>[0]);
+    t.u.set({ g: rows.slice(0, n).map(({ key: _k, ...r }) => r), clip: [...clip], count: n, motes: this.motes, time, face: this.face } as unknown as Parameters<typeof t.u.set>[0]);
   }
 
   declareLayer(pass: RenderPass, phase: ScenePhase, view: ViewCtx) {
