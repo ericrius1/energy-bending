@@ -209,8 +209,8 @@ export class WaterPool {
 
   /** the surface's view distance in this view for the lens (MatterPasses.focus), or null */
   focus(view: ViewCtx) { return this.surfaces.get(view.id)?.focus ?? null; }
-  /** how the water bends and dims light behind it in this view (WaterSurface.veil), or null */
-  veil(view: ViewCtx) { return this.surfaces.get(view.id)?.veil ?? null; }
+  /** how the water dims and bends light behind it in this view (WaterSurface.body, MatterPasses.body), or null */
+  body(view: ViewCtx) { return this.surfaces.get(view.id)?.body ?? null; }
 
   // ---------------------------------------------------------------- the show's moments
   readonly acts: MatterActs = {
@@ -396,9 +396,9 @@ export class WaterPasses implements MatterPasses {
   declareView(s: ScenePass) { this.pool.declareView(s); }
   /** (both faces answer: the one surface holds water and ice) */
   focus(view: ViewCtx) { return this.pool.primary === this.id ? this.pool.focus(view) : null; }
-  /** how the water bends and dims light behind it (WaterSurface.veil): for the post chain's glow (fire behind water).
-   *  Not on MatterPasses (only this pool has it): find it with `'veil' in passes` */
-  veil(view: ViewCtx) { return this.pool.veil(view); }
+  /** how the water dims and bends light behind it (MatterPasses.body): for the post chain's glow (fire behind water).
+   *  (both faces answer, as for the focus: the one surface holds water and ice) */
+  body(view: ViewCtx) { return this.pool.primary === this.id ? this.pool.body(view) : null; }
   layout(layers: MatterLayer[]) { this.pool.setLayers(this.id, layers); }
   update(f: FrameCtx) { if (this.pool.primary === this.id) this.pool.update(f); }
   hear(ears: MatterEars) { this.pool.hear(ears); }

@@ -102,6 +102,17 @@ export interface MatterPasses {
    *  which a half float stores as +∞) elsewhere. Compare against 1e4; never do arithmetic on the "nothing" value.
    *  The post chain binds at most FOCUS_SLOTS (engine/scene.ts focusSources) */
   focus?(view: ViewCtx): Texture | null;
+  /** a translucent BODY (water, ice: post.ts BODY_KINDS), so a light behind it (fire's glow, laid over the scene in the
+   *  air) is seen through it the way the body says. An rgba16float texture of any size (the main view and ?pip only):
+   *    r   the body's view distance (≥ 1e4: no body here; compare against it, never do arithmetic on it)
+   *    g   how much of what lies behind it shows through (0 … 1: the water's absorption and milk, ice's opacity)
+   *    ba  a screen offset (in the view's uv) to read what lies behind from: its refraction ((0, 0): none)
+   *  Where a light's focus distance is further than r, the air (post/air.wgsl glowSeen) reads the glow at uv + ba and
+   *  multiplies it by g (and postParams.throughTint). Without one the air takes the body's focus texture as its
+   *  distance, postParams.through and no offset. The first kind that returns one wins. Water's: WaterSurface.body
+   *  (fs_focus writes it in the same pass as the focus). (Integration 8 joined the water agent's `veil` and the post
+   *  agent's `body` into this one.) */
+  body?(view: ViewCtx): Texture | null;
 }
 
 /** one dancer's particles carried by a rigid move (a column-major 4×4); with `within` (a sphere: x, y, z, radius, in

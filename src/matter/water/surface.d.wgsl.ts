@@ -334,7 +334,7 @@ export interface SceneOut {
 }
 export interface FocusOut {
   focus: Vec4;
-  veil: Vec4;
+  body: Vec4;
 }
 
 declare const shader: Shader<{ Frame: Frame; FullscreenOut: FullscreenOut; Geode: Geode; Forest: Forest; Pool: Pool; Temple: Temple; Forge: Forge; FireLight: FireLight; FireLights: FireLights; WorldLight: WorldLight; KeyLight: KeyLight; Joint: Joint; Seg: Seg; Particle: Particle; Home: Home; BodyStep: BodyStep; Bodies: Bodies; Touch: Touch; Goal: Goal; Touched: Touched; Stepped: Stepped; Seen: Seen; ViewSeen: ViewSeen; Heart: Heart; Hearts: Hearts; Surf: Surf; Bone: Bone; Edge: Edge; Shade: Shade; SceneOut: SceneOut; FocusOut: FocusOut }, 'frame' | 'worldLight' | 'bodies' | 'touch' | 'surf' | 'seen' | 'hearts' | 'joints' | 'segs' | 'poolWaves' | 'templeWaves' | 'scene' | 'water' | 'raw' | 'samp_linear' | 'samp_repeat' | 'samp_nearest' | 'samp_shadow'>;

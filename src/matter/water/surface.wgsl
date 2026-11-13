@@ -23,8 +23,8 @@
 //             depth-tested at the surface's own depth (no copy, no bending).
 //   fs_mirror the same particles reflected in a mirroring floor, added onto the floor in the opaque phase.
 //   fs_focus  the main view's focus texture (MatterPasses.focus): the surface's view distance, 1e5 elsewhere; and the
-//             veil (WaterSurface.veil): how the water bends and dims what is behind it, for the post chain to apply to
-//             light laid over the scene afterwards (the fire's glow behind a water body).
+//             body texture (MatterPasses.body, WaterSurface.body): how the water dims and bends what is behind it, for
+//             the post chain to apply to light laid over the scene afterwards (the fire's glow behind a water body).
 #include "weft/frame"
 #include "weft/fullscreen"
 #include "../../worlds/light"
@@ -535,12 +535,13 @@ fn depthAt(wp: vec3f) -> f32 {
   return o;
 }
 
-struct FocusOut { @location(0) focus: vec4f, @location(1) veil: vec4f }
+struct FocusOut { @location(0) focus: vec4f, @location(1) body: vec4f }
 
-/** the focus (the surface's view distance where it shows, 1e5 elsewhere) and the veil: rg how far this pixel's view
- *  through the water is bent (uv), b how much of the light behind it comes through (0 … 1), a the water's view
- *  distance (1e4: none). The veil is for light laid over the scene after the water (the fire's glow, which the air
- *  adds): where that light is further than the water, sample it at uv + rg and multiply it by b */
+/** the focus (the surface's view distance where it shows, 1e5 elsewhere) and the body texture (MatterPasses.body,
+ *  matter/core/kind.ts): r the water's view distance (1e4: none), g how much of the light behind it comes through
+ *  (0 … 1), ba how far this pixel's view through the water is bent (uv). For light laid over the scene after the water
+ *  (the fire's glow, which the air adds): where that light is further than r, the air samples it at uv + ba and
+ *  multiplies it by g */
 @fragment fn fs_focus(i: FullscreenOut) -> FocusOut {
   let sdims = vec2i(textureDimensions(scene));
   let wdims = vec2i(textureDimensions(water));
@@ -551,7 +552,7 @@ struct FocusOut { @location(0) focus: vec4f, @location(1) veil: vec4f }
   let there = W.x > 0.0 && amount > surf.cover.x * 0.6 && s.a >= W.x - 0.03;
   var o: FocusOut;
   o.focus = vec4f(select(1e5, W.x, there), 0.0, 0.0, 1.0);
-  o.veil = vec4f(0.0, 0.0, 1.0, 1e4);
+  o.body = vec4f(1e4, 1.0, 0.0, 0.0);
   if (there) {
     // a cheap version of shade's: the thickness's slope for the bend, its absorption and milk for what comes through
     let Wr = amount * surf.cover.w;
@@ -565,7 +566,7 @@ struct FocusOut { @location(0) focus: vec4f, @location(1) veil: vec4f }
     let milk = surf.tint.w * (1.0 - exp(-surf.absorb.w * Wr));
     let wt = dot(exp(-surf.absorb.rgb * Wr), vec3f(0.3, 0.4, 0.3)) * (1.0 - milk);
     let cover = smoothstep(surf.cover.x, surf.cover.y, amount);
-    o.veil = vec4f(bend, mix(1.0, mix(wt, 1.0 - surf.iceOpacity, smoothstep(0.25, 0.75, frost)), cover), W.x);
+    o.body = vec4f(W.x, mix(1.0, mix(wt, 1.0 - surf.iceOpacity, smoothstep(0.25, 0.75, frost)), cover), bend);
   }
   return o;
 }

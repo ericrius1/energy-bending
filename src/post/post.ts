@@ -109,14 +109,6 @@ export const postParams = defineParams('post', {
 /** how many focus textures the air binds (each is one sampled texture in the air's fragment stage) */
 export const FOCUS_SLOTS = 3;
 
-/** What a translucent body kind (water, ice) may hand the air besides its focus texture, so a light behind it (fire)
- *  is seen through it the way the body says: `body(view)` on its MatterPasses, an rgba16float texture of any size:
- *    r   the body's view distance (≥ 1e4: no body here; compare against it, never do arithmetic on it)
- *    g   how much of what lies behind it shows through (0 … 1)
- *    b a a screen offset (in the view's uv) to read what lies behind from: its refraction (0, 0: none)
- *  Without one the air takes the body's focus texture as its distance, postParams.through and throughTint, and no
- *  offset (air.wgsl glowSeen). */
-export interface BodySource { body?(view: ViewCtx): Texture | null }
 
 /** the kinds whose focus texture is a body's (matter that hides what is behind it) rather than a light's (matter that
  *  adds light into the glow target: fire, plasma). A kind not named here is a light */
@@ -277,8 +269,8 @@ export class PostChain {
       return t;
     };
     const slot = (k: number) => new Ref<Texture>(() => textures()[k]?.tex ?? this.emptyFocus, `focus${k}${id}`);
-    // the first body kind that says more about itself (BodySource), else the stand-in
-    const bodyOf = () => { for (const m of sources) { const b = (m as BodySource).body?.(view); if (b) return b; } return null; };
+    // the first body kind that says more about itself (MatterPasses.body), else the stand-in
+    const bodyOf = () => { for (const m of sources) { const b = m.body?.(view); if (b) return b; } return null; };
     const bodyTex = new Ref<Texture>(() => bodyOf() ?? this.emptyRgba, `air.body${id}`);
     const airv = kit.uniforms(airShader.structs.AirView, `air.view${id}`);
     const vals: AirView = { bodies: 0, hasBody: 0, through: 0, bend: 0, tint: [1, 1, 1, 0] };

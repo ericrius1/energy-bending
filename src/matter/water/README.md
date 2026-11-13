@@ -7,7 +7,7 @@ highlights and a rim from the world's key and the dancers' fire; its edge broken
 docs/reports/7-water.md). Ice is the same particles frozen and the same
 surface, shaded with facets (section 3); its shards, mist and set ice are matter/ice. Spray and foam are sprites
 (drops.wgsl). It implements `MatterKind` (src/matter/core/kind.ts) and registers from an `index.ts` here, offers the
-lens a focus texture (`MatterPasses.focus`) and the post chain a veil (`WaterPasses.veil`: how it bends and dims
+lens a focus texture (`MatterPasses.focus`) and the post chain a body texture (`MatterPasses.body`: how it dims and bends
 light behind it), and reads the field (water thins in heat, freezes in cold, ice melts in
 heat). See `docs/extending/matter-kind.md`, `docs/element-looks.md`, `docs/reports/4-water-ice.md` and
 `docs/reports/7-water.md`.

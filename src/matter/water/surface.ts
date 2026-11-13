@@ -9,7 +9,7 @@
 //                                     what is behind it while it writes over it), water.surface (one fullscreen draw per
 //                                     world over the resolved `hdr`: colour only, the scene's alpha is left alone), then
 //                                     water.focus (the surface's view distance for the lens: MatterPasses.focus, and
-//                                     the veil: how it bends and dims light behind it, for the post chain)
+//                                     the body texture: how it dims and bends light behind it, for the post chain)
 //   a gate's view                     its own scene pass, glow phase: water.surface (fs_scene), blended over the scene
 //                                     at the surface's own depth. A gate's scene runs in the 'gates' stage, before the
 //                                     'air' stage, so a composite there would come too late; the splats in 'cull' are
@@ -71,11 +71,10 @@ export class WaterSurface {
   /** the surface's view distance where it shows, 1e5 elsewhere (r16float, the size of the surface's targets): the
    *  main view's and ?pip's only (null in a gate's view and for a mirror) */
   readonly focus: Texture | null = null;
-  /** how the water bends and dims what is behind it, per pixel (rgba16float, the size of the surface's targets): rg the
-   *  bend (uv), b how much of the light behind comes through (0 … 1), a the water's view distance (1e4: none). The
-   *  main view's and ?pip's only. For light laid over the scene after the water (the fire's glow in the air): where
-   *  that light is further than a, sample it at uv + rg and multiply it by b */
-  readonly veil: Texture | null = null;
+  /** how the water dims and bends what is behind it, per pixel (MatterPasses.body: rgba16float, the size of the
+   *  surface's targets): r the water's view distance (1e4: none), g how much of the light behind comes through (0 … 1),
+   *  ba the bend (uv). The main view's and ?pip's only */
+  readonly body: Texture | null = null;
   private composite: RenderPass | null = null;
   private worlds = new Set<string>();
   private dist: Texture;
@@ -132,9 +131,9 @@ export class WaterSurface {
       frame.add('air', this.composite, 'water');
       // the focus: cleared to "nothing here" whenever the view is drawn, so it is never stale when there is no water
       const focus = tex('focus', 'r16float');
-      // and the veil (fs_focus says what it holds): for light the post chain lays over the scene after the water
-      const veil = (this.veil = tex('veil', 'rgba16float'));
-      const fp = kit.pass({ label: `water.focus${id}`, color: [{ target: focus, clear: [1e5, 0, 0, 0] }, { target: veil, clear: [0, 0, 1, 1e4] }], view: v, enabled: view.on });
+      // and the body texture (fs_focus says what it holds): for light the post chain lays over the scene after the water
+      const body = (this.body = tex('body', 'rgba16float'));
+      const fp = kit.pass({ label: `water.focus${id}`, color: [{ target: focus, clear: [1e5, 0, 0, 0] }, { target: body, clear: [1e4, 1, 0, 0] }], view: v, enabled: view.on });
       fp.fullscreen(surfaceShader, { label: `water.focus${id}`, fragment: 'fs_focus', bind: { surf: pool.surf, scene: copy, water: B, raw: dist, seen: view.seen, hearts: heartsOf(kit) }, enabled: on });
       frame.add('air', fp, 'water');
       this.focus = focus;

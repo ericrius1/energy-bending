@@ -17,7 +17,7 @@
 //   behind a body   where a light's focus distance lies behind a body's (fire behind a water dancer), the glow is seen
 //                   through the body: dimmed by what the body lets through, tinted, and moved by the body's
 //                   refraction. A body kind may say all three per pixel with a body texture (`body`, post.ts
-//                   BodySource); without one, `airv.through` and `airv.tint` and no offset. A light in front of the
+//                   MatterPasses.body); without one, `airv.through` and `airv.tint` and no offset. A light in front of the
 //                   body (or of unknown distance: a thin flame's edge) still glows over it
 //   on the water    fire's mirror copy (splatted below the floor about World.waterY, a perfect mirror) is bent by the
 //                   water's wave normal and spread by its roughness the way the march bends and spreads what the
@@ -62,7 +62,7 @@ struct AirView {
 @group(1) @binding(5) var opaque: texture_2d<f32>;
 @group(1) @binding(6) var surfaced: texture_2d<f32>;
 @group(1) @binding(7) var<uniform> airv: AirView;
-/** a body kind's own say (post.ts BodySource), else a 1×1 stand-in (airv.hasBody 0) */
+/** a body kind's own say (MatterPasses.body, matter/core/kind.ts), else a 1×1 stand-in (airv.hasBody 0) */
 @group(1) @binding(8) var bodyTex: texture_2d<f32>;
 
 /** a distance beyond this is "nothing here" (the glow clears to 1e4, focus textures hold 1e5: infinity in a half) */
