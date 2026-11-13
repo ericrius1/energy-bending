@@ -55,7 +55,7 @@ fn hidden() -> DOut { var o: DOut; o.pos = vec4f(2.0, 2.0, 2.0, 1.0); return o; 
   // which kind it is now: foam while it is churned, else a drop that now and then glints (re-rolled 8 times a second)
   let tw = rnd(ii * 2654435761u + u32(frame.time * 8.0 + rnd(ii) * 8.0) * 747796405u);
   var kind = 0u;
-  if (a.foam > 0.35 && rnd(ii ^ 0xf0au) < 0.6) { kind = 2u; } else if (tw > 1.0 - drops.glints) { kind = 1u; }
+  if (a.foam > 0.8 && rnd(ii ^ 0xf0au) < 0.3) { kind = 2u; } else if (tw > 1.0 - drops.glints) { kind = 1u; }
   var wp: vec3f;
   if (kind == 0u) {
     // stretched along its motion: the streak a drop draws in about a hundredth of a second, never shorter than round
@@ -71,9 +71,9 @@ fn hidden() -> DOut { var o: DOut; o.pos = vec4f(2.0, 2.0, 2.0, 1.0); return o; 
     wp = pos + (frame.camRight * c.x + frame.camUp * c.y) * s;
     o.col = (vec3f(0.6, 0.88, 1.0) * 0.3 + key.col * 3.0 * key.glint) * smoothstep(1.0 - drops.glints, 1.0, tw) * drops.strength;
   } else {
-    let s = size * (3.0 + 3.0 * a.foam);
+    let s = size * (2.0 + 2.0 * a.foam);
     wp = pos + (frame.camRight * c.x + frame.camUp * c.y) * s;
-    o.col = vec3f(0.75, 0.86, 0.95) * (0.05 + 0.08 * a.foam) * (0.6 + 0.6 * luma(key.col)) * drops.foam * drops.strength;
+    o.col = vec3f(0.75, 0.86, 0.95) * (0.03 + 0.05 * a.foam) * (0.6 + 0.6 * luma(key.col)) * drops.foam * drops.strength;
   }
   o.pos = frame.viewProj * vec4f(wp, 1.0);
   o.uv = c;
