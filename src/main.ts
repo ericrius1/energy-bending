@@ -127,7 +127,7 @@ if (query.has('play') || query.has('roda') || query.has('teach')) {
 if (query.has('npcs') && !query.has('play')) await (await import('./ai/demo')).npcsDemo({ query, frame, show, music: music!, world: () => worldOf(main.world), worldOf, motion, travel: travelling, lock, wake }, Number(query.get('npcs') || 5));
 gatesDebug(gates, frame, query, () => show.dancers);
 // the jogo, its modes and menus (src/play): ?jogo=…, or the front of the game on a plain page
-await (await import('./play')).registerPlay({ kit, frame, show, rig, gates, music, field, kinds, main, query, canvas, motion, travel: travelling, coarse, film: FILM, wake, worldOf });
+await (await import('./play')).registerPlay({ kit, frame, show, rig, gates, music, field, kinds, main, query, canvas, motion, travel: travelling, coarse, film: FILM, wake, worldOf, setWorld });
 // the music owns time: FrameCtx.beat is its clock, live and filming
 const beat = music.clock;
 

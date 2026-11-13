@@ -71,6 +71,8 @@ export interface PlayApp {
   film: boolean;
   wake(): void;
   worldOf(id: string): World;
+  /** move the main view to a world (a script's own world, when the address names none) */
+  setWorld?(id: string): Promise<void>;
 }
 
 /** the scripted jogos shipped with the game (src/play/scripts/*.json) */
@@ -113,6 +115,8 @@ export async function startJogo(app: PlayApp, mode: string) {
   const online = mode === 'online';
   const script = scripted ? scriptNamed(q.get('script') ?? 'pool-fire-water') : null;
   const world = () => app.worldOf(app.main.world);
+  // a script plays in its own world unless the address names one
+  if (script?.world && !q.has('world') && script.world !== app.main.world) await app.setWorld?.(script.world);
   const dress = (q.get('dress') ?? script?.dress?.join(',') ?? 'fire,water').split(',');
   // dressed by seat (online, this page's own dancer is its seat's; set once the room says which)
   show.dress = [dress[0] ?? 'fire', dress[1] ?? dress[0] ?? 'water'];

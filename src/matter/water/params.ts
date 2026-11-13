@@ -50,13 +50,14 @@ export const waterParams = defineParams('water', {
   /** how much the field's wind pushes spray */
   wind: 1,
   /** how fast a particle changes state (1/s), the field heat above which ice melts and water boils away, and the
-   *  cold below which water freezes. From the field's measured values (docs/reports/4-steam.md): a body's surface
-   *  reads about ±0.6, 0.3 m out about ±0.08, a metre out nothing; so 0.05 reacts to a flame or ice within ~30 cm, and
-   *  boiling away grows with the heat past it (fast only where they touch, heat > 0.3). Boiling starts at 0.1: at
-   *  0.05 a water dancer touching a fire dancer was gone in three seconds (docs/reports/media/5-reactions.jpg) */
+   *  cold below which water freezes. From the field's measured values (docs/reports/4-steam.md): a body's surface reads
+   *  about ±0.6, 0.3 m out about ±0.08, a metre out nothing. Water freezes from 0.05 (ice within ~30 cm). Ice melts
+   *  from 0.3 ("touching") and water boils from 0.6 (inside a flame): lower, a body that wears fire and water or ice
+   *  itself (a fusion's mixed loadouts, `all`) melts and boils away from its own fire, since the field's heat is one
+   *  sum (seen at 0.05 and 0.1: docs/reports/5-integration.md) */
   freezeRate: 1.6,
-  meltHeat: 0.05,
-  boilHeat: 0.1,
+  meltHeat: 0.3,
+  boilHeat: 0.6,
   freezeCold: 0.05,
   // the surface
   /** a particle's sphere, × its home's size */
