@@ -1,0 +1,5 @@
+{
+  // The Node tests, checked with the server's settings (they import shared/ and src/net/net.ts the same way).
+  "extends": "../server/tsconfig.json",
+  "include": [".", "../shared", "../src/net/net.ts"]
+}

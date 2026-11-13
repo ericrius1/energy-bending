@@ -1,0 +1,19 @@
+// The room server's entry: `node server/index.ts [port]` (or `npm start` at the repo root). Node strips the types
+// itself (22.18 and later), so there is no build step. With PORT in the environment (Railway sets it) it binds
+// 0.0.0.0 on that port; otherwise 127.0.0.1 on the argument or 5417. Stops cleanly on SIGINT and SIGTERM.
+import { startRooms, SERVER_PARAMS } from './rooms.ts';
+
+const port = Number(process.env.PORT) || Number(process.argv[2]) || 5417;
+const host = process.env.HOST ?? (process.env.PORT ? '0.0.0.0' : '127.0.0.1');
+
+// ROOM_GRACE_MS shortens the reconnect grace (the tests use it; the default is SERVER_PARAMS.GRACE_MS)
+if (Number(process.env.ROOM_GRACE_MS) > 0) SERVER_PARAMS.GRACE_MS = Number(process.env.ROOM_GRACE_MS);
+
+const server = await startRooms({ port, host });
+
+function shutdown() {
+  void server.close().then(() => process.exit(0));
+  setTimeout(() => process.exit(0), 1000).unref();
+}
+process.on('SIGINT', shutdown);
+process.on('SIGTERM', shutdown);

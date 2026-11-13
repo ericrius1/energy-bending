@@ -1,0 +1,21 @@
+{
+  // The Node side: the room server, the shared protocol and rules, the pure client (src/net/net.ts) and the tests.
+  // Node runs these files as they are (it strips the types), so only erasable syntax is allowed and every import names
+  // its .ts file. `npm run typecheck` checks this project as well as the game's.
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "lib": ["ES2023", "DOM", "DOM.Iterable"],
+    "types": ["node"],
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noEmit": true,
+    "skipLibCheck": true,
+    "allowImportingTsExtensions": true,
+    "verbatimModuleSyntax": true,
+    "erasableSyntaxOnly": true
+  },
+  "include": [".", "../shared", "../src/net/net.ts"]
+}
