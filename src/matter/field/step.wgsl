@@ -168,8 +168,10 @@ fn main(@builtin(global_invocation_id) id: vec3u) {
   hot = clamp(hot, 0.0, 4.0);
   cold = clamp(cold, 0.0, 4.0);
   wet = clamp(wet, 0.0, 4.0);
-  // steam is made where heat meets wet, and (more) where a flame is melting ice
-  let steam = sim.steamGain * (min(hot, 2.0) * min(wet, 2.0) + 6.0 * min(hot, cold) + met / max(dt, 1e-4) * 0.5);
+  // steam is made where heat meets wet, and (more) where a flame is melting ice; the faint overlap of two auras'
+  // tails a metre apart makes none (a threshold), so steam marks where they really meet
+  let contact = min(hot, 2.0) * min(wet, 2.0) + 2.0 * min(hot, cold);
+  let steam = sim.steamGain * (max(contact - 0.06, 0.0) * 2.0 + met / max(dt, 1e-4) * 0.3);
   textureStore(nextA, id, vec4f(wind, wet));
   textureStore(nextB, id, vec4f(hot, cold, steam, stirW));
 }

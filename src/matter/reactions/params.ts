@@ -5,9 +5,9 @@ import { LIMITS } from '../../engine/limits';
 
 export const steamParams = defineParams('steam', {
   /** puffs in the pool (read at start; a phone runs a third) */
-  pool: 16000,
+  pool: 9000,
   /** births: the chance a second a dead puff is born where the field makes steam at strength 1 */
-  birth: 9,
+  birth: 4,
   /** how fast a new puff rises on its own (m/s), fading as it ages */
   rise: 0.75,
   /** how quickly a puff takes the wind's velocity (1/s) */
@@ -16,12 +16,12 @@ export const steamParams = defineParams('steam', {
   turbulence: 0.35,
   /** how long a puff lives (s) */
   lifeMin: 1.8,
-  lifeMax: 3.8,
+  lifeMax: 3.2,
   /** its size when born and when it fades (m, the blob's radius) */
   sizeBirth: 0.07,
-  sizeEnd: 0.3,
+  sizeEnd: 0.24,
   /** how opaque a puff is at its middle */
-  density: 0.22,
+  density: 0.2,
   /** its own soft light */
   glow: 0.12,
   /** how much the field's heat lights it orange */

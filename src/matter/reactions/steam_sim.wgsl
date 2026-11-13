@@ -42,7 +42,7 @@ fn main(@builtin(global_invocation_id) gid: vec3u) {
   if (dt <= 0.0) { return; }
   if (q.age >= q.life) {
     if (fieldBox.on < 0.5) { return; }
-    let rn = pcg(i * 0x9e3779b9u ^ pcg(steam.frameNo + 0x5157u));
+    let rn = pcg((i * 0x9e3779b9u) ^ pcg(steam.frameNo + 0x5157u));
     let c = candidate(rn);
     let e = fieldSteam(c);
     if (e > 0.0 && rnd(rn ^ 0xabcu) < 1.0 - exp(-e * steam.birth * dt)) {

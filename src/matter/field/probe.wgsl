@@ -1,6 +1,7 @@
 // The field at a few points the CPU asked about (field.ts probe / updraft): a thread a point, two vec4s each, copied
 // back to the CPU after the frame. The updraft is the rising air averaged up a short column over the point (what
 // would lift someone jumping there), so one cell's flicker doesn't decide a jump.
+#include "../../engine/limits"
 #include "./field"
 
 struct Probes { at: array<vec4f, FIELD_PROBES>, count: u32, pad0: u32, pad1: u32, pad2: u32 }

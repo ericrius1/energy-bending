@@ -8,13 +8,15 @@ import { fieldParams } from './params';
 
 matterKinds.register({
   id: 'field',
-  declare(ctx): MatterPasses {
+  declare(ctx): MatterPasses & { field: typeof ctx.field } {
     const field = ctx.field;
     const look = ctx.kit.uniforms(debugShader.structs.FieldDebug, 'field.debug');
     const [X, Y, Z] = field.dims;
     const cells = (st: number) => Math.ceil(X / st) * Math.ceil(Y / st) * Math.ceil(Z / st);
     return {
       id: 'field',
+      /** the field itself (for probes and tests: bend.show.kinds.find((k) => k.id === 'field').field) */
+      field,
       declareView(s: ScenePass) {
         if (s.phase !== 'glow') return;
         const enabled = () => s.on() && fieldParams.overlay;
@@ -23,7 +25,7 @@ matterKinds.register({
         s.pass.draw(debugShader, { ...common, label: `field.debug.wind.${s.world.id}`, constants: { MODE: 1 }, instances: cells(2) });
       },
       layout() { /* nobody wears the field */ },
-      update() { look.set({ stride: 2, gain: fieldParams.overlayGain, streak: 0.25 }); },
+      update() { look.set({ stride: 2, gain: fieldParams.overlayGain, streak: 0.15 }); },
       stats: () => field.stats(),
     };
   },

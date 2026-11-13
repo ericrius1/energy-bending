@@ -55,8 +55,12 @@ const CORNERS = array<vec2f, 6>(vec2f(-1.0, -1.0), vec2f(1.0, -1.0), vec2f(1.0, 
 @fragment fn fs(i: SOut) -> @location(0) vec4f {
   let r2 = dot(i.uv, i.uv);
   if (r2 > 1.0) { discard; }
-  // a soft ball, eaten into at its edges by noise so neighbouring puffs read as one billowing cloud
-  let n = vnoise(vec3f(i.uv * 1.8 + i.seed, i.seed.x * 0.37));
-  let a = i.a * exp(-r2 * 2.6) * smoothstep(1.0, 0.55, sqrt(r2)) * clamp(0.35 + 1.1 * n, 0.0, 1.2);
+  // three soft lobes at the puff's own offsets (cheaper than noise: steam's fill is the cost), so a puff is a lumpy
+  // cauliflower rather than a disc and neighbouring puffs read as one billowing cloud
+  let o1 = (fract(i.seed * 0.137) - 0.5) * 0.9;
+  let o2 = (fract(i.seed.yx * 0.291) - 0.5) * 0.9;
+  let o3 = -(o1 + o2) * 0.6;
+  let l = exp(-dot(i.uv - o1, i.uv - o1) * 6.0) + exp(-dot(i.uv - o2, i.uv - o2) * 7.0) + exp(-dot(i.uv - o3, i.uv - o3) * 5.0);
+  let a = i.a * (1.0 - r2) * min(l * 0.7, 1.0);
   return vec4f(i.col * a, a);
 }
