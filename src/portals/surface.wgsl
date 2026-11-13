@@ -11,7 +11,10 @@
 //   halo   (glow) the soft light round it, coloured by the far world (a blur of the live view) and the rim.
 //   pool   (glow) that light on the floor under a gate standing on it.
 //   motes  (glow) specks of light drawn in toward the disc from both sides, spiralling as they come.
-// A gate with no live view this frame shows the last one it had, blurred, or else a shimmer in the far world's hue.
+// A gate with no live view this frame shows the last one it had, blurred, or else its still: the far world seen
+// square on through it when it last had a spare slot (portals.ts refreshStill), soft and dim, laid on the disc by the
+// disc's own coordinates (it has no parallax: it is a memory of the other side, not a window). A shimmer in the far
+// world's hue only until its first still is taken.
 #include "weft/frame"
 #include "../engine/limits"
 #include "../engine/util"
@@ -25,7 +28,8 @@ struct Gate {
   rect: vec4f,    // its bounds on this view's screen, ndc: x0, y0, x1, y1
   rim: vec4f,     // whoever last passed (linear rgb), a flash after a crossing
   look: vec4f,    // the far world's hue (the shimmer), the gain that matches the far world's exposure to this one's
-  info: vec4f,    // 1 live this frame, 0.5 last frame's, 0 nothing; the floor's height under it; glow; the side the
+  info: vec4f,    // 1 live this frame, 0.5 last frame's, 0 nothing, -1 - k its still in layer k; the floor's height
+                  // under it; glow; the side the
                   // eye was last strictly on (+1 front, -1 back: an eye on the plane looks through toward the other)
   pokes: array<vec4f, 4>,   // where (u, v), age (s), strength
 }
@@ -36,6 +40,7 @@ struct GateView { g: array<Gate, MAX_GATES>, clip: vec4f, count: u32, motes: u32
 @group(1) @binding(1) var slot0: texture_2d<f32>;
 @group(1) @binding(2) var slot1: texture_2d<f32>;
 @group(1) @binding(3) var slot2: texture_2d<f32>;
+@group(1) @binding(4) var stills: texture_2d_array<f32>;
 
 const TAU: f32 = 6.2831853;
 
@@ -60,6 +65,19 @@ fn farBlur(slot: i32, uv: vec2f) -> vec3f {
   let e = 7.0 * frame.invRes;
   return (farTap(slot, uv) * 2.0 + farTap(slot, uv + vec2f(e.x, e.y)) + farTap(slot, uv + vec2f(-e.x, e.y))
     + farTap(slot, uv + vec2f(e.x, -e.y)) + farTap(slot, uv - e)) / 6.0;
+}
+
+/** a gate's still at a point of the disc (its own coordinates, 1 at the rim): taken with the disc filling the middle of
+ *  a square, so the disc maps onto it directly; soft (a few taps round the point), dim (a memory, not the live world) */
+fn stillAt(layer: i32, l: vec2f) -> vec3f {
+  let uv = vec2f(0.5) + vec2f(l.x, -l.y) * (0.5 / 1.05);
+  let e = 2.5 / f32(textureDimensions(stills).x);
+  var s = textureSampleLevel(stills, samp_linear, uv, layer, 0.0).rgb * 2.0;
+  s += textureSampleLevel(stills, samp_linear, uv + vec2f(e, e), layer, 0.0).rgb;
+  s += textureSampleLevel(stills, samp_linear, uv + vec2f(-e, e), layer, 0.0).rgb;
+  s += textureSampleLevel(stills, samp_linear, uv + vec2f(e, -e), layer, 0.0).rgb;
+  s += textureSampleLevel(stills, samp_linear, uv - vec2f(e, e), layer, 0.0).rgb;
+  return min(s / 6.0, vec3f(8.0)) * 0.55;
 }
 
 // ---------------------------------------------------------------- the surface's ripples
@@ -170,6 +188,10 @@ fn screenUv(p: vec3f) -> vec2f {
     far = vec3f(farTap(slot, suv + fr).r, farTap(slot, suv).g, farTap(slot, suv - fr).b);
   } else if (slot >= 0 && live > 0.25) {
     far = farBlur(slot, suv) * 0.9;
+  } else if (live < -0.5) {
+    // its still, swaying a little with the skin (seen from the back, the other way round)
+    let ls = vec2f(l.x * select(-1.0, 1.0, side >= 0.0), l.y) + vec2f(gx, gy) * 0.6;
+    far = stillAt(i32(-live - 1.0 + 0.5), ls);
   } else {
     // nothing live: a shimmer in the far world's hue
     let nz = fbm(vec3f(l * 3.0, time * 0.15 + G.up.w * 9.0));
@@ -268,6 +290,10 @@ fn faceFade(G: Gate) -> f32 { return smoothstep(0.05, 0.8, abs(dot(frame.camPos 
 
 fn farLight(G: Gate) -> vec3f {
   let slot = i32(G.n.w);
+  if (G.info.x < -0.5) {
+    let k = i32(-G.info.x - 1.0 + 0.5);
+    return (stillAt(k, vec2f(0.0)) + stillAt(k, vec2f(0.5, 0.3)) + stillAt(k, vec2f(-0.5, -0.3))) / 3.0 * G.look.w;
+  }
   if (slot < 0 || G.info.x < 0.25) { return G.look.rgb * 0.5; }
   let c = screenUv(G.at.xyz);
   let e = 0.06;

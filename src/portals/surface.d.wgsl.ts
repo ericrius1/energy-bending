@@ -63,5 +63,5 @@ export interface GlowV {
   col: Vec3;
 }
 
-declare const shader: Shader<{ Frame: Frame; Gate: Gate; GateView: GateView; DiscV: DiscV; DiscOut: DiscOut; GlowV: GlowV }, 'frame' | 'gates' | 'slot0' | 'slot1' | 'slot2' | 'samp_linear' | 'samp_repeat' | 'samp_nearest' | 'samp_shadow'>;
+declare const shader: Shader<{ Frame: Frame; Gate: Gate; GateView: GateView; DiscV: DiscV; DiscOut: DiscOut; GlowV: GlowV }, 'frame' | 'gates' | 'slot0' | 'slot1' | 'slot2' | 'stills' | 'samp_linear' | 'samp_repeat' | 'samp_nearest' | 'samp_shadow'>;
 export default shader;

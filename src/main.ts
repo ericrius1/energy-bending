@@ -112,7 +112,7 @@ const show = new Show(motion, kinds, bodies, rig, {
 if (query.has('landmarks')) show.castOverride = landmarksDemo();
 if (query.has('wander')) { const t = await travelling; show.castOverride = wanderDemo(motion, t); }
 if (query.has('play')) {
-  const play = await import('./dancer/play').then((m) => m.playDemo({ show, rig, frame, kit, canvas, world: () => worldOf(main.world), motion, travel: travelling, coarse, wake, seen: (d) => gates.seen(main.world, [d]).joints[0] ?? null }));
+  const play = await import('./dancer/play').then((m) => m.playDemo({ show, rig, frame, kit, canvas, world: () => worldOf(main.world), motion, travel: travelling, coarse, wake, seen: (d) => gates.seen(gates.rigWorld, [d]).joints[0] ?? null }));
   // ?play&net=ROOM: the played dancer online, the other seat through the network
   if (query.has('net')) await (await import('./net/play')).netPlay({ show, play, frame, world: () => worldOf(main.world), query, gates });
 } else if (query.has('net')) show.castOverride = await (await import('./net/demo')).netDemo(motion, frame, query);
@@ -152,19 +152,20 @@ frame.tick('dancers', (f) => {
   for (const d of show.dancers) d.update(f);
   bodies.upload(show.dancers, f.t);
   for (const d of show.dancers) d.world = gates.worldOf(d);   // (Dancer.world: the field follows the main view's)
-  const seen = gates.seen(main.world, show.dancers);
+  const seen = gates.seen(gates.rigWorld, show.dancers);
   Object.assign(centre, { x: seen.x, z: seen.z, ring: !!show.program.ring, dancers: show.dancers.length });
   field.update(f);
 }, 'show: the programme, every dancer posed, joints to the GPU');
 
 frame.tick('camera', (f) => {
-  const [w, h] = kit.size.render, world = worldOf(main.world), here = gates.seen(main.world, show.dancers).joints, D = here.length;
+  // (the rig works in its player's world: from the moment they go through a gate, before the view follows)
+  const [w, h] = kit.size.render, world = worldOf(gates.rigWorld), here = gates.seen(gates.rigWorld, show.dancers).joints, D = here.length;
   const crowd = show.program.ring ? 1 : D >= 3 ? 1.35 : D === 2 ? 1.1 : 1;
   // what a locked view frames: every dancer's hips, head, hands and feet
   let n = 0;
   for (const J of here) for (const j of FRAMED) { if (n < 56) { framing.set(J.subarray(j * 12, j * 12 + 3), n * 3); n++; } }
   rig.framing = framing; rig.framingCount = n;
-  rig.update(f.dt, { aspect: w / Math.max(h, 1), dancers: here, aimX: centre.x, aimZ: centre.z, crowd, ring: !!show.program.ring, awake: show.awake, room: world.room, maxDist: world.maxDist });
+  rig.update(f.dt, { aspect: w / Math.max(h, 1), dancers: here, aimX: centre.x, aimZ: centre.z, crowd, ring: !!show.program.ring, awake: show.awake, room: world.room, maxDist: world.maxDist, groundAt: (x, z) => world.groundAt(x, z) });
   rig.apply(kit.camera, w, h);
   pip?.update(f.t, worlds.find((x) => x.id !== main.world)?.id ?? main.world, [centre.x, centre.z]);
   hand.update(f.dt, kit.camera);
@@ -177,8 +178,7 @@ frame.tick('worlds', (f) => {
 frame.tick('matter', (f) => { for (const k of kinds) k.update(f); }, 'matter kinds');
 
 frame.tick('post', (f) => {
-  const c = kit.camera;
-  post.update(f, worldOf(main.world), Math.hypot(c.position[0] - rig.look[0], c.position[1] - rig.look[1], c.position[2] - rig.look[2]));
+  post.update(f, worldOf(main.world), rig.focus);
 }, 'post chain');
 
 frame.tick('audio', (f) => {

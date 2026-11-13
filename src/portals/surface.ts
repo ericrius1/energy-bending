@@ -11,6 +11,8 @@ import { LIMITS } from '../engine/limits';
 
 /** one row of a view's table, as the CPU fills it */
 export interface GateRow {
+  /** the order rows are drawn in (smallest first; past LIMITS.gates the rest are left out) */
+  key?: number;
   at: number[]; right: number[]; up: number[]; n: number[]; rect: number[]; rim: number[]; look: number[]; info: number[]; pokes: number[][];
 }
 
@@ -21,7 +23,7 @@ export class Surfaces {
   /** motes per gate (fewer on a phone) */
   motes = 96;
 
-  constructor(private kit: Kit, private slots: () => readonly Texture[]) {}
+  constructor(private kit: Kit, private slots: () => readonly Texture[], private stills: Texture) {}
 
   /** a view's table (made the first time) */
   table(view: ViewCtx) {
@@ -37,7 +39,7 @@ export class Surfaces {
   fill(view: ViewCtx, rows: GateRow[], time: number, clip: readonly number[]) {
     const t = this.table(view), n = Math.min(rows.length, LIMITS.gates);
     t.count = n;
-    t.u.set({ g: rows.slice(0, n), clip: [...clip], count: n, motes: this.motes, time } as unknown as Parameters<typeof t.u.set>[0]);
+    t.u.set({ g: rows.slice(0, n).map(({ key: _k, ...r }) => r), clip: [...clip], count: n, motes: this.motes, time } as unknown as Parameters<typeof t.u.set>[0]);
   }
 
   declareLayer(pass: RenderPass, phase: ScenePhase, view: ViewCtx) {
@@ -45,7 +47,7 @@ export class Surfaces {
     const tex = () => this.slots();
     const bind = {
       gates: t.u,
-      slot0: tex()[0], slot1: tex()[1] ?? tex()[0], slot2: tex()[2] ?? tex()[0],
+      slot0: tex()[0], slot1: tex()[1] ?? tex()[0], slot2: tex()[2] ?? tex()[0], stills: this.stills,
     };
     const on = () => view.on() && t.count > 0;
     if (phase === 'opaque') {
