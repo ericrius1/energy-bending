@@ -76,6 +76,10 @@ export const postParams = defineParams('post', {
 /** how many focus textures the air binds (each is one sampled texture in the air's fragment stage) */
 export const FOCUS_SLOTS = 3;
 
+/** whether a world lays something over its scene before the air (worlds/light.wgsl worldScene: the pool's water (2),
+ *  the temple's tide (3), the forge's heat (4)); keep in step with that switch */
+const sceneStep = (w: World | undefined) => !!w && w.light >= 2 && w.light <= 4;
+
 export class PostChain {
   readonly post: UniformBuffer<PostU>;
   /** the film's YUV planes (null unless filming) */
@@ -90,10 +94,24 @@ export class PostChain {
   readonly sceneTex: Texture;
   /** the main view's focus target (r16float): the distance the depth of field places each pixel at */
   readonly focusTex: Texture;
-  /** whose bodies the main view frames, as joint arrays in its world's coordinates (src/portals can hand over its
-   *  `seen`, which also carries a dancer seen through a gate); by default the dancers standing in the view's world */
-  framed: (world: string, dancers: readonly Dancer[]) => readonly Float32Array[] =
-    (w, ds) => ds.filter((d) => d.world === w || d.world === '').map((d) => d.skeleton.world);
+  /** the points the main view frames: each dancer's hips and head where this view sees it (engine/seen.wgsl, filled
+   *  by src/portals: a dancer in this world where it stands, one half way through a gate carried by the gate's move,
+   *  nothing beyond a door), as [x, y, z] in the view's world */
+  framed: (view: ViewCtx, dancers: readonly Dancer[]) => [number, number, number][] = (view, dancers) => {
+    const out: [number, number, number][] = [];
+    const seen = view.seen.get('d') as { x: number[]; y: number[]; z: number[]; clip: number[] }[] | undefined;
+    dancers.forEach((d, i) => {
+      const s = seen?.[i], J = d.skeleton.world;
+      for (const j of [JOINT.Hips, JOINT.Head]) {
+        const o = j * 12, x = J[o], y = J[o + 1], z = J[o + 2];
+        if (!s) { if (d.world === view.world || d.world === '') out.push([x, y, z]); continue; }
+        const p: [number, number, number] = [
+          s.x[0] * x + s.x[1] * y + s.x[2] * z + s.x[3], s.y[0] * x + s.y[1] * y + s.y[2] * z + s.y[3], s.z[0] * x + s.z[1] * y + s.z[2] * z + s.z[3]];
+        if (s.clip[0] * p[0] + s.clip[1] * p[1] + s.clip[2] * p[2] + s.clip[3] >= 0) out.push(p);
+      }
+    });
+    return out;
+  };
   private emptyFocus: Texture;
   private stub: { tex: Texture; pass: RenderPass } | null = null;
 
@@ -171,24 +189,15 @@ export class PostChain {
    *  gate fills the screen the exposure leans toward the far world's) */
   exposureOf: (world: World) => number = (w) => w.exposure();
 
-  /** a view's air: one draw per world, each enabled while the view shows that world. In the 'air' stage (the main
-   *  view, the inset) the world's surface step runs first in a pass of its own, in 'surface', on the opaque scene, so
-   *  the water bodies composited at the start of 'air' (matter/water) refract and sit over the pool's water; a gate's
-   *  view (stage 'gates', before the scene that shows it) runs it inside the air. `glow`: what to lay over the scene
-   *  (the main view's trails; by default the view's glow target) */
+  /** a view's air: one draw per world, each enabled while the view shows that world (air.wgsl says what each step
+   *  is for). In the 'air' stage (the main view, the inset): the world's surface step and air on the opaque scene, in
+   *  'surface', copied back over the scene, so the water bodies composited at the start of 'air' (matter/water)
+   *  refract the finished world; then the merge (the opaque scene with the bodies in it) and the air over that, so the
+   *  pool mirrors the bodies. A gate's view (stage 'gates', before the scene that shows it) has no water bodies: the
+   *  air alone. `glow`: what to lay over the scene (the main view's trails; by default the view's glow target) */
   declareAir(view: ViewCtx, worlds: readonly World[], stage: Stage = 'air', glow?: Texture | Ref<Texture>) {
     const main = view === this.main, own = stage === 'air', id = main ? '' : `.${view.id}`;
-    const vw = main ? undefined : view.view;
-    if (own) {
-      const surface = this.kit.pass({ label: `surface${id}`, color: [{ target: view.targets.air }], view: vw, enabled: view.on });
-      for (const w of worlds) {
-        surface.fullscreen(airShader, { label: `surface.${w.id}${id}`, fragment: 'fs_surface', bind: { src: view.targets.hdr }, constants: { WORLD: w.light }, enabled: () => view.world === w.id });
-      }
-      this.frame.add('surface', surface, 'post');
-      this.frame.add('surface', Object.assign(this.kit.copy(view.targets.air, view.targets.hdr, `surface.copy${id}`), { enabled: view.on }), 'post');
-    }
-    const color = main ? [{ target: view.targets.air }, { target: this.focusTex }] : [{ target: view.targets.air }];
-    const pass = this.kit.pass({ label: main ? 'air' : `air.${view.id}`, color, view: vw, enabled: view.on });
+    const vw = main ? undefined : view.view, kit = this.kit;
     const sources = focusSources(view);
     if (sources.length + (main ? 1 : 0) > FOCUS_SLOTS) console.warn(`post: ${sources.length} kinds hand over focus textures, more than FOCUS_SLOTS (${FOCUS_SLOTS}); the rest are left out`);
     const slot = (k: number) => new Ref<Texture>(() => {
@@ -196,13 +205,34 @@ export class PostChain {
       if (main && k === FOCUS_SLOTS - 1 && this.stub && postParams.focusStub > 0) return this.stub.tex;
       return sources[k]?.focus?.(view) ?? this.emptyFocus;
     }, `focus${k}${id}`);
-    const bind = { src: view.targets.hdr, glow: glow ?? view.targets.glow, focus0: slot(0), focus1: slot(1), focus2: slot(2) };
-    for (const w of worlds) {
-      pass.fullscreen(airShader, {
-        label: `air.${w.id}${id}`, fragment: main ? 'fs_main' : 'fs', bind, constants: { WORLD: w.light, SCENE: own ? 0 : 1 },
-        enabled: () => view.world === w.id,
-      });
+    const perWorld = (pass: RenderPass, label: string, fragment: string, bind: Record<string, unknown>) => {
+      for (const w of worlds) {
+        pass.fullscreen(airShader, { label: `${label}.${w.id}${id}`, fragment, bind, constants: { WORLD: w.light }, enabled: () => view.world === w.id });
+      }
+    };
+    // (an entry reads only some of these, but weft's reflection counts the module's bindings for each: bind them all,
+    // never the pass's own target)
+    const common = { glow: glow ?? view.targets.glow, focus0: slot(0), focus1: slot(1), focus2: slot(2) };
+    let src: Texture | Ref<Texture> = view.targets.hdr;
+    if (own) {
+      // only where the world has a scene step: elsewhere the steps would give back what they were given, and the air
+      // (which may march its light through the fog, the redwoods') would run twice
+      const step = () => view.on() && sceneStep(worlds.find((w) => w.id === view.world));
+      const tex = (label: string) => kit.texture({ label: `${label}${id}`, format: 'rgba16float', size: 'render', scale: view.scale });
+      const opaque = tex('opaque'), merged = tex('merged');
+      this.frame.add('surface', Object.assign(kit.copy(view.targets.hdr, opaque, `opaque.copy${id}`), { enabled: step }), 'post');
+      const surface = kit.pass({ label: `surface${id}`, color: [{ target: view.targets.air }], view: vw, enabled: step });
+      perWorld(surface, 'surface', 'fs_surface', { ...common, src: view.targets.hdr, opaque, surfaced: opaque });
+      this.frame.add('surface', surface, 'post');
+      this.frame.add('surface', Object.assign(kit.copy(view.targets.air, view.targets.hdr, `surface.copy${id}`), { enabled: step }), 'post');
+      const merge = kit.pass({ label: `merge${id}`, color: [{ target: merged }], view: vw, enabled: step });
+      perWorld(merge, 'merge', 'fs_merge', { ...common, src: view.targets.hdr, opaque, surfaced: view.targets.air });
+      this.frame.add('air', merge, 'post');
+      src = new Ref<Texture>(() => (step() ? merged : view.targets.hdr), `air.src${id}`);
     }
+    const color = main ? [{ target: view.targets.air }, { target: this.focusTex }] : [{ target: view.targets.air }];
+    const pass = kit.pass({ label: main ? 'air' : `air.${view.id}`, color, view: vw, enabled: view.on });
+    perWorld(pass, 'air', main ? 'fs_main' : 'fs', { ...common, src, opaque: src, surfaced: src });
     this.frame.add(stage, pass, 'post');
   }
 
@@ -261,13 +291,10 @@ export class PostChain {
     // nearest and the farthest equally sharp; the lens opens less if that leaves either softer than holdBoth px
     const fwd = cam.forward;
     let near = Infinity, far = 0;
-    for (const J of P.focusOn === 'dancers' ? this.framed(this.main.world, f.dancers) : []) {
-      for (const j of [JOINT.Hips, JOINT.Head]) {
-        const o = j * 12, x = J[o] - eye[0], y = J[o + 1] - eye[1], z = J[o + 2] - eye[2];
-        const d = x * fwd[0] + y * fwd[1] + z * fwd[2];
-        if (d < 0.3 || !this.onScreen(J[o], J[o + 1], J[o + 2])) continue;
-        near = Math.min(near, d); far = Math.max(far, d);
-      }
+    for (const [x, y, z] of P.focusOn === 'dancers' ? this.framed(this.main, f.dancers) : []) {
+      const d = (x - eye[0]) * fwd[0] + (y - eye[1]) * fwd[1] + (z - eye[2]) * fwd[2];
+      if (d < 0.3 || !this.onScreen(x, y, z)) continue;
+      near = Math.min(near, d); far = Math.max(far, d);
     }
     let target = look, blur = P.dof ? P.blur : 0;
     if (far > 0) {

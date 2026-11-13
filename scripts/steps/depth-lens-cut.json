@@ -1,0 +1,13 @@
+[
+  { "name": "cut-dancers", "query": "play&two&dress=fire,water&world=geode",
+    "eval": "bend.set('redwoods', { hour: 19.4, dayGoes: false }); bend.set('camera', { followDist: 3.6, followFov: 44, followPitch: 0.1, followSwing: 0 }); bend.wake(); bend.place(0,-0.6,0,Math.PI/2); bend.place(1,0.6,0,-Math.PI/2); await bend.step(200); bend.camera({ yaw: 0.3 }); await bend.step(30); await bend.world('redwoods'); for (const d of bend.show.dancers) bend.gates.place(d, 'redwoods'); bend.place(0,-4.6,3.4,Math.PI/2); bend.place(1,-3.4,3.4,-Math.PI/2);",
+    "frames": 2 },
+  { "name": "cut-dancers-later", "query": "play&two&dress=fire,water&world=geode", "frames": 40 },
+  { "name": "cut-look", "query": "play&two&dress=fire,water&world=geode&focuslook",
+    "eval": "bend.set('post', { focusOn: 'look' }); bend.set('redwoods', { hour: 19.4, dayGoes: false }); bend.set('camera', { followDist: 3.6, followFov: 44, followPitch: 0.1, followSwing: 0 }); bend.wake(); bend.place(0,-0.6,0,Math.PI/2); bend.place(1,0.6,0,-Math.PI/2); await bend.step(200); bend.camera({ yaw: 0.3 }); await bend.step(30); await bend.world('redwoods'); for (const d of bend.show.dancers) bend.gates.place(d, 'redwoods'); bend.place(0,-4.6,3.4,Math.PI/2); bend.place(1,-3.4,3.4,-Math.PI/2);",
+    "frames": 2 },
+  { "name": "lock-redwoods", "query": "play&two&dress=fire,water&world=redwoods&lock",
+    "eval": "bend.set('redwoods', { hour: 19.4, dayGoes: false }); bend.wake(); await bend.step(200);",
+    "frames": 60 },
+  { "name": "stub-focus", "query": "play&two&dress=fire,water&world=redwoods&lock", "eval": "bend.set('post', { focusStub: 12 });", "frames": 3 }
+]

@@ -57,11 +57,11 @@ function pack(c: number[], on: boolean): GradeValues {
 
 /** first proposals, one per world (see the report for why each) */
 export const PROPOSED_GRADES: Record<string, Grade> = {
-  geode: { lift: [0.012, 0.004, 0.03], shadows: [0.92, 0.9, 1.08], highlights: [1.04, 1.0, 0.95], saturation: 1.05, contrast: 1.06 },
-  redwoods: { lift: [0.006, 0.01, 0.008], shadows: [0.94, 1.02, 0.98], highlights: [1.05, 1.0, 0.9], saturation: 1.04, contrast: 1.04 },
-  pool: { lift: [0.01, 0.006, 0.03], shadows: [0.95, 0.92, 1.1], highlights: [1.04, 0.98, 1.0], saturation: 1.08, contrast: 1.05 },
-  temple: { lift: [0.0, 0.01, 0.022], shadows: [0.9, 0.98, 1.1], highlights: [1.06, 1.0, 0.92], saturation: 1.0, contrast: 1.05 },
-  forge: { lift: [0.0, 0.006, 0.012], shadows: [0.88, 0.98, 1.08], highlights: [1.05, 0.98, 0.9], saturation: 1.02, contrast: 1.1 },
+  geode: { lift: [0.002, 0, 0.006], shadows: [0.94, 0.92, 1.06], highlights: [1.04, 1.0, 0.94], saturation: 1.04, contrast: 1.05 },
+  redwoods: { lift: [0.003, 0.004, 0.002], shadows: [0.95, 1.02, 0.98], highlights: [1.05, 1.0, 0.9], saturation: 1.04, contrast: 1.04 },
+  pool: { lift: [0.002, 0.001, 0.008], shadows: [0.96, 0.93, 1.08], highlights: [1.03, 0.98, 1.0], saturation: 1.06, contrast: 1.04 },
+  temple: { lift: [0, 0.003, 0.008], shadows: [0.92, 0.98, 1.08], highlights: [1.05, 1.0, 0.93], saturation: 1.0, contrast: 1.04 },
+  forge: { lift: [0, 0.002, 0.004], shadows: [0.92, 0.98, 1.06], highlights: [1.04, 0.99, 0.94], saturation: 1.0, contrast: 1.03 },
 };
 
 export type { V3 };

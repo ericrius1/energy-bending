@@ -29,6 +29,7 @@ export interface Frame {
   prevViewProjRel: Mat4;
   camLo: Vec3;
   _relPad: number;
+  jitterNdc: Vec4;
 }
 export interface FullscreenOut {
   pos: Vec4;
@@ -160,5 +161,5 @@ export interface MainOut {
   focus: Vec4;
 }
 
-declare const shader: Shader<{ Frame: Frame; FullscreenOut: FullscreenOut; Geode: Geode; Forest: Forest; Pool: Pool; Temple: Temple; Forge: Forge; FireLight: FireLight; FireLights: FireLights; WorldLight: WorldLight; KeyLight: KeyLight; Air: Air; MainOut: MainOut }, 'frame' | 'worldLight' | 'poolWaves' | 'templeWaves' | 'src' | 'glow' | 'focus0' | 'focus1' | 'focus2' | 'samp_linear' | 'samp_repeat' | 'samp_nearest' | 'samp_shadow'>;
+declare const shader: Shader<{ Frame: Frame; FullscreenOut: FullscreenOut; Geode: Geode; Forest: Forest; Pool: Pool; Temple: Temple; Forge: Forge; FireLight: FireLight; FireLights: FireLights; WorldLight: WorldLight; KeyLight: KeyLight; Air: Air; MainOut: MainOut }, 'frame' | 'worldLight' | 'poolWaves' | 'templeWaves' | 'src' | 'glow' | 'focus0' | 'focus1' | 'focus2' | 'opaque' | 'surfaced' | 'samp_linear' | 'samp_repeat' | 'samp_nearest' | 'samp_shadow'>;
 export default shader;
