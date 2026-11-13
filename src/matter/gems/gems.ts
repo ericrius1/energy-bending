@@ -500,7 +500,7 @@ export class GemPasses implements MatterPasses {
       if (!w || h.strength <= 0 || !lit) { row.at[3] = 0; row.glow[3] = 0; return; }
       const a = JOINT.Spine1 * JOINT_FLOATS, b2 = JOINT.Spine * JOINT_FLOATS;
       row.at = [w[a] * 0.7 + w[b2] * 0.3, w[a + 1] * 0.7 + w[b2 + 1] * 0.3, w[a + 2] * 0.7 + w[b2 + 2] * 0.3, h.radius];
-      row.glow = [h.glow[0], h.glow[1], h.glow[2], h.strength * pulse * P.heart];
+      row.glow = [h.glow[0], h.glow[1], h.glow[2], h.strength * pulse];
     });
     this.hearts.set({ h: this.heartRows } as unknown as Hearts);
   }

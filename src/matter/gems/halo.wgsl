@@ -44,6 +44,6 @@ const CORNERS = array<vec2f, 6>(vec2f(-1.0, -1.0), vec2f(1.0, -1.0), vec2f(1.0, 
   if (i.clip < 0.0) { discard; }
   let r2 = dot(i.uv, i.uv);
   // a bright core and a wide soft skirt
-  let k = exp(-r2 * 9.0) * 0.9 + exp(-r2 * 2.6) * 0.35;
-  return vec4f(i.col * k * (1.0 - smoothstep(0.85, 1.0, r2)), 0.0);
+  let k = exp(-r2 * 10.0) * 0.9 + exp(-r2 * 4.0) * 0.3;
+  return vec4f(i.col * k * (1.0 - smoothstep(0.6, 1.0, r2)), 0.0);
 }

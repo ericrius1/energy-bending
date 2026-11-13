@@ -102,7 +102,10 @@ fn main(@builtin(global_invocation_id) gid: vec3u) {
   if (wasOn && modeIs(p.mode, ON_BODY) && cap.y > 0.0 && rnd(rn ^ 0xb5a7u) < cap.y) {
     p.mode = FLYING;
     p.life = b.fallTime * mix(0.35, 0.9, rnd(rn ^ 0xb5a8u));
-    p.vel = H.vel * mix(0.7, 1.15, rnd(rn ^ 0xb5a9u)) + sphereDir(rn ^ 0xb5aau) * (0.4 + b.scatter * cap.z * 1.5);
+    // onward with the limb as it moves on the body (a kick throws them ahead of the foot), but only half of what the
+    // whole body is doing: in a jump, shards thrown at full speed would hang above it as a column
+    let bodyVel = joints[dn * MAXJ].vel.xyz;
+    p.vel = bodyVel * 0.5 + (H.vel - bodyVel) * mix(0.7, 1.15, rnd(rn ^ 0xb5a9u)) + sphereDir(rn ^ 0xb5aau) * (0.4 + b.scatter * cap.z * 1.5);
     s.ev |= EV_SHED;
     s.knock = cap.z;
   }

@@ -63,9 +63,9 @@ export const gemParams = defineParams('gems', {
   crystal: 2.4,
   // the hearts (hearts.ts)
   /** how much a heart lights the stones and crystals round it */
-  heart: 1,
-  heartHalo: 0.9,
-  haloSize: 2.4,
+  heart: 0.5,
+  heartHalo: 0.55,
+  haloSize: 1.8,
   // sparkles
   sparkRate: 0.6,
   sparkSpeed: 0.9,
