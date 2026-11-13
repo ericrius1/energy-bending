@@ -57,15 +57,15 @@ export const waterParams = defineParams('water', {
   splash: 0.25,
   /** how much the field's wind pushes spray */
   wind: 1,
-  /** how fast a particle changes state (1/s), the field heat above which ice melts and water boils away, and the
-   *  cold below which water freezes. From the field's measured values (docs/reports/4-steam.md): a body's surface reads
-   *  about ±0.6, 0.3 m out about ±0.08, a metre out nothing. Water freezes from 0.05 (ice within ~30 cm). Ice melts
-   *  from 0.3 ("touching") and water boils from 0.6 (inside a flame): lower, a body that wears fire and water or ice
-   *  itself (a fusion's mixed loadouts, `all`) melts and boils away from its own fire, since the field's heat is one
-   *  sum (seen at 0.05 and 0.1: docs/reports/5-integration.md) */
+  /** how fast a particle changes state (1/s), and the heat of anyone else's matter (field.wgsl fieldHeatFrom: a
+   *  body's own flame, ice and form left out) above which ice melts and water boils away, and the cold below which water
+   *  freezes. Measured with probes on the body facing the other dancer (docs/reports/9-field.md): water freezes from
+   *  -0.05 (an ice body's surface within about 40 cm: -0.05 to -0.07 at 1.06 m hips to hips, -0.16 at 0.86 m); ice melts
+   *  from 0.1 (a flame within about half a metre: 0.14 at 0.83 m, 0.04 to 0.06 at 0.98 m; plasma 0.25 at 0.71 m); water
+   *  boils from 0.3 (touching a flame or inside it: 0.28 to 0.6 at contact, never above 0.2 at 0.8 m or more apart) */
   freezeRate: 1.6,
-  meltHeat: 0.3,
-  boilHeat: 0.6,
+  meltHeat: 0.1,
+  boilHeat: 0.3,
   freezeCold: 0.05,
   // the surface
   /** a particle's sphere, × its home's size */

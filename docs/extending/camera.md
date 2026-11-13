@@ -48,19 +48,21 @@ What the rig does with them (`camera.*` params):
   faster than 30°/s, so the lock moves, never cuts (9-stage.md; checked in `check-portals.mjs`, the temple's court).
 - **Paths:** only when the path says `avoid: true` (below).
 
-### The near fade (asked of the worlds and the post chain; not built)
+### The near fade (src/worlds/fade.ts)
 
-What the rig cannot fix by moving (a column right beside a dancer, a lantern hanging in a locked frame, a blade in a
-tight follow), a world should fade. The rig publishes what is needed each frame:
-
-```ts
-rig.sight = { eye: V3, at: V3, near: 0.6, blocking: number[] }   // blocking: indices into rig.solids.list
-```
-
-The ask: in each world's opaque draws (or once, in the post chain's merge, by depth), dither away a fragment that is
-(a) within `near` (0.6 m) of the eye, or (b) inside the capsule from the eye to `at` of radius about 0.8 m and nearer
-the eye than `at`. Two `vec4f`s in the shared world light uniform (eye + near, at + radius) are enough. Until then,
-`sight.blocking` is empty in every lock frame this report's checks looked at.
+What the rig cannot fix by moving (a column right beside a dancer, a stub in a locked frame's foreground, a trunk in a
+tight follow, a blade the boom grazes), the worlds dissolve. `NearFade` (main.ts, after the camera, so a film's camera
+counts) reads the eye, the world's solids and the framed dancers as the main view sees them; on the CPU it asks
+whether a solid is within `fade.near` (0.6 m) of the eye and whether one crosses a sight line to a dancer's hips,
+chest, head, knees or hands, and eases a strength for each. It writes them to the worlds' light uniform (its `sight`
+member: an upright capsule per framed dancer, the near distance, the floor's height under the eye) and marks the main
+view with weft's per-view `Frame.user.x`. Every world's solid draws call `sightDrop(p, px)` (worlds/light.wgsl) and
+discard: a fragment within `near` of the eye, or one whose ray passes within a dancer's radius of its axis and that
+stands more than a radius and half a metre in front of it, is dropped by a dither (interleaved gradient noise; MSAA's
+resolve softens it). Nothing below a dancer's feet (+12 cm) fades, nor anything near the eye below the floor under
+it. A gate's view and the inset read the same uniform but have `user.x` 0. `rig.sight` is still published (the rig's
+own look point and what its lock left blocking); the fade does its own test, since a film's camera is not the rig's.
+Params: `fade` (`on`, `near`, `between`, `radius`, `easeIn`, `easeOut`); `bend.fade.seen` says what it found.
 
 ## The stick's turn
 

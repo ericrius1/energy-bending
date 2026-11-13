@@ -1,0 +1,158 @@
+[
+ {
+  "name": "nf-temple-lock",
+  "query": "jogo=partner&world=temple&dress=fire,water",
+  "fps": 2,
+  "seconds": 30,
+  "warm": 1,
+  "setup": "bend.set('fade',{easeIn:0,easeOut:0}); bend.set('temple', { tideHold: 0.42 }); await bend.jogo.start();",
+  "cues": {
+   "4.0": "bend.move(0,'meia-lua')",
+   "5.5": "bend.move(0,'esquiva')",
+   "7.0": "bend.move(0,'armada')",
+   "8.5": "bend.move(0,'spin')",
+   "10.0": "bend.move(0,'martelo')",
+   "11.5": "bend.move(0,'au')",
+   "13.0": "bend.move(0,'block')",
+   "14.5": "bend.move(0,'meia-lua')",
+   "16.0": "bend.move(0,'role')",
+   "17.5": "bend.move(0,'armada')",
+   "19.0": "bend.move(0,'meia-lua')",
+   "20.5": "bend.move(0,'esquiva')",
+   "22.0": "bend.move(0,'armada')",
+   "23.5": "bend.move(0,'spin')",
+   "25.0": "bend.move(0,'martelo')",
+   "26.5": "bend.move(0,'au')",
+   "28.0": "bend.move(0,'block')",
+   "29.5": "bend.move(0,'meia-lua')"
+  },
+  "each": "const s=bend.fade.seen; if(s.near||s.blocked[0]||s.blocked[1]) console.warn('fade', t, JSON.stringify(s))",
+  "ab": {
+   "a": "bend.set('fade',{on:false})",
+   "b": "bend.set('fade',{on:true})"
+  },
+  "sheet": {
+   "cols": 10,
+   "rows": 3,
+   "width": 260
+  },
+  "stills": []
+ },
+ {
+  "name": "nf-redwoods-lock",
+  "query": "jogo=partner&world=redwoods&dress=fire,water",
+  "fps": 2,
+  "seconds": 30,
+  "warm": 1,
+  "setup": "bend.set('fade',{easeIn:0,easeOut:0}); bend.set('redwoods', { hour: 19.4, dayGoes: false }); await bend.jogo.start();",
+  "cues": {
+   "4.0": "bend.move(0,'meia-lua')",
+   "5.5": "bend.move(0,'esquiva')",
+   "7.0": "bend.move(0,'armada')",
+   "8.5": "bend.move(0,'spin')",
+   "10.0": "bend.move(0,'martelo')",
+   "11.5": "bend.move(0,'au')",
+   "13.0": "bend.move(0,'block')",
+   "14.5": "bend.move(0,'meia-lua')",
+   "16.0": "bend.move(0,'role')",
+   "17.5": "bend.move(0,'armada')",
+   "19.0": "bend.move(0,'meia-lua')",
+   "20.5": "bend.move(0,'esquiva')",
+   "22.0": "bend.move(0,'armada')",
+   "23.5": "bend.move(0,'spin')",
+   "25.0": "bend.move(0,'martelo')",
+   "26.5": "bend.move(0,'au')",
+   "28.0": "bend.move(0,'block')",
+   "29.5": "bend.move(0,'meia-lua')"
+  },
+  "each": "const s=bend.fade.seen; if(s.near||s.blocked[0]||s.blocked[1]) console.warn('fade', t, JSON.stringify(s))",
+  "ab": {
+   "a": "bend.set('fade',{on:false})",
+   "b": "bend.set('fade',{on:true})"
+  },
+  "sheet": {
+   "cols": 10,
+   "rows": 3,
+   "width": 260
+  },
+  "stills": []
+ },
+ {
+  "name": "nf-geode-lock",
+  "query": "jogo=partner&world=geode&dress=fire,water",
+  "fps": 2,
+  "seconds": 30,
+  "warm": 1,
+  "setup": "bend.set('fade',{easeIn:0,easeOut:0}); await bend.jogo.start();",
+  "cues": {
+   "4.0": "bend.move(0,'meia-lua')",
+   "5.5": "bend.move(0,'esquiva')",
+   "7.0": "bend.move(0,'armada')",
+   "8.5": "bend.move(0,'spin')",
+   "10.0": "bend.move(0,'martelo')",
+   "11.5": "bend.move(0,'au')",
+   "13.0": "bend.move(0,'block')",
+   "14.5": "bend.move(0,'meia-lua')",
+   "16.0": "bend.move(0,'role')",
+   "17.5": "bend.move(0,'armada')",
+   "19.0": "bend.move(0,'meia-lua')",
+   "20.5": "bend.move(0,'esquiva')",
+   "22.0": "bend.move(0,'armada')",
+   "23.5": "bend.move(0,'spin')",
+   "25.0": "bend.move(0,'martelo')",
+   "26.5": "bend.move(0,'au')",
+   "28.0": "bend.move(0,'block')",
+   "29.5": "bend.move(0,'meia-lua')"
+  },
+  "each": "const s=bend.fade.seen; if(s.near||s.blocked[0]||s.blocked[1]) console.warn('fade', t, JSON.stringify(s))",
+  "ab": {
+   "a": "bend.set('fade',{on:false})",
+   "b": "bend.set('fade',{on:true})"
+  },
+  "sheet": {
+   "cols": 10,
+   "rows": 3,
+   "width": 260
+  },
+  "stills": []
+ },
+ {
+  "name": "nf-forge-lock",
+  "query": "jogo=partner&world=forge&dress=fire,water",
+  "fps": 2,
+  "seconds": 30,
+  "warm": 1,
+  "setup": "bend.set('fade',{easeIn:0,easeOut:0}); await bend.jogo.start();",
+  "cues": {
+   "4.0": "bend.move(0,'meia-lua')",
+   "5.5": "bend.move(0,'esquiva')",
+   "7.0": "bend.move(0,'armada')",
+   "8.5": "bend.move(0,'spin')",
+   "10.0": "bend.move(0,'martelo')",
+   "11.5": "bend.move(0,'au')",
+   "13.0": "bend.move(0,'block')",
+   "14.5": "bend.move(0,'meia-lua')",
+   "16.0": "bend.move(0,'role')",
+   "17.5": "bend.move(0,'armada')",
+   "19.0": "bend.move(0,'meia-lua')",
+   "20.5": "bend.move(0,'esquiva')",
+   "22.0": "bend.move(0,'armada')",
+   "23.5": "bend.move(0,'spin')",
+   "25.0": "bend.move(0,'martelo')",
+   "26.5": "bend.move(0,'au')",
+   "28.0": "bend.move(0,'block')",
+   "29.5": "bend.move(0,'meia-lua')"
+  },
+  "each": "const s=bend.fade.seen; if(s.near||s.blocked[0]||s.blocked[1]) console.warn('fade', t, JSON.stringify(s))",
+  "ab": {
+   "a": "bend.set('fade',{on:false})",
+   "b": "bend.set('fade',{on:true})"
+  },
+  "sheet": {
+   "cols": 10,
+   "rows": 3,
+   "width": 260
+  },
+  "stills": []
+ }
+]

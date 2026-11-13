@@ -138,7 +138,7 @@ export interface Look {
   sparkSize: number;
   crystal: number;
   heart: number;
-  pad0: number;
+  clap: number;
   streak: Vec4;
 }
 export interface Spark {
@@ -269,6 +269,15 @@ export interface WorldLight {
   pool: Pool;
   temple: Temple;
   forge: Forge;
+  sight: Sight;
+}
+export interface SightBody {
+  lo: Vec4;
+  hi: Vec4;
+}
+export interface Sight {
+  body: Partial<SightBody>[];
+  k: Vec4;
 }
 export interface KeyLight {
   dir: Vec3;
@@ -321,5 +330,5 @@ export interface VOut {
   clip: number;
 }
 
-declare const shader: Shader<{ Frame: Frame; Joint: Joint; Seg: Seg; Particle: Particle; Home: Home; BodyStep: BodyStep; Sim: Sim; CullView: CullView; Kind: Kind; Minerals: Minerals; Look: Look; Spark: Spark; Geode: Geode; Forest: Forest; Pool: Pool; Temple: Temple; Forge: Forge; FireLight: FireLight; FireLights: FireLights; WorldLight: WorldLight; KeyLight: KeyLight; Seen: Seen; ViewSeen: ViewSeen; Heart: Heart; Hearts: Hearts; Crystal: Crystal; Crystals: Crystals; VOut: VOut }, 'frame' | 'worldLight' | 'crystals' | 'look' | 'minerals' | 'seen' | 'hearts' | 'verts' | 'poolWaves' | 'templeWaves' | 'samp_linear' | 'samp_repeat' | 'samp_nearest' | 'samp_shadow'>;
+declare const shader: Shader<{ Frame: Frame; Joint: Joint; Seg: Seg; Particle: Particle; Home: Home; BodyStep: BodyStep; Sim: Sim; CullView: CullView; Kind: Kind; Minerals: Minerals; Look: Look; Spark: Spark; Geode: Geode; Forest: Forest; Pool: Pool; Temple: Temple; Forge: Forge; FireLight: FireLight; FireLights: FireLights; WorldLight: WorldLight; SightBody: SightBody; Sight: Sight; KeyLight: KeyLight; Seen: Seen; ViewSeen: ViewSeen; Heart: Heart; Hearts: Hearts; Crystal: Crystal; Crystals: Crystals; VOut: VOut }, 'frame' | 'worldLight' | 'crystals' | 'look' | 'minerals' | 'seen' | 'hearts' | 'verts' | 'poolWaves' | 'templeWaves' | 'samp_linear' | 'samp_repeat' | 'samp_nearest' | 'samp_shadow'>;
 export default shader;

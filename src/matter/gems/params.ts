@@ -66,6 +66,11 @@ export const gemParams = defineParams('gems', {
   heart: 0.5,
   heartHalo: 0.55,
   haloSize: 1.8,
+  // a clap (Dancer.clapAt: the roda's palmas): the hands light up and swell a little, then fade
+  /** how bright the hands flash on a clap */
+  clapGlow: 3,
+  /** how long the flash takes to fade (s, its 1/e time) */
+  clapFade: 0.16,
   // sparkles
   sparkRate: 0.6,
   sparkSpeed: 0.9,
@@ -94,4 +99,6 @@ export const gemParams = defineParams('gems', {
   reflection: { label: 'floor reflection' },
   hold: { min: 0, max: 1, label: 'hold in fast moves' },
   heart: { min: 0, max: 3, label: 'heart light' },
+  clapGlow: { min: 0, max: 10, label: 'clap flash' },
+  clapFade: { min: 0.03, max: 1, label: 'clap fade (s)' },
 });
