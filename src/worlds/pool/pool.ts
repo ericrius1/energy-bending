@@ -3,7 +3,9 @@
 // Its light is case 2 of worlds/light.wgsl (pool.wgsl). What it draws: the sky and the black floor (the backdrop). The
 // water's surface is laid over the scene in the air pass (pool.wgsl poolScene): the dancers reflected, the reflection
 // bent by a live ripple field (water/ripples.ts) that the dancers' feet and hands stir by themselves and that the game
-// can push with `ripple(x, z, strength, radius)`. Flat, no ledges: the pure stage.
+// can push with `ripple(x, z, strength, radius)`. Flat, no ledges: the pure stage. One event in its sky: a great
+// moon low behind the stage, climbing a few degrees over ten minutes and down again (`moonAt`), its road broken
+// across the ripples, a mist on the far water lit on its bearing.
 import type { Pool as PoolU } from '../light.wgsl';
 import { lightSlot, type LightSlot } from '../shared';
 import backdropShader from './backdrop.wgsl';
@@ -27,13 +29,25 @@ export const poolParams = defineParams('pool', {
   /** the water: how much more than water it mirrors, how much the ripples bend it, the wind's small waves */
   mirror: 0.55,
   ripples: 1,
-  wind: 0.02,
+  wind: 0.025,
   deep: '#010103',
   haze: 0.0015,
   /** the ripples: how fast they run (m/s), how quickly they die (per s), how hard a foot pushes */
   waveSpeed: 0.9,
   waveFade: 0.55,
   feet: 0.0012,
+  /** the moon: its colour, how bright its face, how big (degrees across), where it stands (degrees round from behind
+   *  the stage, degrees up), how far it climbs in ten minutes (degrees), and hold it at a moment for stills (s, or < 0) */
+  moonCol: '#ffe6c4',
+  moon: 1.5,
+  moonSize: 2.4,
+  moonBearing: 4,
+  moonUp: 4.2,
+  moonClimb: 2.5,
+  moonHold: -1,
+  /** the mist lying on the far water (its colour where the moon doesn't light it) */
+  mistCol: '#1a1c34',
+  mist: 0.7,
 }, {
   glowAmt: { min: 0, max: 1, label: 'horizon glow' },
   stars: { min: 0, max: 3 },
@@ -44,6 +58,14 @@ export const poolParams = defineParams('pool', {
   wind: { min: 0, max: 0.1, step: 0.001 },
   haze: { min: 0, max: 0.05, step: 0.001 },
   glow: { color: true },
+  moon: { min: 0, max: 10, label: 'moon' },
+  moonSize: { min: 0, max: 10, step: 0.1, label: 'moon size (°)' },
+  moonUp: { min: -2, max: 30, step: 0.1, label: 'moon height (°)' },
+  moonClimb: { min: 0, max: 20, step: 0.1 },
+  moonHold: { min: -1, max: 600, step: 1 },
+  mist: { min: 0, max: 1 },
+  moonCol: { color: true },
+  mistCol: { color: true },
 });
 
 export class Pool implements World {
@@ -61,7 +83,7 @@ export class Pool implements World {
   private u: LightSlot<PoolU>;
   private waves: Ripples;
   private seen = -1;
-  private live = { waves: [0, 0, 1, 1] as [number, number, number, number], march: [20, 14, 0, 0] as [number, number, number, number] };
+  private live = { waves: [0, 0, 1, 1] as [number, number, number, number], march: [20, 14, 0, 0] as [number, number, number, number], moon: [0, 0.07, -1, 0.03] as [number, number, number, number] };
 
   constructor(ctx: WorldCtx) {
     const { kit, frame, coarse } = ctx;
@@ -91,7 +113,17 @@ export class Pool implements World {
       zenith: [...hex(P.zenith), P.stars], horizon: [...hex(P.horizon), 0.35], glow: [...hex(P.glow), P.glowAmt],
       glowDir: [0, 0, -1, 2.5], key: [k[0] / kl, k[1] / kl, k[2] / kl, P.keyLight], keyCol: [...hex(P.keyCol), P.rim],
       water: [0, P.mirror, P.ripples, P.wind], deep: [...hex(P.deep), P.haze],
+      moonCol: [...hex(P.moonCol), P.moon], mist: [...hex(P.mistCol), P.mist],
     });
+  }
+
+  /** the moon at t seconds: low behind the stage, climbing a few degrees over ten minutes, then down again */
+  private moonAt(t: number) {
+    const P = poolParams, rad = Math.PI / 180;
+    const s = P.moonHold >= 0 ? P.moonHold : t;
+    const up = (P.moonUp + P.moonClimb * (0.5 - 0.5 * Math.cos((s / 600) * Math.PI))) * rad, b = P.moonBearing * rad;
+    const m = this.live.moon;
+    m[0] = Math.sin(b) * Math.cos(up); m[1] = Math.sin(up); m[2] = -Math.cos(b) * Math.cos(up); m[3] = P.moonSize * 0.5 * rad;
   }
 
   /** a push on the water: a footfall the feet didn't make, a landing, matter falling in */
@@ -102,6 +134,7 @@ export class Pool implements World {
     this.waves.update(f, c.x, c.z, 0);
     this.live.waves = this.waves.window();
     this.live.march[2] = f.t;
+    this.moonAt(f.t);
     this.u.set(this.live);
   }
 

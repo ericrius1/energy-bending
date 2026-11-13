@@ -1,0 +1,7 @@
+[
+ { "name": "pool-wide-a", "query": "world=pool&dress=fire", "params": { "camera": { "shots": false, "autoOrbit": false } }, "idle": 0, "yaw": 0, "pitch": 0.1, "dist": 9, "height": 1.6, "frames": 90 },
+ { "name": "pool-wide-b", "idle": 0, "yaw": 2.4, "pitch": 0.1, "dist": 9, "height": 1.6, "frames": 20 },
+ { "name": "pool-wide-c", "idle": 0, "yaw": 4.2, "pitch": 0.3, "dist": 7, "height": 1.6, "frames": 20 },
+ { "name": "pool-lock", "query": "play&two&dress=fire,water&world=pool", "eval": "bend.wake(); bend.lock(true); await bend.step(12); bend.place(0,-2.4,0); bend.place(1,2.4,0);", "frames": 150 },
+ { "name": "pool-gems", "query": "world=pool&dress=gems", "params": { "camera": { "shots": false, "autoOrbit": false } }, "wake": true, "idle": 0, "yaw": 0.3, "pitch": 0.08, "dist": 5, "height": 1.4, "frames": 300 }
+]

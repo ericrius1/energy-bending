@@ -127,6 +127,8 @@ export interface Geode {
   shaftCol: Vec4;
   caustic: Vec4;
   hazeCol: Vec4;
+  wall: Vec4;
+  gates: ArrayLike<number> | Vec4[];
   rimPower: number;
   floorGloss: number;
   fog: number;
@@ -172,6 +174,9 @@ export interface Pool {
   waves: Vec4;
   deep: Vec4;
   march: Vec4;
+  moon: Vec4;
+  moonCol: Vec4;
+  mist: Vec4;
 }
 export interface Temple {
   zenith: Vec4;

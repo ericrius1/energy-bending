@@ -1,0 +1,5 @@
+[
+ { "name": "t-geode", "query": "world=geode&dress=gems", "params": { "gems": { "scale": 0.0001 }, "camera": { "shots": false, "autoOrbit": false } }, "yaw": 0.4, "pitch": 0.1, "dist": 9, "height": 1.6, "idle": 0, "frames": 60, "timings": true },
+ { "name": "t-pool", "query": "world=pool&dress=gems", "params": { "gems": { "scale": 0.0001 }, "camera": { "shots": false, "autoOrbit": false } }, "yaw": 0.4, "pitch": 0.1, "dist": 9, "height": 1.6, "idle": 0, "frames": 60, "timings": true },
+ { "name": "t-forge", "query": "world=forge&dress=gems", "params": { "gems": { "scale": 0.0001 }, "camera": { "shots": false, "autoOrbit": false } }, "yaw": 0.4, "pitch": 0.1, "dist": 9, "height": 1.6, "idle": 0, "frames": 60, "timings": true }
+]

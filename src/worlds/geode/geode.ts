@@ -1,17 +1,21 @@
 // The geode: dancers inside a hollow stone full of water (Gem Dancers' first scene). Its light is case 0 of
 // worlds/light.wgsl: a studio of softbox and rims, and a shaft from a hole in the roof that comes down through
 // water, netting the floor with caustics and following the dancers like a follow-spot. Its floor is polished
-// agate (a mirror for the matter near it). Its wall is a dome of crystals: gems it is built of (a fixture, which the
-// gems kind places and draws). What it draws itself: the backdrop (the dark and the floor), dust in the light, and the
-// stage's crystal shelves (shelves.ts: blades of selenite grown out of the back wall, their flat tops the ledges).
+// agate (a mirror for the matter near it). Its wall is a great hollow, twelve metres round: a shell of crystal faces
+// in veins of colour, glowing from within, with a dome of gem crystals in front of it (a fixture, which the gems kind
+// places and draws). What it draws itself: the backdrop (the wall, the vault's opening and the floor), dust in the
+// light, the stage's crystal shelves (shelves.ts: blades of selenite grown out of druses of crystal, their flat tops
+// the ledges) and its crystal points (crystals.wgsl: the druses, great crystals by the wall, the gates' crowns).
 //
-// It is the hub: a gate to every other world stands round its floor (portals), facing the middle.
+// It is the hub: a gate to every other world stands round its floor (portals), facing the middle, each in a crown of
+// crystals in its world's colour, a path worn across the agate to it.
 import type { Texture } from '@ericrius1/weft';
 import type { Geode as GeodeU } from '../light.wgsl';
 import { lightSlot, type LightSlot } from '../shared';
 import backdropShader from './backdrop.wgsl';
 import moteShader from './motes.wgsl';
 import shelfShader from './shelves.wgsl';
+import crystalShader from './crystals.wgsl';
 import { layoutShelves, packBlades } from './shelves';
 import { stagePlane, spawnsOf } from '../stage';
 import type { Fixture, PortalDef, World, WorldCtx } from '../world';
@@ -25,7 +29,7 @@ export const geodeParams = defineParams('geode', {
   rimLight: 3,
   rimPower: 10,
   floorGloss: 1,
-  fog: 0.07,
+  fog: 0.03,
   bgTop: '#050409',
   bgBottom: '#0f0a14',
   floorCol: '#a0607e',
@@ -34,15 +38,15 @@ export const geodeParams = defineParams('geode', {
   cave: true,
   /** the stage's crystal shelves on the back wall */
   shelves: true,
-  caveStones: 2600,
-  caveRadius: 8.5,
+  caveStones: 3600,
+  caveRadius: 12,
   caveTint: '#9a82e0',
-  caveBright: 0.3,
+  caveBright: 0.4,
   floorBand: '#4a3d63',
   floorBandAmt: 0.55,
   shaft: 0.035,
   shaftRadius: 1.15,
-  shaftTop: 8.2,
+  shaftTop: 11.5,
   shaftCol: '#f4ece2',
   // the light came down through water: a net of caustics on the floor and the stones, rays in the air
   caustics: 0.5,
@@ -51,8 +55,12 @@ export const geodeParams = defineParams('geode', {
   causticSpeed: 0.25,
   motes: 1400,
   moteSize: 0.008,
-  haze: 0.035,
-  hazeCol: '#06040a',
+  haze: 0.03,
+  hazeCol: '#08060f',
+  /** the hollow's wall: how much higher than wide its vault reaches, how strongly its crystals glow, their glints */
+  vault: 1,
+  wallGlow: 1,
+  wallGlints: 1.2,
   // how it sounds: under water (Hz), the cave's echo, a fire somewhere, the depth under the bed
   water: 2600,
   echo: 0.8,
@@ -88,22 +96,16 @@ export class Geode implements World {
   private live = { pool: this.pool, shaft: this.shaft };
   private blades: ReturnType<typeof layoutShelves>['blades'];
   private bladeBuf: ReturnType<WorldCtx['kit']['storage']>;
+  private points: ReturnType<typeof layoutShelves>['points'];
+  private pointBuf: ReturnType<WorldCtx['kit']['storage']>;
+  /** each gate's xz, its path's half width, its world's tint */
+  private gates: number[];
 
   constructor(ctx: WorldCtx) {
     const P = geodeParams;
-    if (ctx.coarse) Object.assign(P, { caveStones: 700, motes: 700 });
+    if (ctx.coarse) Object.assign(P, { caveStones: 1000, motes: 700 });
     this.u = lightSlot(ctx.kit, 'geode');
     this.shared = {};
-    // a stage through the middle, seen from the front, its ledges the crystal shelves grown out of the wall; the lens
-    // long enough to flatten it but the camera inside the wall (7.1 m out at most)
-    const shelves = layoutShelves({ caveRadius: P.caveRadius });
-    this.blades = shelves.blades;
-    this.bladeBuf = ctx.kit.storage({ label: 'geode.shelves', data: packBlades(this.blades), usage: ['storage'] });
-    this.stages = [stagePlane({
-      id: 'centre', origin: [0, 0, 0], right: [1, 0, 0], halfWidth: 5.75, ground: 0, ledges: shelves.ledges,
-      spawns: [[-2.45, 0], [2.45, 0]], lens: 20,
-    })];
-    this.spawns = spawnsOf(this.stages[0]);
     // the hub's gates, one to each world, round the floor facing the middle (the stage's shelves behind, the
     // director's shots in front, the wall's crystals well clear of a 1.3 m disc)
     const gate = (id: string, world: string, x: number, z: number): PortalDef => {
@@ -111,6 +113,22 @@ export class Geode implements World {
       return { id: `geode.${id}`, at: [x, 1.35, z], normal: [-x / l, 0, -z / l], radius: 1.25, to: { world, portal: `${world}.geode` } };
     };
     this.portals = [gate('pool', 'pool', -6.0, 3.0), gate('temple', 'temple', 6.0, 3.0), gate('forge', 'forge', -2.9, 6.0), gate('redwoods', 'redwoods', 2.9, 6.0)];
+    // each gate's setting: a ring of crystals in its world's colour round the disc, a worn path to it across the floor
+    const tints = ['pool', 'temple', 'forge', 'redwoods'];
+    const sites = this.portals.map((p) => ({ at: p.at, normal: p.normal, radius: p.radius, tint: Math.max(0, tints.indexOf(p.to.world)) }));
+    this.gates = sites.flatMap((s) => [s.at[0], s.at[2], 0.55, s.tint]);
+    // a stage through the middle, seen from the front, its ledges the crystal shelves grown out of the druses at its
+    // ends and behind it; the lens long enough to flatten it, the camera inside the hollow
+    const shelves = layoutShelves({ caveRadius: P.caveRadius, gates: sites });
+    this.blades = shelves.blades;
+    this.bladeBuf = ctx.kit.storage({ label: 'geode.shelves', data: packBlades(this.blades), usage: ['storage'] });
+    this.points = shelves.points;
+    this.pointBuf = ctx.kit.storage({ label: 'geode.crystals', data: packBlades(this.points), usage: ['storage'] });
+    this.stages = [stagePlane({
+      id: 'centre', origin: [0, 0, 0], right: [1, 0, 0], halfWidth: 5.75, ground: 0, ledges: shelves.ledges,
+      spawns: [[-2.2, 0], [2.2, 0]], lens: 24,
+    })];
+    this.spawns = spawnsOf(this.stages[0]);
     // the wall: crystal points and clusters pointing in at the stage, thicker and bigger where the dome meets the floor
     this.fixtures = [{ kind: 'gems', id: 'geode.wall', shape: 'dome', count: Math.min(P.caveStones, 4096), radius: P.caveRadius,
       specimens: ['quartz', 'citrine', 'amethyst', 'celestite'], seed: 4242, enabled: () => geodeParams.cave }];
@@ -118,7 +136,9 @@ export class Geode implements World {
     onParams(P, () => this.upload());
   }
 
-  get room() { return geodeParams.caveRadius - 1.1; }
+  /** how far out the cameras may stand: well inside the hollow, and (for the locked view) in front of the gates, so
+   *  the stage is framed between them rather than through their crowns */
+  get room() { return Math.min(7.4, geodeParams.caveRadius - 1.1); }
 
   async load() { /* everything it needs is made in the shaders */ }
 
@@ -129,6 +149,7 @@ export class Geode implements World {
       bgTop: [...hex(P.bgTop), 1], bgBottom: [...hex(P.bgBottom), 1], floorCol: [...hex(P.floorCol), 1], rim: [...hex(P.rim), P.rimLight],
       key: [0.3, 0.88, 0.38, P.keyLight], cave: [...hex(P.caveTint), P.caveBright], floorBand: [...hex(P.floorBand), P.floorBandAmt],
       shaftCol: [...hex(P.shaftCol), P.shaftTop], caustic: [P.caustics, P.causticCells, P.causticSpeed, P.rays], hazeCol: [...hex(P.hazeCol), P.haze],
+      wall: [P.caveRadius + 0.4, P.vault, P.wallGlow, P.wallGlints], gates: this.gates,
       rimPower: P.rimPower, floorGloss: P.floorGloss, fog: P.fog, moteSize: P.moteSize, floorY: 0,
     });
   }
@@ -148,6 +169,7 @@ export class Geode implements World {
     if (s.phase === 'backdrop') s.pass.fullscreen(backdropShader, { label: 'geode.backdrop', enabled: s.on });
     else if (s.phase === 'opaque') {
       s.pass.draw(shelfShader, { label: 'geode.shelves', bind: { blades: this.bladeBuf }, count: 8 * 6 * 6 + 48, instances: this.blades.length, cull: 'none', enabled: () => s.on() && geodeParams.shelves });
+      s.pass.draw(crystalShader, { label: 'geode.crystals', bind: { points: this.pointBuf }, count: 54, instances: this.points.length, cull: 'none', enabled: () => s.on() && geodeParams.shelves });
     } else if (s.phase === 'glow') {
       s.pass.draw(moteShader, { label: 'geode.motes', count: 6, instances: () => geodeParams.motes, blend: 'add', depthWrite: false, cull: 'none', enabled: s.on });
     }
