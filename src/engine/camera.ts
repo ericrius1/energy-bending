@@ -121,26 +121,30 @@ export class Solids {
       } else this.bounds.set([...s.c, Math.hypot(...s.h)], i * 4);
     });
   }
-  /** how much of the way from a to b (0 … 1) a sphere of radius r moves before it touches a solid. Near a solid that
-   *  a already stands by (a dancer on a slab, against a column) the sphere shrinks to start clear of it; one a is
-   *  inside is passed over */
+  /** how much of the way from a to b (0 … 1) a sphere of radius r moves before it touches a solid (see below for a
+   *  start that is already near one) */
   sweep(a: V3, b: V3, r: number, hit?: (i: number) => void): number {
     const dx = b[0] - a[0], dy = b[1] - a[1], dz = b[2] - a[2], L2 = dx * dx + dy * dy + dz * dz;
     if (L2 < 1e-10) return 1;
-    const B = this.bounds;
-    let best = 1;
+    const B = this.bounds, near: number[] = [];
+    // the solids the segment comes within r of (their bounding spheres), and how near a is to the nearest of them: a
+    // start nearer a solid than r (a dancer standing on a slab of columns, against a column) makes the sphere small
+    // enough to start clear of all of them, so it is caught by moving into one, not by where it began; one a is inside
+    // (or touching) is passed over
+    let r0 = r;
     for (let i = 0; i < this.list.length; i++) {
-      // the bounding sphere against the segment (as far as it is short of best)
       const o = i * 4, px = B[o] - a[0], py = B[o + 1] - a[1], pz = B[o + 2] - a[2];
-      const t = Math.max(0, Math.min(best, (px * dx + py * dy + pz * dz) / L2));
+      const t = Math.max(0, Math.min(1, (px * dx + py * dy + pz * dz) / L2));
       const qx = px - dx * t, qy = py - dy * t, qz = pz - dz * t, R = B[o + 3] + r;
       if (qx * qx + qy * qy + qz * qz > R * R) continue;
-      // (a start nearer a solid than r, a dancer standing on a slab or against a column: the sphere is made small
-      // enough to start clear of it, so it is caught only by moving into it, not by where it began)
-      const s = this.list[i], d0 = distTo(s, a);
+      const d0 = distTo(this.list[i], a);
       if (d0 <= 0.02) continue;
-      const rr = Math.min(r, d0 * 0.9);
-      const k = s.kind === 'capsule' ? sweepCapsule(s, a, dx, dy, dz, rr) : sweepBox(s, a, dx, dy, dz, rr);
+      near.push(i);
+      r0 = Math.min(r0, d0 * 0.9);
+    }
+    let best = 1;
+    for (const i of near) {
+      const s = this.list[i], k = s.kind === 'capsule' ? sweepCapsule(s, a, dx, dy, dz, r0) : sweepBox(s, a, dx, dy, dz, r0);
       if (k < best) { best = k; hit?.(i); }
     }
     return best;
@@ -213,7 +217,16 @@ function sweepBox(s: Extract<Solid, { kind: 'box' }>, a: V3, dx: number, dy: num
     t0 = Math.max(t0, ta); t1 = Math.min(t1, tb);
     if (t0 > t1) return 1;
   }
-  return t0;
+  // (the box grown by r is a box, square at its edges and corners where the true shape is round: from where the
+  // segment enters it, step on by the true distance until the sphere touches, or the segment leaves)
+  const L = Math.hypot(dx, dy, dz), p: V3 = [0, 0, 0];
+  for (let i = 0, t = t0; i < 32 && t <= t1; i++) {
+    p[0] = a[0] + dx * t; p[1] = a[1] + dy * t; p[2] = a[2] + dz * t;
+    const d = distTo(s, p) - r;
+    if (d < 1e-3) return t;
+    t += d / L;
+  }
+  return 1;
 }
 
 export const cameraParams = defineParams('camera', {
@@ -686,7 +699,10 @@ export class CameraRig {
    *  after a carry, the way through the disc (`passThrough`) */
   private settleEye(dt: number, f: RigInput) {
     const T = this.freeLook, E = this.freeEye, C = cameraParams, S = this.solids;
-    if (S && !this.through) this.liftOver(dt, T, E, f);
+    // (while the eye is still behind the disc it came after its player through, the disc rules it; once it is on the
+    // player's side, or was turned there, the world's solids do again)
+    const behind = this.behindThrough(E);
+    if (S && !behind) this.liftOver(dt, T, E, f);
     const dx = E[0] - T[0], dy = E[1] - T[1], dz = E[2] - T[2], len = Math.hypot(dx, dy, dz);
     // how fast the boom turns about up (smoothed; a carry turns boomYaw with the rig)
     const yawNow = Math.atan2(dx, dz);
@@ -696,7 +712,7 @@ export class CameraRig {
     }
     this.boomYaw = yawNow;
     let want = 1;
-    if (!this.through) {
+    if (!behind) {
       if (this.follow) {
         // the room: a circle about the world's middle, as far as the eye may stand
         const a = dx * dx + dz * dz, b = T[0] * dx + T[2] * dz, c = T[0] * T[0] + T[2] * T[2] - f.room * f.room;
@@ -720,9 +736,10 @@ export class CameraRig {
     }
     // in quickly (but no faster than PULL_SPEED along the boom), out slowly
     const step = (want - this.pull) * (1 - Math.exp(-dt * (want < this.pull ? 10 : 1.6))), most = (PULL_SPEED * dt) / Math.max(len, 1e-3);
-    this.pull += this.through ? step : Math.max(-most, step);
+    this.pull += behind ? step : Math.max(-most, step);
     E[0] = T[0] + dx * this.pull; E[1] = T[1] + dy * this.pull; E[2] = T[2] + dz * this.pull;
-    if (this.through) { this.passThrough(dt, T, E, len); return; }
+    if (this.through) this.passThrough(dt, T, E, len);
+    if (this.behindThrough(E)) return;
     this.keepAbove(E, f);
     if (S && C.clearHard > 0) {
       const h = S.sweep(T, E, C.clearHard);
@@ -764,6 +781,12 @@ export class CameraRig {
     }
     this.lift += (best - this.lift) * (1 - Math.exp(-dt * (Math.abs(best) > Math.abs(this.lift) ? 2.5 : 0.8)));
     if (Math.abs(this.lift) > 1e-3) { const p = at(this.lift); E[0] = p[0]; E[1] = p[1]; E[2] = p[2]; }
+  }
+
+  /** whether p is behind the disc the eye has still to come through (on the far side from its player) */
+  private behindThrough(p: V3) {
+    const g = this.through;
+    return !!g && ((p[0] - g.at[0]) * g.n[0] + (p[1] - g.at[1]) * g.n[1] + (p[2] - g.at[2]) * g.n[2]) * g.side < 0;
   }
 
   /** after a carry the eye is still behind the disc its player came out of. Keep it on lines through the disc (the
