@@ -58,7 +58,7 @@ const travelling = loadMotion(base, 'travel').catch(() => null);
 const frame = new FrameBuilder();
 const bodies = new BodyBuffers(kit);
 const rig = new CameraRig();
-const field = new Field();
+const field = new Field({ kit, frame, bodies, coarse, query });
 const worldCtx: WorldCtx = { kit, base, bodies, coarse, film: FILM };
 const worlds: World[] = worldDefs.all().map((d) => d.make(worldCtx));
 const worldOf = (id: string) => worlds.find((w) => w.id === id) ?? worlds[0];

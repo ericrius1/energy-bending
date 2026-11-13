@@ -33,6 +33,16 @@ export const LIMITS = {
   /** Extra views drawn in a frame besides the main one (a portal's destination, the ?pip inset). Each has its own
    *  scene targets, its own LOD cull and its own draw lists (about 5 MB at 300k stones). */
   views: 3,
+  /** Point deposits into the matter field in one frame (thrown streams, impacts): a uniform array of 48 bytes each,
+   *  and a loop in every field cell, so a few dozen. */
+  fieldDeposits: 32,
+  /** Vortex sources in the field at once (the fusion's swirl, a whirlwind move): a uniform array and a loop per cell. */
+  fieldVortices: 4,
+  /** Points the CPU can ask the field about each frame (the updraft under a jumping dancer): read back a frame or
+   *  three late through a 512-byte buffer. */
+  fieldProbes: 16,
+  /** Steam puffs (src/matter/reactions): 32 bytes each, so 2 MB; a desktop runs 12k to 24k, a phone 4k. */
+  steam: 65_536,
 } as const;
 
 export type Limits = typeof LIMITS;

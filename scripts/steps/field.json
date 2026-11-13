@@ -1,0 +1,6 @@
+[
+  { "name": "field-overlay", "query": "field&aura=fire,water", "wake": true, "frames": 900, "timings": true },
+  { "name": "steam-geode", "query": "aura=fire,water", "wake": true, "frames": 900, "timings": true },
+  { "name": "steam-redwoods-night", "query": "aura=fire,water&world=redwoods", "params": { "redwoods": { "hour": 21.6, "dayGoes": false } }, "wake": true, "frames": 900 },
+  { "name": "vortex", "query": "field&vortex=4&aura=fire,water", "wake": true, "frames": 900 }
+]
