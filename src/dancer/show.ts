@@ -15,6 +15,7 @@ import { dressed, dressFromQuery } from '../matter/core/presets';
 import type { CameraRig } from '../engine/camera';
 import { LIMITS } from '../engine/limits';
 import { matterParams as showParams } from '../matter/core/params';
+import { budget } from '../engine/perf';
 
 /** what the show needs from the sound (audio/score.ts) */
 export interface ShowSound { setKey(key: number): void; rise(seconds: number): void; blast(strength: number): void }
@@ -45,7 +46,7 @@ export class Show implements Stagehand {
   constructor(readonly motion: Motion, readonly kinds: readonly MatterPasses[], private bodies: BodyBuffers, private rig: CameraRig,
     private sound: ShowSound, private coarse: boolean) {
     this.pieces = new Map(motion.pieces.map((p) => [p.id, p]));
-    if (coarse) showParams.count = 9000;
+    showParams.count = budget().stones;   // the device's budget (engine/perf.ts: a phone's 9000, as `coarse` gave)
     this.baseCount = showParams.count;
     this.programme = new Programme(this, rig);
   }

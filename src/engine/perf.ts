@@ -45,8 +45,10 @@ export interface Budget {
   waterSmooth: number;
   /** steam puffs (steamParams.pool) */
   steam: number;
-  /** × every sprite's size on screen (flames, steam, smoke, mist, sparks): fill is size², so 0.8 is 0.64 the fill.
-   *  Counts alone don't cut fill when the sprites stay the same size on screen (docs/reports/3-critique.md) */
+  /** × the size on screen of the sprites that still overdraw (steam's wisps, ice's mist): fill is size², so 0.85 is
+   *  0.72 the fill. The phone's is 1 for now: its counts and resolutions are what `coarse` always gave, and the fill
+   *  the critique worried about (flames, smoke, steam) was cut by fire's field and steam's cap; a phone's measured
+   *  run should set it (docs/reports/5-integration.md) */
   spriteScale: number;
   /** the matter field's grid (cells) and its cell size (m) */
   field: { dims: [number, number, number]; cell: number };
@@ -61,18 +63,18 @@ export interface Budget {
 export const BUDGETS: Record<DeviceClass, Budget> = {
   desktop: {
     targetFps: 60, gpuMs: 14, renderScale: { min: 0.5, max: 1 }, maxPixelRatio: 2, coarse: false,
-    stones: 15_000, flamesPerDancer: 150_000, waterPerDancer: 100_000, waterResolution: 1, waterSmooth: 2, steam: 9000,
+    stones: 15_000, flamesPerDancer: 60_000, waterPerDancer: 100_000, waterResolution: 1, waterSmooth: 3, steam: 6000,
     spriteScale: 1, field: { dims: [48, 32, 48], cell: 0.18 }, gates: { live: 2, scale: 0.5 }, dof: true,
   },
   laptop: {
     targetFps: 60, gpuMs: 12, renderScale: { min: 0.5, max: 1 }, maxPixelRatio: 1.5, coarse: false,
-    stones: 12_000, flamesPerDancer: 80_000, waterPerDancer: 60_000, waterResolution: 0.75, waterSmooth: 2, steam: 6000,
+    stones: 12_000, flamesPerDancer: 36_000, waterPerDancer: 60_000, waterResolution: 0.75, waterSmooth: 2, steam: 4000,
     spriteScale: 0.85, field: { dims: [40, 28, 40], cell: 0.21 }, gates: { live: 1, scale: 0.4 }, dof: true,
   },
   phone: {
     targetFps: 30, gpuMs: 26, renderScale: { min: 0.5, max: 0.85 }, maxPixelRatio: 2, coarse: true,
-    stones: 9000, flamesPerDancer: 40_000, waterPerDancer: 40_000, waterResolution: 0.5, waterSmooth: 1, steam: 3000,
-    spriteScale: 0.7, field: { dims: [32, 24, 32], cell: 0.26 }, gates: { live: 1, scale: 0.4 }, dof: false,
+    stones: 9000, flamesPerDancer: 24_000, waterPerDancer: 40_000, waterResolution: 0.5, waterSmooth: 1, steam: 2000,
+    spriteScale: 1, field: { dims: [32, 24, 32], cell: 0.26 }, gates: { live: 1, scale: 0.4 }, dof: false,
   },
 };
 

@@ -6,11 +6,10 @@ import { defineParams } from '../../engine/params';
 
 export const fireParams = defineParams('fire', {
   /** flames for one dancer wearing nothing but fire, at the show's default stone count (a programme with more stones
-   *  scales it; a phone takes `perDancerCoarse`); a dancer wearing fire on part of its body gets its share. The field
+   *  scales it; the device's budget sets it at start: engine/perf.ts flamesPerDancer); a dancer wearing fire on part of its body gets its share. The field
    *  is smooth, so it needs far fewer than sprites drawn one by one did; each splat is weighted by `perDancer` over
    *  this count, so the sum (and the look) stays the same when the count changes */
   perDancer: 60_000,
-  perDancerCoarse: 24_000,
   // motion
   life: 0.7,
   buoyancy: 1.8,

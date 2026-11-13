@@ -23,6 +23,7 @@ import type { Grade, World } from '../worlds/world';
 import { defineParams, onParams } from '../engine/params';
 import { JOINT } from '../skeleton/rig';
 import { gradeOf, gradeIdentity, PROPOSED_GRADES, type GradeValues } from './grade';
+import { budget } from '../engine/perf';
 
 export const postParams = defineParams('post', {
   exposure: 1.08,
@@ -117,7 +118,7 @@ export class PostChain {
 
   constructor(private kit: Kit, private frame: FrameBuilder, private main: ViewCtx, worlds: readonly World[], o: { film?: [number, number] | null; coarse?: boolean }) {
     this.filmSize = o.film ?? null;
-    if (o.coarse) postParams.dof = false;
+    if (!budget().dof) postParams.dof = false;
     this.post = kit.uniforms(postShader.structs.Post, 'post');
     this.grade = gradeIdentity();
     this.upload();

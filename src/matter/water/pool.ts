@@ -30,6 +30,7 @@ import { CarryStep } from '../core/carry';
 import type { MatterEars } from '../../audio/matter';
 import { fastestLimb, jointAt, middleOf, seeded } from '../core/sounding';
 import { JOINT } from '../../skeleton/rig';
+import { budget } from '../../engine/perf';
 
 const PARTICLE_FLOATS = 12;
 /** gem count a programme asks for when it doesn't say (matter/core/params.ts): the budget is read relative to it */
@@ -75,7 +76,8 @@ export class WaterPool {
 
   constructor(private ctx: MatterCtx) {
     const kit = (this.kit = ctx.kit);
-    if (ctx.coarse) { waterParams.perDancer = 40_000; waterParams.resolution = 0.5; waterParams.smoothPasses = 1; }
+    // the device's budget (engine/perf.ts; a phone's is what `coarse` gave: 40k, half resolution, one smoothing pass)
+    { const b = budget(); waterParams.perDancer = b.waterPerDancer; waterParams.resolution = b.waterResolution; waterParams.smoothPasses = b.waterSmooth; }
     this.state = kit.storage({ label: 'water.state', size: WATER_MAX * PARTICLE_FLOATS * 4, usage: ['storage', 'copy-dst'] });
     this.aux = kit.storage({ label: 'water.aux', size: WATER_MAX * 16, usage: ['storage', 'copy-dst'] });
     this.homes = kit.storage({ label: 'water.homes', size: WATER_MAX * 32, usage: ['storage', 'copy-dst'] });

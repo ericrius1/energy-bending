@@ -44,6 +44,7 @@ import { Surfaces, type GateRow } from './surface';
 import { Carried } from './carried';
 import { Rigid, dot, type Q4, type V3 } from './rigid';
 import { portalParams as P } from './params';
+import { budget } from '../engine/perf';
 
 /** something passed through a gate. The network sends this as its `travel` message (who, which gate, which face,
  *  when); `travel(e)` applies one that came from elsewhere */
@@ -173,7 +174,8 @@ export class Portals implements SceneLayer {
     this.stillSize = ctx.coarse ? 128 : 256;
     this.stillTex = kit.texture({ label: 'gates.stills', format: 'rgba16float', size: [this.stillSize, this.stillSize, LIMITS.gates], view: '2d-array' });
     this.surfaces = new Surfaces(kit, () => this.slotTextures(), this.stillTex);
-    if (ctx.coarse) { this.surfaces.motes = 40; P.live = Math.min(P.live, 1); P.scale = Math.min(P.scale, 0.4); }
+    if (ctx.coarse) this.surfaces.motes = 40;
+    { const g = budget().gates; P.live = Math.min(P.live, g.live); P.scale = Math.min(P.scale, g.scale); }   // engine/perf.ts
     sceneLayers.register(this);
     ctx.frame.tick('travel', (f) => this.travelPhase(f), 'gates: dancers through a door, carried to the other world');
     ctx.frame.tick('gates', (f) => this.gatesPhase(f), 'gates: the camera through a door, the views behind each live gate');

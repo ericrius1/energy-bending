@@ -24,6 +24,7 @@ import probeShader, { type Probes } from './probe.wgsl';
 import fieldShader, { type FieldBox } from './field.wgsl';
 import { auraOf, type Aura } from './auras';
 import { fieldParams } from './params';
+import { budget } from '../../engine/perf';
 
 type V3 = [number, number, number];
 
@@ -168,8 +169,9 @@ export class Field {
 
   constructor(o: FieldOptions) {
     const kit = o.kit;
-    this.dims = o.dims ?? (o.coarse ? [32, 24, 32] : [48, 32, 48]);
-    this.cell = o.cell ?? (o.coarse ? 0.26 : 0.18);
+    // the device's budget (engine/perf.ts; a phone's is the coarse grid it always had)
+    this.dims = o.dims ?? [...budget().field.dims];
+    this.cell = o.cell ?? budget().field.cell;
     this.cells = this.dims[0];
     this.halfSize = (this.dims[0] * this.cell) / 2;
     const q = o.query;

@@ -12,6 +12,7 @@ import type { FrameCtx } from '../../engine/frame';
 import { hex, onParams } from '../../engine/params';
 import { iceParams, MOTES, SET_SHARDS_MAX } from './params';
 import { SetIce, SHARD_FLOATS } from './setice';
+import { budget } from '../../engine/perf';
 
 /** what ice needs of the pool */
 export interface IcePool {
@@ -96,7 +97,7 @@ export class IceDraws {
     L.setTime = this.setIce.now;
     this.look.set(L);
     M.count = this.pool.count(); M.motes = MOTES; M.frameNo = f.frame; M.dt = dt; M.time = f.t; M.floorY = floorY;
-    M.birth = 1 - Math.exp(-P.breath * Math.max(f.dt, 0) * 0.25); M.mist = P.mist; M.dust = P.dust; M.mistSize = P.mistSize; M.dustSize = P.dustSize;
+    M.birth = 1 - Math.exp(-P.breath * Math.max(f.dt, 0) * 0.25); M.mist = P.mist; M.dust = P.dust; M.mistSize = P.mistSize * budget().spriteScale; M.dustSize = P.dustSize;
     this.mist.set(M);
     if (this.setIce.dirty) {
       this.setIce.dirty = false;

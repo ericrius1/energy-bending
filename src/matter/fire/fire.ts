@@ -38,6 +38,7 @@ import { fireParams } from './params';
 import { fireLights, writeFireLights, type FlameLight } from './lights';
 import type { LightSlot } from '../../worlds/shared';
 import type { FireLights } from './light.wgsl';
+import { budget } from '../../engine/perf';
 
 const MAXN = LIMITS.flames;
 /** the show's default stone count: a programme's count over this scales the flames */
@@ -92,6 +93,8 @@ export class FirePasses implements MatterPasses {
 
   constructor(private ctx: MatterCtx) {
     const kit = ctx.kit;
+    // the device's budget (engine/perf.ts): how many flames a dancer has (the panel can change it after)
+    fireParams.perDancer = budget().flamesPerDancer;
     this.flames = kit.storage({ label: 'fire.flames', size: MAXN * 48, usage: ['storage', 'copy-dst'] });
     this.homes = kit.storage({ label: 'fire.homes', size: MAXN * HOME_FLOATS * 4, usage: ['storage', 'copy-dst'] });
     this.sim = kit.uniforms(simShader.structs.FireSim, 'fire.sim');
@@ -167,7 +170,7 @@ export class FirePasses implements MatterPasses {
   private relayout() {
     this.dirty = false;
     const layers = [...this.layers.fire, ...this.layers.plasma].sort((a, b) => a.dancer - b.dancer);
-    const per = (this.ctx.coarse ? fireParams.perDancerCoarse : fireParams.perDancer) * this.scale;
+    const per = fireParams.perDancer * this.scale;
     this.perNow = per;
     const total = layers.reduce((a, l) => a + l.weight, 0);
     const count = Math.min(MAXN, Math.round(per * total / 256) * 256);

@@ -24,6 +24,7 @@ import { FUSION_KINDS } from '../field/field';
 import { steamParams } from './params';
 import type { MatterEars } from '../../audio/matter';
 import { Trigger } from '../core/sounding';
+import { budget, BUDGETS } from '../../engine/perf';
 
 /** premultiplied "over" for the colour; the scene's alpha (its view distance) is kept */
 const OVER: GPUBlendState = { color: { srcFactor: 'one', dstFactor: 'one-minus-src-alpha' }, alpha: { srcFactor: 'zero', dstFactor: 'one' } };
@@ -46,7 +47,10 @@ export class SteamPasses implements MatterPasses {
 
   constructor(private ctx: MatterCtx) {
     const kit = ctx.kit, P = steamParams;
-    this.count = Math.min(LIMITS.steam, Math.round(P.pool / (ctx.coarse ? 3 : 1)));
+    // the device's budget (engine/perf.ts) scales the pool (a phone's third, as `coarse` gave), and the wisps' size
+    const b = budget();
+    this.count = Math.min(LIMITS.steam, Math.round(P.pool * b.steam / BUDGETS.desktop.steam));
+    P.sizeBirth *= b.spriteScale; P.sizeEnd *= b.spriteScale;
     const w = Math.round(this.count * P.wispShare), f = w + Math.round(this.count * P.frontShare);
     this.ends = [w, f, Math.min(this.count, f + Math.round(this.count * P.dripShare))];
     this.sim = kit.uniforms(simShader.structs.Steam, 'steam.sim');
