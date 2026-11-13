@@ -1,0 +1,247 @@
+[
+ {
+  "name": "w-geode",
+  "query": "play&two&dress=fire,water&world=geode",
+  "fps": 4,
+  "seconds": 12,
+  "warm": 300,
+  "setup": "bend.set('camera', { followDist: 8, followFov: 44, followPitch: 0.18, followSwing: 0 }); bend.wake(); bend.place(0,-0.8,0.3,Math.PI/2); bend.place(1,0.8,0.3,-Math.PI/2);",
+  "each": "bend.camera({ yaw: t * 0.52 });",
+  "sheet": {
+   "cols": 8,
+   "rows": 3,
+   "width": 250
+  },
+  "stills": [
+   0,
+   3,
+   6,
+   9
+  ]
+ },
+ {
+  "name": "w-pool",
+  "query": "play&two&dress=fire,water&world=pool",
+  "fps": 4,
+  "seconds": 12,
+  "warm": 300,
+  "setup": "bend.set('camera', { followDist: 8, followFov: 44, followPitch: 0.18, followSwing: 0 }); bend.wake(); bend.place(0,-0.8,0.3,Math.PI/2); bend.place(1,0.8,0.3,-Math.PI/2);",
+  "each": "bend.camera({ yaw: t * 0.52 });",
+  "sheet": {
+   "cols": 8,
+   "rows": 3,
+   "width": 250
+  },
+  "stills": [
+   0,
+   3,
+   6,
+   9
+  ]
+ },
+ {
+  "name": "w-temple",
+  "query": "play&two&dress=fire,water&world=temple",
+  "fps": 4,
+  "seconds": 12,
+  "warm": 300,
+  "setup": "bend.set('camera', { followDist: 8, followFov: 44, followPitch: 0.18, followSwing: 0 }); bend.wake(); bend.place(0,-0.8,0.3,Math.PI/2); bend.place(1,0.8,0.3,-Math.PI/2);",
+  "each": "bend.camera({ yaw: t * 0.52 });",
+  "sheet": {
+   "cols": 8,
+   "rows": 3,
+   "width": 250
+  },
+  "stills": [
+   0,
+   3,
+   6,
+   9
+  ]
+ },
+ {
+  "name": "w-forge",
+  "query": "play&two&dress=fire,water&world=forge",
+  "fps": 4,
+  "seconds": 12,
+  "warm": 300,
+  "setup": "bend.set('camera', { followDist: 8, followFov: 44, followPitch: 0.18, followSwing: 0 }); bend.wake(); bend.place(0,-0.8,0.3,Math.PI/2); bend.place(1,0.8,0.3,-Math.PI/2);",
+  "each": "bend.camera({ yaw: t * 0.52 });",
+  "sheet": {
+   "cols": 8,
+   "rows": 3,
+   "width": 250
+  },
+  "stills": [
+   0,
+   3,
+   6,
+   9
+  ]
+ },
+ {
+  "name": "w-redwoods",
+  "query": "play&two&dress=fire,water&world=redwoods",
+  "fps": 4,
+  "seconds": 12,
+  "warm": 300,
+  "setup": "bend.set('redwoods', { hour: 19.4, dayGoes: false }); bend.set('camera', { followDist: 8, followFov: 44, followPitch: 0.18, followSwing: 0 }); bend.wake(); bend.place(0,-0.8,0.3,Math.PI/2); bend.place(1,0.8,0.3,-Math.PI/2);",
+  "each": "bend.camera({ yaw: t * 0.52 });",
+  "sheet": {
+   "cols": 8,
+   "rows": 3,
+   "width": 250
+  },
+  "stills": [
+   0,
+   3,
+   6,
+   9
+  ]
+ },
+ {
+  "name": "partner-temple",
+  "query": "jogo=partner&world=temple&dress=fire,water",
+  "fps": 5,
+  "seconds": 30,
+  "warm": 1,
+  "setup": "await bend.jogo.start();",
+  "cues": {
+   "8": "console.warn('lock', JSON.stringify({ t: +bend.show.t.toFixed(1), dodge: +bend.rig.dodge.toFixed(3), blocking: bend.rig.sight.blocking.length }));",
+   "16": "console.warn('lock', JSON.stringify({ t: +bend.show.t.toFixed(1), dodge: +bend.rig.dodge.toFixed(3), blocking: bend.rig.sight.blocking.length }));",
+   "24": "console.warn('lock', JSON.stringify({ t: +bend.show.t.toFixed(1), dodge: +bend.rig.dodge.toFixed(3), blocking: bend.rig.sight.blocking.length }));",
+   "4.0": "bend.move(0,'meia-lua')",
+   "5.5": "bend.move(0,'esquiva')",
+   "7.0": "bend.move(0,'armada')",
+   "8.5": "bend.move(0,'spin')",
+   "10.0": "bend.move(0,'martelo')",
+   "11.5": "bend.move(0,'au')",
+   "13.0": "bend.move(0,'block')",
+   "14.5": "bend.move(0,'meia-lua')",
+   "16.0": "bend.move(0,'role')",
+   "17.5": "bend.move(0,'armada')",
+   "19.0": "bend.move(0,'meia-lua')",
+   "20.5": "bend.move(0,'esquiva')",
+   "22.0": "bend.move(0,'armada')",
+   "23.5": "bend.move(0,'spin')",
+   "25.0": "bend.move(0,'martelo')",
+   "26.5": "bend.move(0,'au')",
+   "28.0": "bend.move(0,'block')",
+   "29.5": "bend.move(0,'meia-lua'); console.warn('lock', JSON.stringify({ t: +bend.show.t.toFixed(1), dodge: +bend.rig.dodge.toFixed(3), blocking: bend.rig.sight.blocking.length }));"
+  },
+  "sheet": {
+   "cols": 10,
+   "rows": 3,
+   "width": 260
+  },
+  "stills": [
+   8,
+   16,
+   24
+  ]
+ },
+ {
+  "name": "gate-redwoods",
+  "query": "play&dress=fire",
+  "fps": 5,
+  "seconds": 10,
+  "warm": 30,
+  "setup": "const g = [...bend.gates.gates.values()].find((g) => g.world === 'geode' && g.partner && g.partner.world === 'redwoods'); const n = g.n, P = [g.at[0] + n[0] * 4, g.at[2] + n[2] * 4];\n      bend.wake(); bend.set('camera', { followDist: 3.6, followFov: 44, followPitch: 0.1 });\n      bend.place(0, P[0], P[1], Math.atan2(-n[0], -n[2])); bend.camera({ yaw: Math.atan2(n[0], n[2]) });\n      bend.intent(0, { moveZ: 1, walk: true }); window.walk = [];",
+  "each": "const p = bend.players()[0]; window.walk.push([+t.toFixed(2), +p.x.toFixed(3), +p.z.toFixed(3), bend.stats().world, bend.rig.eye.map((v) => +v.toFixed(2))]);",
+  "cues": {
+   "4.4": "bend.intent(0, { moveZ: 0 });",
+   "5.0": "const g = [...bend.gates.gates.values()].find((g) => g.world === 'geode' && g.partner && g.partner.world === 'redwoods'); const b = g.partner, p = bend.players()[0]; bend.camera({ yaw: Math.atan2(p.x - b.at[0], p.z - b.at[2]) });",
+   "5.4": "bend.intent(0, { moveZ: 1, walk: true });",
+   "9.9": "console.warn('walk', JSON.stringify(window.walk));"
+  },
+  "sheet": {
+   "cols": 10,
+   "rows": 5,
+   "width": 200
+  },
+  "stills": [
+   1.6,
+   3.2,
+   6.4,
+   8.4
+  ]
+ },
+ {
+  "name": "gate-pool",
+  "query": "play&dress=fire",
+  "fps": 5,
+  "seconds": 10,
+  "warm": 30,
+  "setup": "const g = [...bend.gates.gates.values()].find((g) => g.world === 'geode' && g.partner && g.partner.world === 'pool'); const n = g.n, P = [g.at[0] + n[0] * 4, g.at[2] + n[2] * 4];\n      bend.wake(); bend.set('camera', { followDist: 3.6, followFov: 44, followPitch: 0.1 });\n      bend.place(0, P[0], P[1], Math.atan2(-n[0], -n[2])); bend.camera({ yaw: Math.atan2(n[0], n[2]) });\n      bend.intent(0, { moveZ: 1, walk: true }); window.walk = [];",
+  "each": "const p = bend.players()[0]; window.walk.push([+t.toFixed(2), +p.x.toFixed(3), +p.z.toFixed(3), bend.stats().world, bend.rig.eye.map((v) => +v.toFixed(2))]);",
+  "cues": {
+   "4.4": "bend.intent(0, { moveZ: 0 });",
+   "5.0": "const g = [...bend.gates.gates.values()].find((g) => g.world === 'geode' && g.partner && g.partner.world === 'pool'); const b = g.partner, p = bend.players()[0]; bend.camera({ yaw: Math.atan2(p.x - b.at[0], p.z - b.at[2]) });",
+   "5.4": "bend.intent(0, { moveZ: 1, walk: true });",
+   "9.9": "console.warn('walk', JSON.stringify(window.walk));"
+  },
+  "sheet": {
+   "cols": 10,
+   "rows": 5,
+   "width": 200
+  },
+  "stills": [
+   1.6,
+   3.2,
+   6.4,
+   8.4
+  ]
+ },
+ {
+  "name": "gate-temple",
+  "query": "play&dress=fire",
+  "fps": 5,
+  "seconds": 10,
+  "warm": 30,
+  "setup": "const g = [...bend.gates.gates.values()].find((g) => g.world === 'geode' && g.partner && g.partner.world === 'temple'); const n = g.n, P = [g.at[0] + n[0] * 4, g.at[2] + n[2] * 4];\n      bend.wake(); bend.set('camera', { followDist: 3.6, followFov: 44, followPitch: 0.1 });\n      bend.place(0, P[0], P[1], Math.atan2(-n[0], -n[2])); bend.camera({ yaw: Math.atan2(n[0], n[2]) });\n      bend.intent(0, { moveZ: 1, walk: true }); window.walk = [];",
+  "each": "const p = bend.players()[0]; window.walk.push([+t.toFixed(2), +p.x.toFixed(3), +p.z.toFixed(3), bend.stats().world, bend.rig.eye.map((v) => +v.toFixed(2))]);",
+  "cues": {
+   "4.4": "bend.intent(0, { moveZ: 0 });",
+   "5.0": "const g = [...bend.gates.gates.values()].find((g) => g.world === 'geode' && g.partner && g.partner.world === 'temple'); const b = g.partner, p = bend.players()[0]; bend.camera({ yaw: Math.atan2(p.x - b.at[0], p.z - b.at[2]) });",
+   "5.4": "bend.intent(0, { moveZ: 1, walk: true });",
+   "9.9": "console.warn('walk', JSON.stringify(window.walk));"
+  },
+  "sheet": {
+   "cols": 10,
+   "rows": 5,
+   "width": 200
+  },
+  "stills": [
+   1.6,
+   3.2,
+   6.4,
+   8.4
+  ]
+ },
+ {
+  "name": "gate-forge",
+  "query": "play&dress=fire",
+  "fps": 5,
+  "seconds": 10,
+  "warm": 30,
+  "setup": "const g = [...bend.gates.gates.values()].find((g) => g.world === 'geode' && g.partner && g.partner.world === 'forge'); const n = g.n, P = [g.at[0] + n[0] * 4, g.at[2] + n[2] * 4];\n      bend.wake(); bend.set('camera', { followDist: 3.6, followFov: 44, followPitch: 0.1 });\n      bend.place(0, P[0], P[1], Math.atan2(-n[0], -n[2])); bend.camera({ yaw: Math.atan2(n[0], n[2]) });\n      bend.intent(0, { moveZ: 1, walk: true }); window.walk = [];",
+  "each": "const p = bend.players()[0]; window.walk.push([+t.toFixed(2), +p.x.toFixed(3), +p.z.toFixed(3), bend.stats().world, bend.rig.eye.map((v) => +v.toFixed(2))]);",
+  "cues": {
+   "4.4": "bend.intent(0, { moveZ: 0 });",
+   "5.0": "const g = [...bend.gates.gates.values()].find((g) => g.world === 'geode' && g.partner && g.partner.world === 'forge'); const b = g.partner, p = bend.players()[0]; bend.camera({ yaw: Math.atan2(p.x - b.at[0], p.z - b.at[2]) });",
+   "5.4": "bend.intent(0, { moveZ: 1, walk: true });",
+   "9.9": "console.warn('walk', JSON.stringify(window.walk));"
+  },
+  "sheet": {
+   "cols": 10,
+   "rows": 5,
+   "width": 200
+  },
+  "stills": [
+   1.6,
+   3.2,
+   6.4,
+   8.4
+  ]
+ }
+]

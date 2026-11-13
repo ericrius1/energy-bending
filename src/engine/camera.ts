@@ -295,6 +295,8 @@ const LOCK_JOINTS = [0, 3, 4, 6, 9, 10, 12, 18, 19, 22, 23, 26, 31, 32, 35];
 /** the fastest the boom comes in for a solid (m/s), and the times ahead (s, at clearAhead 0.35) it looks along its turn */
 const PULL_SPEED = 5;
 const AHEAD = [0.12, 0.25, 0.4, 0.6, 0.8];
+/** how far the free boom may tilt (rad) to see over something low (or under a bough) */
+const LIFTS = [0.15, 0.3, 0.45, 0.6, -0.12, -0.24];
 /** what the locked view must see past solids: hips, knees, chest, head */
 const SIGHT_JOINTS = [0, 3, 9, 15, 18];
 
@@ -678,6 +680,7 @@ export class CameraRig {
    *  after a carry, the way through the disc (`passThrough`) */
   private settleEye(dt: number, f: RigInput) {
     const T = this.freeLook, E = this.freeEye, C = cameraParams, S = this.solids;
+    if (S && !this.through) this.liftOver(dt, T, E, f);
     const dx = E[0] - T[0], dy = E[1] - T[1], dz = E[2] - T[2], len = Math.hypot(dx, dy, dz);
     // how fast the boom turns about up (smoothed; a carry turns boomYaw with the rig)
     const yawNow = Math.atan2(dx, dz);
@@ -722,6 +725,33 @@ export class CameraRig {
         this.pull *= h;
       }
     }
+  }
+
+  /** a boom blocked by something low (a fallen log, a bough, a shelf at knee height) would come right in to the
+   *  dancers; tilted up a little it may clear it. Try a few tilts up to `LIFTS` and take the one that leaves the boom
+   *  longest (each step up must win half a metre, so it doesn't hunt), easing there and back slowly */
+  private lift = 0;
+  private liftOver(dt: number, T: V3, E: V3, f: RigInput) {
+    const S = this.solids!, C = cameraParams;
+    const dx = E[0] - T[0], dy = E[1] - T[1], dz = E[2] - T[2], h = Math.hypot(dx, dz), len = Math.hypot(dx, dy, dz);
+    if (h < 1e-4 || len < 1e-3) return;
+    const up = Math.atan2(dy, h);
+    const at = (l: number): V3 => {
+      const e = Math.min(1.3, up + l), k = (len * Math.cos(e)) / h;
+      return [T[0] + dx * k, T[1] + len * Math.sin(e), T[2] + dz * k];
+    };
+    let best = 0, bestLen = S.sweep(T, at(0), C.clearSoft) * len;
+    if (bestLen < len - 0.05) {
+      for (const l of LIFTS) {
+        // (a tilt down only where it keeps the eye 40 cm over the floor: under a bough, never into the ground)
+        const p = at(l);
+        if (l < 0 && p[1] < Math.max(this.waterY ?? -Infinity, f.groundAt ? f.groundAt(p[0], p[2]) : 0) + 0.4) continue;
+        const L = S.sweep(T, p, C.clearSoft) * len;
+        if (L > bestLen + 0.5) { best = l; bestLen = L; }
+      }
+    }
+    this.lift += (best - this.lift) * (1 - Math.exp(-dt * (Math.abs(best) > Math.abs(this.lift) ? 2.5 : 0.8)));
+    if (Math.abs(this.lift) > 1e-3) { const p = at(this.lift); E[0] = p[0]; E[1] = p[1]; E[2] = p[2]; }
   }
 
   /** after a carry the eye is still behind the disc its player came out of. Keep it on lines through the disc (the
