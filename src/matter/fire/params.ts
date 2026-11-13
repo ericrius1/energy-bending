@@ -18,31 +18,31 @@ export const fireParams = defineParams('fire', {
   drag: 2.2,
   inherit: 0.6,
   heat: 1.45,
-  embers: 1,
+  embers: 0.6,
   cling: 160,
   size: 0.021,
   /** the tongues' curl (curl.wgsl): vorticity confinement's strength, 0 off, and the most it pushes (m/s²) */
-  curl: 3,
-  curlMax: 12,
+  curl: 6,
+  curlMax: 24,
   /** the world light (matter/fire/light.wgsl): intensity of a whole body of fire */
   light: 2.5,
   // the field (splat.wgsl)
   /** the field's size, as a share of the view's */
   resolution: 0.5,
   /** temperature a flame adds at its centre, at 60,000 flames a dancer */
-  density: 0.006,
-  spread: 1.6,
+  density: 0.03,
+  spread: 1.1,
   stretch: 0.03,
   tongues: 0.5,
   /** m: a flame this close in front of something opaque (a gem heart) fades out */
   soft: 0.1,
-  reflect: 0.35,
+  reflect: 0.8,
   smoke: 0.5,
-  drySmoke: 0.15,
+  drySmoke: 0.08,
   // the composite (composite.wgsl)
   intensity: 1,
-  gaps: 0.5,
-  noiseScale: 4.6,
+  gaps: 0.7,
+  noiseScale: 7,
   climb: 0.5,
   advect: 0.8,
   period: 0.7,

@@ -1,0 +1,90 @@
+[
+ {
+  "name": "el-plasma-close",
+  "query": "play&dress=plasma&world=pool",
+  "fps": 10,
+  "seconds": 6,
+  "warm": 240,
+  "setup": "bend.set('camera', { followDist: 2.3, followFov: 40, followPitch: 0.1, followSwing: 0 }); bend.wake(); bend.place(0, 0, 0, Math.PI/2);",
+  "cues": {
+   "0.6": "bend.move(0,'armada')",
+   "1.8": "bend.move(0,'meia-lua')",
+   "3.0": "bend.move(0,'au')",
+   "4.3": "bend.move(0,'esquiva')",
+   "5.0": "bend.move(0,'spin')"
+  },
+  "each": "bend.camera({ yaw: 0.25 + 0.06*t });",
+  "sheet": {
+   "cols": 4,
+   "rows": 3,
+   "width": 400
+  },
+  "stills": [
+   0.3,
+   1.2,
+   3.4
+  ]
+ },
+ {
+  "name": "el-ember-close",
+  "query": "play&dress=ember&world=pool",
+  "fps": 10,
+  "seconds": 6,
+  "warm": 240,
+  "setup": "bend.set('camera', { followDist: 2.3, followFov: 40, followPitch: 0.1, followSwing: 0 }); bend.wake(); bend.place(0, 0, 0, Math.PI/2);",
+  "cues": {
+   "0.6": "bend.move(0,'armada')",
+   "1.8": "bend.move(0,'meia-lua')",
+   "3.0": "bend.move(0,'au')",
+   "4.3": "bend.move(0,'esquiva')",
+   "5.0": "bend.move(0,'spin')"
+  },
+  "each": "bend.camera({ yaw: 0.25 + 0.06*t });",
+  "sheet": {
+   "cols": 4,
+   "rows": 3,
+   "width": 400
+  },
+  "stills": [
+   0.3,
+   1.2,
+   3.4
+  ]
+ },
+ {
+  "name": "filmb",
+  "query": "play&two&dress=fire,water&world=redwoods",
+  "fps": 10,
+  "seconds": 6,
+  "warm": 200,
+  "setup": "bend.set('redwoods', { hour: 19.4, dayGoes: false }); bend.set('camera', { followDist: 4.6, followFov: 46, followPitch: 0.14, followSwing: 0 }); bend.wake(); bend.place(0, -0.7, 0.4, Math.PI/2); bend.place(1, 0.7, 0.4, -Math.PI/2);",
+  "cues": {
+   "0.6": "bend.move(0,'armada')",
+   "0.85": "bend.move(1,'esquiva')",
+   "2.2": "bend.lock(true)",
+   "3.6": "bend.move(1,'meia-lua')",
+   "3.8": "bend.move(0,'au')",
+   "5.2": "bend.move(0,'martelo')",
+   "5.4": "bend.move(1,'role')",
+   "7.0": "bend.move(1,'bencao')",
+   "7.2": "bend.move(0,'macaco')",
+   "8.8": "bend.move(0,'spin')",
+   "9.1": "bend.move(1,'rasteira')",
+   "10.6": "bend.move(1,'armada')",
+   "10.8": "bend.move(0,'esquiva')",
+   "12.4": "bend.lock(false)",
+   "13.2": "bend.move(0,'meia-lua')",
+   "13.4": "bend.move(1,'esquiva')"
+  },
+  "each": "const r=(a,b)=>Math.max(0,Math.min(1,(t-a)/(b-a))); bend.form(0, r(5.0,6.0)*(1-r(10,11))); bend.form(1, r(6.0,6.4)*(1-r(10.5,11))); if (t<2.2) bend.camera({ yaw: -0.5 + 0.2*t }); else if (t>12.4) bend.camera({ yaw: 0.25 + 0.05*(t-12.4) });",
+  "sheet": {
+   "cols": 6,
+   "rows": 2,
+   "width": 400
+  },
+  "stills": [
+   3,
+   5.6
+  ]
+ }
+]

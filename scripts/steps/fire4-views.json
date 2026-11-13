@@ -13,5 +13,6 @@
    "eval": "bend.set('post',{dof:false}); bend.set('camera', { followDist: 2.6, followFov: 40, followPitch: 0.1, followSwing: 0 }); bend.wake(); bend.place(0, 0, 0, Math.PI/2); bend.camera({ yaw: 0.25 }); bend.form(0, 0);",
    "frames": 240 },
  { "name": "morph-05", "query": "play&dress=fire&world=pool", "eval": "bend.form(0, 0.5);", "frames": 60 },
- { "name": "morph-1", "query": "play&dress=fire&world=pool", "eval": "bend.form(0, 1);", "frames": 60 }
+ { "name": "morph-1", "query": "play&dress=fire&world=pool", "eval": "bend.form(0, 1);", "frames": 60 },
+ { "name": "plasma-kick", "query": "play&dress=fire&world=pool", "eval": "bend.move(0,'armada');", "frames": 22 }
 ]

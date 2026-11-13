@@ -1,0 +1,54 @@
+[
+ {
+  "name": "el-fire-close",
+  "query": "play&dress=fire&world=pool",
+  "fps": 10,
+  "seconds": 6,
+  "warm": 240,
+  "setup": "bend.set('camera', { followDist: 2.3, followFov: 40, followPitch: 0.1, followSwing: 0 }); bend.wake(); bend.place(0, 0, 0, Math.PI/2);",
+  "cues": {
+   "0.6": "bend.move(0,'armada')",
+   "1.8": "bend.move(0,'meia-lua')",
+   "3.0": "bend.move(0,'au')",
+   "4.3": "bend.move(0,'esquiva')",
+   "5.0": "bend.move(0,'spin')"
+  },
+  "each": "bend.camera({ yaw: 0.25 + 0.06*t });",
+  "sheet": {
+   "cols": 4,
+   "rows": 3,
+   "width": 400
+  },
+  "stills": [
+   0.3,
+   1.2,
+   3.4
+  ]
+ },
+ {
+  "name": "el-fire-wide",
+  "query": "play&dress=fire&world=pool",
+  "fps": 10,
+  "seconds": 6,
+  "warm": 240,
+  "setup": "bend.set('camera', { followDist: 6.2, followFov: 44, followPitch: 0.1, followSwing: 0 }); bend.wake(); bend.place(0, 0, 0, Math.PI/2);",
+  "cues": {
+   "0.6": "bend.move(0,'armada')",
+   "1.8": "bend.move(0,'meia-lua')",
+   "3.0": "bend.move(0,'au')",
+   "4.3": "bend.move(0,'esquiva')",
+   "5.0": "bend.move(0,'spin')"
+  },
+  "each": "bend.camera({ yaw: 0.25 + 0.06*t });",
+  "sheet": {
+   "cols": 4,
+   "rows": 3,
+   "width": 400
+  },
+  "stills": [
+   0.3,
+   1.2,
+   3.4
+  ]
+ }
+]

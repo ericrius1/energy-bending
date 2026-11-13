@@ -5,16 +5,31 @@ by `matter/core/layout.ts`, as the gems' are), and lives a fraction of a second 
 limb's velocity, it rises, is stirred and cools, then is born again at its home. A still dancer burns upward like a
 torch; a kick leaves the flames born along its path behind it as a sheet; a spin, a helix.
 
+They are drawn as a **field**, not as sprites: per view the flames splat temperature, form, smoke, velocity and
+distance into a half-resolution target, and one composite applies the colour ramp to the **sum** (the 2D prototype's
+method: the ramp of a summed field gives contours, dark gaps, red tips and a white core as one shape; a sum of ramped
+sprites gave fur). A small velocity grid round each fire dancer pushes the flames round the eddies of their own flow
+(vorticity confinement), so tongues curl.
+
 | file | what |
 |---|---|
 | `index.ts` | registers the kind `fire` |
-| `fire.ts` | `FirePasses`: buffers, layout, the sim step, the draws, the acts, the light; `flameFor(ctx)` (one pool per kit, shared with plasma) |
-| `flame.wgsl` | the `Flame` particle, the `FireSim` uniform, the colour ramps |
-| `sim.wgsl` | one step per flame (birth, buoyancy, stirring, the field, plasma's cling, embers) |
-| `draw.wgsl` | stretched soft sprites eroded by climbing noise: flames (additive), smoke (premultiplied over), the mirror floor's copy |
+| `fire.ts` | `FirePasses`: buffers, layout, the sim step, the draws, the acts, the light, `focus(view)`; `flameFor(ctx)` (one pool per kit, shared with plasma) |
+| `flame.wgsl` | the `Flame` particle, the `FireSim` uniform, the fire and plasma ramps |
+| `sim.wgsl` | one step per flame (birth, buoyancy, stirring, the curl's push, the field, plasma's cling, embers) |
+| `curl.ts`, `curl.wgsl`, `curlgrid.wgsl` | the curl grids: scatter the flames' velocity, resolve (the field's wind where no flame is), vorticity, confinement |
+| `field.ts` | `FlameField`, one per view: its targets and passes, and where in the frame they run (main view: 'air' stage, over `hdr`; a gate's view: end of 'gates', over its `air`) |
+| `field.wgsl` | what the field's channels hold, the `FireField` uniform, the torch ramp (form 0.5) |
+| `splat.wgsl` | the flames (and the mirror floor's copy) added into the field, each hidden by opaque matter in front of it (the scene's alpha) |
+| `composite.wgsl` | the field made light: flow-advected display noise, the fire / torch / plasma ramps by form, smoke laid over; `fs_focus` writes the focus texture |
+| `draw.wgsl` | embers and sparks: small points added into the scene |
 | `light.wgsl`, `lights.ts` | the world light: one point light per flame dancer (`fireLights(kit)`) |
 | `params.ts` | `bend.params.fire` |
 
+The depth contract: nothing here writes the scene's alpha (the opaque view distance). `focus(view)` returns an
+`r16float` the size of the view's field: the flames' view distance (m) where they are dense (`focusT`), 6e4 elsewhere
+(1e5 doesn't fit a half float).
+
 Loadouts: `{ kind: 'fire', share, parts?, params?: { form?: 0 … 1 } }`, `{ kind: 'plasma', share, parts? }` (form 1).
-The game's per-dancer form is `(kinds.find((k) => k.id === 'fire') as FirePasses).form[d]` (0 … 1, added to the
-layer's own). See `docs/reports/1-fire-plasma.md` for the whole API, the light and the timings.
+The game's per-dancer form is `Dancer.form` (`bend.form(d, v)`), added to the layer's own. See
+`docs/reports/1-fire-plasma.md` and `docs/reports/4-fire.md`.
