@@ -1,0 +1,13 @@
+[
+ { "name": "bridge-0-before", "query": "jogo=script&script=geode-ice-bridge&world=geode", "frames": 560 },
+ { "name": "bridge-1-cartwheel", "query": "jogo=script&script=geode-ice-bridge&world=geode", "frames": 50 },
+ { "name": "bridge-2-laid", "query": "jogo=script&script=geode-ice-bridge&world=geode", "frames": 90 },
+ { "name": "bridge-3-jump", "query": "jogo=script&script=geode-ice-bridge&world=geode", "frames": 115 },
+ { "name": "bridge-4-standing", "query": "jogo=script&script=geode-ice-bridge&world=geode", "frames": 85, "eval2": "console.warn('jogo bridge', JSON.stringify({ players: bend.players(), stats: bend.jogo.stats(), history: bend.jogo.history.map((h) => [h.frame, h.e.k, h.e.res ?? h.e.piece?.kind ?? h.e.phase ?? h.e.move ?? '']) }))" },
+ { "name": "hud-rest", "query": "jogo=script&script=pool-fire-water&world=pool", "frames": 300, "eval2": "console.warn('jogo hud-rest', JSON.stringify(bend.jogo.stats()))" },
+ { "name": "hud-full", "query": "jogo=script&script=pool-fire-water&world=pool", "frames": 735, "eval2": "console.warn('jogo hud-full', JSON.stringify(bend.jogo.stats()))" },
+ { "name": "hud-merge", "query": "jogo=script&script=pool-fire-water&world=pool", "frames": 160, "eval2": "console.warn('jogo hud-merge', JSON.stringify(bend.jogo.stats()))" },
+ { "name": "results-0-over", "query": "jogo=script&script=pool-fire-water&world=pool", "frames": 1300, "eval2": "bend.jogo.endIn(0); console.warn('jogo end', JSON.stringify(bend.jogo.stats()))", "frames2": 700 },
+ { "name": "results-1-gems", "query": "jogo=script&script=pool-fire-water&world=pool", "frames": 200, "eval2": "console.warn('jogo results', JSON.stringify({ stats: bend.jogo.stats(), results: bend.jogo.state.results, history: bend.jogo.history.map((h) => [h.frame, h.e.k, h.e.res ?? h.e.kind ?? h.e.phase ?? h.e.move ?? '']) }))" },
+ { "name": "results-2-settled", "query": "jogo=script&script=pool-fire-water&world=pool", "frames": 160 }
+]

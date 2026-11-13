@@ -59,6 +59,9 @@ export interface FrameCtx {
   /** the music's clock: where we are in beats, and the tempo. Driven by a local clock now (audio/clock.ts); the
    *  music engine (wave 1, audio) and the network's shared clock will drive it later, through the same object */
   beat: { beats: number; bpm: number };
+  /** the jogo's shared tension, 0 (calm) … 1 (the top: fusion is near), eased; 0 outside a jogo (src/play sets it in
+   *  the 'input' phase). Worlds may read it for their mood: a slow intensifying of light */
+  tension: number;
   /** who is dancing */
   dancers: readonly Dancer[];
   /** every view drawn this frame; views[0] is the main one */

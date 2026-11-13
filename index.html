@@ -10,6 +10,41 @@
       html, body { margin: 0; height: 100%; background: #050409; overflow: hidden; }
       #stage { position: fixed; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
       #status { position: fixed; left: 16px; bottom: 12px; margin: 0; color: #776f80; font: 12px system-ui, sans-serif; }
+      /* jogo (src/play/menu.ts): the front of the game, the lobby, the room's code. Icons and short labels only */
+      .jg { position: fixed; z-index: 5; color: #ece6f4; font: 500 12px/1.2 system-ui, sans-serif; letter-spacing: 0.04em; user-select: none; transition: opacity 0.5s; }
+      .jg.gone, .jg.dim { opacity: 0; pointer-events: none; }
+      .jg [hidden] { display: none !important; }
+      .jg svg { width: 100%; height: 100%; display: block; }
+      .jg-front { left: 50%; bottom: max(24px, env(safe-area-inset-bottom)); transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; gap: 14px;
+        padding: 18px 22px; border-radius: 22px; background: rgba(10, 8, 18, 0.55); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); max-width: calc(100vw - 24px); }
+      .jg-row { display: flex; gap: 10px; align-items: center; justify-content: center; flex-wrap: wrap; }
+      .jg-btn { appearance: none; border: 0; background: none; color: inherit; font: inherit; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 5px;
+        padding: 6px; border-radius: 14px; opacity: 0.55; transition: opacity 0.2s, background 0.2s, transform 0.2s; }
+      .jg-btn:hover, .jg-btn:focus-visible { opacity: 0.9; outline: none; background: rgba(255, 255, 255, 0.06); }
+      .jg-btn.on { opacity: 1; background: rgba(255, 255, 255, 0.1); }
+      .jg-btn span { font-size: 11px; text-transform: lowercase; }
+      .jg-mode { width: 76px; } .jg-mode svg { width: 46px; height: 46px; }
+      .jg-world i { display: block; width: 26px; height: 26px; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #fff8, var(--c) 45%, #0008 100%); box-shadow: 0 0 14px var(--c); }
+      .jg-body { gap: 6px; } .jg-body.one + .jg-body, .jg-bodies.one .jg-body:last-child { display: none; }
+      .jg-seat { width: 18px; height: 18px; border-radius: 50%; display: grid; place-items: center; font-size: 10px; background: rgba(255, 255, 255, 0.12); }
+      .jg-swatch i { display: block; width: 22px; height: 22px; border-radius: 50%; background: linear-gradient(135deg, var(--a), var(--b), var(--a)); background-size: 300% 300%;
+        animation: jg-live 3.2s ease-in-out infinite alternate; box-shadow: 0 0 10px var(--a); }
+      .jg-swatch span { font-size: 9px; }
+      @keyframes jg-live { from { background-position: 0% 50%; } to { background-position: 100% 50%; } }
+      .jg-online .jg-btn svg, .jg-foot .jg-btn svg { width: 30px; height: 30px; }
+      .jg-code { width: 74px; padding: 8px 10px; border-radius: 10px; border: 1px solid rgba(255, 255, 255, 0.18); background: rgba(0, 0, 0, 0.3); color: inherit;
+        font: 600 16px/1 ui-monospace, monospace; letter-spacing: 0.2em; text-align: center; text-transform: uppercase; }
+      .jg-go { opacity: 1; } .jg-go svg { width: 40px !important; height: 40px !important; color: #ffd68a; }
+      .jg-lobby { left: 50%; top: 50%; transform: translate(-50%, -50%); display: flex; gap: 28px; }
+      .jg-card { display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 18px 22px; border-radius: 20px; background: rgba(10, 8, 18, 0.5); backdrop-filter: blur(10px); opacity: 0.6; }
+      .jg-card.on { opacity: 1; }
+      .jg-card .jg-dev { width: 56px; height: 56px; }
+      .jg-card:not(.on) .jg-dev { animation: jg-breathe 1.6s ease-in-out infinite; }
+      @keyframes jg-breathe { 50% { transform: scale(0.9); opacity: 0.6; } }
+      .jg-waiting { right: 18px; top: 18px; display: flex; gap: 10px; align-items: center; padding: 8px 12px; border-radius: 16px; background: rgba(10, 8, 18, 0.5); }
+      .jg-waiting .jg-dev { width: 26px; height: 26px; animation: jg-breathe 1.6s ease-in-out infinite; }
+      .jg-share { flex-direction: row; opacity: 0.9; } .jg-share svg { width: 22px; height: 22px; } .jg-share span { font: 600 15px ui-monospace, monospace; letter-spacing: 0.2em; text-transform: none; }
+      @media (max-width: 520px) { .jg-mode { width: 60px; } .jg-mode svg { width: 36px; height: 36px; } .jg-front { padding: 12px 10px; gap: 10px; } }
     </style>
     <script type="module" src="/src/main.ts"></script>
   </head>

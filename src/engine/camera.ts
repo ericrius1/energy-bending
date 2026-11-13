@@ -187,6 +187,8 @@ export class CameraRig {
   /** points (x, y, z triples) to frame on the plane; when empty, the plane's stage is framed */
   framing: Float32Array = new Float32Array(0);
   framingCount = 0;
+  /** more margin (m) round what a locked view frames: the jogo stands back for a fusion */
+  framePad = 0;
   /** the pose this frame (world): eye, the point looked at, field of view (degrees) */
   readonly eye: V3 = [0, 0, 0];
   readonly look: V3 = [0, 0, 0];
@@ -556,8 +558,10 @@ export class CameraRig {
       }
     } else for (let i = 0; i < this.framingCount; i++) add(this.framing[i * 3], this.framing[i * 3 + 1], this.framing[i * 3 + 2]);
     if (!(u1 >= u0)) { u0 = -P.halfWidth; u1 = P.halfWidth; v0 = 0; v1 = P.height ?? 3; }
-    // a margin round them (hands and hair beyond the joints), the floor under them, never less than a body of stage
-    u0 -= 0.3; u1 += 0.3; v0 = Math.min(v0, P.ground ?? 0) - 0.25; v1 = Math.max(v1 + 0.3, v0 + 2.4);
+    // a margin round them (hands and hair beyond the joints), the floor under them, never less than a body of stage;
+    // framePad (the jogo: a fusion, the results) stands back further
+    const pu = this.framePad, pv = this.framePad * 0.6;
+    u0 -= 0.3 + pu; u1 += 0.3 + pu; v0 = Math.min(v0, P.ground ?? 0) - 0.25 - pv; v1 = Math.max(v1 + 0.3, v0 + 2.4) + pv;
     const X = this.lockExt;
     // (fresh, or a dancer put somewhere else in one go, a respawn: the extent jumps out with them)
     if (this.lockFresh) { X[0] = u0; X[1] = u1; X[2] = v0; X[3] = v1; }
