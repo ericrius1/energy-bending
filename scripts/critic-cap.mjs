@@ -5,7 +5,9 @@
 // A file is a list of takes. A take: { name, query?, size?: 'WxH', fps?: 30, seconds, setup?: js, cues?: { "<s>": js },
 //   each?: js (run every output frame with `t` in seconds), warm?: frames stepped after setup before frame 0,
 //   sheet?: { cols, rows, width }, stills?: [seconds…] (kept full size), timings?: true (profiler over 150 frames at the
-//   end), timingsAt?: seconds }. js runs in the page with `bend` (async; `t` too in each).
+//   end), timingsAt?: seconds, ab?: { a: js, b: js } (each frame grabbed twice, one stepped frame apart: after `a`
+//   into <name>-a/, then after `b`; the stills are the two side by side, a left; a second sheet `-a-sheet`) }. js runs in
+//   the page with `bend` (async; `t` too in each).
 // Frames go to shots/critic/<name>/f0000.jpg…, the film to docs/reports/media/3-film/<name>.mp4 (git-ignored), the sheet
 // to docs/reports/media/3-<name>-sheet.jpg and the stills to docs/reports/media/3-<name>-<s>.jpg. The simulation steps
 // at 60 Hz whatever the output rate (bend.grab steps one frame itself). Takes the shared render lock, as shot.mjs does.
@@ -56,6 +58,8 @@ try {
     const dir = join(SHOTS, tk.name);
     rmSync(dir, { recursive: true, force: true });
     mkdirSync(dir, { recursive: true });
+    const dirA = `${dir}-a`;
+    if (tk.ab) { rmSync(dirA, { recursive: true, force: true }); mkdirSync(dirA, { recursive: true }); }
     const fps = Number(opts.fps ?? 0) || (tk.fps ?? 30), n = Math.round(tk.seconds * fps), per = Math.max(1, Math.round(60 / fps));
     const cues = Object.entries(tk.cues ?? {}).map(([s, js]) => [Number(s), js]).sort((a, b) => a[0] - b[0]);
     let ci = 0;
@@ -63,14 +67,19 @@ try {
     for (let i = 0; i < n; i++) {
       const t = i / fps, due = [];
       while (ci < cues.length && cues[ci][0] <= t + 1e-6) due.push(cues[ci++][1]);
-      const jpg = await page.evaluate(async (due, each, t, per) => {
+      const jpg = await page.evaluate(async (due, each, t, per, ab) => {
         const B = window.bend;
         for (const js of due) await new Function('bend', `return (async () => { ${js} })()`)(B);
         if (each) await new Function('bend', 't', `return (async () => { ${each} })()`)(B, t);
         if (per > 1) await B.step(per - 1);
-        return B.grab('image/jpeg', 0.93);
-      }, due, tk.each ?? null, t, per);
-      writeFileSync(join(dir, `f${String(i).padStart(4, '0')}.jpg`), Buffer.from(jpg.split(',')[1], 'base64'));
+        if (!ab) return [await B.grab('image/jpeg', 0.93)];
+        await new Function('bend', `return (async () => { ${ab.a} })()`)(B);
+        const a = await B.grab('image/jpeg', 0.93);
+        await new Function('bend', `return (async () => { ${ab.b} })()`)(B);
+        return [await B.grab('image/jpeg', 0.93), a];
+      }, due, tk.each ?? null, t, per, tk.ab ?? null);
+      writeFileSync(join(dir, `f${String(i).padStart(4, '0')}.jpg`), Buffer.from(jpg[0].split(',')[1], 'base64'));
+      if (jpg[1]) writeFileSync(join(dirA, `f${String(i).padStart(4, '0')}.jpg`), Buffer.from(jpg[1].split(',')[1], 'base64'));
       if (tk.timingsAt !== undefined && Math.abs(t - tk.timingsAt) < 0.5 / fps) await timings(page, tk.name);
     }
     console.log(`${tk.name}: ${n} frames in ${((Date.now() - t1) / 1000).toFixed(0)} s`);
@@ -83,8 +92,11 @@ try {
     const sh = tk.sheet ?? { cols: 4, rows: 4, width: 480 };
     const every = Math.max(1, Math.floor(n / (sh.cols * sh.rows)));
     spawnSync('ffmpeg', ['-y', '-loglevel', 'error', '-i', join(dir, 'f%04d.jpg'), '-vf', `select='not(mod(n\\,${every}))',scale=${sh.width}:-1,tile=${sh.cols}x${sh.rows}:padding=4:color=white`, '-frames:v', '1', '-q:v', '3', join(MEDIA, `${PRE}-${tk.name}-sheet.jpg`)], { stdio: 'inherit' });
+    if (tk.ab) spawnSync('ffmpeg', ['-y', '-loglevel', 'error', '-i', join(dirA, 'f%04d.jpg'), '-vf', `select='not(mod(n\\,${every}))',scale=${sh.width}:-1,tile=${sh.cols}x${sh.rows}:padding=4:color=white`, '-frames:v', '1', '-q:v', '3', join(MEDIA, `${PRE}-${tk.name}-a-sheet.jpg`)], { stdio: 'inherit' });
     for (const s of tk.stills ?? []) {
       const f = Math.min(n - 1, Math.round(s * fps));
+      const name = (k) => join(k, `f${String(f).padStart(4, '0')}.jpg`), out = join(MEDIA, `${PRE}-${tk.name}-${String(s).replace('.', 'p')}.jpg`);
+      if (tk.ab) { spawnSync('ffmpeg', ['-y', '-loglevel', 'error', '-i', name(dirA), '-i', name(dir), '-filter_complex', 'hstack', '-q:v', '3', out], { stdio: 'inherit' }); continue; }
       copyFileSync(join(dir, `f${String(f).padStart(4, '0')}.jpg`), join(MEDIA, `${PRE}-${tk.name}-${String(s).replace('.', 'p')}.jpg`));
     }
   }

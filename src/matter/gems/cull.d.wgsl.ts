@@ -138,7 +138,7 @@ export interface Look {
   sparkSize: number;
   crystal: number;
   heart: number;
-  pad0: number;
+  clap: number;
   streak: Vec4;
 }
 export interface Spark {

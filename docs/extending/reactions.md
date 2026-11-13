@@ -14,18 +14,19 @@ meet, whoever brought them: steam now.
 
 let w = fieldWind(p);      // vec3f, m/s, world
 let h = fieldHeat(p);      // f32: 0 the room, 1 at a flame body's surface, -1 at an ice body's
+let hf = fieldHeatFrom(p, d); // f32: the same, less what dancer d's own body laid (its own flame, ice, form's cold)
 let wet = fieldWet(p);     // f32: 0 dry, 1 at a water body's surface
 let s = fieldSteam(p);     // f32: how fast steam is being made here (heat meeting wet, flame melting ice)
 let dry = fieldDry(p);     // f32: how dry the air is: 0.6 at a plasma body, 0 at fire's (tells plasma's heat from fire's)
 let both = fieldAt(p);     // FieldSample { a: (wind, wet), b: (hot, cold, steam, dry) } in two samples
 ```
 
-- The field is two `rgba16float` 3D textures and a small uniform, in **bind group 3**, shared with the bodies (joints,
-  capsules): `field.ts` re-shares group 3 with the field's three bindings (4, 5, 6) added after the bodies' four. A
+- The field is three `rgba16float` 3D textures and a small uniform, in **bind group 3**, shared with the bodies (joints,
+  capsules): `field.ts` re-shares group 3 with the field's four bindings (4 to 7) added after the bodies' four. A
   shader that includes `field.wgsl` (or `core/body.wgsl`) is served by that group; you bind nothing. Use them from any
   stage (compute, vertex, fragment): they are sampled with `textureSampleLevel`, so no derivatives are needed.
 - **Budget**: including the field costs no storage buffers of its own, but a stage that uses group 3 also counts the
-  bodies' two storage buffers (joints, capsules) and two sampled textures. A draw that samples the field in its
+  bodies' two storage buffers (joints, capsules) and three sampled textures. A draw that samples the field in its
   vertex stage therefore has two storage buffers in that stage before its own.
 - Outside the box (8.6 × 5.8 × 8.6 m on a desktop, 32 × 24 × 32 cells of 0.26 m on a phone) everything is calm:
   zero wind, zero heat, dry. Values fade to that over the outermost cell.
@@ -44,6 +45,16 @@ let both = fieldAt(p);     // FieldSample { a: (wind, wet), b: (hot, cold, steam
 Heat is kept as two parts that move on their own, hot and cold, which use each other up where they meet (ice melting
 by a flame) and leave wet behind; `fieldHeat` is their difference. Where they meet is where the most steam is made.
 Values can exceed 1 where several bodies crowd (they are clamped to 4).
+
+**Whose heat it is** (the third texture, C): in each cell the dancer laying the most heat owns the cell's hot and the
+one laying the most cold owns its cold (a flame touching an ice body: each owns its own), and the share of the cell's
+hot and cold that is its owner's own is carried with the air beside the totals (`step.wgsl claim`). `fieldHeatFrom(p,
+d)` is `fieldHeat` less dancer d's own share, so a body's own flame doesn't boil its own water, tide's ice hands don't
+freeze its water, and a water dancer's own form (ice's cold) freezes it only by its own wave; anyone else's heat, the
+CPU's deposits and a fusion's helix all count. Water reads it (`water/sim.wgsl`); fire, steam and the rest read the
+totals. The limit: where two dancers lay heat of the same sign in one 18 cm cell, only the larger owner is told apart
+(two flames touching: each sees the other's excess over its own). Measured values and the thresholds water uses:
+`docs/reports/9-field.md`.
 
 What a kind does with them is its own: fire flickers brighter and climbs faster in heat and gutters in wet, water
 boils off where it is hot, ice melts where heat is positive, flying particles follow `fieldWind` so a kick's spray

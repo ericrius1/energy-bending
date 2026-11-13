@@ -202,12 +202,15 @@ fn profile(s: f32, len: f32, r0: f32, sh: vec4f, a: f32) -> f32 {
   return o;
 }
 
-@fragment fn fs(i: VOut) -> @location(0) vec4f { return bark(i); }
+@fragment fn fs(i: VOut) -> @location(0) vec4f {
+  if (sightDrop(i.wp, i.pos.xy)) { discard; }   // the near fade (worlds/fade.ts)
+  return bark(i);
+}
 
 /** a stage log's: the same, but a log settled into the ground is cut away under it (the ground is the backdrop, which
  *  writes no depth). (Its own entry, so the trunks keep their early depth test.) */
 @fragment fn fs_stage(i: VOut) -> @location(0) vec4f {
-  if (i.wp.y < 0.0) { discard; }
+  if (i.wp.y < 0.0 || sightDrop(i.wp, i.pos.xy)) { discard; }
   return bark(i);
 }
 

@@ -23,7 +23,8 @@ struct Sim {
   envBase: u32,      // where the fixtures start in the buffers
   types: array<vec4f, MAX_SPECIMENS>,   // per specimen: where its draw lists start, how many stones, size, -
   /** per capsule slot (dancer × SEGS + capsule): x 1 while a large crystal stands over it (its stones on the body hide),
-   *  y this frame's burst (the share of its stones that break off: a peak, an impact, a crystal cracking), z how hard */
+   *  y this frame's burst (the share of its stones that break off: a peak, an impact, a crystal cracking), z how hard,
+   *  w its clap's flash (1 at the moment a dancer's hands meet in a clap, fading; the hands and forearms only) */
   caps: array<vec4f, MAX_DANCERS * SEGS>,
 }
 
@@ -49,7 +50,7 @@ struct Look {
   sparkSize: f32,
   crystal: f32,    // the large crystals' extra refraction and fire (× the stones')
   heart: f32,      // how much a heart (hearts.wgsl) lights the stones round it
-  pad0: f32,
+  clap: f32,       // how bright a clap (Sim.caps' w on the hands) lights the stones of the hands
   streak: vec4f,   // streaks behind flying stones: seconds of travel drawn, brightness
 }
 

@@ -1,0 +1,146 @@
+[
+ {
+  "name": "t-temple-pair",
+  "query": "play&two&dress=fire,water&world=temple",
+  "size": "1920x1080",
+  "fps": 2,
+  "seconds": 1,
+  "warm": 300,
+  "setup": "bend.set('camera', { followDist: 4, followFov: 40, followPitch: 0.08 }); bend.wake(); bend.place(0,-0.7,0.3,Math.PI/2); bend.place(1,0.7,0.3,-Math.PI/2);",
+  "timings": true,
+  "sheet": {
+   "cols": 2,
+   "rows": 1,
+   "width": 640
+  },
+  "stills": [
+   0.5
+  ]
+ },
+ {
+  "name": "t-redwoods-pair",
+  "query": "play&two&dress=fire,water&world=redwoods",
+  "size": "1920x1080",
+  "fps": 2,
+  "seconds": 1,
+  "warm": 300,
+  "setup": "bend.set('redwoods', { hour: 19.4, dayGoes: false }); bend.set('camera', { followDist: 4, followFov: 40, followPitch: 0.08 }); bend.wake(); bend.place(0,-0.7,0.3,Math.PI/2); bend.place(1,0.7,0.3,-Math.PI/2);",
+  "timings": true,
+  "sheet": {
+   "cols": 2,
+   "rows": 1,
+   "width": 640
+  },
+  "stills": [
+   0.5
+  ]
+ },
+ {
+  "name": "t-redwoods-jogo",
+  "query": "jogo=partner&world=redwoods&dress=fire,water",
+  "size": "1920x1080",
+  "fps": 2,
+  "seconds": 1,
+  "warm": 300,
+  "setup": "bend.set('redwoods', { hour: 19.4, dayGoes: false }); await bend.jogo.start();",
+  "timings": true,
+  "sheet": {
+   "cols": 2,
+   "rows": 1,
+   "width": 640
+  },
+  "stills": [
+   0.5
+  ]
+ },
+ {
+  "name": "t-hub-pair",
+  "query": "play&two&dress=fire,water",
+  "size": "1920x1080",
+  "fps": 2,
+  "seconds": 1,
+  "warm": 300,
+  "setup": "bend.set('camera', { followDist: 6, followFov: 44, followPitch: 0.2 }); bend.wake();",
+  "timings": true,
+  "sheet": {
+   "cols": 2,
+   "rows": 1,
+   "width": 640
+  },
+  "stills": [
+   0.5
+  ]
+ },
+ {
+  "name": "t-fusion-pool",
+  "query": "jogo=script&script=none&world=pool&dress=fire,water",
+  "size": "1920x1080",
+  "fps": 2,
+  "seconds": 1,
+  "warm": 1300,
+  "setup": "bend.jogo.run({\"name\":\"critic6-steam\",\"world\":\"pool\",\"lock\":true,\"dress\":[\"fire\",\"water\"],\"cues\":[{\"at\":0,\"seat\":0,\"place\":-0.52},{\"at\":0,\"seat\":1,\"place\":0.52},{\"at\":1,\"seat\":0,\"move\":\"martelo\"},{\"at\":1,\"seat\":1,\"press\":\"dodge\",\"hold\":{\"moveY\":-1},\"for\":0.6},{\"at\":3,\"seat\":1,\"move\":\"meia-lua\"},{\"at\":3,\"seat\":0,\"press\":\"dodge\",\"hold\":{\"moveY\":-1},\"for\":0.6},{\"at\":5,\"seat\":0,\"move\":\"meia-lua\"},{\"at\":5,\"seat\":1,\"move\":\"meia-lua\"},{\"at\":7,\"seat\":0,\"move\":\"bencao\"},{\"at\":8.5,\"seat\":0,\"goto\":-0.52},{\"at\":8.5,\"seat\":1,\"goto\":0.52},{\"at\":10,\"seat\":0,\"move\":\"spin\"},{\"at\":10,\"seat\":1,\"move\":\"spin\"},{\"at\":12.5,\"seat\":0,\"goto\":-0.52},{\"at\":12.5,\"seat\":1,\"goto\":0.52},{\"at\":14,\"seat\":1,\"move\":\"armada\"},{\"at\":14,\"seat\":0,\"press\":\"dodge\",\"hold\":{\"moveY\":-1},\"for\":0.6},{\"at\":15.5,\"seat\":0,\"goto\":-0.52},{\"at\":15.5,\"seat\":1,\"goto\":0.52},{\"at\":17,\"seat\":0,\"move\":\"rasteira\"},{\"at\":17,\"seat\":1,\"press\":\"jump\",\"hold\":{\"jumpHeld\":true},\"for\":0.4},{\"at\":18.5,\"seat\":0,\"goto\":-0.52},{\"at\":18.5,\"seat\":1,\"goto\":0.52},{\"at\":20,\"seat\":1,\"move\":\"bencao\"},{\"at\":20.25,\"seat\":0,\"press\":\"dodge\",\"hold\":{\"dodgeHeld\":true},\"for\":0.6},{\"at\":21.5,\"seat\":0,\"goto\":-0.52},{\"at\":21.5,\"seat\":1,\"goto\":0.52},{\"at\":23,\"seat\":0,\"move\":\"meia-lua\"},{\"at\":23,\"seat\":1,\"press\":\"dodge\",\"hold\":{\"moveY\":-1},\"for\":0.6},{\"at\":25,\"seat\":1,\"move\":\"martelo\"},{\"at\":25,\"seat\":0,\"press\":\"dodge\",\"hold\":{\"moveY\":-1},\"for\":0.6},{\"at\":27,\"seat\":0,\"move\":\"armada\"},{\"at\":27.5,\"seat\":1,\"press\":\"dodge\",\"hold\":{\"moveY\":-1},\"for\":0.6},{\"at\":29,\"seat\":0,\"goto\":-0.16},{\"at\":29,\"seat\":1,\"goto\":0.16},{\"at\":29.5,\"seat\":\"both\",\"hold\":{\"merge\":true},\"for\":4},{\"at\":33,\"seat\":0,\"goto\":-0.42},{\"at\":33,\"seat\":1,\"goto\":0.42},{\"at\":36,\"seat\":\"both\",\"move\":\"spin\"},{\"at\":40,\"seat\":\"both\",\"move\":\"macaco\"},{\"at\":44,\"seat\":0,\"move\":\"spin\"},{\"at\":45,\"seat\":1,\"move\":\"spin\"},{\"at\":48,\"seat\":0,\"goto\":-0.3},{\"at\":48,\"seat\":1,\"goto\":0.3},{\"at\":52,\"seat\":\"both\",\"move\":\"spin\"},{\"at\":56,\"seat\":\"both\",\"move\":\"macaco\"}]});",
+  "timings": true,
+  "sheet": {
+   "cols": 2,
+   "rows": 1,
+   "width": 640
+  },
+  "stills": [
+   0.5
+  ]
+ },
+ {
+  "name": "t-temple-stub",
+  "query": "play&two&dress=fire,water&world=temple",
+  "fps": 2,
+  "seconds": 1,
+  "warm": 40,
+  "setup": " bend.wake(); await bend.step(3);\nconst W=bend.worldOf(), J=bend.show.dancers[0].skeleton.world, g0=W.groundAt(J[0],J[2]), list=bend.rig.solids.list;\n// (idx < 0: the nearest box 2 to 7 m from the player that stands above its floor, as the forge's raised slabs do)\nconst top=(s)=>s.kind==='box'?s.c[1]+Math.abs(s.h[1]*s.y[1]):Math.max(s.a[1],s.b[1])+s.r, bot=(s)=>s.kind==='box'?s.c[1]-Math.abs(s.h[1]*s.y[1]):Math.min(s.a[1],s.b[1])-s.r;\nconst mid=(s)=>s.kind==='box'?[s.c[0],s.c[2]]:[(s.a[0]+s.b[0])/2,(s.a[2]+s.b[2])/2];\nconst pick=11>=0?11:list.map((s,i)=>[i,Math.hypot(mid(s)[0]-J[0],mid(s)[1]-J[2])]).filter(([i,d])=>d>2&&d<7&&top(list[i])>g0+0.6&&bot(list[i])<g0+1.4).sort((a,b)=>a[1]-b[1])[0]?.[0];\nconsole.warn('stage solid', pick, 'ground', g0.toFixed(2));\nconst S=list[pick]; let c,R; if(S.kind==='capsule'){c=[(S.a[0]+S.b[0])/2,(S.a[2]+S.b[2])/2];R=S.r}else{c=[S.c[0],S.c[2]];R=Math.max(S.h[0],S.h[2])}\nlet dx=-c[0],dz=-c[1]; const L=Math.hypot(dx,dz)||1; dx/=L; dz/=L; const px=-dz,pz=dx, D=R+2.2, E=R+1.6;\nconst y0=Math.atan2(px,pz);\nbend.place(0,c[0]+dx*D-px*0.6,c[1]+dz*D-pz*0.6,y0); bend.place(1,c[0]+dx*D+px*0.6,c[1]+dz*D+pz*0.6,y0+Math.PI);\nconst g=W.groundAt(c[0]+dx*D,c[1]+dz*D), eye=[c[0]-dx*E,g+1.3,c[1]-dz*E], at=[c[0]+dx*D,g+1.0,c[1]+dz*D];\nconst ap=bend.rig.apply.bind(bend.rig); bend.rig.apply=(cam,w,h)=>{ap(cam,w,h); cam.lookAt(eye,at); cam.update(w,h);};",
+  "sheet": {
+   "cols": 2,
+   "rows": 1,
+   "width": 640
+  },
+  "stills": [
+   0.5
+  ],
+  "size": "1920x1080",
+  "timings": true
+ },
+ {
+  "name": "t-redwoods-trunk",
+  "query": "play&two&dress=fire,water&world=redwoods",
+  "fps": 2,
+  "seconds": 1,
+  "warm": 40,
+  "setup": "bend.set('redwoods', { hour: 19.4, dayGoes: false }); bend.wake(); await bend.step(3);\nconst W=bend.worldOf(), J=bend.show.dancers[0].skeleton.world, g0=W.groundAt(J[0],J[2]), list=bend.rig.solids.list;\n// (idx < 0: the nearest box 2 to 7 m from the player that stands above its floor, as the forge's raised slabs do)\nconst top=(s)=>s.kind==='box'?s.c[1]+Math.abs(s.h[1]*s.y[1]):Math.max(s.a[1],s.b[1])+s.r, bot=(s)=>s.kind==='box'?s.c[1]-Math.abs(s.h[1]*s.y[1]):Math.min(s.a[1],s.b[1])-s.r;\nconst mid=(s)=>s.kind==='box'?[s.c[0],s.c[2]]:[(s.a[0]+s.b[0])/2,(s.a[2]+s.b[2])/2];\nconst pick=111>=0?111:list.map((s,i)=>[i,Math.hypot(mid(s)[0]-J[0],mid(s)[1]-J[2])]).filter(([i,d])=>d>2&&d<7&&top(list[i])>g0+0.6&&bot(list[i])<g0+1.4).sort((a,b)=>a[1]-b[1])[0]?.[0];\nconsole.warn('stage solid', pick, 'ground', g0.toFixed(2));\nconst S=list[pick]; let c,R; if(S.kind==='capsule'){c=[(S.a[0]+S.b[0])/2,(S.a[2]+S.b[2])/2];R=S.r}else{c=[S.c[0],S.c[2]];R=Math.max(S.h[0],S.h[2])}\nlet dx=-c[0],dz=-c[1]; const L=Math.hypot(dx,dz)||1; dx/=L; dz/=L; const px=-dz,pz=dx, D=R+2.2, E=R+1.6;\nconst y0=Math.atan2(px,pz);\nbend.place(0,c[0]+dx*D-px*0.6,c[1]+dz*D-pz*0.6,y0); bend.place(1,c[0]+dx*D+px*0.6,c[1]+dz*D+pz*0.6,y0+Math.PI);\nconst g=W.groundAt(c[0]+dx*D,c[1]+dz*D), eye=[c[0]-dx*E,g+1.3,c[1]-dz*E], at=[c[0]+dx*D,g+1.0,c[1]+dz*D];\nconst ap=bend.rig.apply.bind(bend.rig); bend.rig.apply=(cam,w,h)=>{ap(cam,w,h); cam.lookAt(eye,at); cam.update(w,h);};",
+  "sheet": {
+   "cols": 2,
+   "rows": 1,
+   "width": 640
+  },
+  "stills": [
+   0.5
+  ],
+  "size": "1920x1080",
+  "timings": true
+ },
+ {
+  "name": "t-gate-dof",
+  "query": "play&two&dress=fire,water&world=geode",
+  "size": "1920x1080",
+  "fps": 2,
+  "seconds": 1,
+  "warm": 20,
+  "setup": "bend.set('redwoods', { hour: 19.4, dayGoes: false }); bend.wake(); await bend.step(200);\nconst G=bend.worlds.find((w)=>w.id==='geode').portals.find((p)=>p.to.world==='redwoods'), a=G.at, n=G.normal, r=[n[2],0,-n[0]];\nbend.place(0,a[0]+n[0]*2.6+r[0]*1.1,a[2]+n[2]*2.6+r[2]*1.1,Math.atan2(-n[0],-n[2]));\nconst d=bend.show.dancers[1]; bend.gates.place(d,'redwoods'); const f=bend.gates.pt(G.id,[a[0]-n[0]*3,a[1],a[2]-n[2]*3]);\nconst fz=bend.gates.dir(G.id,[n[0],0,n[2]]); bend.place(1,f[0],f[2],Math.atan2(fz[0],fz[2]));\nconst eye=[a[0]+n[0]*5.5,a[1]+0.3,a[2]+n[2]*5.5], at=[a[0],a[1]-0.2,a[2]];\nconst ap=bend.rig.apply.bind(bend.rig); bend.rig.apply=(cam,w,h)=>{ap(cam,w,h); cam.lookAt(eye,at); cam.update(w,h);}; ",
+  "sheet": {
+   "cols": 2,
+   "rows": 1,
+   "width": 640
+  },
+  "stills": [
+   0.5
+  ],
+  "timings": true
+ }
+]
