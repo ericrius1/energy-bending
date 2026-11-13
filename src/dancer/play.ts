@@ -27,6 +27,7 @@ import { InputHub, type Player } from '../input/hub';
 import { CameraSource } from '../input/camera';
 import { TouchPad } from '../input/touch-pad';
 import { BotSource, type TouchSource } from '../input/touch';
+import type { IntentSource } from '../input/intent';
 import { defineParams, setParams } from '../engine/params';
 import type { WaterPasses } from '../matter/water/pool';
 import type { IceLedge } from '../matter/ice/setice';
@@ -92,6 +93,8 @@ export interface PlayHandle {
   plane(): StagePlane | null;
   /** add a dancer played from elsewhere (the network's NetController): it joins the cast after the players */
   addDancer(d: Dancer): void;
+  /** seat the next player on a source (a brain's, src/ai): a dancer like the others, locked with them */
+  addPlayer(source: IntentSource): IntentController;
 }
 
 export async function playDemo(ctx: PlayCtx): Promise<PlayHandle> {
@@ -216,5 +219,6 @@ export async function playDemo(ctx: PlayCtx): Promise<PlayHandle> {
     pad?.update();
   }, 'play: the lock, partners, the follow camera');
 
-  return { hub, controllers, dancers, plane: () => lockedPlane, addDancer: (d) => { others.push(d); show.stage(show.program); } };
+  const addPlayer = (source: IntentSource) => { const c = addDancer(controllers.length); c.source = source; source.mode = lockedPlane ? 'locked' : 'free'; show.stage(show.program); return c; };
+  return { hub, controllers, dancers, plane: () => lockedPlane, addDancer: (d) => { others.push(d); show.stage(show.program); }, addPlayer };
 }
