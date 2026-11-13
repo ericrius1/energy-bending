@@ -559,7 +559,11 @@ export class CameraRig {
     // a margin round them (hands and hair beyond the joints), the floor under them, never less than a body of stage
     u0 -= 0.3; u1 += 0.3; v0 = Math.min(v0, P.ground ?? 0) - 0.25; v1 = Math.max(v1 + 0.3, v0 + 2.4);
     const X = this.lockExt;
+    // (fresh, or a dancer put somewhere else in one go, a respawn: the extent jumps out with them)
     if (this.lockFresh) { X[0] = u0; X[1] = u1; X[2] = v0; X[3] = v1; }
+    else if (X[0] - u0 > 1.5 || u1 - X[1] > 1.5 || X[2] - v0 > 1.5 || v1 - X[3] > 1.5) {
+      X[0] = Math.min(X[0], u0); X[1] = Math.max(X[1], u1); X[2] = Math.min(X[2], v0); X[3] = Math.max(X[3], v1);
+    }
     else {
       const out = 1 - Math.exp(-dt * 9), back = 1 - Math.exp(-dt * 0.9);
       X[0] += (u0 - X[0]) * (u0 < X[0] ? out : back); X[1] += (u1 - X[1]) * (u1 > X[1] ? out : back);

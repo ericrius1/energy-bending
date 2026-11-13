@@ -47,7 +47,7 @@ export interface GateView {
   count: number;
   motes: number;
   time: number;
-  pad: number;
+  face: number;
 }
 export interface DiscV {
   pos: Vec4;

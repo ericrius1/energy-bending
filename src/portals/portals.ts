@@ -108,6 +108,10 @@ const SUITE_RIM: Record<string, V3> = {
   'Blue lace': [0.55, 0.7, 1.0], Midnight: [0.6, 0.45, 0.9], Dawn: [1.0, 0.65, 0.6], Custom: [0.8, 0.9, 0.7],
 };
 const CAMERA_RIM: V3 = [1.0, 0.92, 0.75];
+/** a world's gate view against the same world drawn full size, where they differ: the redwoods' mist and rays read
+ *  7 % brighter in the half-size view (measured at the face, both ways, 4-cameras.md); the geode matched within 1 %.
+ *  The cause (somewhere in the redwoods' air or scene at half size) is not traced: this evens it out until it is */
+const SLOT_GAIN: Record<string, number> = { redwoods: 0.93 };
 /** each world's hue for a gate with nothing live in it */
 const WORLD_HUE: Record<string, V3> = { geode: [0.55, 0.4, 1.0], redwoods: [0.55, 0.75, 0.4] };
 
@@ -767,7 +771,8 @@ export class Portals implements SceneLayer {
           else if (st) live = -1 - st.layer;
         }
         const far = worldOf(g.partner.world);
-        const gain = Math.pow(Math.max(1e-3, (far?.exposure() ?? 1) / Math.max(1e-3, this.exposure)), P.match);
+        // (a world's live gate view can read brighter than the same world drawn full size: SLOT_GAIN takes it back)
+        const gain = Math.pow(Math.max(1e-3, (far?.exposure() ?? 1) / Math.max(1e-3, this.exposure)), P.match) * (live > 0.25 ? SLOT_GAIN[g.partner.world] ?? 1 : 1);
         const hue = WORLD_HUE[g.partner.world] ?? [0.6, 0.6, 0.8];
         const floor = worldOf(g.world)?.groundAt(g.at[0], g.at[2]) ?? 0;
         rows.push({
