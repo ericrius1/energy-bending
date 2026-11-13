@@ -66,7 +66,7 @@
   "seconds": 5,
   "warm": 120,
   "setup": "if (bend.rig) bend.rig.clearance = null; bend.set('temple', { tideHold: 0.12 }); bend.set('camera',{ shots:false, autoOrbit:false });",
-  "each": "const V=[[1.3,8,0.18,1.6,44,[0,1,0]],[1.7,8,0.18,1.6,44,[0,1,0]],[2.4,7,0.12,1.6,44,[0,1,0]],[0.17,30,-0.14,5.6,16,[0,5.6,-30]],[0.17,30,-0.14,5.6,6,[0,5.6,-30]]]; const v=V[Math.min(V.length-1,Math.floor(t))]; bend.camera({ idle:0, target:v[5], yaw:v[0], dist:v[1], pitch:v[2], height:v[3], fov:v[4] });",
+  "each": "const V=[[1.3,8,0.18,1.6,44,[0,1,0]],[1.7,8,0.18,1.6,44,[0,1,0]],[2.4,7,0.12,1.6,44,[0,1,0]],[0.22,30,-0.14,5.6,16,[0,5.6,-30]],[0.22,30,-0.14,5.6,6,[0,5.6,-30]]]; const v=V[Math.min(V.length-1,Math.floor(t))]; bend.camera({ idle:0, target:v[5], yaw:v[0], dist:v[1], pitch:v[2], height:v[3], fov:v[4] });",
   "sheet": {
    "cols": 5,
    "rows": 1,
@@ -112,7 +112,7 @@
   "fps": 10,
   "seconds": 4,
   "warm": 300,
-  "setup": "bend.set('temple', { tideHold: 0.12 }); bend.set('camera', { followFov: 34, followSwing: 0, followDist: 4.2, followPitch: 0.03 }); bend.wake(); bend.place(0,-1.2,0.3,Math.PI/2); bend.place(1,1.2,0.3,-Math.PI/2);",
+  "setup": "bend.set('temple', { tideHold: 0.42 }); bend.set('camera', { followFov: 34, followSwing: 0, followDist: 4.2, followPitch: 0.03 }); bend.wake(); bend.place(0,-1.2,0.3,Math.PI/2); bend.place(1,1.2,0.3,-Math.PI/2);",
   "cues": {
    "1": "bend.move(0,'armada')"
   },

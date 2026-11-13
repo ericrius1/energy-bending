@@ -30,7 +30,7 @@ export const STAGE_Z = -3.2;
  *  side-on camera of film 2's lead shot (the critic's dolly, a little to the right of the stage's middle) the moon clears
  *  the lintel and stands in the great gate, its path on the water running between the two dancers. The great gate and
  *  the drowned court beyond are laid out along it (they are turned about the court's middle by it) */
-export const MOON_BEARING = -0.17;
+export const MOON_BEARING = -0.22;
 
 /** the court's floor (the backdrop's flagstones): x from -X to X, z from Z0 to Z1, its top at 0 */
 export const COURT = { X: 12.5, Z0: -10.8, Z1: 11.6, sea: -2.6 };

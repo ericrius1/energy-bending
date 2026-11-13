@@ -356,13 +356,15 @@ fn carving(kind: f32, u: f32, v: f32, hw: f32, height: f32, seed: f32) -> f32 {
   // stains here and there, more of the rain's streaks; so seen against the afterglow, lit by the moon behind the eye,
   // the stone is as weathered as its fronts are, not a pale block
   let seaSide = smoothstep(0.35, -0.6, N.z) * worldLight.temple.tide2.w;
-  let crustN = fbm(wp * 2.3 + seed * 5.0);
-  let blot = smoothstep(0.35, 0.75, crustN) * (0.75 + 0.25 * vnoise(wp * 17.0));
-  albedo = mix(albedo, albedo * vec3f(0.6, 0.58, 0.54), blot * seaSide * 0.8);
-  let rust = smoothstep(0.62, 0.8, vnoise(wp * 1.3 + seed * 3.0 + 11.0)) * (0.6 + 0.4 * grain);
-  albedo = mix(albedo, albedo * vec3f(1.12, 0.92, 0.7), rust * seaSide * 0.6);
-  albedo = mix(albedo, albedo * vec3f(0.5, 0.52, 0.48), smoothstep(0.42, 0.72, streakN) * exp(-below / 2.2) * (1.0 - abs(N.y)) * seaSide * 0.6);
-  albedo *= 1.0 - 0.18 * seaSide * (grain - 0.5);
+  if (seaSide > 0.001) {
+    // (the large mottle is the stone's own, n1, sharpened; one more noise for the rust: the fronts pay nothing)
+    let blot = smoothstep(0.42, 0.62, n1) * (0.75 + 0.25 * grain);
+    albedo = mix(albedo, albedo * vec3f(0.6, 0.58, 0.54), blot * seaSide * 0.8);
+    let rust = smoothstep(0.62, 0.8, vnoise(wp * 1.3 + seed * 3.0 + 11.0)) * (0.6 + 0.4 * grain);
+    albedo = mix(albedo, albedo * vec3f(1.12, 0.92, 0.7), rust * seaSide * 0.6);
+    albedo = mix(albedo, albedo * vec3f(0.5, 0.52, 0.48), smoothstep(0.42, 0.72, streakN) * exp(-below / 2.2) * (1.0 - abs(N.y)) * seaSide * 0.6);
+    albedo *= 1.0 - 0.18 * seaSide * (grain - 0.5);
+  }
   // grime in the hollows of the carving, and the relief's crowns rubbed paler
   albedo *= 1.0 + 0.12 * max(relief, 0.0) - 0.25 * max(-relief, 0.0);
   // the tide: lichen only where the sea never reaches; a white line of salt at the high water's mark; weed and the

@@ -156,7 +156,7 @@ fn profile(s: f32, len: f32, r0: f32, sh: vec4f, a: f32) -> f32 {
       // back into the log, its walls a little narrower as they go and closed at the bottom. (A flat end's rf is how far
       // out its ring is, so it is the place across the face here)
       let u = rf;
-      let mouth = 0.44 + 0.1 * (vnoise2(vec2f(a * 2.5, 7.0)) - 0.5) + 0.06 * (vnoise2(vec2f(a * 9.0, 3.0)) - 0.5);
+      let mouth = 0.32 + 0.1 * (vnoise2(vec2f(a * 2.5, 7.0)) - 0.5) + 0.05 * (vnoise2(vec2f(a * 9.0, 3.0)) - 0.5);
       let spl = vnoise2(vec2f(a * 5.0 + L.ends.w * 30.0, 1.3)) * 0.75 + vnoise2(vec2f(a * 11.0, u * 3.0 + 2.0)) * 0.25;
       var stand = 0.0;
       if (u >= 0.86) {
@@ -269,7 +269,7 @@ fn bark(i: VOut) -> vec4f {
         let K = 46.0;
         let ring = 0.5 + 0.5 * sin(u * K * 6.2831853 + vnoise(i.wp * 3.0) * 3.0);
         let resolve = smoothstep(0.45, 0.12, fwU * K);
-        let heart = mix(vec3f(0.3, 0.12, 0.06), vec3f(0.17, 0.065, 0.032), mix(0.5, ring, resolve)) * (0.75 + 0.35 * vnoise(i.wp * 9.0));
+        let heart = mix(vec3f(0.38, 0.16, 0.075), vec3f(0.18, 0.068, 0.033), mix(0.5, ring, resolve)) * (0.75 + 0.35 * vnoise(i.wp * 9.0));
         let sap = vec3f(0.36, 0.23, 0.14) * (0.85 + 0.25 * vnoise(i.wp * 13.0));
         let fibres = 0.55 + 0.6 * vnoise2(vec2f(i.ang * 70.0, u * 30.0));
         let barkC = vec3f(0.12, 0.06, 0.035) * fibres;
@@ -279,7 +279,7 @@ fn bark(i: VOut) -> vec4f {
         albedo *= 1.0 - 0.75 * check;
         albedo = mix(albedo, vec3f(0.2, 0.17, 0.15) * (0.8 + 0.3 * vnoise(i.wp * 21.0)), 0.6 * smoothstep(0.4, 0.8, vnoise(i.wp * 4.0 + 7.0)) * step(u, 0.85));
         // rot round the hollow's mouth (a stage log's: a bough's cut end is sound) and the dark of the heart
-        albedo = mix(albedo, vec3f(0.12, 0.06, 0.03) * (0.6 + 0.8 * vnoise(i.wp * 17.0)), smoothstep(0.7, 0.58, u) * step(0.5, i.stageP));
+        albedo = mix(albedo, vec3f(0.12, 0.06, 0.03) * (0.6 + 0.8 * vnoise(i.wp * 17.0)), smoothstep(0.5, 0.36, u) * step(0.5, i.stageP));
         albedo = mix(albedo, vec3f(0.06, 0.035, 0.02), smoothstep(0.2, 0.0, u) * 0.7);
       }
     } else {

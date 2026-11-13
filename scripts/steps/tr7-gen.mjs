@@ -6,6 +6,9 @@
 import { writeFileSync } from 'node:fs';
 
 const takes = [];
+// (the moon's frames look along its bearing: -0.22 now, 0.05 before this task; `node tr7-gen.mjs before` writes the
+// before's file, tr7-before.json, for the code as it was)
+const BEFORE = process.argv[2] === 'before', MY = BEFORE ? -0.05 : 0.22;
 const dusk = "bend.set('redwoods', { hour: 19.4, dayGoes: false }); ";
 const moonrise = "bend.set('temple', { tideHold: 0.12 }); ";
 // (the look takes hold the camera exactly where the critic's did: the new World.clear would otherwise pull the eye in
@@ -33,7 +36,7 @@ takes.push({
 takes.push({
   name: 'tm-orange', query: 'world=temple', size: '1920x1080', fps: 30, seconds: 5, warm: 120,
   setup: `${still}${moonrise}bend.set('camera',{ shots:false, autoOrbit:false });`,
-  each: "const V=[[1.3,8,0.18,1.6,44,[0,1,0]],[1.7,8,0.18,1.6,44,[0,1,0]],[2.4,7,0.12,1.6,44,[0,1,0]],[0.17,30,-0.14,5.6,16,[0,5.6,-30]],[0.17,30,-0.14,5.6,6,[0,5.6,-30]]]; const v=V[Math.min(V.length-1,Math.floor(t))]; bend.camera({ idle:0, target:v[5], yaw:v[0], dist:v[1], pitch:v[2], height:v[3], fov:v[4] });",
+  each: `const V=[[1.3,8,0.18,1.6,44,[0,1,0]],[1.7,8,0.18,1.6,44,[0,1,0]],[2.4,7,0.12,1.6,44,[0,1,0]],[${MY},30,-0.14,5.6,16,[0,5.6,-30]],[${MY},30,-0.14,5.6,6,[0,5.6,-30]]]; const v=V[Math.min(V.length-1,Math.floor(t))]; bend.camera({ idle:0, target:v[5], yaw:v[0], dist:v[1], pitch:v[2], height:v[3], fov:v[4] });`,
   sheet: { cols: 5, rows: 1, width: 384 }, stills: [0.9, 1.9, 2.9, 3.9, 4.9],
 });
 // film 2's dolly as the critic staged it (6-film2-dolly), the tide held: the lead shot is its frame at 3.6 s
@@ -44,10 +47,11 @@ takes.push({
   each: "bend.set('camera', { followDist: 8 - t*0.6, followPitch: 0.04 + t*0.01 }); bend.camera({ yaw: 0.1 + t*0.05 });",
   sheet: { cols: 8, rows: 2, width: 320 }, stills: [0.5, 3.6, 6.2, 7.9],
 });
-// the lead shot as the revised shot list has it (film 2, shot 3): 3 m, side-on, low, the pair 2.4 m apart, an armada
+// the lead shot as the revised shot list has it (film 2, shot 3): side-on, low, the pair 2.4 m apart, an armada; the tide
+// near its height, so the moon's path is on water all the way to the eye
 takes.push({
   name: 'tm-lead', query: 'play&two&dress=fire,water&world=temple', size: '1920x1080', fps: 10, seconds: 4, warm: 300,
-  setup: `${moonrise}bend.set('camera', { followFov: 34, followSwing: 0, followDist: 4.2, followPitch: 0.03 }); ${pair(2.4)}`,
+  setup: `bend.set('temple', { tideHold: 0.42 }); bend.set('camera', { followFov: 34, followSwing: 0, followDist: 4.2, followPitch: 0.03 }); ${pair(2.4)}`,
   cues: { '1': "bend.move(0,'armada')" },
   each: 'bend.camera({ yaw: 0.22 + t*0.12 });',
   sheet: { cols: 8, rows: 2, width: 320 }, stills: [0.5, 1.6, 2.2, 3.5],
@@ -85,5 +89,6 @@ t1080('t-temple-pair', 'play&two&dress=fire,water&world=temple', `${moonrise}ben
 t1080('t-redwoods-pair', 'play&two&dress=fire,water&world=redwoods', `${dusk}bend.set('camera', { followDist: 4, followFov: 40, followPitch: 0.08 }); ${pair(1.4)}`);
 takes.push({ name: 'base', query: 'world=temple&dress=fire&baseline', fps: 1, seconds: 2, warm: 120, setup: `${moonrise}${dusk}bend.set('camera',{ shots:false, autoOrbit:false });`, each: "if (t > 0.5) await bend.world('redwoods'); bend.camera({ idle:0, yaw: t > 0.5 ? 0.3 : 0, dist: 9, pitch: 0.1, height: 1.6, fov: 50 });", sheet: { cols: 2, rows: 1, width: 640 }, stills: [0, 1] });
 
-writeFileSync('scripts/steps/tr7.json', JSON.stringify(takes, null, 1));
-console.log(`scripts/steps/tr7.json: ${takes.length} takes`);
+const out = BEFORE ? 'scripts/steps/tr7-before.json' : 'scripts/steps/tr7.json';
+writeFileSync(out, JSON.stringify(takes, null, 1));
+console.log(`${out}: ${takes.length} takes`);
