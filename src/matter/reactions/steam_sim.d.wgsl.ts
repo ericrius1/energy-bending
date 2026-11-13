@@ -125,7 +125,6 @@ export interface Frame {
   prevViewProjRel: Mat4;
   camLo: Vec3;
   _relPad: number;
-  jitterNdc: Vec4;
 }
 export interface FieldBox {
   origin: Vec3;
