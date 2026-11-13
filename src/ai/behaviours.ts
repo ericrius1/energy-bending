@@ -353,8 +353,9 @@ export function wouldDo(s: Sight, name: string, want: OfferAim, o: Other): boole
   const th = readThreat(ev, whereThen(o, name, s.bpm), s.self.plane);
   if (!th) return false;
   if (want === 'touch') return th.first != null;
-  // (an invitation must above all not land; coming near is the hope, passing is no harm)
-  return th.first == null && th.min <= COMBAT.NEAR + 0.25;
+  // (an invitation must above all not land, even with the ginga's sway: 8 cm to spare; coming near is the hope,
+  // passing is no harm)
+  return th.first == null && th.min > 0.08 && th.min <= COMBAT.NEAR + 0.25;
 }
 
 /** would `name`, started now, touch the other or at least come near them (a counter: either is an exchange)? */

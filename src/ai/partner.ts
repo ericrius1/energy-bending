@@ -56,22 +56,22 @@ const LIKES_ALL = { 'meia-lua': 1.2, armada: 1, martelo: 0.8, bencao: 1, rasteir
 
 export const PRESETS: Record<'playful' | 'calm' | 'fierce' | 'mirror', PartnerParams> = {
   playful: {
-    skill: 0.8, reaction: 0.22, dodge: 1, parry: 0.45, clash: 0.6, flair: 1.4, counter: 0.7,
+    skill: 0.88, reaction: 0.22, dodge: 1, parry: 0.45, clash: 0.6, flair: 1.4, counter: 0.7,
     generosity: 0.8, likes: LIKES_ALL, flurry: 2,
     echo: 0.15, unison: 0.5, call: 0.12, initiative: 0.65, stage: 0.8, formFlow: 40, circle: 0.28, feint: 0.15, pause: 0.25,
   },
   calm: {
-    skill: 0.8, reaction: 0.24, dodge: 1, parry: 0.9, clash: 0.3, flair: 0.7, counter: 0.5,
+    skill: 0.88, reaction: 0.24, dodge: 1, parry: 0.9, clash: 0.3, flair: 0.7, counter: 0.5,
     generosity: 1, likes: { 'meia-lua': 1.3, armada: 0.6, martelo: 1, bencao: 1.1, rasteira: 0.5, strike: 0.1, throw: 0.1, compasso: 1 }, flurry: 1,
     echo: 0.18, unison: 0.5, call: 0.18, initiative: 0.4, stage: 0.35, formFlow: 60, circle: 0.2, feint: 0.05, pause: 0.4,
   },
   fierce: {
-    skill: 0.85, reaction: 0.2, dodge: 0.7, parry: 1, clash: 1.4, flair: 0.9, counter: 0.85,
+    skill: 0.9, reaction: 0.2, dodge: 0.7, parry: 1, clash: 1.4, flair: 0.9, counter: 0.85,
     generosity: 0.45, likes: { ...LIKES_ALL, strike: 0.6, throw: 0.6 }, flurry: 3,
     echo: 0.12, unison: 0.4, call: 0.1, initiative: 0.9, stage: 0.55, formFlow: 32, circle: 0.32, feint: 0.3, pause: 0.1,
   },
   mirror: {
-    skill: 0.75, reaction: 0.23, dodge: 1, parry: 0.5, clash: 0.4, flair: 1, counter: 0.4,
+    skill: 0.82, reaction: 0.23, dodge: 1, parry: 0.5, clash: 0.4, flair: 1, counter: 0.4,
     generosity: 0.9, likes: LIKES_ALL, flurry: 1,
     echo: 0.9, unison: 0.95, call: 0.5, initiative: 0.3, stage: 0.4, formFlow: 45, circle: 0.28, feint: 0.05, pause: 0.3,
   },
@@ -231,7 +231,8 @@ export class PartnerBrain implements Brain {
     for (const mv of o.moves) {
       if (this.seenAttack.has(mv.serial)) continue;
       this.seenAttack.add(mv.serial);
-      if (mv.attack) this.theirAttack = Math.max(this.theirAttack, mv.beat);
+      // (one who attacks is playing: they will answer too)
+      if (mv.attack) { this.theirAttack = Math.max(this.theirAttack, mv.beat); this.responsive += (1 - this.responsive) * 0.15; }
       // any move of theirs inside my offer's window is an answer; a finished exchange may end in a look
       const j = this.judging;
       if (j && mv.beat >= j.beat - 0.25 && mv.beat <= j.until) {
@@ -361,10 +362,11 @@ export class PartnerBrain implements Brain {
   /** the beat an opening `name` comes on: the ginga's back step for its leg, in this dancer's own phrase. The jogo
    *  is call and answer a bar at a time: seat 0 calls in the even bars, seat 1 in the odd, and the other answers
    *  (answers and counters come whenever they come); at the peak the turns are half a bar. With a partner who
-   *  hasn't attacked for four bars there are no turns to keep: any phrase */
+   *  hasn't moved at all for four bars there are no turns to keep: any bar */
   private myLine(s: Sight, name: string, from: number, mood: Mood): number {
     let line = nextBackStep(name, from);
-    if (s.seat < 0 || s.seat > 1 || s.beat - this.theirAttack > 16) return line;
+    const quiet = s.beat - Math.max(this.theirAttack, s.partner?.moves[s.partner.moves.length - 1]?.beat ?? -Infinity) > 16;
+    if (s.seat < 0 || s.seat > 1 || quiet) return line;
     const P = mood === 'peak' ? 2 : 4;
     for (let k = 0; k < 4 && ((Math.floor(line / P) % 2) + 2) % 2 !== s.seat; k++) line = nextBackStep(name, Math.floor(line / P) * P + P);
     return line;

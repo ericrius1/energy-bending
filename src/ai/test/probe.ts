@@ -40,7 +40,7 @@ if (mode === 'why') {
   const tally: Record<string, Record<string, number>> = {};
   const logs: string[][] = [[], []];
   br.forEach((b, k) => { b.reader.log = (x) => { logs[k].push(x); if (logs[k].length > 4) logs[k].shift(); }; });
-  simulate({ plane: process.argv.includes('-f') ? null : plane, stage: plane, seats: [br[0], br[1]], seconds: Number(secs), each: (f) => {
+  simulate({ plane: process.argv.includes('-f') ? null : plane, stage: plane, seats: [process.argv.includes('-s') ? new StillBrain() : br[0], br[1]], seconds: Number(secs), each: (f) => {
     if (f.ref.onXch) return;
     f.ref.onXch = (target, res) => {
       const by = 1 - target, mv = br[by].mind.mine[br[by].mind.mine.length - 1], d = f.bodies[target];
