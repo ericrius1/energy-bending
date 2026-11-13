@@ -11,8 +11,9 @@
     "noUnusedParameters": true,
     "noEmit": true,
     "skipLibCheck": true,
-    "isolatedModules": true
+    "isolatedModules": true,
+    "allowImportingTsExtensions": true
   },
-  "include": ["src", "vite.config.ts"],
+  "include": ["src", "shared", "vite.config.ts"],
   "exclude": ["sketches", "node_modules", "dist"]
 }
