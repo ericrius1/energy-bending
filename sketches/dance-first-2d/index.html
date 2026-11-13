@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="theme-color" content="#050508">
+<title>Dance First</title>
+<meta name="description" content="There is no music until you move. Your dancing writes the song, and your body is made of fire and water.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@1,9..144,300;1,9..144,500&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root { --ink: #f6ead9; --dim: rgba(246, 234, 217, .58); --faint: rgba(246, 234, 217, .22); --ember: #ff8a3c; --glass: rgba(18, 13, 14, .46); }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; height: 100%; background: #050508; color: var(--ink); overflow: hidden; overscroll-behavior: none;
+    font-family: Inter, system-ui, -apple-system, "Segoe UI", sans-serif; -webkit-font-smoothing: antialiased; }
+  body { touch-action: none; user-select: none; -webkit-user-select: none; }
+  #gl { position: fixed; inset: 0; width: 100%; height: 100%; display: block; cursor: crosshair; }
+
+  button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; }
+  .pill { padding: 10px 16px; border-radius: 999px; border: 1px solid var(--faint); background: var(--glass); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+    font-size: 13px; font-weight: 500; letter-spacing: .02em; color: var(--ink); transition: border-color .2s, background .2s, transform .15s, color .2s; white-space: nowrap; }
+  .pill:hover { border-color: rgba(255, 160, 90, .7); background: rgba(60, 26, 12, .5); }
+  .pill:active { transform: scale(.96); }
+  .pill.on { border-color: var(--ember); color: #ffd0a8; box-shadow: 0 0 22px rgba(255, 110, 40, .35); }
+  .pill:focus-visible { outline: 2px solid var(--ember); outline-offset: 2px; }
+
+  /* start */
+  #start { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; text-align: center;
+    padding: max(7vh, 40px) 22px max(calc(env(safe-area-inset-bottom) + 44px), 56px); transition: opacity .9s ease, visibility .9s; z-index: 5; }
+  #start.gone { opacity: 0; visibility: hidden; pointer-events: none; }
+  .choices { margin-top: auto; display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; padding-bottom: 4px; }
+  .choice { padding: 15px 24px; font-size: 15px; font-weight: 600; }
+  .choice small { display: block; font-weight: 400; font-size: 12px; color: var(--dim); margin-top: 3px; }
+  .choice.primary { border-color: rgba(255, 150, 80, .75); background: rgba(90, 34, 10, .5); box-shadow: 0 0 36px rgba(255, 110, 40, .28); }
+
+  /* hud */
+  #hud { position: fixed; inset: 0; pointer-events: none; opacity: 0; transition: opacity .8s .3s; z-index: 4; }
+  #hud.show { opacity: 1; }
+  #hud > * { pointer-events: auto; }
+  #bar { position: absolute; top: max(env(safe-area-inset-top), 14px); right: 14px; left: 14px; display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; }
+  #info { position: absolute; left: 18px; bottom: max(env(safe-area-inset-bottom), 16px); font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--dim); pointer-events: none; display: flex; gap: 10px; align-items: center; }
+  #dots { display: inline-flex; gap: 5px; }
+  #dots i { width: 6px; height: 6px; border-radius: 50%; background: var(--faint); transition: background .05s, transform .05s; }
+  #dots i.hit { background: var(--ember); transform: scale(1.5); box-shadow: 0 0 10px var(--ember); }
+  #take { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: 120px; height: 120px; pointer-events: none; opacity: 0; transition: opacity .3s; }
+  #take.show { opacity: 1; }
+  #take svg { width: 100%; height: 100%; transform: rotate(-90deg); }
+  #take circle { fill: none; stroke-width: 3; }
+  #take .bg { stroke: rgba(255, 255, 255, .12); }
+  #take .fg { stroke: var(--ember); stroke-linecap: round; stroke-dasharray: 339.3; stroke-dashoffset: 339.3; filter: drop-shadow(0 0 6px var(--ember)); }
+  #take span { position: absolute; inset: 0; display: grid; place-items: center; font-family: Fraunces, Georgia, serif; font-style: italic; font-size: 34px; color: #ffe2c4; text-shadow: 0 0 20px rgba(255, 120, 40, .7); }
+
+  #touchbar { position: absolute; left: 0; right: 0; bottom: max(env(safe-area-inset-bottom), 14px); display: none; justify-content: center; gap: 10px; padding: 0 12px 30px; }
+  .touch #touchbar { display: flex; }
+  .touch #info { bottom: max(env(safe-area-inset-bottom), 10px); left: 50%; transform: translateX(-50%); white-space: nowrap; }
+  #touchbar .pill { min-width: 64px; padding: 14px 16px; font-size: 14px; }
+  #touchbar .drop { border-color: rgba(255, 150, 80, .75); background: rgba(90, 34, 10, .55); }
+
+  #cam { position: fixed; right: 14px; bottom: 14px; width: 132px; border-radius: 12px; transform: scaleX(-1); opacity: 0; transition: opacity .6s; border: 1px solid var(--faint); pointer-events: none; z-index: 3; filter: saturate(.6) brightness(.8); }
+  #cam.on { opacity: .5; }
+  .touch #cam { bottom: auto; top: max(calc(env(safe-area-inset-top) + 64px), 70px); width: 84px; }
+
+  #toast { position: fixed; left: 50%; bottom: 20%; transform: translate(-50%, 10px); padding: 11px 18px; border-radius: 999px; background: rgba(20, 13, 12, .82); border: 1px solid var(--faint);
+    font-size: 14px; opacity: 0; transition: opacity .35s, transform .35s; pointer-events: none; z-index: 8; max-width: 88vw; text-align: center; backdrop-filter: blur(12px); }
+  #toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+  .panel { position: fixed; inset: 0; display: none; place-items: center; background: rgba(4, 3, 5, .6); backdrop-filter: blur(8px); z-index: 9; padding: 20px; }
+  .panel.show { display: grid; }
+  .card { width: min(520px, 100%); max-height: 88vh; overflow: auto; background: rgba(22, 15, 15, .94); border: 1px solid var(--faint); border-radius: 22px; padding: 26px; user-select: text; -webkit-user-select: text; }
+  .card h2 { font-family: Fraunces, Georgia, serif; font-style: italic; font-weight: 300; font-size: 30px; margin: 0 0 14px; }
+  .card dl { display: grid; grid-template-columns: auto 1fr; gap: 9px 16px; margin: 0 0 18px; font-size: 14px; }
+  .card dt { color: #ffcf9f; font-weight: 600; white-space: nowrap; }
+  .card dd { margin: 0; color: var(--dim); }
+  .card video { width: 100%; border-radius: 12px; background: #000; margin-bottom: 14px; }
+  .card .row { display: flex; gap: 10px; flex-wrap: wrap; justify-content: flex-end; }
+  .card a.pill { text-decoration: none; display: inline-block; }
+  kbd { font: 600 12px Inter, sans-serif; padding: 2px 7px; border-radius: 6px; border: 1px solid var(--faint); background: rgba(255, 255, 255, .06); color: var(--ink); }
+  #fatal { position: fixed; inset: 0; display: none; place-items: center; text-align: center; padding: 30px; z-index: 20; background: #050508; color: var(--dim); }
+  @media (max-width: 620px) {
+    #bar { gap: 6px; justify-content: center; right: 8px; left: 8px; }
+    #bar .pill { padding: 8px 11px; font-size: 12px; }
+  }
+</style>
+</head>
+<body>
+<canvas id="gl"></canvas>
+<video id="cam" playsinline muted></video>
+
+<div id="start">
+  <div class="choices">
+    <button class="pill choice primary" id="btnBody">Dance with your body<small>uses your camera</small></button>
+    <button class="pill choice" id="btnHands"><span id="handsLabel">Play with mouse &amp; keys</span><small id="handsSub">no camera needed</small></button>
+  </div>
+</div>
+
+<div id="hud">
+  <div id="bar">
+    <button class="pill" id="btnLayer" title="Record 8 bars of yourself as a ghost dancer (L)">Add a layer</button>
+    <button class="pill" id="btnShare" title="Copy a link that carries your dancers">Share</button>
+    <button class="pill" id="btnClip" title="Record a video clip with sound (C)">Record clip</button>
+    <button class="pill" id="btnElement" title="Fire, water, or both (W)">Fire</button>
+    <button class="pill" id="btnMood" title="Change the mood (M)">Ember</button>
+    <button class="pill" id="btnHelp" title="How to play (H)">?</button>
+  </div>
+  <div id="take"><svg viewBox="0 0 120 120"><circle class="bg" cx="60" cy="60" r="54"/><circle class="fg" cx="60" cy="60" r="54"/></svg><span></span></div>
+  <div id="info"><span id="dots"><i></i><i></i><i></i><i></i></span><span id="infoText"></span></div>
+  <div id="touchbar">
+    <button class="pill" data-act="stompL">Stomp</button>
+    <button class="pill" data-act="spin">Spin</button>
+    <button class="pill drop" data-act="drop">Drop</button>
+    <button class="pill" data-act="stompR">Clap</button>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<div class="panel" id="help">
+  <div class="card">
+    <h2>How to play</h2>
+    <dl id="helpList"></dl>
+    <div class="row"><button class="pill" data-close>Got it</button></div>
+  </div>
+</div>
+
+<div class="panel" id="clip">
+  <div class="card">
+    <h2>Your clip</h2>
+    <video id="clipVideo" controls playsinline loop></video>
+    <div class="row">
+      <button class="pill" data-close>Close</button>
+      <button class="pill" id="clipShare">Share</button>
+      <a class="pill on" id="clipSave" download="dance-first.mp4">Save video</a>
+    </div>
+  </div>
+</div>
+
+<div id="fatal"></div>
+<script type="module" src="js/main.js"></script>
+</body>
+</html>

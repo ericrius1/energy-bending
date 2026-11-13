@@ -1,0 +1,257 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Moves viewer</title>
+<style>
+  :root { color-scheme: dark; --bg: #101016; --panel: #181822; --text: #ddd; --dim: #888; --line: #2a2a38; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 13px/1.35 system-ui, sans-serif; display: grid; grid-template-columns: 1fr 270px; height: 100vh; }
+  #view { position: relative; min-width: 0; }
+  canvas { width: 100%; height: 100%; display: block; }
+  aside { background: var(--panel); border-left: 1px solid var(--line); padding: 10px; overflow: auto; }
+  h3 { margin: 12px 0 6px; font-size: 12px; color: var(--dim); text-transform: uppercase; letter-spacing: .05em; }
+  label { display: flex; align-items: center; gap: 6px; margin: 4px 0; }
+  select, input[type=range] { flex: 1; }
+  .moves { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; }
+  button { background: #262636; color: var(--text); border: 1px solid #34344a; border-radius: 4px; padding: 4px 6px; cursor: pointer; font: inherit; }
+  button:hover { background: #30304a; }
+  #log { font: 11px/1.4 ui-monospace, monospace; color: #bbb; white-space: pre-wrap; max-height: 220px; overflow: auto; }
+  #hud { position: absolute; left: 8px; top: 6px; font: 11px/1.4 ui-monospace, monospace; color: #aaa; pointer-events: none; white-space: pre; }
+  .keys { font: 11px/1.5 ui-monospace, monospace; color: var(--dim); white-space: pre-wrap; }
+  @media (max-width: 700px) { body { grid-template-columns: 1fr; grid-template-rows: 60vh auto; } aside { border-left: 0; border-top: 1px solid var(--line); } }
+</style>
+</head>
+<body>
+<div id="view"><canvas id="cv"></canvas><div id="hud"></div></div>
+<aside>
+  <h3>Stage</h3>
+  <label><select id="stage"></select></label>
+  <label><input type="checkbox" id="free"> free 3-D (unlock the plane)</label>
+  <label>camera yaw <input type="range" id="camyaw" min="-180" max="180" value="0"></label>
+  <h3>Dancers</h3>
+  <label>player 2 <select id="p2"><option value="none">none</option><option value="bot" selected>bot</option><option value="keys">arrow keys</option><option value="pad">gamepad</option></select></label>
+  <label>player 1 <select id="p1"><option value="keys" selected>keyboard + mouse</option><option value="pad">gamepad</option></select></label>
+  <h3>Time</h3>
+  <label>tempo <input type="range" id="bpm" min="80" max="140" value="112"><span id="bpmv">112</span></label>
+  <label>speed <input type="range" id="slow" min="0.05" max="1" step="0.05" value="1"><span id="slowv">1</span></label>
+  <label><input type="checkbox" id="caps" checked> hit and hurt capsules</label>
+  <label><input type="checkbox" id="trail"> trails</label>
+  <h3>Element hooks (player 1)</h3>
+  <label>updraft <input type="range" id="updraft" min="0" max="1" step="0.1" value="0"></label>
+  <label>slick <input type="range" id="slick" min="0" max="1" step="0.1" value="0"></label>
+  <label><input type="checkbox" id="blink"> blink dodge</label>
+  <h3>Moves (player 1)</h3>
+  <div class="moves" id="moves"></div>
+  <h3>Keys</h3>
+  <div class="keys">A D move, W/Space jump, S crouch/drop
+J or click strike (hold = throw), K kick, L spin
+Shift dodge (alone: block; + dir: role; + S: esquiva)
+K + dir: forward bencao, back armada, S rasteira
+L + dir: au, L + S: macaco. Mouse: bending hand.
+Free view: W S depth, Space jump, C crouch,
+right-drag camera. V lock / unlock.
+P2 keys: arrows , . / right Shift.</div>
+  <h3>Events</h3>
+  <div id="log"></div>
+</aside>
+<script type="module">
+import { Character, PHYS, resolveExchange, foldExchange, DEFAULT_PLANE } from '../js/character.js';
+import { MOVES, MOVE_NAMES, J, NJ } from '../js/moves.js';
+import { STAGES, stageById, ledgeY, tideY, VIEW } from '../js/stages.js';
+import { KeyboardSource, GamepadHub, BotSource, mergeIntents, makeIntent } from '../js/input.js';
+
+const $ = s => document.querySelector(s);
+const cv = $('#cv'), g = cv.getContext('2d');
+let stage = STAGES[1];
+for (const s of STAGES) $('#stage').append(new Option(s.name, s.id));
+$('#stage').value = stage.id;
+
+let A, B, camYaw = 0, bpm = 112, slow = 1, beat = 0, freeMode = false;
+const logLines = [];
+const log = s => { logLines.unshift(s); logLines.length = Math.min(logLines.length, 40); $('#log').textContent = logLines.join('\n'); };
+
+// screen mapping: the view fits the 16:9 window of world space
+let W = 0, H = 0, S = 1, ox = 0, oy = 0;
+function resize() {
+  const r = cv.getBoundingClientRect(), d = devicePixelRatio || 1;
+  cv.width = Math.round(r.width * d); cv.height = Math.round(r.height * d);
+  W = cv.width; H = cv.height;
+  S = Math.min(W / (VIEW.halfW * 2 + 0.1), H / 1.05); ox = W / 2; oy = H - (H - S) / 2 - 0.0 * S;
+}
+addEventListener('resize', resize);
+const proj = p => { const c = Math.cos(camYaw), s = Math.sin(camYaw); return [ox + (p[0] * c - p[2] * s) * S, oy - p[1] * S]; };
+
+function makeDancers() {
+  const plane = freeMode ? null : DEFAULT_PLANE;
+  A = new Character({ seat: 0, stage, plane });
+  B = $('#p2').value === 'none' ? null : new Character({ seat: 1, stage, plane });
+  if (B) { A.lookAt = B.root; B.lookAt = A.root; }
+  srcA.mode = srcB.mode = freeMode ? 'free' : 'locked';
+}
+
+// input
+const hub = new GamepadHub();
+hub.on('connect', (i, id) => log(`gamepad ${i} connected: ${id}`)).on('disconnect', i => log(`gamepad ${i} gone`));
+const keysA = new KeyboardSource('solo', { mouseTarget: cv, dancerScreen: () => {
+  const p = A.pose, j = J.RS, d = devicePixelRatio || 1, r = cv.getBoundingClientRect();
+  const [x, y] = proj([p[3 * j], p[3 * j + 1], p[3 * j + 2]]);
+  return { x: r.left + x / d, y: r.top + y / d, reach: PHYS.aimReach * A.scale * S / d * 1.0 };
+} });
+const keysB = new KeyboardSource('right', {});
+let botState = { t: 0, next: 1.2 };
+const bot = new BotSource((dt, it) => {
+  if (!B || !A) return;
+  botState.t += dt * slow;
+  const dx = A.root[0] - B.root[0], dist = Math.abs(dx);
+  it.moveX = dist > 0.24 ? Math.sign(dx) * 0.7 : dist < 0.12 ? -Math.sign(dx) * 0.5 : 0;
+  // answer: an attack coming -> esquiva or jump
+  if (A.move && MOVES[A.move.name].attack && A.move.t < 0.12 && dist < 0.35 && !B.move) {
+    if (A.move.name === 'rasteira') { it.jump = true; it.jumpHeld = true; } else { it.dodge = true; it.moveY = -1; }
+  }
+  if (botState.t > botState.next && dist < 0.3) {
+    botState.t = 0; botState.next = 1.2 + Math.random() * 1.5;
+    const r = Math.random();
+    if (r < 0.2) it.kick = true; else if (r < 0.35) { it.kick = true; it.moveY = -1; } else if (r < 0.5) { it.kick = true; it.moveX = -Math.sign(dx); }
+    else if (r < 0.65) it.punch = true; else if (r < 0.8) { it.spin = true; it.moveX = Math.sign(dx); } else { it.kick = true; it.moveX = Math.sign(dx); }
+  }
+});
+const srcA = { mode: 'locked' }, srcB = { mode: 'locked' };
+function intentFor(which, dt) {
+  const pads = hub.indices();
+  if (which === 'A') {
+    keysA.mode = srcA.mode;
+    let it = $('#p1').value === 'keys' ? keysA.update(dt) : makeIntent();
+    if ($('#p1').value === 'pad' && pads.length) { const s = hub.source(pads[0]); s.mode = srcA.mode; it = mergeIntents(it, s.update(dt)); }
+    return it;
+  }
+  const v = $('#p2').value;
+  if (v === 'bot') return bot.update(dt);
+  if (v === 'keys') { keysB.mode = srcB.mode; return keysB.update(dt); }
+  if (v === 'pad') { const i = $('#p1').value === 'pad' ? pads[1] : pads[0]; if (i == null) return makeIntent(); const s = hub.source(i); s.mode = srcB.mode; return s.update(dt); }
+  return makeIntent();
+}
+
+// move buttons
+for (const n of MOVE_NAMES) {
+  if (n === 'ginga') continue;
+  const b = document.createElement('button'); b.textContent = n;
+  b.onclick = () => { A.startMove(n, { dir: A.dir }); cv.focus(); };
+  $('#moves').append(b);
+}
+$('#stage').onchange = e => { stage = stageById(e.target.value); makeDancers(); };
+$('#p2').onchange = () => makeDancers();
+$('#free').onchange = e => { freeMode = e.target.checked; makeDancers(); };
+$('#camyaw').oninput = e => { camYaw = e.target.value * Math.PI / 180; };
+$('#bpm').oninput = e => { bpm = +e.target.value; $('#bpmv').textContent = bpm; };
+$('#slow').oninput = e => { slow = +e.target.value; $('#slowv').textContent = slow; };
+
+// exchanges: each side checks the other's move against itself (as the defending client would)
+const xch = new Map();
+function exchanges(att, def, name) {
+  const m = att.move;
+  if (!m || !m.def.attack) return;
+  const key = name + m.serial;
+  let acc = xch.get(key);
+  if (acc && acc.reported) return;
+  const sh = att.hitShapes();
+  const u = m.t / m.dur;
+  if (sh.length) acc = foldExchange(acc, resolveExchange(sh, def));
+  if (acc && (acc.final || u > m.def.active[1])) {
+    if (acc.res) {
+      log(`${name} ${m.name} -> ${acc.res}`);
+      if (acc.res === 'hit') def.applyKnock(Math.sign(def.root[0] - att.root[0]) * 0.7, 0.5, 0.45);
+    }
+    acc.reported = true;
+  }
+  if (acc) xch.set(key, acc);
+}
+
+const trails = [];
+let last = performance.now();
+function frame(now) {
+  const rdt = Math.min(0.05, (now - last) / 1000); last = now;
+  tick(rdt);
+  requestAnimationFrame(frame);
+}
+function tick(rdt) {
+  const dt = rdt * slow;
+  hub.update();
+  beat += dt * bpm / 60;
+  const ia = intentFor('A', rdt), ib = B ? intentFor('B', rdt) : null;
+  if (ia.lock) { freeMode = !freeMode; $('#free').checked = freeMode; A.plane = freeMode ? null : DEFAULT_PLANE; if (B) B.plane = A.plane; srcA.mode = srcB.mode = freeMode ? 'free' : 'locked'; }
+  if (freeMode && ia.camX) { camYaw -= ia.camX * rdt * 2.5; $('#camyaw').value = camYaw * 180 / Math.PI; }
+  A.inputYaw = camYaw; if (B) { B.inputYaw = camYaw; A.lookAt = B.root; B.lookAt = A.root; }
+  A.env = { updraft: +$('#updraft').value, slick: +$('#slick').value, carryX: 0, blink: $('#blink').checked };
+  A.update(dt, ia, stage, { pos: beat, bpm });
+  if (B) B.update(dt, ib, stage, { pos: beat, bpm });
+  if (B) { exchanges(A, B, 'P1'); exchanges(B, A, 'P2'); }
+  for (const c of [A, B]) if (c) for (const e of c.events.splice(0)) {
+    if (e.type === 'move') log(`${c === A ? 'P1' : 'P2'} ${e.move}${e.perfect ? ' perfect' : ''} (${e.offMs} ms)`);
+    else if (e.type === 'respawn' || e.type === 'blink') log(`${c === A ? 'P1' : 'P2'} ${e.type}`);
+  }
+  draw();
+}
+
+function draw() {
+  g.fillStyle = '#101016'; g.fillRect(0, 0, W, H);
+  // view window
+  g.strokeStyle = '#22222e'; g.lineWidth = 1;
+  g.strokeRect(ox - VIEW.halfW * S, oy - S, VIEW.halfW * 2 * S, S);
+  // stage (the locked plane at z = 0)
+  g.lineWidth = Math.max(2, S * 0.006);
+  if (stage.ground != null) { g.strokeStyle = '#555'; line([-VIEW.halfW, stage.ground, 0], [VIEW.halfW, stage.ground, 0]); }
+  else { g.fillStyle = '#2a1408'; g.fillRect(ox - VIEW.halfW * S, oy - 0.04 * S, VIEW.halfW * 2 * S, 0.04 * S); }
+  if (stage.tide) { const ty = tideY(stage, beat); g.fillStyle = 'rgba(60,120,200,0.18)'; const [x0, y0] = proj([-VIEW.halfW, ty, 0]); g.fillRect(x0, y0, VIEW.halfW * 2 * S, oy - y0); }
+  for (const L of stage.ledges) {
+    const y = ledgeY(L, beat);
+    if (L.solid) { g.fillStyle = '#3a3a4a'; const [x0, y0] = proj([L.x0, y, 0]), [x1, y1] = proj([L.x1, y - (L.thick ?? PHYS.solidThick), 0]); g.fillRect(x0, y0, x1 - x0, y1 - y0); }
+    else { g.strokeStyle = '#8a7a5a'; line([L.x0, y, 0], [L.x1, y, 0]); }
+  }
+  // beat dots
+  for (let i = 0; i < 4; i++) { g.fillStyle = Math.floor(beat) % 4 === i ? '#ffcc55' : '#333'; g.beginPath(); g.arc(ox - 30 + i * 20, 20, 5, 0, 7); g.fill(); }
+  for (const [c, col] of [[A, [255, 140, 60]], [B, [80, 170, 255]]]) if (c) dancer(c, col);
+  $('#hud').textContent = `P1 ${A.move ? A.move.name + ' u=' + (A.move.t / A.move.dur).toFixed(2) : A.grounded ? 'ground' : 'air'}  x ${A.x.toFixed(2)} y ${A.y.toFixed(2)} z ${A.z.toFixed(2)}${A.invulnerable ? '  i-frames' : ''}${A.blocking ? '  block' : ''}  flags ${A.flags}\n` +
+    (B ? `P2 ${B.move ? B.move.name : B.grounded ? 'ground' : 'air'}  x ${B.x.toFixed(2)}` : '') + `\nbeat ${beat.toFixed(2)}  ${freeMode ? 'free' : 'locked'}`;
+}
+function line(a, b) { const p = proj(a), q = proj(b); g.beginPath(); g.moveTo(p[0], p[1]); g.lineTo(q[0], q[1]); g.stroke(); }
+const BONES = [[J.LS, J.RS], [J.LH, J.RH], [-1, -2], [J.LS, J.LE], [J.LE, J.LW], [J.RS, J.RE], [J.RE, J.RW], [J.LH, J.LK], [J.LK, J.LA], [J.RH, J.RK], [J.RK, J.RA], [-1, J.HEAD]];
+function dancer(c, col) {
+  const P = c.pose, pt = j => j === -1 ? [(P[3] + P[6]) / 2, (P[4] + P[7]) / 2, (P[5] + P[8]) / 2] : j === -2 ? [(P[21] + P[24]) / 2, (P[22] + P[25]) / 2, (P[23] + P[26]) / 2] : [P[3 * j], P[3 * j + 1], P[3 * j + 2]];
+  const rgb = (a, k = 1) => `rgba(${col.map(v => Math.round(v * k)).join(',')},${a})`;
+  if ($('#trail').checked) {
+    for (const j of [J.LW, J.RW, J.LA, J.RA]) {
+      const v = [c.vel[3 * j], c.vel[3 * j + 1], c.vel[3 * j + 2]], p = pt(j);
+      g.strokeStyle = rgb(0.5); g.lineWidth = 2; line(p, [p[0] - v[0] * 0.06, p[1] - v[1] * 0.06, p[2] - v[2] * 0.06]);
+    }
+  }
+  g.lineCap = 'round'; g.lineWidth = Math.max(2, S * 0.008);
+  for (const [a, b] of BONES) {
+    const left = [J.LE, J.LW, J.LK, J.LA].includes(b) || a === J.LS && b === J.LE || a === J.LH && b === J.LK;
+    g.strokeStyle = rgb(c.invulnerable ? 0.45 : 1, left ? 0.6 : 1); line(pt(a), pt(b));
+  }
+  const h = proj(pt(J.HEAD)); g.fillStyle = rgb(c.invulnerable ? 0.45 : 1); g.beginPath(); g.arc(h[0], h[1], 0.045 * c.scale * S, 0, 7); g.fill();
+  // the bending hand
+  const aj = c.aimHand > 0 ? J.RW : J.LW, ah = proj(pt(aj));
+  g.strokeStyle = '#fff'; g.lineWidth = 1; g.beginPath(); g.arc(ah[0], ah[1], 4, 0, 7); g.stroke();
+  if ($('#caps').checked) {
+    for (const s of c.hurtShapes()) capsule(s, 'rgba(120,200,255,0.18)');
+    for (const s of c.hitShapes()) capsule(s, 'rgba(255,40,40,0.55)');
+    if (c.blocking) { g.strokeStyle = '#7f7'; g.lineWidth = 2; const p = proj(pt(J.HEAD)); g.strokeRect(p[0] - 10, p[1] - 10, 20, 20); }
+  }
+  // root marker
+  const r = proj(c.root); g.fillStyle = '#666'; g.fillRect(r[0] - 2, r[1] - 2, 4, 4);
+}
+function capsule(s, col) {
+  const a = proj([s.ax, s.ay, s.az]), b = proj([s.bx, s.by, s.bz]);
+  g.strokeStyle = col; g.lineWidth = Math.max(1, 2 * s.r * S); g.lineCap = 'round';
+  g.beginPath(); g.moveTo(a[0], a[1]); g.lineTo(b[0], b[1]); g.stroke();
+}
+
+resize(); makeDancers();
+window.viewer = { get A() { return A; }, get B() { return B; }, step: n => { for (let i = 0; i < n; i++) tick(1 / 60); } };
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>

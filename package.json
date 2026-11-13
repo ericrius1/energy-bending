@@ -1,0 +1,30 @@
+{
+  "name": "energybending",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Energy Bending: a two-player 3D dance game on WebGPU, where bodies are made of matter that answers the music.",
+  "license": "MIT",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit",
+    "weft": "node tools/engine-latest.mjs",
+    "predev": "node tools/engine-latest.mjs",
+    "prebuild": "node tools/engine-latest.mjs --strict",
+    "shot": "node scripts/shot.mjs",
+    "film": "node scripts/film.mjs",
+    "test": "node scripts/check-limits.mjs"
+  },
+  "dependencies": {
+    "@ericrius1/weft": "git+https://github.com/ericrius1/weft.git#dist/weft",
+    "math": "^0.1.0"
+  },
+  "devDependencies": {
+    "@webgpu/types": "0.1.74",
+    "puppeteer-core": "^24.10.0",
+    "typescript": "5.9.3",
+    "vite": "7.3.7"
+  }
+}

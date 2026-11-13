@@ -1,0 +1,8 @@
+node_modules/
+dist/
+shots/
+docs/reports/media/*
+!docs/reports/media/README.md
+!docs/reports/media/*.jpg
+.DS_Store
+*.log

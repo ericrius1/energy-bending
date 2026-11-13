@@ -1,0 +1,18 @@
+{
+  "name": "dance-first",
+  "version": "0.2.0",
+  "private": true,
+  "description": "Dance First: a two-player jogo of fire and water. Static site + WebSocket rooms.",
+  "type": "module",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "test": "node test/rules.test.mjs && node test/localnet.test.mjs && node test/integration.test.mjs && node test/smoothness.test.mjs"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "ws": "^8.23.0"
+  }
+}
