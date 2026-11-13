@@ -218,11 +218,14 @@ fn screenUv(p: vec3f) -> vec2f {
   o.depth = clamp(cd.z / cd.w, 0.0, 1.0);
   // alpha is the distance the air and the depth of field read. Far from the gate it is the gate's own (this world's
   // air lies over the disc as over a window); at the face it becomes the far view's path, so the depth of field
-  // doesn't see the whole screen as a few centimetres away as the eye passes through. Capped at `face` (gates.faceDist, 2.5 m: a
-  // metre blurred the crossing behind a player; the brightness at the face measured the same at 0 and 1 m, 4-cameras.md)
+  // doesn't see the whole screen as a few centimetres away as the eye passes through. Capped at `face` (gates.faceDist,
+  // 2.5 m: a metre blurred the crossing behind a player; the brightness at the face measured the same at 0 and 1 m)
   let here = dot(p - eye, frame.camFwd);
   var dist = here;
-  if (slot >= 0 && live > 0.75) { dist = mix(max(here, min(farDist(slot, suv), gates.face)), here, calm); }
+  // (from two radii out, not at the skin's calm: a camera following a player through the door takes a second over the
+  // last metre, and reading the plane's few centimetres there blurred the whole frame)
+  let pane = smoothstep(0.7, 2.0, abs(dot(eye - G.at.xyz, n)) / Rad);
+  if (slot >= 0 && live > 0.75) { dist = mix(max(here, min(farDist(slot, suv), gates.face)), here, pane); }
   o.col = vec4f(col, dist);
   return o;
 }
