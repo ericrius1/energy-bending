@@ -1,0 +1,11 @@
+[
+ { "name": "fv-flame-behind-kick", "query": "field&play&dress=fire&world=pool", "wake": true, "frames": 200, "params": { "field": { "overlayGain": 2 } },
+   "eval": "bend.place(0,0,0,Math.PI/2); bend.set('camera', { followDist: 3.6, followFov: 44, followPitch: 0.25, followSwing: 0 }); bend.camera({ yaw: 0 });",
+   "eval2": "bend.move(0,'armada'); await bend.step(22);", "frames2": 1 },
+ { "name": "fv-water-in-heat", "query": "field&play&two&dress=fire,water&world=pool", "wake": true, "frames": 240, "params": { "field": { "overlayGain": 2 } },
+   "eval": "bend.place(0,-0.5,0,Math.PI/2); bend.place(1,0.5,0,-Math.PI/2); bend.set('camera', { followDist: 3.4, followFov: 44, followPitch: 0.15, followSwing: 0 }); bend.camera({ yaw: 0 });" },
+ { "name": "fv-water-beside-ice", "query": "field&play&two&dress=ice,water&world=pool", "wake": true, "frames": 240, "params": { "field": { "overlayGain": 2 } },
+   "eval": "bend.place(0,-0.5,0,Math.PI/2); bend.place(1,0.5,0,-Math.PI/2); bend.set('camera', { followDist: 3.4, followFov: 44, followPitch: 0.15, followSwing: 0 }); bend.camera({ yaw: 0 });" },
+ { "name": "fv-ice-beside-fire", "query": "field&play&two&dress=fire,ice&world=pool", "wake": true, "frames": 240, "params": { "field": { "overlayGain": 2 } },
+   "eval": "bend.place(0,-0.5,0,Math.PI/2); bend.place(1,0.5,0,-Math.PI/2); bend.set('camera', { followDist: 3.4, followFov: 44, followPitch: 0.15, followSwing: 0 }); bend.camera({ yaw: 0 });" }
+]

@@ -3,6 +3,9 @@
 // little toward their neighbours, faded toward calm, and the heat makes the air rise (cold makes it sink); then
 // what is here this frame is laid on top: every dancer's capsules (they drag the air at their own velocity and
 // warm, chill or wet it by what that part wears: FieldSim.auras), the CPU's point deposits and the vortex sources.
+// Heat and cold also radiate a faint tail past a body's near falloff (so the body beside it feels it: water thinning in
+// heat, ice melting, water freezing), a fast limb drags the air further (the wake behind a kick), plasma's dryness is
+// kept in B.w (reactions tell plasma from fire by it), and a fusion winds its two matters into a double helix.
 // It writes nextA and nextB; field.ts copies them over fieldA and fieldB before anything samples the field.
 //
 // Every rate is applied as 1 - exp(-rate dt), and the advection only ever samples, so the step is stable at any dt.
@@ -13,6 +16,10 @@
 struct Deposit { at: vec4f, wind: vec4f, levels: vec4f }
 /** a vortex source: centre and radius; axis and strength (m/s at the radius); inflow and lift (m/s), height (m) */
 struct Vortex { at: vec4f, axis: vec4f, flow: vec4f }
+/** the fusion's double helix (field.ts fuse): two strands of the two matters' auras wound round a shared axis.
+ *  at: centre, radius of the strands; axis: direction, turns per metre; auraA/auraB: heat, wet, dry, and the strand's
+ *  width (m); shape: phase (rad), half height (m), amount 0 … 1, how much steam the strands make */
+struct Helix { at: vec4f, axis: vec4f, auraA: vec4f, auraB: vec4f, shape: vec4f }
 
 struct FieldSim {
   dt: f32, time: f32, deposits: u32, vortices: u32,
@@ -20,6 +27,10 @@ struct FieldSim {
   wetDecay: f32, diffuse: f32, buoyancy: f32, sink: f32,
   drag: f32, auraRate: f32, reach: f32, exchange: f32,
   melt: f32, steamGain: f32, windMax: f32, vortexRate: f32,
+  /** the radiant tail of heat and cold past a body's near falloff: its level and its length (m); a fast limb's drag
+   *  reaches further: reach × (1 + wake × speed) */
+  radiate: f32, radiateLen: f32, wake: f32, dryDecay: f32,
+  helix: Helix,
   /** per capsule slot (dancer × SEGS + capsule): heat (signed), wet, dry, how much it stirs the air */
   auras: array<vec4f, 256>,
   deposit: array<Deposit, FIELD_DEPOSITS>,
@@ -93,12 +104,15 @@ fn main(@builtin(global_invocation_id) id: vec3u) {
   var wet = max(a.w, 0.0);
   var hot = max(b.x, 0.0);
   var cold = max(b.y, 0.0);
+  // B.w: how dry the air is (plasma's aura boils wet away): reactions tell plasma from fire by it
+  var dry = max(b.w, 0.0);
 
   // ---------------------------------------------------------------- toward calm; heat meets cold; hot air rises
   wind *= exp(-sim.windDecay * dt);
   hot *= exp(-sim.hotDecay * dt);
   cold *= exp(-sim.coldDecay * dt);
   wet *= exp(-sim.wetDecay * dt);
+  dry *= exp(-sim.dryDecay * dt);
   // where flame and ice share a cell they use each other up, and the ice melts into wet
   let met = min(hot, cold) * (1.0 - exp(-sim.exchange * dt));
   hot -= met;
@@ -114,9 +128,12 @@ fn main(@builtin(global_invocation_id) id: vec3u) {
   var wetT = 0.0;
   var dryT = 0.0;
   let reach = max(sim.reach, 1e-3);
+  let tailLen = max(sim.radiateLen, 1e-3);
+  // how far the radiant tail is worth following (where it falls under 1 % of its level)
+  let tailMax = select(0.0, tailLen * 4.6, sim.radiate > 0.0);
   for (var d = 0u; d < bodies.dancers; d++) {
     // (a dancer is at most ~1.3 m from its hips to a raised fingertip)
-    if (distance(p, joints[d * MAXJ].pos.xyz) > 1.5 + 2.5 * reach) { continue; }
+    if (distance(p, joints[d * MAXJ].pos.xyz) > 1.5 + max(2.5 * reach * (1.0 + sim.wake * 8.0), tailMax)) { continue; }
     for (var s = 0u; s < sim.capsules; s++) {
       let slot = d * SEGS + s;
       let seg = segs[slot];
@@ -126,14 +143,21 @@ fn main(@builtin(global_invocation_id) id: vec3u) {
       let t = clamp(dot(p - j.pos.xyz, ab) / max(dot(ab, ab), 1e-6), 0.0, 1.0);
       let dist = length(p - (j.pos.xyz + ab * t));
       let r = mix(max(seg.b1.w, seg.b2.w), max(seg.info.z, seg.info.w), t);
-      let x = max(dist - r, 0.0) / reach;
-      if (x > 2.5) { continue; }
+      let past = max(dist - r, 0.0);
+      let vel = mix(j.vel.xyz, c.vel.xyz, t);
+      // a fast limb drags the air further: the wake behind a kick (wake 0.08: 6 m/s reaches 1.5 × as far)
+      let xs = past / (reach * (1.0 + sim.wake * min(length(vel), 8.0)));
+      let x = past / reach;
+      if (xs > 2.5 && past > tailMax) { continue; }
       let w = exp(-x * x);
+      let ws = exp(-xs * xs);
+      // heat and cold also radiate: a long, faint tail past the near falloff (so water feels a flame 30 cm away)
+      let wr = max(w, sim.radiate * exp(-past / tailLen));
       let aura = sim.auras[slot];
-      stirW += w * aura.w;
-      stirV += w * aura.w * mix(j.vel.xyz, c.vel.xyz, t);
-      hotT = max(hotT, w * max(aura.x, 0.0));
-      coldT = max(coldT, w * max(-aura.x, 0.0));
+      stirW += ws * aura.w;
+      stirV += ws * aura.w * vel;
+      hotT = max(hotT, wr * max(aura.x, 0.0));
+      coldT = max(coldT, wr * max(-aura.x, 0.0));
       wetT = max(wetT, w * aura.y);
       dryT = max(dryT, w * aura.z);
     }
@@ -144,6 +168,38 @@ fn main(@builtin(global_invocation_id) id: vec3u) {
   cold += max(coldT - cold, 0.0) * ka;
   wet += max(wetT - wet, 0.0) * ka;
   wet -= wet * dryT * ka;
+  dry += max(dryT - dry, 0.0) * ka;
+
+  // ---------------------------------------------------------------- the fusion's double helix
+  var helixSteam = 0.0;
+  let hx = sim.helix;
+  if (hx.shape.z > 0.0) {
+    let axis = normalize(hx.axis.xyz + vec3f(0.0, 1e-5, 0.0));
+    let rel = p - hx.at.xyz;
+    let h = dot(rel, axis);
+    let along = exp(-pow(max(abs(h) - hx.shape.y, 0.0) / 0.25, 2.0));
+    if (along > 0.01) {
+      // a frame round the axis, and the two strands' points at this height (half a turn apart)
+      let e1 = normalize(cross(axis, select(vec3f(1.0, 0.0, 0.0), vec3f(0.0, 0.0, 1.0), abs(axis.x) > 0.9)));
+      let e2 = cross(axis, e1);
+      let ang = hx.shape.x + 6.2831853 * hx.axis.w * h;
+      let R = hx.at.w;
+      let sa = hx.at.xyz + axis * h + (e1 * cos(ang) + e2 * sin(ang)) * R;
+      let sb = hx.at.xyz + axis * h - (e1 * cos(ang) + e2 * sin(ang)) * R;
+      let wa = exp(-pow(distance(p, sa) / max(hx.auraA.w, 0.02), 2.0)) * along * hx.shape.z;
+      let wb = exp(-pow(distance(p, sb) / max(hx.auraB.w, 0.02), 2.0)) * along * hx.shape.z;
+      for (var k = 0u; k < 2u; k++) {
+        let au = select(hx.auraA, hx.auraB, k == 1u);
+        let w = select(wa, wb, k == 1u);
+        hot += max(w * max(au.x, 0.0) - hot, 0.0) * ka;
+        cold += max(w * max(-au.x, 0.0) - cold, 0.0) * ka;
+        wet += max(w * au.y - wet, 0.0) * ka;
+        dry += max(w * au.z - dry, 0.0) * ka;
+      }
+      // the strands themselves breathe steam, so the helix reads in it whatever the two matters are
+      helixSteam = (wa + wb) * hx.shape.w;
+    }
+  }
 
   // ---------------------------------------------------------------- the CPU's deposits, the vortex sources
   for (var i = 0u; i < sim.deposits; i++) {
@@ -168,10 +224,11 @@ fn main(@builtin(global_invocation_id) id: vec3u) {
   hot = clamp(hot, 0.0, 4.0);
   cold = clamp(cold, 0.0, 4.0);
   wet = clamp(wet, 0.0, 4.0);
+  dry = clamp(dry, 0.0, 2.0);
   // steam is made where heat meets wet, and (more) where a flame is melting ice; the faint overlap of two auras'
   // tails a metre apart makes none (a threshold), so steam marks where they really meet
   let contact = min(hot, 2.0) * min(wet, 2.0) + 2.0 * min(hot, cold);
-  let steam = sim.steamGain * (max(contact - 0.06, 0.0) * 2.0 + met / max(dt, 1e-4) * 0.3);
+  let steam = sim.steamGain * (max(contact - 0.06, 0.0) * 2.0 + met / max(dt, 1e-4) * 0.3) + helixSteam;
   textureStore(nextA, id, vec4f(wind, wet));
-  textureStore(nextB, id, vec4f(hot, cold, steam, stirW));
+  textureStore(nextB, id, vec4f(hot, cold, steam, dry));
 }

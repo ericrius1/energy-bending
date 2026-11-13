@@ -22,7 +22,7 @@ import groupShader from './group.wgsl';
 import stepShader, { type FieldSim } from './step.wgsl';
 import probeShader, { type Probes } from './probe.wgsl';
 import fieldShader, { type FieldBox } from './field.wgsl';
-import { auraOf } from './auras';
+import { auraOf, type Aura } from './auras';
 import { fieldParams } from './params';
 
 type V3 = [number, number, number];
@@ -36,6 +36,40 @@ export interface Deposit { p: V3; wind?: V3; windWeight?: number; heat?: number;
  *  outside, gone by three radii), drawn in toward the axis at `inflow` m/s and up it at `lift` m/s, over `height` m
  *  either side of `at` along the axis */
 export interface Vortex { at: V3; axis?: V3; strength: number; radius: number; inflow?: number; lift?: number; height?: number }
+
+/** what a fusion's matter looks like where it meets (steam reads it): steam (white, cyan and orange licks), prism (thin
+ *  iridescent vapour), storm (dark, heavy, flickering from inside), aurora (slow green-violet curtains rising) */
+export type FusionKind = 'steam' | 'prism' | 'storm' | 'aurora';
+export const FUSION_KINDS: readonly FusionKind[] = ['steam', 'prism', 'storm', 'aurora'];
+
+/** a fusion staged in the field (`fuse`): a slow double helix of the two matters' auras wound round a shared vortex,
+ *  and the look of the steam it makes. Amount 0 (or `fuse(null)`) is nothing at all */
+export interface Fusion {
+  /** how far in, 0 … 1: scales the helix, the vortex and the steam's look */
+  amount: number;
+  kind?: FusionKind;
+  /** the two dancer slots fusing: their auras feed the two strands, their hips' middle is the centre (unless `at`) */
+  dancers?: [number, number];
+  /** or the two strands' auras given directly */
+  auras?: [Aura, Aura];
+  /** the centre (m, world; default the two dancers' middle, 0.1 m up) and the axis (default up) */
+  at?: V3;
+  axis?: V3;
+  /** the vortex's swirl at the strands' radius (m/s, default 2.2) */
+  strength?: number;
+  /** how tightly the strands wind (turns per metre of height, default 1) */
+  tightness?: number;
+  /** the strands' radius (m, default 0.32), their half height (m, default 1), their width (m, default 0.12) */
+  radius?: number;
+  height?: number;
+  width?: number;
+  /** how fast the helix turns (rad/s, default 0.7) */
+  speed?: number;
+}
+
+type Vec4 = [number, number, number, number];
+/** the helix as the step (FieldSim.helix) and steam read it */
+export interface HelixState { at: Vec4; axis: Vec4; auraA: Vec4; auraB: Vec4; shape: Vec4 }
 
 /** what the field held at a probe point, as last read back */
 export interface FieldReading {
@@ -125,6 +159,12 @@ export class Field {
   private frameNo = 0;
   private lastDeposits = 0;
   private lastVortices = 0;
+  /** each dancer slot's aura averaged over its body (heat, wet, dry), for a fusion's strands */
+  private dancerAura: [number, number, number][] = Array.from({ length: LIMITS.dancers }, () => [0, 0, 0]);
+  private hips: V3[] = Array.from({ length: LIMITS.dancers }, () => [0, 1, 0] as V3);
+  private fusion: Fusion | null = null;
+  private helixPhase = 0;
+  private helixData: HelixState = { at: [0, 0, 0, 0], axis: [0, 1, 0, 1], auraA: [0, 0, 0, 0.12], auraB: [0, 0, 0, 0.12], shape: [0, 0, 0, 0] };
 
   constructor(o: FieldOptions) {
     const kit = o.kit;
@@ -215,6 +255,20 @@ export class Field {
   /** stop watching a probe */
   unprobe(id: string) { this.probeMap.delete(id); }
 
+  /** stage a fusion (or with null, or amount 0, end it): it stays until changed, so set it once or every frame as the
+   *  amount eases. The field winds the two matters' auras into a slow double helix round a vortex at their middle
+   *  (steam is born along it and swirls up it), and steam takes the fusion's look (`fusionFront`). Amount 0 is nothing */
+  fuse(f: Fusion | null) { this.fusion = f && f.amount > 0 ? f : null; }
+
+  /** the fusion's look as steam reads it: which kind and how far in (amount 0: none) */
+  get fusionFront(): { kind: FusionKind; amount: number } {
+    const f = this.fusion;
+    return { kind: f?.kind ?? 'steam', amount: f ? Math.min(1, Math.max(0, f.amount)) : 0 };
+  }
+
+  /** the helix this frame, as the step has it (shape[2], its amount, is 0 when there is no fusion) */
+  get helix(): Readonly<HelixState> { return this.helixData; }
+
   // ---------------------------------------------------------------- each frame
   /** in the 'dancers' phase, after the joints are up: follow the dancers, lay out the auras, set the step */
   update(f: FrameCtx) {
@@ -228,8 +282,10 @@ export class Field {
     }
     let x = 0, y = 0, z = 0, n = 0;
     for (let d = 0; d < D; d++) {
+      const w = f.dancers[d].skeleton.world;
+      this.hips[d][0] = w[0]; this.hips[d][1] = w[1]; this.hips[d][2] = w[2];
       if (!this.inWorld(d)) continue;
-      const w = f.dancers[d].skeleton.world; x += w[0]; y += w[1]; z += w[2]; n++;
+      x += w[0]; y += w[1]; z += w[2]; n++;
     }
     if (n) { this.centre[0] = x / n; this.centre[1] = y / n; this.centre[2] = z / n; }
     const prev: V3 = [...this.origin];
@@ -243,13 +299,37 @@ export class Field {
     this.box.set(this.boxData);
 
     this.layAuras(f, D);
+    this.layHelix(Math.min(Math.max(f.danceDt, 0), 1 / 20));
     const P = fieldParams;
     this.sim.set({
       dt: Math.min(Math.max(f.danceDt, 0), 1 / 20), time: f.t, capsules: CAPSULES.length,
       windDecay: P.windDecay, hotDecay: P.hotDecay, coldDecay: P.coldDecay, wetDecay: P.wetDecay, diffuse: P.diffuse,
       buoyancy: P.buoyancy, sink: P.sink, drag: P.drag, auraRate: P.auraRate, reach: P.reach, exchange: P.exchange,
       melt: P.melt, steamGain: P.steamGain, windMax: P.windMax, vortexRate: P.vortexRate, auras: this.auras,
+      radiate: P.radiate, radiateLen: P.radiateLen, wake: P.wake, dryDecay: P.dryDecay, helix: this.helixData,
     });
+  }
+
+  /** the fusion's helix for this frame's step (and the steam): its centre, axis, the two strands' auras, its turn */
+  private layHelix(dt: number) {
+    const f = this.fusion, h = this.helixData;
+    if (!f) { h.shape = [0, 0, 0, 0]; return; }
+    const amount = Math.min(1, Math.max(0, f.amount));
+    const [da, db] = f.dancers ?? [0, 1];
+    const auras: [number, number, number][] = f.auras
+      ? f.auras.map((a) => [a.heat, a.wet, a.dry ?? 0] as [number, number, number])
+      : [this.dancerAura[da] ?? [0, 0, 0], this.dancerAura[db] ?? [0, 0, 0]];
+    const A = this.hips[da] ?? this.centre, B = this.hips[db] ?? this.centre;
+    const at = f.at ?? [(A[0] + B[0]) / 2, (A[1] + B[1]) / 2 + 0.1, (A[2] + B[2]) / 2];
+    const ax = f.axis ?? [0, 1, 0];
+    this.helixPhase = (this.helixPhase + (f.speed ?? 0.7) * dt) % (Math.PI * 2);
+    const width = f.width ?? 0.12;
+    h.at = [at[0], at[1], at[2], f.radius ?? 0.32];
+    h.axis = [ax[0], ax[1], ax[2], f.tightness ?? 1];
+    h.auraA = [auras[0][0], auras[0][1], auras[0][2], width];
+    h.auraB = [auras[1][0], auras[1][1], auras[1][2], width];
+    // the strands breathe steam at 0.35 of a strong clash, so the helix reads in steam whatever the matters are
+    h.shape = [this.helixPhase, f.height ?? 1, amount, 0.35];
   }
 
   /** each capsule slot's aura: the layers worn on its part, by share, at the dancer's form */
@@ -275,6 +355,11 @@ export class Field {
         perPart.set(part, acc);
       }
       CAPSULES.forEach((c, s) => this.auras.set(perPart.get(c.part)!, (d * LIMITS.capsules + s) * 4));
+      // the body's aura as a whole, by capsule (at full presence: a fusion's strand is the matter, not the body)
+      const da = this.dancerAura[d], pres = Math.max(1e-3, Math.min(1, Math.max(0, this.presence[d] ?? 1)));
+      da[0] = da[1] = da[2] = 0;
+      for (const c of CAPSULES) { const a = perPart.get(c.part)!; da[0] += a[0]; da[1] += a[1]; da[2] += a[2]; }
+      for (let k = 0; k < 3; k++) da[k] /= CAPSULES.length * pres;
     }
   }
 
@@ -292,6 +377,12 @@ export class Field {
     if (fieldParams.testVortex > 0) {
       const s = fieldParams.testVortex;
       vs.push({ at: [this.centre[0], this.centre[1] + 0.1, this.centre[2]], strength: s, radius: 0.55, inflow: 0.25 * s, lift: 0.3 * s, height: 1.4 });
+    }
+    // the fusion's own vortex, first (the helix is wound round it)
+    const hx = this.helixData;
+    if (this.fusion && hx.shape[2] > 0) {
+      const s = (this.fusion.strength ?? 2.2) * hx.shape[2];
+      vs.unshift({ at: [hx.at[0], hx.at[1], hx.at[2]], axis: [hx.axis[0], hx.axis[1], hx.axis[2]], strength: s, radius: hx.at[3] * 1.4, inflow: 0.18 * s, lift: 0.3 * s, height: hx.shape[1] + 0.3 });
     }
     const vortex = vs.slice(0, MAXV).map((v) => {
       const ax = v.axis ?? [0, 1, 0];
@@ -337,6 +428,7 @@ export class Field {
       cells: this.dims.join('×'), cell: this.cell, origin: this.origin.map((v) => +v.toFixed(2)).join(','),
       deposits: this.lastDeposits, dropped: this.dropped, vortices: this.lastVortices, probes: this.probeMap.size,
       aura: this.auraOverride.filter(Boolean).join(',') || 'loadouts',
+      fusion: this.fusion ? `${this.fusionFront.kind} ${this.fusionFront.amount.toFixed(2)}` : 'none',
     };
   }
 }

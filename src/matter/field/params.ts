@@ -21,6 +21,14 @@ export const fieldParams = defineParams('field', {
   auraRate: 10,
   /** how far past a capsule's surface an aura and its drag reach (m, the falloff's scale) */
   reach: 0.14,
+  /** heat and cold radiate past a body's near falloff: a faint tail of this level at the surface, falling by e over
+   *  `radiateLen` m (0.3 and 0.25: 0.09 at 30 cm, nothing at a metre), so water feels a flame beside it and ice melts */
+  radiate: 0.3,
+  radiateLen: 0.25,
+  /** a fast limb drags the air further: the drag's reach × (1 + wake × speed in m/s): the wake behind a kick */
+  wake: 0.08,
+  /** dryness (plasma's) fades (1/s) */
+  dryDecay: 2.5,
   /** how fast flame and ice use each other up where they meet (1/s), and how much wet that melting leaves */
   exchange: 3,
   melt: 0.6,
@@ -42,6 +50,9 @@ export const fieldParams = defineParams('field', {
   buoyancy: { min: 0, max: 12, label: 'hot air rises' },
   drag: { min: 0, max: 40, label: 'limbs drag the air' },
   reach: { min: 0.03, max: 0.5, step: 0.01, label: 'aura reach' },
+  radiate: { min: 0, max: 1, label: 'heat radiates' },
+  radiateLen: { min: 0.05, max: 1, step: 0.01, label: 'radiant tail (m)' },
+  wake: { min: 0, max: 0.5, step: 0.01, label: 'kick wake' },
   steamGain: { min: 0, max: 4, label: 'steam from a clash' },
   overlay: { label: 'show the field' },
   testVortex: { min: 0, max: 8, label: 'test vortex' },
