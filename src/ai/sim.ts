@@ -12,6 +12,7 @@ import type { Brain, MusicView, StageView, Gate } from './brain';
 import { Scene, type SceneBody } from './scene';
 import { BrainDriver } from './driver';
 import { JogoReferee } from './jogo';
+import type { Direction } from './direct';
 
 export interface SimOptions {
   /** the jogo's plane (locked), or null to play free on the floor */
@@ -32,6 +33,8 @@ export interface SimOptions {
   room?: number;
   /** where the seats start, free (x, z each); locked they start at the plane's spawns */
   at?: [[number, number], [number, number]];
+  /** a director's intentions per dancer ('seat.0', 'seat.1', 'npc.N'), as a film would set them (direct.ts) */
+  directions?: Record<string, Direction>;
   /** called every frame after everything stepped (for checks) */
   each?: (f: SimFrame) => void;
 }
@@ -70,6 +73,7 @@ export function simulate(o: SimOptions) {
     drivers.push(new BrainDriver(n.brain, b, scene, () => freeView));
   }
   scene.bodies = bodies;
+  for (const [id, d] of Object.entries(o.directions ?? {})) scene.direct(id, d);
   const frames = Math.round(o.seconds / dt);
   for (let i = 1; i <= frames; i++) {
     const t = i * dt, now = t * 1000, beat = (now * bpm) / 60000;

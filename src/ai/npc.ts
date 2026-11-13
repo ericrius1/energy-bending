@@ -168,7 +168,8 @@ export class NpcBrain implements Brain {
     b.clip = this.groove; b.clipW = this.groove ? 1 : 0;
     b.groove = 0.7 + 0.3 * this.p.energy;
     if (s.music.breakdown) { b.clipW = 0; b.groove = 0.25; return; }
-    if (m.waiting(0) || busyFor(c) > 0 || s.beat - this.phraseAt < 8) return;
+    // (not near the world's edge: a macaco or an aú travels a metre and a half)
+    if (m.waiting(0) || busyFor(c) > 0 || s.beat - this.phraseAt < 8 || Math.hypot(c.x, c.z) > s.stage.room - 2.2) return;
     if (!m.rng.chance(0.02 + 0.03 * this.p.energy)) return;
     this.phraseAt = s.beat;
     // a phrase: two or three moves a beat or two apart, a flourish to end it
@@ -218,7 +219,9 @@ export class NpcBrain implements Brain {
   /** does it clap on this beat? The ring claps together in stretches (four bars of six, by the shared bar count, while
    *  the music grooves), each member deciding per stretch whether it joins (more often the keener ones) */
   private claps(s: Sight): boolean {
-    if (s.music.breakdown || s.music.level < 0.3) return false;
+    // (not while it has somewhere to go: a body in a move can't walk)
+    const c = s.self;
+    if (s.music.breakdown || s.music.level < 0.3 || Math.hypot(c.v[0], c.v[2]) > 0.3 || Math.hypot(c.x, c.z) > s.stage.room - 0.6) return false;
     const stretch = Math.floor(s.beat / 24);
     if (stretch !== this.clapStretch) { this.clapStretch = stretch; this.clapping = this.mind.rng.chance(0.45 + 0.8 * this.p.clap); }
     return this.clapping && ((s.beat / 4) % 6) < 4;
