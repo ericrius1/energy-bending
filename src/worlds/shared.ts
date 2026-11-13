@@ -4,9 +4,11 @@
 import type { Kit } from '@ericrius1/weft';
 import lightShader from './light.wgsl';
 import type { World } from './world';
+import { fireLights } from '../matter/fire/lights';
 
 export function shareWorldLight(kit: Kit, all: readonly World[]) {
-  const values: Record<string, unknown> = {};
+  // the dancers' fire as light (made here if the fire kind hasn't asked yet; it fills it each frame)
+  const values: Record<string, unknown> = { fireLights: fireLights(kit) };
   for (const w of all) for (const [name, buf] of Object.entries(w.shared)) {
     if (name in values) throw new Error(`worlds: two worlds share a light uniform named '${name}'`);
     values[name] = buf;

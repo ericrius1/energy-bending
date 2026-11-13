@@ -39,6 +39,8 @@
         lines = max(L - 1.0, 0.0) * under;
       }
       var f = slab * (0.12 + pool * 0.8 * net) + geode.floorCol.rgb * pool * 0.12 * (0.6 + 0.4 * band) * net;
+      // the dancers' fire on the polished slab (worlds/light.wgsl worldFire)
+      f += (slab + geode.floorCol.rgb * 0.05) * worldFire(p, vec3f(0.0, 1.0, 0.0));
       f += vec3f(1.0, 0.95, 0.88) * lines * 0.06 * (0.6 + 0.4 * band);
       // the key's long highlight on the polish, and what the polish reflects: a lot at a glance along it, next to
       // nothing looking straight down (Fresnel)

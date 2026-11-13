@@ -15,6 +15,7 @@
 #include "./pool/pool"
 #include "./temple/temple"
 #include "./forge/forge"
+#include "../matter/fire/light"
 
 @group(2) @binding(0) var<uniform> geode: Geode;
 @group(2) @binding(1) var<uniform> forest: Forest;
@@ -23,6 +24,9 @@
 @group(2) @binding(4) var<uniform> temple: Temple;
 @group(2) @binding(5) var templeWaves: texture_2d<f32>;
 @group(2) @binding(6) var<uniform> forge: Forge;
+// the dancers' own light (fire, and plasma as its violet form): one point light per flame dancer, filled each frame by
+// the fire kind (matter/fire/lights.ts) and shared here by worlds/shared.ts, so every world's surfaces take it
+@group(2) @binding(7) var<uniform> fireLights: FireLights;
 
 /** which world lights this pipeline: 0 the geode, 1 the redwoods, 2 the pool, 3 the temple, 4 the forge (each World's
  *  `light`) */
@@ -41,13 +45,18 @@ fn worldEnv(d: vec3f, p: vec3f) -> vec3f {
   return studio(d);
 }
 
+/** the dancers' fire (and plasma) on a world's surface at p facing n: every world's own shading adds it (the stone,
+ *  the trunks, the floors; matter a quarter of it, through worldAmbient, so a body of flame doesn't light itself) */
+fn worldFire(p: vec3f, n: vec3f) -> vec3f { return fireLightAt(fireLights, p, n); }
+
 /** the soft light on a surface facing N, dimmed in crevices (ao) */
 fn worldAmbient(N: vec3f, ao: f32, p: vec3f) -> vec3f {
+  // (the woods' lampLight carries the dancers' fire too; the temple and the forge add it at the weight they're given)
   if (WORLD == 1u) { return woodsAmbient(N) * (0.25 + 0.75 * ao) * 1.6 + lampLight(p, N, 0.2) * 0.5; }
-  if (WORLD == 2u) { return poolAmbient(N, ao); }
+  if (WORLD == 2u) { return poolAmbient(N, ao) + worldFire(p, N) * 0.25; }
   if (WORLD == 3u) { return templeAmbient(N, ao, p, 0.25); }
   if (WORLD == 4u) { return forgeAmbient(N, ao, p, 0.25); }
-  return geodeAmbient(N, ao);
+  return geodeAmbient(N, ao) + worldFire(p, N) * 0.25;
 }
 
 /** the key light at p (fine: worth the finer detail; fixture: one of a world's own fixed pieces) */

@@ -118,7 +118,7 @@ fn forgeEnv(d: vec3f, p: vec3f) -> vec3f { return forgeSky(d, 0.5); }
 fn forgeAmbient(N: vec3f, ao: f32, p: vec3f, fire: f32) -> vec3f {
   let below = forge.fire.rgb * forge.fire.w * 0.12;
   let above = forge.zenith.rgb * 2.0 + forge.aurora.rgb * forge.aurora.w * 0.07;
-  return mix(below, above, smoothstep(-0.6, 0.6, N.y)) * (0.3 + 0.7 * ao) + forgeFire(p, N, 0.3) * fire;
+  return mix(below, above, smoothstep(-0.6, 0.6, N.y)) * (0.3 + 0.7 * ao) + (forgeFire(p, N, 0.3) + worldFire(p, N)) * fire;
 }
 
 /** the air: a warm haze thickening downward into the fire's glow, a little of the aurora high up */

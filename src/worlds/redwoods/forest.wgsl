@@ -144,7 +144,8 @@ fn lampLight(p: vec3f, n: vec3f, wrap: f32) -> vec3f {
     let fade = 1.0 - r2 / 81.0;
     c += l.w * max(ndl, 0.0) * fade * fade / (r2 + 0.25);
   }
-  return forest.lampCol.rgb * c;
+  // and the dancers' fire (worlds/light.wgsl worldFire): everything the lanterns light, flame lights too
+  return forest.lampCol.rgb * c + worldFire(p, n);
 }
 
 /** the soft light under the trees on a surface facing n: the sky through the leaves above, the meadow's bounce below */

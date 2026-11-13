@@ -170,7 +170,7 @@ fn templeAmbient(N: vec3f, ao: f32, p: vec3f, fire: f32) -> vec3f {
   let sky = temple.zenith.rgb * 2.2 + temple.horizon.rgb * 0.4;
   let west = temple.dusk.rgb * temple.dusk.w * 0.12 * (0.5 + 0.5 * dot(N, temple.duskDir.xyz));
   let below = temple.moonCol.rgb * temple.moonCol.w * 0.05 + temple.sea.rgb * 0.5;
-  return (mix(below, sky, N.y * 0.5 + 0.5) + west) * (0.3 + 0.7 * ao) * 1.8 + templeFire(p, N, 0.3) * fire;
+  return (mix(below, sky, N.y * 0.5 + 0.5) + west) * (0.3 + 0.7 * ao) * 1.8 + (templeFire(p, N, 0.3) + worldFire(p, N)) * fire;
 }
 
 /** the air over the court: a sea haze, lying low, glowing with the afterglow in the west and round the moon */

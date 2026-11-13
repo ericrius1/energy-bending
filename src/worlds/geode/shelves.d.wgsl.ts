@@ -121,6 +121,17 @@ export interface Forge {
   lights: ArrayLike<number> | Vec4[];
   glow: ArrayLike<number> | Vec4[];
 }
+export interface FireLight {
+  pos: Vec4;
+  col: Vec4;
+}
+export interface FireLights {
+  count: number;
+  pad0: number;
+  pad1: number;
+  pad2: number;
+  lights: Partial<FireLight>[];
+}
 export interface KeyLight {
   dir: Vec3;
   col: Vec3;
@@ -140,5 +151,5 @@ export interface VOut {
   seed: number;
 }
 
-declare const shader: Shader<{ Frame: Frame; Geode: Geode; Forest: Forest; Pool: Pool; Temple: Temple; Forge: Forge; KeyLight: KeyLight; Blade: Blade; VOut: VOut }, 'frame' | 'geode' | 'forest' | 'pool' | 'temple' | 'forge' | 'blades' | 'poolWaves' | 'templeWaves' | 'samp_linear' | 'samp_repeat' | 'samp_nearest' | 'samp_shadow'>;
+declare const shader: Shader<{ Frame: Frame; Geode: Geode; Forest: Forest; Pool: Pool; Temple: Temple; Forge: Forge; FireLight: FireLight; FireLights: FireLights; KeyLight: KeyLight; Blade: Blade; VOut: VOut }, 'frame' | 'geode' | 'forest' | 'pool' | 'temple' | 'forge' | 'fireLights' | 'blades' | 'poolWaves' | 'templeWaves' | 'samp_linear' | 'samp_repeat' | 'samp_nearest' | 'samp_shadow'>;
 export default shader;

@@ -110,6 +110,8 @@ fn toWorld(b: Blade, q: vec3f) -> vec3f {
   let out = smoothstep(0.0, 1.8, i.local.z);
   // little lit on its faces (it's clear stone, not paint): most of what shows is what it reflects and what glows in it
   var col = body * (key.col * diff * 0.12 + geodeAmbient(N, 0.6 + 0.4 * out) * 0.12) * (0.35 + 0.65 * out);
+  // the dancers' fire on the selenite (worlds/light.wgsl worldFire)
+  col += body * worldFire(i.wp, N) * 0.5;
   // the satin sheen across the fibres (anisotropic: brightest where the half-way vector is across them)
   let H = normalize(L + V);
   let th = dot(T, H);
