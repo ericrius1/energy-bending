@@ -1,7 +1,8 @@
 // The water's parameters: how many particles a dancer's water is, how it moves (running down the body in swells, loose
 // on it, quick to shed, peeling off fast limbs, heavy when it falls, splashing), how it changes state (the form, the
-// field's heat and cold), and how its screen-space surface looks (the reference's luminous model: docs/element-looks.md
-// §2; ice's facets in the same surface, §3). Ice's shards, mist and set ice are ice/params.ts. `form` is for the panel
+// field's heat and cold), how its outline breaks (the shell curling, streamers, drips; the edge's tongues in the
+// surface), and how its screen-space surface looks (lit by its world: absorption, a little milk, reflection, the rim
+// toward the light, docs/reports/7-water.md; ice's facets in the same surface, docs/element-looks.md §3). Ice's shards, mist and set ice are ice/params.ts. `form` is for the panel
 // and the capture steps (dresses are matter/core/presets.ts, ?dress=): the game sets each dancer's form on the dancer
 // (Dancer.form, bend.form) and dresses dancers through their loadouts.
 // Colours are written as sRGB hex (engine/params.ts `hex` makes them linear); the reference's own linear values are in

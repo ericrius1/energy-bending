@@ -353,7 +353,7 @@ fn shade(q: vec2i, wdims: vec2i, W: vec4f, keep: f32) -> Shade {
   // (water scatters little: most of what it gives is what it reflects. The worlds' ambient is generous, made for
   // stones and bark; in water only a little of it scatters back, while a key or a fire beside it lights it up)
   // (and compressed: a world's key or a fire a metre off must tint it, not turn it into a lit solid)
-  let li = amb * 0.06 + keyD * 0.3 + fireD * 0.6 + heartL;
+  let li = amb * 0.06 + keyD * 0.3 + fireD * 0.6 + heartL * 0.4;
   var wc = surf.tint.rgb * li / (1.0 + luma(li)) * milk * 0.35;
   wc += surf.glow.rgb * surf.glow.w * (0.3 + 1.6 * rp * rp) * (0.25 + milk);
   // the world reflected, and its lights: the key's highlight (sharp, and a broad sheen), each fire's, the view's fill
@@ -429,7 +429,9 @@ fn shade(q: vec2i, wdims: vec2i, W: vec4f, keep: f32) -> Shade {
     let Rp = reflect(ray, Nf);
     let cp = clamp(dot(Nf, V), 0.0, 1.0);
     let Fp = 0.02 + 0.98 * pow(1.0 - cp, 5.0);
-    let envP = worldEnv(Rp, wp) * surf.reflect;
+    // (compressed: a puddle mirrors the sky, but a moon or sun in it must stay a glint, not a white disc)
+    let envR = worldEnv(Rp, wp) * surf.reflect;
+    let envP = envR / (1.0 + luma(envR) * 0.8);
     let specP = key.col * (pow(max(dot(Rp, key.dir), 0.0), 900.0) * 5.0 + pow(max(dot(Rp, key.dir), 0.0), 40.0) * 0.1) * key.glint;
     let rimP = key.col * pow(1.0 - cp, 2.0) * menisc * smoothstep(-0.2, 0.6, dot(Nf, key.dir)) * 0.6;
     let fc = envP * Fp * 1.2 + (specP + rimP) * surf.glint + fireSpec(wp, Rp, Nf, menisc * 0.6) * surf.glint
