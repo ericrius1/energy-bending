@@ -56,7 +56,7 @@ const LIKES_ALL = { 'meia-lua': 1.2, armada: 1, martelo: 0.8, bencao: 1, rasteir
 
 export const PRESETS: Record<'playful' | 'calm' | 'fierce' | 'mirror', PartnerParams> = {
   playful: {
-    skill: 0.88, reaction: 0.22, dodge: 1, parry: 0.45, clash: 0.6, flair: 1.4, counter: 0.7,
+    skill: 0.88, reaction: 0.22, dodge: 1, parry: 0.45, clash: 0.6, flair: 1.8, counter: 0.7,
     generosity: 0.8, likes: LIKES_ALL, flurry: 2,
     echo: 0.15, unison: 0.5, call: 0.12, initiative: 0.65, stage: 0.8, formFlow: 40, circle: 0.28, feint: 0.15, pause: 0.25,
   },
@@ -183,7 +183,9 @@ export class PartnerBrain implements Brain {
       const c = s.self, ax = jogoAxis(s, o);
       if (c.grounded && c.support && c.support.id !== '_ground' && c.support.id !== '_free') m.claim({ x: ax.dir[0], z: ax.dir[1], k: 0.5, walk: false, prio: 0.8, why: 'down', drop: !c.support.L?.solid });
       const it = this.intend, band = it && it.kind === 'offer' ? bandOf(it.name, it.want) : null;
-      const arrive = it ? { dist: it.kind === 'side' ? 1.25 : band ? (band[0] + band[1]) / 2 : M.dist, by: it.lead ? it.leadLine : it.line } : null;
+      // (a touch is offered from the far edge of its reach: a small slip answers it, a late one still only comes near)
+      const at = band ? (it!.want === 'touch' ? band[1] - 0.05 : (band[0] + band[1]) / 2) : M.dist;
+      const arrive = it ? { dist: it.kind === 'side' ? 1.25 : at, by: it.lead ? it.leadLine : it.line } : null;
       const circle = A?.circle === 'still' || paused ? 0 : sense * P.circle * M.circle * (1 + 0.5 * build) * (fusing ? 0.6 : 1);
       const dist = fusing ? 0.75 : (A?.distance ?? M.dist) - 0.3 * build;
       gingaLegs(s, m, o, { dist, sway: paused || fusing ? 0.05 : M.sway, nearOn: 2, circle, arrive, home: this.home(s), room: s.stage.room }, it ? 1 : 0, it ? `in for the ${it.name}` : 'ginga');

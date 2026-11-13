@@ -173,29 +173,36 @@ function flourishMove(d: ClipDef, b: Baked): MoveInput {
 }
 
 // ---------------------------------------------------------------- gestures
-/** `palmas`: a clap in front of the chest, an 8th note long (the roda keeping time); hands meet at u 0.55 */
+/** where in `palmas` the hands meet (its progress u) */
+export const PALMAS_MEET = 0.5;
+/** `palmas`: the roda's clap, big enough to read from the camera's game distance: the arms swing open wide and low,
+ *  then in and up so the hands meet in front of the face (at u PALMAS_MEET: pressed that much before the beat), with
+ *  a dip of the knees on the clap; half a second long, so a clap on every beat never stops moving */
 export function registerGestures() {
   if (MOVES.palmas) return;
-  const base: RigParams = { hip: [0, 0.3, 0], pitch: 0.06, lf: [-0.13, 0, 0], rf: [0.13, 0, 0] };
+  const base: RigParams = { hip: [0, 0.3, 0], pitch: 0.08, lf: [-0.14, 0, 0], rf: [0.14, 0, 0] };
+  const M = PALMAS_MEET;
   registerMove({
-    name: 'palmas', dur: 0.36, cancelInto: ['*'], aimW: 0,
+    name: 'palmas', dur: 0.5, cancelInto: ['*'], aimW: 0,
     style: () => ({ hands: ['open', 'open'] }),
     pose(u, ctx, out) {
-      const k = Math.sin(Math.PI * Math.min(1, u / 0.55)) * (u < 0.55 ? 1 : Math.max(0, 1 - (u - 0.55) / 0.45));
-      // apart (0.2) → together (0.015) in front of the chest, and a little bob
-      const meet = 0.015 + 0.19 * (1 - Math.min(1, u / 0.55)) + 0.17 * Math.max(0, (u - 0.55) / 0.45);
-      const y = 0.5 + 0.03 * k;
-      rig({ ...base, hip: [0, 0.3 - 0.01 * k, 0], lh: [-meet, y, 0.17], rh: [meet, y, 0.17], lep: [-0.6, -0.5, -0.3], rep: [0.6, -0.5, -0.3] }, out);
-      // a whisper of the ginga's bounce under it
+      // in: open wide and low → together at the face; then open again
+      const a = u < M ? 1 - u / M : (u - M) / (1 - M), e = a * a * (3 - 2 * a);
+      const meet = 0.012 + 0.26 * e, y = 0.57 - 0.13 * e, fwd = 0.2 - 0.07 * e;
+      const dip = Math.max(0, 1 - Math.abs(u - M) / 0.25);
+      rig({ ...base, hip: [0, 0.3 - 0.025 * dip, 0], pitch: 0.08 + 0.06 * dip, lh: [-meet, y, fwd], rh: [meet, y, fwd], lep: [-0.7, -0.4, -0.2], rep: [0.7, -0.4, -0.2] }, out);
       void ctx;
       return out;
     },
   });
 }
 
-/** the ginga's idle at `groove`, blended toward a groove clip by w (what a brain's body hints become) */
-export function idlePose(out: Float32Array, beats: number, bpm: number, groove: number, clip: ClipGroove | null, w: number, tmp: Float32Array) {
+/** the ginga's idle at `groove`, lowered toward the cocorinha by `low` (Angola's ginga baixa: a third of the way at
+ *  most, so the feet still step back on the beat), blended toward a groove clip by w (what a brain's body hints
+ *  become) */
+export function idlePose(out: Float32Array, beats: number, bpm: number, groove: number, clip: ClipGroove | null, w: number, tmp: Float32Array, low = 0) {
   LOCO.ginga(out, beats, groove);
+  if (low > 1e-3) { LOCO.crouch(tmp, beats); lerpPose(out, out, tmp, 0.35 * Math.min(1, low)); }
   if (clip && w > 1e-3) { clip.sample(beats, bpm, tmp); lerpPose(out, out, tmp, Math.min(1, w)); }
   return out;
 }

@@ -74,7 +74,9 @@ export function gingaLegs(s: Sight, m: Mind, o: Other, g: GingaLegs, prio = 0, w
     const want = g.circle * d;
     const theirs = theirTurn(o, tx, tz, d) * d;
     const mine = Math.abs(want) < 1e-3 ? 0 : want / 2 + 0.6 * Math.sign(want) * Math.max(0, Math.abs(want) / 2 - Math.sign(want) * theirs);
-    vx += tx * mine; vz += tz * mine;
+    // (coming in for an attack the arc straightens, so the body faces the other square when it kicks)
+    const arc = g.arrive ? 0.3 : 1;
+    vx += tx * mine * arc; vz += tz * mine * arc;
     // the roda's middle: the pair drifts back to it (and nobody leaves the world)
     const cx = (c.x + o.root[0]) / 2, cz = (c.z + o.root[2]) / 2;
     const hx = g.home[0] - cx, hz = g.home[1] - cz, hd = Math.hypot(hx, hz);

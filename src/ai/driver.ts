@@ -18,6 +18,7 @@ export class BrainDriver {
   /** what the brain chose last frame (for stats and the hooks) */
   intent: Intent = makeIntent();
   private groove = 1;
+  private low = 0;
   private clip: ClipGroove | null = null;
   private clipW = 0;
   private tmp = new Float32Array(NP);
@@ -26,7 +27,7 @@ export class BrainDriver {
   constructor(readonly brain: Brain, readonly body: SceneBody & { character: Character }, private scene: Scene, private stage: () => StageView) {
     const c = body.character;
     // the idle the brain's hints shape: the ginga at its groove, blended toward a clip
-    c.idle = (out, beat) => idlePose(out, beat, this.bpm, this.groove, this.clip, this.clipW, this.tmp);
+    c.idle = (out, beat) => idlePose(out, beat, this.bpm, this.groove, this.clip, this.clipW, this.tmp, this.low);
   }
 
   get character() { return this.body.character; }
@@ -48,6 +49,7 @@ export class BrainDriver {
     if (h.lookAt) c.lookAt = h.lookAt;
     const k = 1 - Math.exp(-dt / 0.35);
     this.groove += (h.groove - this.groove) * k;
+    this.low += (h.low - this.low) * (1 - Math.exp(-dt / 0.8));
     // a new clip waits for the old one to fade out
     if (h.clip !== this.clip) {
       if (!this.clip || this.clipW < 0.02) { this.clip = h.clip; this.clipW = 0; }

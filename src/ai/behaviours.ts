@@ -24,9 +24,10 @@ import { RULES } from '../../shared/rules.ts';
 import { planeNormal, type StagePlane } from '../engine/camera';
 import type { Gate, Other, SeenMove, Sight, V3 } from './brain';
 import type { Mind } from './mind';
-import { ATTACKS, axisTo, busyFor, canStart, durOf, freeIn, hypotheticalEvent, nextEighth, startBeat } from './body';
+import { ATTACKS, axisTo, busyFor, durOf, freeIn, hypotheticalEvent, nextEighth, startBeat } from './body';
 import { clashAt, dodgeCovers, dodgeHolds, parryWindow, reachOf, readThreat, type Threat } from './read';
 import { countersOf, exchangeFor, has, levelOf, OPTIONAL } from './vocabulary';
+import { PALMAS_MEET } from './clips';
 
 const clamp = (x: number, a: number, b: number) => Math.max(a, Math.min(b, x));
 const beatsOf = (sec: number, bpm: number) => (sec * bpm) / 60;
@@ -36,7 +37,12 @@ const secsOf = (beats: number, bpm: number) => (beats * 60) / bpm;
 export function jogoAxis(s: Sight, o: Other) { return axisTo(s.self, o.root[0], o.root[2]); }
 
 /** the other is free to answer: not in a move, not staggered */
-export function free(o: Other, bpm: number) { return !liveMove(o, bpm) && !(o.flags & 16); }
+export function free(o: Other, bpm: number) {
+  // (their body itself, when it is simulated here, says so a frame before the witness does: a move started this frame)
+  const m = o.character?.move;
+  if (m && !m.def.loop && m.t < m.dur * 0.75) return false;
+  return !liveMove(o, bpm) && !(o.flags & 16);
+}
 
 /** the partner's latest move and whether it is still going (its duration at the tempo) */
 export function liveMove(o: Other, bpm: number): SeenMove | null {
@@ -128,7 +134,9 @@ export class Reader {
       // (and a lead a beat or two before it, a guard raised or a dip, is a telegraph: one who saw it expects the kick
       // on the beat that follows, which is what makes the fast ones answerable)
       const lead = o.moves.some((x) => !x.attack && x.serial !== mv.serial && mv.beat - x.beat > 0.4 && mv.beat - x.beat < 2.1) ? 0.45 : 1;
-      const toward = Math.min(guard, onGuard, lead);
+      // (an attack only grows out of the ginga's back step on a strong beat: a player in the roda is ready on them)
+      const strong = Math.abs(mv.beat / 2 - Math.round(mv.beat / 2)) < 0.05 ? 0.75 : 1;
+      const toward = Math.min(guard, onGuard, lead, strong);
       // (a person's reaction: log-normal about the median, a tail of slow reads, a lapse now and then)
       w = { serial: mv.serial, due: m.rng.reaction(style.reaction * toward) }; this.waiting.set(mv.serial, w);
     }
@@ -554,12 +562,15 @@ export class Wander {
 }
 
 /** face a point and groove: the body hints' lookAt and groove; clap on the beat if asked (palmas, a named move) */
-export function watch(s: Sight, m: Mind, at: V3, clap: boolean, groove: number, body: { lookAt: V3 | null; groove: number }) {
+export function watch(s: Sight, m: Mind, at: V3, clap: boolean, groove: number, body: { lookAt: V3 | null; groove: number; clapAt: number }) {
   body.lookAt = at;
   body.groove = groove;
-  if (clap && !m.waiting(0.5) && MOVES.palmas && canStart(s.self, 'palmas')) {
-    const sb = startBeat(s.beatPrev, s.beat), line = Math.ceil(sb - 1e-6);
-    if (line - sb < 0.6) m.plan({ move: 'palmas', line, late: 0.06, toward: [0, 1], prio: 0.5, why: 'palmas' });
+  if (clap && MOVES.palmas && !m.presses.some((p) => p.why === 'palmas' || p.prio > 0.5)) {
+    // pressed so the hands meet on the beat (the clap's meeting is part-way through it)
+    const sb = startBeat(s.beatPrev, s.beat), lead = beatsOf(durOf('palmas', s.bpm) * PALMAS_MEET, s.bpm);
+    const beat = Math.ceil(sb + lead + 0.05), line = beat - lead;
+    const tMeet = s.t + secsOf(beat - s.beat, s.bpm);
+    if (line - sb < 0.9) m.plan({ move: 'palmas', line, late: 0.06, toward: [0, 1], prio: 0.5, why: 'palmas', done: (st) => { if (st) body.clapAt = tMeet; } });
   }
 }
 
