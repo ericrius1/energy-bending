@@ -4,52 +4,122 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <title>Energy Bending</title>
+    <meta name="description" content="A dance game for two on WebGPU: bodies of fire, water, ice, plasma and gems play a capoeira-like jogo and walk between worlds through live gates." />
     <meta name="theme-color" content="#050409" />
-    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 32 32%27%3E%3Ccircle cx=%2716%27 cy=%2716%27 r=%277%27 fill=%27%23B98CFF%27/%3E%3C/svg%3E" />
+    <meta name="color-scheme" content="dark" />
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='16' fill='%230b0812'/%3E%3Cpath d='M11.5 25.5c-3.6 0-5.8-2.7-5.8-5.9 0-4.2 4.1-6.1 3.9-11.4 3.4 2.1 6.6 5.5 6.6 10.4 0 4.3-1.4 6.9-4.7 6.9z' fill='%23ff7a2a'/%3E%3Cpath d='M11.6 25.3c-1.7 0-2.8-1.2-2.8-2.8 0-2 1.9-2.9 1.9-5.3 1.7 1 3.1 2.7 3.1 4.9 0 2-.7 3.2-2.2 3.2z' fill='%23ffd27a'/%3E%3Cpath d='M21.2 26.2a5 5 0 0 1-5-5c0-3.1 5-9.6 5-9.6s5 6.5 5 9.6a5 5 0 0 1-5 5z' fill='%235fc4ff'/%3E%3C/svg%3E" />
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Energy Bending" />
+    <meta property="og:description" content="A dance game for two: bodies of fire, water, ice, plasma and gems, a capoeira-like jogo, live gates between worlds." />
+    <meta property="og:image" content="%BASE_URL%og.jpg" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="Two dancers, one of fire and one of water, in a crystal geode with a gate to a redwood forest behind them." />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Energy Bending" />
+    <meta name="twitter:description" content="A dance game for two: bodies of fire, water, ice, plasma and gems, a capoeira-like jogo, live gates between worlds." />
+    <meta name="twitter:image" content="%BASE_URL%og.jpg" />
     <style>
       html, body { margin: 0; height: 100%; background: #050409; overflow: hidden; }
-      #stage { position: fixed; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
-      #status { position: fixed; left: 16px; bottom: 12px; margin: 0; color: #776f80; font: 12px system-ui, sans-serif; }
+      /* loading: a dark frame and one slow pulse of light where the dancers will stand; then the dancers fade up */
+      #stage { position: fixed; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; opacity: 0; transition: opacity 1.6s cubic-bezier(0.55, 0, 0.6, 1); }
+      body.ready #stage { opacity: 1; }
+      body::before { content: ''; position: fixed; inset: 0; pointer-events: none; z-index: 1;
+        background: radial-gradient(ellipse 13vmin 24vmin at 50% 57%, rgba(255, 196, 150, 0.2), rgba(150, 120, 255, 0.07) 55%, transparent 100%);
+        animation: eb-pulse 3.2s ease-in-out infinite; transition: opacity 0.9s; }
+      body.ready::before { opacity: 0; animation: none; }
+      @keyframes eb-pulse { 0%, 100% { opacity: 0.15; transform: scale(0.94); } 50% { opacity: 1; transform: scale(1.04); } }
+      /* the status line only ever speaks to say WebGPU is missing (main.ts) */
+      #status { position: fixed; left: 16px; bottom: 12px; margin: 0; color: #8a8294; font: 13px system-ui, sans-serif; max-width: calc(100vw - 32px); z-index: 2; }
+      #status:empty { display: none; }
+
       /* jogo (src/play/menu.ts): the front of the game, the lobby, the room's code. Icons and short labels only */
-      .jg { position: fixed; z-index: 5; color: #ece6f4; font: 500 12px/1.2 system-ui, sans-serif; letter-spacing: 0.04em; user-select: none; transition: opacity 0.5s; }
+      .jg { position: fixed; z-index: 5; color: #ece6f4; font: 500 12px/1.2 system-ui, sans-serif; letter-spacing: 0.04em; user-select: none; -webkit-user-select: none; transition: opacity 0.6s; }
+      body:not(.ready) .jg { opacity: 0; transition: none; }
       .jg.gone, .jg.dim { opacity: 0; pointer-events: none; }
       .jg [hidden] { display: none !important; }
       .jg svg { width: 100%; height: 100%; display: block; }
-      .jg-front { left: 50%; bottom: max(24px, env(safe-area-inset-bottom)); transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; gap: 14px;
-        padding: 18px 22px; border-radius: 22px; background: rgba(10, 8, 18, 0.55); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); max-width: calc(100vw - 24px); }
       .jg-row { display: flex; gap: 10px; align-items: center; justify-content: center; flex-wrap: wrap; }
       .jg-btn { appearance: none; border: 0; background: none; color: inherit; font: inherit; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 5px;
-        padding: 6px; border-radius: 14px; opacity: 0.55; transition: opacity 0.2s, background 0.2s, transform 0.2s; }
+        padding: 6px; border-radius: 14px; opacity: 0.55; transition: opacity 0.2s, background 0.2s, transform 0.2s; -webkit-tap-highlight-color: transparent; }
       .jg-btn:hover, .jg-btn:focus-visible { opacity: 0.9; outline: none; background: rgba(255, 255, 255, 0.06); }
       .jg-btn.on { opacity: 1; background: rgba(255, 255, 255, 0.1); }
       .jg-btn span { font-size: 11px; text-transform: lowercase; }
-      .jg-mode { width: 76px; } .jg-mode svg { width: 46px; height: 46px; }
-      .jg-world i { display: block; width: 26px; height: 26px; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #fff8, var(--c) 45%, #0008 100%); box-shadow: 0 0 14px var(--c); }
-      .jg-body { gap: 6px; } .jg-body.one + .jg-body, .jg-bodies.one .jg-body:last-child { display: none; }
       .jg-seat { width: 18px; height: 18px; border-radius: 50%; display: grid; place-items: center; font-size: 10px; background: rgba(255, 255, 255, 0.12); }
+      .jg-world i { display: block; width: 26px; height: 26px; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #fff8, var(--c) 45%, #0008 100%); box-shadow: 0 0 14px var(--c); }
       .jg-swatch i { display: block; width: 22px; height: 22px; border-radius: 50%; background: linear-gradient(135deg, var(--a), var(--b), var(--a)); background-size: 300% 300%;
         animation: jg-live 3.2s ease-in-out infinite alternate; box-shadow: 0 0 10px var(--a); }
-      .jg-swatch span { font-size: 9px; }
       @keyframes jg-live { from { background-position: 0% 50%; } to { background-position: 100% 50%; } }
-      .jg-online .jg-btn svg, .jg-foot .jg-btn svg { width: 30px; height: 30px; }
+      .jg-body.one + .jg-body, .jg-bodies.one .jg-body:last-child { display: none; }
       .jg-code { width: 74px; padding: 8px 10px; border-radius: 10px; border: 1px solid rgba(255, 255, 255, 0.18); background: rgba(0, 0, 0, 0.3); color: inherit;
         font: 600 16px/1 ui-monospace, monospace; letter-spacing: 0.2em; text-align: center; text-transform: uppercase; }
-      .jg-go { opacity: 1; } .jg-go svg { width: 40px !important; height: 40px !important; color: #ffd68a; }
-      .jg-lobby { left: 50%; top: 50%; transform: translate(-50%, -50%); display: flex; gap: 28px; }
-      .jg-card { display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 18px 22px; border-radius: 20px; background: rgba(10, 8, 18, 0.5); backdrop-filter: blur(10px); opacity: 0.6; }
+      .jg-online .jg-btn svg { width: 30px; height: 30px; }
+
+      /* the front: a low glass strip in the lower third, never over the dancers. One unit (--u) scales it from a phone
+         to a 4K screen; the labels are tiny and show only for what is chosen (or pointed at) */
+      .jg-front { --u: clamp(11px, 0.68vw, 22px); left: 50%; bottom: max(calc(var(--u) * 1.6), env(safe-area-inset-bottom)); transform: translateX(-50%);
+        display: grid; grid-template-areas: "modes worlds bodies foot" "online online online online"; align-items: center; column-gap: calc(var(--u) * 1.6); row-gap: calc(var(--u) * 0.6);
+        padding: calc(var(--u) * 0.7) calc(var(--u) * 1.4) calc(var(--u) * 1.15); border-radius: calc(var(--u) * 1.6); max-width: calc(100vw - 24px); box-sizing: border-box;
+        background: rgba(12, 9, 20, 0.34); border: 1px solid rgba(255, 255, 255, 0.07); backdrop-filter: blur(14px) saturate(1.2); -webkit-backdrop-filter: blur(14px) saturate(1.2);
+        font-size: var(--u); transition: opacity 0.6s, transform 0.6s; }
+      .jg-front.idle { opacity: 0.0; transition: opacity 1.6s ease-in, transform 1.6s; transform: translateX(-50%) translateY(6px); }
+      .jg-front.dim { transform: translateX(-50%) translateY(12px); }
+      .jg-front .jg-row { gap: calc(var(--u) * 0.35); flex-wrap: nowrap; }
+      .jg-front .jg-btn { position: relative; padding: calc(var(--u) * 0.35); border-radius: calc(var(--u) * 0.8); gap: 0; }
+      .jg-front .jg-btn span { position: absolute; left: 50%; top: 100%; transform: translate(-50%, 1px); font-size: calc(var(--u) * 0.72); line-height: 1; white-space: nowrap;
+        opacity: 0; transition: opacity 0.2s; pointer-events: none; color: #d9d2e4; }
+      .jg-front .jg-btn.on span, .jg-front .jg-btn:hover span, .jg-front .jg-btn:focus-visible span { opacity: 0.8; }
+      .jg-front .jg-modes { grid-area: modes; }
+      .jg-front .jg-worlds { grid-area: worlds; }
+      .jg-front .jg-bodies { grid-area: bodies; display: flex; flex-direction: column; gap: calc(var(--u) * 0.25); }
+      .jg-front .jg-online { grid-area: online; }
+      .jg-front .jg-foot { grid-area: foot; gap: calc(var(--u) * 0.8); }
+      .jg-front .jg-mode svg { width: calc(var(--u) * 2.3); height: calc(var(--u) * 2.3); }
+      .jg-front .jg-world i { width: calc(var(--u) * 1.5); height: calc(var(--u) * 1.5); box-shadow: 0 0 calc(var(--u) * 0.7) var(--c); }
+      .jg-front .jg-body { gap: calc(var(--u) * 0.1); }
+      .jg-front .jg-seat { width: calc(var(--u) * 1.3); height: calc(var(--u) * 1.3); font-size: calc(var(--u) * 0.75); margin-right: calc(var(--u) * 0.3); background: rgba(255, 255, 255, 0.08); }
+      .jg-front .jg-swatch { padding: calc(var(--u) * 0.22); }
+      .jg-front .jg-swatch i { width: calc(var(--u) * 1.3); height: calc(var(--u) * 1.3); box-shadow: 0 0 calc(var(--u) * 0.5) var(--a); }
+      .jg-front .jg-swatch.on i { box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.75), 0 0 calc(var(--u) * 0.9) var(--a); }
+      .jg-front .jg-swatch span { display: none; }
+      .jg-front .jg-lock svg { width: calc(var(--u) * 1.8); height: calc(var(--u) * 1.8); }
+      /* the one clear action: play, warm, breathing slowly */
+      .jg-front .jg-go { opacity: 1; width: calc(var(--u) * 4); height: calc(var(--u) * 4); border-radius: 50%; display: grid; place-items: center; padding: 0;
+        color: #ffd68a; background: radial-gradient(circle, rgba(255, 190, 110, 0.22), rgba(255, 150, 80, 0.06) 70%); box-shadow: 0 0 calc(var(--u) * 1.4) rgba(255, 170, 90, 0.35);
+        animation: jg-breath 3.4s ease-in-out infinite; }
+      .jg-front .jg-go svg { width: 46% !important; height: 46% !important; margin-left: 8%; }
+      .jg-front .jg-go:hover, .jg-front .jg-go:focus-visible { background: radial-gradient(circle, rgba(255, 200, 120, 0.36), rgba(255, 150, 80, 0.1) 70%); }
+      @keyframes jg-breath { 50% { box-shadow: 0 0 calc(var(--u) * 2.4) rgba(255, 170, 90, 0.6); } }
+      /* tall and narrow (a phone held upright): the strip stacks, play beside the modes */
+      @media (max-aspect-ratio: 1/1), (max-width: 720px) {
+        .jg-front { --u: clamp(11px, 3vw, 17px); grid-template-areas: "modes foot" "worlds worlds" "bodies bodies" "online online"; column-gap: calc(var(--u) * 1); row-gap: calc(var(--u) * 0.9);
+          justify-items: center; width: max-content; }
+        .jg-front .jg-mode svg { width: calc(var(--u) * 2); height: calc(var(--u) * 2); }
+        .jg-front .jg-go { width: calc(var(--u) * 3.4); height: calc(var(--u) * 3.4); }
+      }
+
+      /* short and wide (a phone on its side): the strip smaller and lower, so the dancers stand clear of it */
+      @media (max-height: 520px) and (min-aspect-ratio: 1/1) {
+        .jg-front { --u: clamp(8px, 2.3vh, 12px); bottom: max(6px, env(safe-area-inset-bottom)); padding: calc(var(--u) * 0.5) calc(var(--u) * 1.1) calc(var(--u) * 0.9); }
+      }
+
+      /* the lobby and the room's code: low, beside the dancers, never across them */
+      .jg-lobby { left: 50%; bottom: max(28px, env(safe-area-inset-bottom)); transform: translateX(-50%); display: flex; gap: 18px; }
+      .jg-card { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 12px 16px; border-radius: 18px; background: rgba(12, 9, 20, 0.34);
+        border: 1px solid rgba(255, 255, 255, 0.07); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); opacity: 0.6; transition: opacity 0.3s; }
       .jg-card.on { opacity: 1; }
-      .jg-card .jg-dev { width: 56px; height: 56px; }
+      .jg-card .jg-dev { width: 44px; height: 44px; }
       .jg-card:not(.on) .jg-dev { animation: jg-breathe 1.6s ease-in-out infinite; }
       @keyframes jg-breathe { 50% { transform: scale(0.9); opacity: 0.6; } }
       .jg-waiting { right: 18px; top: 18px; display: flex; gap: 10px; align-items: center; padding: 8px 12px; border-radius: 16px; background: rgba(10, 8, 18, 0.5); }
       .jg-waiting .jg-dev { width: 26px; height: 26px; animation: jg-breathe 1.6s ease-in-out infinite; }
       .jg-share { flex-direction: row; opacity: 0.9; } .jg-share svg { width: 22px; height: 22px; } .jg-share span { font: 600 15px ui-monospace, monospace; letter-spacing: 0.2em; text-transform: none; }
-      @media (max-width: 520px) { .jg-mode { width: 60px; } .jg-mode svg { width: 36px; height: 36px; } .jg-front { padding: 12px 10px; gap: 10px; } }
+      @media (prefers-reduced-motion: reduce) { body::before, .jg-front .jg-go, .jg-swatch i { animation: none; } }
     </style>
     <script type="module" src="/src/main.ts"></script>
   </head>
   <body>
-    <canvas id="stage" aria-label="Dancers made of matter. Move the pointer through them, hold and let go, drag to turn the camera."></canvas>
-    <p id="status">loading</p>
+    <canvas id="stage" aria-label="Two dancers made of matter. Press any key or tap to dance with them; drag to turn the camera."></canvas>
+    <p id="status"></p>
   </body>
 </html>

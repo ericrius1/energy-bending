@@ -18,6 +18,7 @@ import shelfShader from './shelves.wgsl';
 import crystalShader from './crystals.wgsl';
 import { layoutShelves, packBlades, solidsOfShelves } from './shelves';
 import { clearOf, type Solid } from '../solids';
+import { HUB_GATES, hubParams } from './gates';
 import { stagePlane, spawnsOf } from '../stage';
 import type { Grade, Fixture, PortalDef, World, WorldCtx } from '../world';
 import type { ScenePass } from '../../engine/scene';
@@ -102,6 +103,8 @@ export class Geode implements World {
   private blades: ReturnType<typeof layoutShelves>['blades'];
   private bladeBuf: ReturnType<WorldCtx['kit']['storage']>;
   private points: ReturnType<typeof layoutShelves>['points'];
+  /** the first of the high blade's blades (the last in the list; the front of the game leaves it out) */
+  private high = 0;
   private pointBuf: ReturnType<WorldCtx['kit']['storage']>;
   /** each gate's xz, its path's half width, its world's tint */
   private gates: number[];
@@ -113,13 +116,12 @@ export class Geode implements World {
     if (ctx.coarse) Object.assign(P, { caveStones: 1000, motes: 700 });
     this.u = lightSlot(ctx.kit, 'geode');
     this.shared = {};
-    // the hub's gates, one to each world, round the floor facing the middle (the stage's shelves behind, the
-    // director's shots in front, the wall's crystals well clear of a 1.3 m disc)
-    const gate = (id: string, world: string, x: number, z: number): PortalDef => {
-      const l = Math.hypot(x, z);
-      return { id: `geode.${id}`, at: [x, 1.35, z], normal: [-x / l, 0, -z / l], radius: 1.25, to: { world, portal: `${world}.geode` } };
+    // the hub's gates (HUB_GATES), one to each world
+    const gate = (world: string): PortalDef => {
+      const [x, z] = HUB_GATES[world], l = Math.hypot(x, z);
+      return { id: `geode.${world}`, at: [x, 1.35, z], normal: [-x / l, 0, -z / l], radius: 1.25, to: { world, portal: `${world}.geode` } };
     };
-    this.portals = [gate('pool', 'pool', -6.0, 3.0), gate('temple', 'temple', 6.0, 3.0), gate('forge', 'forge', -2.9, 6.0), gate('redwoods', 'redwoods', 2.9, 6.0)];
+    this.portals = ['pool', 'temple', 'forge', 'redwoods'].map(gate);
     // each gate's setting: a ring of crystals in its world's colour round the disc, a worn path to it across the floor
     const tints = ['pool', 'temple', 'forge', 'redwoods'];
     const sites = this.portals.map((p) => ({ at: p.at, normal: p.normal, radius: p.radius, tint: Math.max(0, tints.indexOf(p.to.world)) }));
@@ -131,6 +133,7 @@ export class Geode implements World {
     this.bladeBuf = ctx.kit.storage({ label: 'geode.shelves', data: packBlades(this.blades), usage: ['storage'] });
     this.points = shelves.points;
     this.solids = solidsOfShelves(this.blades, this.points);
+    this.high = shelves.high;
     this.pointBuf = ctx.kit.storage({ label: 'geode.crystals', data: packBlades(this.points), usage: ['storage'] });
     this.stages = [stagePlane({
       id: 'centre', origin: [0, 0, 0], right: [1, 0, 0], halfWidth: 5.75, ground: 0, ledges: shelves.ledges,
@@ -176,7 +179,7 @@ export class Geode implements World {
     if (s.world !== this) return;
     if (s.phase === 'backdrop') s.pass.fullscreen(backdropShader, { label: 'geode.backdrop', enabled: s.on });
     else if (s.phase === 'opaque') {
-      s.pass.draw(shelfShader, { label: 'geode.shelves', bind: { blades: this.bladeBuf }, count: 8 * 6 * 6 + 48, instances: this.blades.length, cull: 'none', enabled: () => s.on() && geodeParams.shelves });
+      s.pass.draw(shelfShader, { label: 'geode.shelves', bind: { blades: this.bladeBuf }, count: 8 * 6 * 6 + 48, instances: () => (hubParams.highBlade ? this.blades.length : this.high), cull: 'none', enabled: () => s.on() && geodeParams.shelves });
       s.pass.draw(crystalShader, { label: 'geode.crystals', bind: { points: this.pointBuf }, count: 54, instances: this.points.length, cull: 'none', enabled: () => s.on() && geodeParams.shelves });
     } else if (s.phase === 'glow') {
       s.pass.draw(moteShader, { label: 'geode.motes', count: 6, instances: () => geodeParams.motes, blend: 'add', depthWrite: false, cull: 'none', enabled: s.on });

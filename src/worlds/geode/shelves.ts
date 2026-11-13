@@ -81,7 +81,9 @@ export function layoutShelves(o: { caveRadius: number; gates?: GateSite[]; seed?
     druse(side * 7.7, 0, y + 1.3, 6, 0.8, 4, 0.55);
     cluster(side * 6.9, y, 0, -side * Math.PI / 2);
   }
-  // the high blade: out of a tall druse behind the middle, 0.7 m past the plane
+  // the high blade: out of a tall druse behind the middle, 0.7 m past the plane (it and its cluster are the last blades:
+  // the front of the game draws the ones before high only)
+  const high = blades.length;
   const hy = 3.1, hw = 2.2, hz = -4.4;
   raft([0, hy, hz], 0, [1, 0], hw, 0.7 - hz);
   ledges.push({ id: 'shelfC', x0: -hw / 2, x1: hw / 2, y: hy, thick: 0.5 });
@@ -115,7 +117,7 @@ export function layoutShelves(o: { caveRadius: number; gates?: GateSite[]; seed?
       }
     }
   }
-  return { ledges, blades, points };
+  return { ledges, blades, points, high };
 }
 
 export function packBlades(blades: Blade[]) {
