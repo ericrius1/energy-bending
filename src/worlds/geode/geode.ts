@@ -18,7 +18,7 @@ import shelfShader from './shelves.wgsl';
 import crystalShader from './crystals.wgsl';
 import { layoutShelves, packBlades } from './shelves';
 import { stagePlane, spawnsOf } from '../stage';
-import type { Fixture, PortalDef, World, WorldCtx } from '../world';
+import type { Grade, Fixture, PortalDef, World, WorldCtx } from '../world';
 import type { ScenePass } from '../../engine/scene';
 import type { FrameCtx } from '../../engine/frame';
 import type { StagePlane } from '../../engine/camera';
@@ -89,6 +89,10 @@ export class Geode implements World {
   readonly spawns: [number, number, number][];
   readonly fixtures: Fixture[];
   readonly mirrorFloor = true;
+  /** its colour (src/post/grade.ts): violet in the shadows, a warm white in the light, blacks kept for the bokeh
+   *  (the world agent's proposal, docs/reports/4-worlds-hub-pool-forge.md, in the hook's terms; its vignette 0.25 is
+   *  not per world yet) */
+  readonly grade: Grade = { lift: [0.004, 0.002, 0.008], shadows: [0.95, 0.92, 1.08], highlights: [1.02, 0.975, 0.92], saturation: 1.1, contrast: 1.05 };
   readonly maxDist = 14;
   private u: LightSlot<GeodeU>;
   private pool = [0, 0, 2.2, 0];

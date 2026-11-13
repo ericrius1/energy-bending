@@ -10,7 +10,7 @@ import { lightSlot, type LightSlot } from '../shared';
 import backdropShader from './backdrop.wgsl';
 import slabShader from './slabs.wgsl';
 import emberShader from './embers.wgsl';
-import type { PortalDef, World, WorldCtx } from '../world';
+import type { Grade, PortalDef, World, WorldCtx } from '../world';
 import type { ScenePass } from '../../engine/scene';
 import type { FrameCtx } from '../../engine/frame';
 import { defineParams, hex, onParams } from '../../engine/params';
@@ -68,6 +68,9 @@ export class Forge implements World {
   readonly spawns: [number, number, number][];
   readonly fixtures = [];
   readonly mirrorFloor = false;
+  /** its colour (src/post/grade.ts): maroon-violet shadows, orange-gold light (docs/reports/4-worlds-hub-pool-forge.md,
+   *  in the hook's terms; its vignette 0.2 and the pull of greens toward cyan are not in the hook yet) */
+  readonly grade: Grade = { lift: [0.004, 0.001, 0.004], shadows: [1.04, 0.92, 1.02], highlights: [1.04, 0.96, 0.85], saturation: 1.05, contrast: 1.1 };
   readonly room = 24;
   readonly maxDist = 22;
   readonly layout: ForgeLayout;

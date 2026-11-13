@@ -50,11 +50,13 @@ export const waterParams = defineParams('water', {
   /** how much the field's wind pushes spray */
   wind: 1,
   /** how fast a particle changes state (1/s), the field heat above which ice melts and water boils away, and the
-   *  cold below which water freezes */
+   *  cold below which water freezes. From the field's measured values (docs/reports/4-steam.md): a body's surface
+   *  reads about ±0.6, 0.3 m out about ±0.08, a metre out nothing; so 0.05 reacts to a flame or ice within ~30 cm, and
+   *  boiling away grows with the heat past it (fast only where they touch, heat > 0.3) */
   freezeRate: 1.6,
-  meltHeat: 0.45,
-  boilHeat: 0.75,
-  freezeCold: 0.25,
+  meltHeat: 0.05,
+  boilHeat: 0.05,
+  freezeCold: 0.05,
   // the surface
   /** a particle's sphere, × its home's size */
   radius: 4.2,

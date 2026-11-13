@@ -13,7 +13,7 @@ import type { Temple as TempleU } from '../light.wgsl';
 import { lightSlot, type LightSlot } from '../shared';
 import backdropShader from './backdrop.wgsl';
 import stoneShader from './stones.wgsl';
-import type { PortalDef, World, WorldCtx } from '../world';
+import type { Grade, PortalDef, World, WorldCtx } from '../world';
 import type { ScenePass } from '../../engine/scene';
 import type { FrameCtx } from '../../engine/frame';
 import { defineParams, hex, onParams } from '../../engine/params';
@@ -99,6 +99,9 @@ export class Temple implements World {
   readonly spawns: [number, number, number][];
   readonly fixtures = [];
   readonly mirrorFloor = false;
+  /** its colour (src/post/grade.ts): cool teal-blue shadows, warm highlights, a little less saturation so the stone
+   *  stays stone (docs/reports/4-worlds-redwoods-temple.md; its vignette 0.3 is not per world yet) */
+  readonly grade: Grade = { lift: [0, 0.006, 0.016], gamma: [1.0, 1.0, 1.02], gain: [1.03, 1.0, 0.95], saturation: 0.92, contrast: 1.1 };
   readonly room = 16;
   readonly maxDist = 18;
   readonly layout: TempleLayout;

@@ -1,5 +1,7 @@
 // The critic's capture helper: a staged scene, frame by frame, as JPEG stills, an MP4 and a contact sheet.
-//   node scripts/critic-cap.mjs scripts/steps/critic-<name>.json [--only a,b] [--url URL]
+//   node scripts/critic-cap.mjs scripts/steps/critic-<name>.json [--only a,b] [--url URL] [--prefix 5] [--shots shots/x] [--fps 10]
+// (--prefix names the media `<prefix>-…` instead of `3-…`, so a re-shoot doesn't overwrite the critic's; --shots is
+// where the frames and timings.jsonl go)
 // A file is a list of takes. A take: { name, query?, size?: 'WxH', fps?: 30, seconds, setup?: js, cues?: { "<s>": js },
 //   each?: js (run every output frame with `t` in seconds), warm?: frames stepped after setup before frame 0,
 //   sheet?: { cols, rows, width }, stills?: [seconds…] (kept full size), timings?: true (profiler over 150 frames at the
@@ -22,7 +24,8 @@ const takes = JSON.parse(readFileSync(pos[0], 'utf8'));
 const only = opts.only ? new Set(opts.only.split(',')) : null;
 const BASE = opts.url ?? 'http://[::1]:5396/energybending/';
 const MEDIA = 'docs/reports/media';
-mkdirSync(join(MEDIA, '3-film'), { recursive: true });
+const PRE = opts.prefix ?? '3', SHOTS = opts.shots ?? 'shots/critic';
+mkdirSync(join(MEDIA, `${PRE}-film`), { recursive: true });
 
 const release = await takeLock();
 let browser = null, size = null;
@@ -50,10 +53,10 @@ try {
       if (tk.setup) await new Function('bend', `return (async () => { ${tk.setup} })()`)(window.bend);
       await window.bend.step(Math.max(1, tk.warm ?? 0));
     }, tk);
-    const dir = join('shots/critic', tk.name);
+    const dir = join(SHOTS, tk.name);
     rmSync(dir, { recursive: true, force: true });
     mkdirSync(dir, { recursive: true });
-    const fps = tk.fps ?? 30, n = Math.round(tk.seconds * fps), per = Math.max(1, Math.round(60 / fps));
+    const fps = Number(opts.fps ?? 0) || (tk.fps ?? 30), n = Math.round(tk.seconds * fps), per = Math.max(1, Math.round(60 / fps));
     const cues = Object.entries(tk.cues ?? {}).map(([s, js]) => [Number(s), js]).sort((a, b) => a[0] - b[0]);
     let ci = 0;
     const t1 = Date.now();
@@ -76,13 +79,13 @@ try {
     if (st.failed || st.errors.length) problems.push(`${tk.name} stats ${JSON.stringify(st)}`);
     await page.close();
     // the film, the sheet, the stills
-    spawnSync('ffmpeg', ['-y', '-loglevel', 'error', '-framerate', String(fps), '-i', join(dir, 'f%04d.jpg'), '-c:v', 'libx264', '-crf', '18', '-pix_fmt', 'yuv420p', join(MEDIA, '3-film', `${tk.name}.mp4`)], { stdio: 'inherit' });
+    spawnSync('ffmpeg', ['-y', '-loglevel', 'error', '-framerate', String(fps), '-i', join(dir, 'f%04d.jpg'), '-c:v', 'libx264', '-crf', '18', '-pix_fmt', 'yuv420p', join(MEDIA, `${PRE}-film`, `${tk.name}.mp4`)], { stdio: 'inherit' });
     const sh = tk.sheet ?? { cols: 4, rows: 4, width: 480 };
     const every = Math.max(1, Math.floor(n / (sh.cols * sh.rows)));
-    spawnSync('ffmpeg', ['-y', '-loglevel', 'error', '-i', join(dir, 'f%04d.jpg'), '-vf', `select='not(mod(n\\,${every}))',scale=${sh.width}:-1,tile=${sh.cols}x${sh.rows}:padding=4:color=white`, '-frames:v', '1', '-q:v', '3', join(MEDIA, `3-${tk.name}-sheet.jpg`)], { stdio: 'inherit' });
+    spawnSync('ffmpeg', ['-y', '-loglevel', 'error', '-i', join(dir, 'f%04d.jpg'), '-vf', `select='not(mod(n\\,${every}))',scale=${sh.width}:-1,tile=${sh.cols}x${sh.rows}:padding=4:color=white`, '-frames:v', '1', '-q:v', '3', join(MEDIA, `${PRE}-${tk.name}-sheet.jpg`)], { stdio: 'inherit' });
     for (const s of tk.stills ?? []) {
       const f = Math.min(n - 1, Math.round(s * fps));
-      copyFileSync(join(dir, `f${String(f).padStart(4, '0')}.jpg`), join(MEDIA, `3-${tk.name}-${String(s).replace('.', 'p')}.jpg`));
+      copyFileSync(join(dir, `f${String(f).padStart(4, '0')}.jpg`), join(MEDIA, `${PRE}-${tk.name}-${String(s).replace('.', 'p')}.jpg`));
     }
   }
   if (browser) { const p = await browser.newPage(); console.log('adapter:', await adapterName(p)); }
@@ -103,6 +106,6 @@ async function timings(page, name) {
     return { passes: [...k.profiler.ms].sort((a, b) => b[1] - a[1]), frame: k.profiler.frameMs, render: [...k.size.render] };
   });
   console.log(`  timings ${name}: gpu frame ${t.frame.toFixed(3)} ms at ${t.render.join('x')}; top: ${t.passes.slice(0, 8).map(([l, v]) => `${l} ${v.toFixed(2)}`).join(', ')}`);
-  mkdirSync('shots/critic', { recursive: true });
-  writeFileSync('shots/critic/timings.jsonl', JSON.stringify({ name, ...t }) + '\n', { flag: 'a' });
+  mkdirSync(SHOTS, { recursive: true });
+  writeFileSync(join(SHOTS, 'timings.jsonl'), JSON.stringify({ name, ...t }) + '\n', { flag: 'a' });
 }

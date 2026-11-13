@@ -94,8 +94,10 @@ fn main(@builtin(global_invocation_id) gid: vec3u) {
     }
     // born again at home
     let speed = length(H.vel);
-    let wet = clamp(fieldWet(H.pos), 0.0, 1.0);
-    let cold = clamp(-fieldHeat(H.pos), 0.0, 1.0);
+    // the field's wet and cold, from where they start to tell (0.05: within ~30 cm of water or ice) to touching and
+    // past (0.6 is a body's own surface; docs/reports/4-steam.md has the measured values)
+    let wet = smoothstep(0.05, 0.6, fieldWet(H.pos));
+    let cold = smoothstep(0.05, 0.6, -fieldHeat(H.pos));
     let r1 = rnd(rn ^ 0xa1u);
     let r2 = rnd(rn ^ 0xa2u);
     let r3 = rnd(rn ^ 0xa3u);

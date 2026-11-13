@@ -19,7 +19,7 @@ import flowerShader from './flowers.wgsl';
 import fernShader from './ferns.wgsl';
 import lanternShader from './lanterns.wgsl';
 import pollenShader from './pollen.wgsl';
-import type { PortalDef, World, WorldCtx } from '../world';
+import type { Grade, PortalDef, World, WorldCtx } from '../world';
 import type { ScenePass } from '../../engine/scene';
 import type { FrameCtx } from '../../engine/frame';
 import type { StagePlane } from '../../engine/camera';
@@ -70,6 +70,9 @@ export class Redwoods implements World {
   readonly stage: RedwoodsStage;
   readonly fixtures = [];
   readonly mirrorFloor = false;
+  /** its colour (src/post/grade.ts): warm, slightly lifted shadows (the mist's glow), highlights held back from yellow
+   *  (docs/reports/4-worlds-redwoods-temple.md; its vignette 0.25 and the night's variant are not in the hook yet) */
+  readonly grade: Grade = { lift: [0.010, 0.006, 0.004], gamma: [1.0, 0.98, 0.96], gain: [1.02, 1.0, 0.96], saturation: 1.05, contrast: 1.06 };
   readonly room = ROOM;
   readonly maxDist = ROOM;
   readonly woods: Woods;

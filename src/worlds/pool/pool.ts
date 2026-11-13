@@ -9,7 +9,7 @@
 import type { Pool as PoolU } from '../light.wgsl';
 import { lightSlot, type LightSlot } from '../shared';
 import backdropShader from './backdrop.wgsl';
-import type { PortalDef, World, WorldCtx } from '../world';
+import type { Grade, PortalDef, World, WorldCtx } from '../world';
 import type { ScenePass } from '../../engine/scene';
 import type { FrameCtx } from '../../engine/frame';
 import { defineParams, hex, onParams } from '../../engine/params';
@@ -78,6 +78,9 @@ export class Pool implements World {
   readonly spawns: [number, number, number][];
   readonly fixtures = [];
   readonly mirrorFloor = false;
+  /** its colour (src/post/grade.ts): night blue in the shadows, the moon's warmth in the light, the water kept black
+   *  (docs/reports/4-worlds-hub-pool-forge.md, in the hook's terms; its vignette 0.35 is not per world yet) */
+  readonly grade: Grade = { lift: [0.002, 0.003, 0.008], shadows: [0.94, 0.96, 1.12], highlights: [1.03, 0.98, 0.9], saturation: 0.9, contrast: 1.15 };
   readonly room = 40;
   readonly maxDist = 16;
   private u: LightSlot<PoolU>;

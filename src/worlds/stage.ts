@@ -26,6 +26,10 @@ export interface StageDef {
   height?: number;
   /** the lens the locked camera prefers here (degrees; default camera.lockLens) */
   lens?: number;
+  /** the locked camera's composed angle here: turned this far off square-on and looking this far down (rad; default
+   *  camera.lockYaw, lockPitch) */
+  yaw?: number;
+  pitch?: number;
 }
 
 export function stagePlane(d: StageDef): StagePlane {
@@ -34,7 +38,7 @@ export function stagePlane(d: StageDef): StagePlane {
   const top = Math.max(0, ...d.ledges.map((x) => x.y + (x.bob ?? 0)));
   return {
     id: d.id, origin: d.origin, right, halfWidth: d.halfWidth, height: d.height ?? Math.max(3, top + 1.4),
-    ground: d.ground, ledges: d.ledges, spawns: d.spawns, lens: d.lens,
+    ground: d.ground, ledges: d.ledges, spawns: d.spawns, lens: d.lens, yaw: d.yaw, pitch: d.pitch,
   };
 }
 
