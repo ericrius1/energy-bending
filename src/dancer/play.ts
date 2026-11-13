@@ -24,7 +24,7 @@ import { InputHub, type Player } from '../input/hub';
 import { CameraSource } from '../input/camera';
 import { TouchPad } from '../input/touch-pad';
 import { BotSource, type TouchSource } from '../input/touch';
-import { defineParams } from '../engine/params';
+import { defineParams, setParams } from '../engine/params';
 
 export interface PlayCtx {
   show: Show;
@@ -44,6 +44,8 @@ export const playParams = defineParams('play', {
   /** the gem suites players one and two wear */
   suiteOne: 'Violet',
   suiteTwo: 'Sky',
+  /** the gems' spring while playing (see playDemo) */
+  gemStiffness: 700,
 });
 
 /** ledges for a stage plane that has none (m, in the plane's own coordinates): two low ones to either side, a high one
@@ -72,6 +74,9 @@ export async function playDemo(ctx: PlayCtx): Promise<PlayHandle> {
   // a game runs in real time (the gem show's dance is slowed, as if under water) and doesn't move on by itself
   danceParams.speed = 1;
   danceParams.auto = false;
+  // and its bodies move fast (a 9.5 m/s jump, a 4 m/s run, a spin in a third of a second): the gems' springs, tuned for
+  // a slow underwater dance (130, an 0.8 m lag at jump speed), are stiffened so the body stays a body, and shed less
+  try { setParams('gems', { stiffness: playParams.gemStiffness, damping: 2 * Math.sqrt(playParams.gemStiffness) * 0.9, speedShed: 0.04 }); } catch { /* no gems */ }
   // the CMU pirouette as a flourish (spin with the stick up; bend.move(p, 'pirueta'))
   const flourish = pirouetteFlourish(ctx.motion);
   if (flourish && !MOVES[flourish.name]) registerMove(flourish);
