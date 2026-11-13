@@ -79,7 +79,7 @@ export class Hud {
     if (st.phase === 'over' && st.ready[s as 0 | 1]) G.flat(p, R * 1.25, [1.5, 1.35, 0.9], 0.9 * gain, 'ring');
     for (const q of this.pulses) if (q.seat === s) {
       const u = (this.t - q.t) / 0.8;
-      G.flat(p, R + u * 1.1, [1.6, 1.3, 0.6], 1.3 * (1 - u) * (1 - u) * gain, 'ring');
+      G.flat(p, R + u * 0.55, [1.6, 1.3, 0.6], 0.7 * (1 - u) * (1 - u) * gain, 'ring');
     }
   }
 

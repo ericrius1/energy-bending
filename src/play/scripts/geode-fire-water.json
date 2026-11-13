@@ -23,7 +23,14 @@
     { "at": 25, "seat": 1, "move": "martelo" }, { "at": 25, "seat": 0, "press": "dodge", "hold": { "moveY": -1 }, "for": 0.6 },
     { "at": 27, "seat": 0, "move": "armada" }, { "at": 27.5, "seat": 1, "press": "dodge", "hold": { "moveY": -1 }, "for": 0.6 },
     { "at": 29, "seat": 0, "goto": -0.16 }, { "at": 29, "seat": 1, "goto": 0.16 },
-    { "at": 29.5, "seat": "both", "hold": { "merge": true }, "for": 42 },
+    { "at": 29.5, "seat": "both", "hold": { "merge": true }, "for": 4 },
+    { "at": 33, "seat": 0, "goto": -0.42 }, { "at": 33, "seat": 1, "goto": 0.42 },
+    { "at": 36, "seat": "both", "move": "spin" },
+    { "at": 40, "seat": "both", "move": "macaco" },
+    { "at": 44, "seat": 0, "move": "spin" }, { "at": 45, "seat": 1, "move": "spin" },
+    { "at": 48, "seat": 0, "goto": -0.3 }, { "at": 48, "seat": 1, "goto": 0.3 },
+    { "at": 52, "seat": "both", "move": "spin" },
+    { "at": 56, "seat": "both", "move": "macaco" },
     { "at": 76, "seat": 0, "goto": -0.7 }, { "at": 76, "seat": 1, "goto": 0.7 }
   ]
 }

@@ -25,7 +25,7 @@ export const jogoParams = defineParams('jogo', {
   hudLocked: 1,
   hudFree: 0.45,
   /** fusion: how far (m) the locked view stands back, and how fast the free camera orbits (rad/s) */
-  fusionPad: 1.6,
+  fusionPad: 0.9,
   fusionOrbit: 0.12,
   /** how strongly the fusion's vortex turns the air (m/s at its core) */
   vortex: 4.5,

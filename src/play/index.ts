@@ -177,8 +177,9 @@ export async function startJogo(app: PlayApp, mode: string) {
   const beatNow = () => { const m = room.state?.music; return m ? beatAt(m, room.now()) : 0; };
   const judge = (_seat: number) => {
     const st = room.state;
-    // as heard, when the music follows the room's clock; else the room's grid at this instant (stepped, filming)
-    if (music.live && music.clock.synced) return music.beatError(music.heardTime(), RULES.PERFECT_GRID);
+    // as heard, when the music follows the room's clock live; else the room's grid at this instant (stepped by hand:
+    // a capture, a film, where the audio's clock is the page's and not the frames')
+    if (music.live && music.clock.synced && !kit.manual) return music.beatError(music.heardTime(), RULES.PERFECT_GRID);
     return st ? gridError(st.music, room.now(), RULES.PERFECT_GRID) : 999;
   };
   const builder = new JogoBuilder(bodies, () => room.now(), plane);

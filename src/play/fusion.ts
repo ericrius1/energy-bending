@@ -176,7 +176,7 @@ export class Fusion {
   private streams(now: number, u: number, a: V3, b: V3) {
     const G = this.ctx.glows, C = this.centre, pal = FUSION_COLOURS[this.kind!];
     const A = this.ctx.dancer(0), B = this.ctx.dancer(1);
-    const t = now / 1000, N = 220;
+    const t = now / 1000, N = 180;
     const env = smooth(u / 0.08) * (1 - smooth((u - 0.9) / 0.1));
     // the landing's flash
     const fl = (now - this.flashAt) / 900;
@@ -190,11 +190,13 @@ export class Fusion {
       // out of one body, round the centre twice, into the other: the radius swells in the middle
       const base = lerp3(S, D, smooth(s));
       const ang = hash(i * 1.7) * 6.283 + t * (1.2 + 0.6 * hash(i)) + s * 12.566 * (from ? -1 : 1);
-      const R = (0.35 + 0.45 * hash(i * 5.3)) * Math.sin(Math.PI * s);
+      const R = (0.55 + 0.75 * hash(i * 5.3)) * Math.sin(Math.PI * s);
       const p: V3 = [base[0] + (C[0] - base[0]) * 0.5 * Math.sin(Math.PI * s) + Math.cos(ang) * R, base[1] + Math.sin(Math.PI * s) * (0.15 + 0.4 * hash(i * 2.2)), base[2] + (C[2] - base[2]) * 0.5 * Math.sin(Math.PI * s) + Math.sin(ang) * R];
       const cA = COLOURS[this.el(from)], cB = COLOURS[this.el(1 - from)], mid = pal[i % pal.length];
       const col = s < 0.5 ? mixRGB(cA, mid, smooth(s * 2)) : mixRGB(mid, cB, smooth(s * 2 - 1));
-      G.dot(p, 0.022 + 0.012 * hash(i * 9), col, 1.5 * env * Math.sin(Math.PI * s), i % 5 ? 'spark' : 'soft');
+      // a short streak along its way round, so the streams read as flowing, not as a cloud of points
+      const q: V3 = [p[0] - Math.sin(ang) * 0.06 * (from ? -1 : 1), p[1], p[2] + Math.cos(ang) * 0.06 * (from ? -1 : 1)];
+      G.seg(q, p, 0.014 + 0.01 * hash(i * 9), col, 1.1 * env * Math.sin(Math.PI * s), 'soft');
     }
     // the shared centre burns quietly
     G.dot(C, 0.16, mixRGB(pal[0], [1.4, 1.4, 1.4], 0.5), 0.8 * env, 'soft');
