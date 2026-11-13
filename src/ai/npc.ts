@@ -50,7 +50,7 @@ export function rodaSpot(p: StagePlane, place: RodaPlace, at: number, room: numb
   return [p.origin[0] + p.right[0] * s + n[0] * d, p.origin[2] + p.right[2] * s + n[2] * d];
 }
 
-type Mode = 'wander' | 'dance' | 'watch' | 'roda' | 'travel';
+type Mode = 'wander' | 'dance' | 'watch' | 'roda' | 'travel' | 'buy';
 
 export class NpcBrain implements Brain {
   readonly name: string;
@@ -69,6 +69,12 @@ export class NpcBrain implements Brain {
   private answered = new Set<string>();
   private phraseAt = -Infinity;
 
+  /** the ring's clapping: which four-bar stretch it decided for, and whether it claps in it */
+  private clapStretch = -1;
+  private clapping = false;
+  /** where it is walking in to buy the game (world x, z), and where it came from */
+  private buyAt: [number, number] | null = null;
+  private wasMode: Mode = 'wander';
   constructor(o: { seed?: number; params?: Partial<NpcParams>; clips?: ClipLibrary | null; roda?: RodaPlace | null; name?: string } = {}) {
     this.p = { ...NPC_DEFAULTS, ...o.params };
     this.mind = new Mind(o.seed ?? 7);
@@ -82,14 +88,16 @@ export class NpcBrain implements Brain {
   think(s: Sight): Intent {
     const m = this.mind, b = this.body, c = s.self;
     this.home ??= [c.x, c.z];
-    b.flourish = null; b.lookAt = null; b.groove = 0.45 + 0.4 * this.p.energy; b.clipW = 0;
+    this.self = c;
+    b.flourish = null; b.lookAt = null; b.groove = 0.45 + 0.4 * this.p.energy; b.clipW = 0; b.low = 0;
     if (b.clip && this.mode !== 'dance' && this.mode !== 'watch' && this.mode !== 'roda') b.clip = null;
     const jogo = this.jogo(s), strip = s.stage.stage ? { plane: s.stage.stage, margin: 1.25 } : null;
     // a new mood on a bar line
     const bar = Math.floor(s.beat / 4);
-    if (s.beat >= this.until && !this.roda) this.next(s, jogo, bar);
+    if (s.beat >= this.until && !this.roda && this.mode !== 'buy') this.next(s, jogo, bar);
     switch (this.mode) {
       case 'roda': this.inRoda(s, jogo, strip); break;
+      case 'buy': this.buying(s, jogo); break;
       case 'watch': if (jogo) this.watching(s, jogo); else this.until = s.beat; break;
       case 'dance': this.dancing(s); break;
       case 'travel':
@@ -112,9 +120,11 @@ export class NpcBrain implements Brain {
     // inside the world's room
     if (Math.hypot(c.x, c.z) > s.stage.room - 0.15) m.claim({ x: -c.x, z: -c.z, k: 0.6, walk: true, prio: 8, why: 'back inside' });
     // the floor is shared: round the stage's strip and round other bodies
-    avoid(s, m, strip, 0.9);
+    // (one buying the game walks into the roda: the strip is where it is going)
+    const keepOff = this.mode === 'buy' ? null : strip;
+    avoid(s, m, keepOff, 0.9);
     // never stand in the strip: out of it, to the near side, at once
-    if (strip && inStrip(strip.plane, c.x, c.z, strip.margin)) {
+    if (keepOff && strip && inStrip(strip.plane, c.x, c.z, strip.margin)) {
       const n = planeNormal(strip.plane), side = (c.x - strip.plane.origin[0]) * n[0] + (c.z - strip.plane.origin[2]) * n[2] >= 0 ? 1 : -1;
       m.claim({ x: n[0] * side, z: n[2] * side, k: 0.6, walk: true, prio: 9, why: 'off the stage' });
     }
@@ -158,7 +168,8 @@ export class NpcBrain implements Brain {
     b.clip = this.groove; b.clipW = this.groove ? 1 : 0;
     b.groove = 0.7 + 0.3 * this.p.energy;
     if (s.music.breakdown) { b.clipW = 0; b.groove = 0.25; return; }
-    if (m.waiting(0) || busyFor(c) > 0 || s.beat - this.phraseAt < 8) return;
+    // (not near the world's edge: a macaco or an aú travels a metre and a half)
+    if (m.waiting(0) || busyFor(c) > 0 || s.beat - this.phraseAt < 8 || Math.hypot(c.x, c.z) > s.stage.room - 2.2) return;
     if (!m.rng.chance(0.02 + 0.03 * this.p.energy)) return;
     this.phraseAt = s.beat;
     // a phrase: two or three moves a beat or two apart, a flourish to end it
@@ -184,7 +195,7 @@ export class NpcBrain implements Brain {
     if (d > 6) approach(s, m, at[0], at[2], { k: 0.7, walk: true, arrive: 5.5, why: 'to the jogo' });
     else if (d < 3.5) approach(s, m, c.x + (c.x - at[0]), c.z + (c.z - at[2]), { k: 0.5, walk: true, arrive: 0.2, why: 'back from the jogo' });
     b.clip = s.music.level > 0.4 ? this.groove : null; b.clipW = 0.55;
-    watch(s, m, at, m.rng.chance(this.p.clap * 0.05), 0.5 + 0.4 * s.music.level, b);
+    watch(s, m, at, this.claps(s), 0.5 + 0.4 * s.music.level, b);
     this.answer(s);
   }
 
@@ -200,14 +211,66 @@ export class NpcBrain implements Brain {
     if (there && gx === x) {
       if (!this.groove || s.beat >= this.until) { this.groove = this.pickGroove(s); this.until = s.beat + 16; }
       b.clip = s.music.level > 0.35 && !s.music.breakdown ? this.groove : null; b.clipW = 0.6;
-      watch(s, m, centre, m.rng.chance(this.p.clap * 0.06), 0.45 + 0.45 * s.music.level, b);
+      watch(s, m, centre, this.claps(s), 0.45 + 0.45 * s.music.level, b);
       this.answer(s);
     } else b.lookAt = null;
   }
 
-  /** a unison (or a fusion) in the jogo gets a flourish, on the next beat */
+  /** does it clap on this beat? The ring claps together in stretches (four bars of six, by the shared bar count, while
+   *  the music grooves), each member deciding per stretch whether it joins (more often the keener ones) */
+  private claps(s: Sight): boolean {
+    // (not while it has somewhere to go: a body in a move can't walk)
+    const c = s.self;
+    if (s.music.breakdown || s.music.level < 0.3 || Math.hypot(c.v[0], c.v[2]) > 0.3 || Math.hypot(c.x, c.z) > s.stage.room - 0.6) return false;
+    const stretch = Math.floor(s.beat / 24);
+    if (stretch !== this.clapStretch) { this.clapStretch = stretch; this.clapping = this.mind.rng.chance(0.45 + 0.8 * this.p.clap); }
+    return this.clapping && ((s.beat / 4) % 6) < 4;
+  }
+
+  /** buy the game: walk into the roda to `at` (a seat's spot, world x, z) and wait there in ginga, facing the one who
+   *  stays, until released (the game (src/play) seats it; this only walks it in). null, or release(), sends it back */
+  buy(at: [number, number] | null) {
+    if (!at) { this.release(); return; }
+    if (this.mode !== 'buy') this.wasMode = this.mode;
+    this.buyAt = at; this.mode = 'buy'; this.mind.cancel(() => true);
+  }
+  release() {
+    if (this.mode !== 'buy') return;
+    this.buyAt = null; this.mode = this.roda ? 'roda' : this.wasMode === 'buy' ? 'wander' : this.wasMode;
+  }
+  /** is it in, at the spot it was sent to? */
+  get bought() { const c = this.self; return !!(this.buyAt && c && Math.hypot(c.x - this.buyAt[0], c.z - this.buyAt[1]) < 0.4); }
+  private self: { x: number; z: number } | null = null;
+
+  private buying(s: Sight, jogo: V3 | null) {
+    const at = this.buyAt, b = this.body;
+    if (!at) { this.release(); return; }
+    // (in, briskly but walking; there, a ginga facing the jogo's middle, as a player waiting to be let in)
+    approach(s, this.mind, at[0], at[1], { k: 0.8, walk: true, arrive: 0.3, prio: 2, why: 'buy the game' });
+    b.lookAt = jogo; b.groove = 1; b.clip = null; b.clipW = 0;
+  }
+
+  /** a great exchange (a dodge under or round an attack, unhurt), a unison or a fusion in the jogo gets a cheer:
+   *  a jump with the arms up, a flourish or a quick double clap, on the next beat */
   private answer(s: Sight) {
     const r = s.rules, m = this.mind;
+    this.self = s.self;
+    for (const a of s.others) {
+      if (a.seat !== 0 && a.seat !== 1) continue;
+      const o = s.others.find((x) => x.seat === 1 - a.seat);
+      if (!o) continue;
+      for (const mv of a.moves) {
+        if (!mv.attack || mv.age > 1.4 || this.answered.has(`x${a.id}${mv.serial}`)) continue;
+        const ev = o.moves.find((x) => MOVES[x.name]?.evade && x.beat >= mv.beat - 0.25 && x.beat <= mv.beat + 1.5);
+        if (!ev || o.flags & 16 || mv.age < 0.8) continue;
+        this.answered.add(`x${a.id}${mv.serial}`);
+        if (!m.rng.chance(0.25 + 0.5 * this.p.energy) || busyFor(s.self) > 0) continue;
+        const sb = startBeat(s.beatPrev, s.beat), line = Math.ceil(sb + 0.3);
+        const pick = m.rng.next();
+        if (pick < 0.35 + 0.3 * this.p.energy && canStart(s.self, 'jump')) m.plan({ move: 'jump', line, late: 0.3, toward: [0, 1], prio: 2, why: 'cheer', hold: 0.25 });
+        else if (MOVES.palmas) { m.plan({ move: 'palmas', line: line - 0.25, late: 0.3, toward: [0, 1], prio: 2, why: 'cheer' }); m.plan({ move: 'palmas', line: line + 0.75, late: 0.3, toward: [0, 1], prio: 2, why: 'cheer' }); }
+      }
+    }
     if (!r) return;
     for (const e of r.events) {
       if (e.k !== 'unison' && e.k !== 'fusion') continue;

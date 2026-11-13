@@ -13,6 +13,7 @@ import type { StagePlane } from '../engine/camera';
 import type { Intent } from '../input/intent';
 import type { RulesEvent, Phase } from '../../shared/protocol.ts';
 import type { ClipGroove } from './clips';
+import type { Direction } from './direct';
 
 export type V3 = [number, number, number];
 
@@ -74,8 +75,9 @@ export interface RulesView {
   events: readonly RulesEvent[];
 }
 
-/** the music: its level 0 … 1 (the groove's 0 … 4 over 4) and whether it has fallen into a breakdown */
-export interface MusicView { level: number; breakdown: boolean }
+/** the music: its level 0 … 1 (the groove's 0 … 4 over 4), whether it has fallen into a breakdown, and the mood's
+ *  name when the page knows it (audio/harmony.ts: Ember, Midnight, Sunrise, Neon, Roda) */
+export interface MusicView { level: number; breakdown: boolean; mood?: string }
 
 /** everything a brain may know this frame */
 export interface Sight {
@@ -96,6 +98,8 @@ export interface Sight {
   partner: Other | null;
   stage: StageView;
   rules: RulesView | null;
+  /** a director's loose intentions for this dancer (direct.ts: a film timeline), or null: the brain's own */
+  direction?: Direction | null;
 }
 
 /** what an Intent can't say; the driver applies it before the body steps */
@@ -109,9 +113,13 @@ export interface BodyHints {
   clipW: number;
   /** where to face and look when standing (world), or null: the partner (the jogo's own lookAt) */
   lookAt: V3 | null;
+  /** 0 … 1: how low the ginga is (Angola's ginga baixa: hips down, knees open, toward the cocorinha) */
+  low: number;
+  /** dance time (s) at which this dancer's hands last met in a clap (-Infinity: never), for whatever lights it */
+  clapAt: number;
 }
 
-export const newHints = (): BodyHints => ({ flourish: null, groove: 1, clip: null, clipW: 0, lookAt: null });
+export const newHints = (): BodyHints => ({ flourish: null, groove: 1, clip: null, clipW: 0, lookAt: null, low: 0, clapAt: -Infinity });
 
 export interface Brain {
   readonly name: string;
@@ -132,6 +140,14 @@ export class Rng {
   }
   range(a: number, b: number) { return a + (b - a) * this.next(); }
   chance(p: number) { return this.next() < p; }
+  /** a standard normal draw (Box-Muller) */
+  normal() { const u = Math.max(1e-9, this.next()), v = this.next(); return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v); }
+  /** a human reaction time (s) about a median: log-normal (a tail of slow reads, no impossibly quick ones) of spread
+   *  `sigma`, kept within 0.65 … 2 × the median, and now and then (`lapse`) a moment's inattention on top */
+  reaction(median: number, sigma = 0.2, lapse = 0.05) {
+    const x = Math.min(median * 2, Math.max(median * 0.65, median * Math.exp(sigma * this.normal())));
+    return x + (this.next() < lapse ? this.range(0.1, 0.25) : 0);
+  }
   pick<T>(xs: readonly T[]): T { return xs[Math.min(xs.length - 1, Math.floor(this.next() * xs.length))]; }
   /** one of `xs` by weight */
   weighted<T>(xs: readonly T[], w: (x: T) => number): T | null {

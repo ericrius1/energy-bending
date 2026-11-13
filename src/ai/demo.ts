@@ -22,6 +22,7 @@ import type { Character } from '../dancer/character';
 import { LIMITS } from '../engine/limits';
 import { BotSource } from '../input/touch';
 import type { Brain, MusicView, RulesView, StageView } from './brain';
+import type { Direction } from './direct';
 import { Scene, type SceneBody } from './scene';
 import { BrainDriver } from './driver';
 import { JogoReferee } from './jogo';
@@ -64,9 +65,10 @@ class PageBrains {
 
   music(): MusicView {
     const m = this.ctx.music, e = m.engine;
-    if (!m.live && !this.ctx.query.has('film')) return { level: this.level, breakdown: false };
+    // (held for captures: &level=, and &mood= for the mood's name, Roda for the low game)
+    if (!m.live && !this.ctx.query.has('film')) return { level: this.level, breakdown: false, mood: this.ctx.query.get('mood') ?? e.mood?.name };
     if (e.level >= 2) this.grooved = true;
-    return { level: Math.min(1, e.level / 4 + 0.1), breakdown: e.level === 0 && this.grooved };
+    return { level: Math.min(1, e.level / 4 + 0.1), breakdown: e.level === 0 && this.grooved, mood: e.mood?.name };
   }
 
   stageFor(c: Character, d: Dancer | null): StageView {
@@ -168,6 +170,8 @@ export async function brainsPlay(ctx: BrainsCtx & { play: PlayHandle }) {
     if (query.has('roda')) {
       const n = Math.min(Number(query.get('roda') || 5) || 5, LIMITS.dancers - 2);
       const ring = rodaOf(n), w = ctx.world(), p = w.stages[0];
+      // (they wear their own gems: the show's dress names the two seats, and its last name would serve them too)
+      while (ctx.show.dress.length < Math.max(2, play.dancers.length) + n) ctx.show.dress.push('');
       for (let k = 0; k < n; k++) {
         // (they start a little out from their places and walk in)
         const spot = p ? rodaSpot(p, ring[k], 0, w.room) : [Math.cos(k) * 5, Math.sin(k) * 3] as [number, number];
@@ -179,6 +183,7 @@ export async function brainsPlay(ctx: BrainsCtx & { play: PlayHandle }) {
   }
   pb.referee = new JogoReferee([human.character, pb.seats[1].character], ctx.world().id, 0);
   installTicks(pb, ctx, () => play.dancers);
+  if (query.has('roda')) exposeRoda(pb, ctx);
   return pb;
 }
 
@@ -227,7 +232,37 @@ export async function rodaForJogo(ctx: BrainsCtx & { play: PlayHandle }, n: numb
     pb.scene.bodies = bodies;
     pb.scene.update({ t: f.t, dt: f.danceDt, beat: f.beat.beats, bpm: f.beat.bpm, music: pb.music(), rules: rules() });
   }, 'brains: the roda sees the jogo');
+  exposeRoda(pb, ctx);
   return pb;
+}
+
+/** the ring for the game and for films, as `bend.roda`: where each free dancer stands and what it is doing, buying the
+ *  game (one walks into the roda to a seat's spot, for the game to seat when it is ready: `buy(k, seat)`, `release(k)`),
+ *  and directing any dancer the brains see (`direct(id, direction)`, direct.ts). Not wired into src/play */
+function exposeRoda(pb: PageBrains, ctx: BrainsCtx) {
+  const api = {
+    npcs: () => pb.npcs.map((n) => ({ id: n.d.id, mode: (n.driver.brain as NpcBrain).mode, x: +n.c.character.x.toFixed(2), z: +n.c.character.z.toFixed(2), clapAt: n.driver.brain.body.clapAt })),
+    /** the nearest two free dancers stand this far apart (m) */
+    spacing: () => {
+      let best = Infinity;
+      for (const a of pb.npcs) for (const b of pb.npcs) if (a !== b) best = Math.min(best, Math.hypot(a.c.character.x - b.c.character.x, a.c.character.z - b.c.character.z));
+      return best;
+    },
+    buy: (k: number, seat: number) => {
+      const n = pb.npcs[k], s = pb.scene.bodies.find((b) => b.seat === seat)?.character;
+      if (!n || !s) return false;
+      (n.driver.brain as NpcBrain).buy([s.x, s.z]);
+      return true;
+    },
+    release: (k: number) => { const n = pb.npcs[k]; if (n) (n.driver.brain as NpcBrain).release(); },
+    bought: (k: number) => !!pb.npcs[k] && (pb.npcs[k].driver.brain as NpcBrain).bought,
+    direct: (id: string, d: Direction | null) => pb.scene.direct(id, d),
+  };
+  let hung = false;
+  ctx.frame.tick('input', () => {
+    const bend = (window as unknown as { bend?: Record<string, unknown> }).bend;
+    if (!hung && bend) { bend.roda = api; hung = true; }
+  }, 'brains: bend.roda');
 }
 
 /** a placeholder source until the driver's own replaces it (addPlayer wants one) */

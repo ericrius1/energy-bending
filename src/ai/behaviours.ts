@@ -18,14 +18,16 @@
 //   travel        walk up to a gate and through it
 //
 // Directions are world (x, z) unit vectors; distances metres; times beats on the music's clock unless named seconds.
-import { COMBAT, type Character } from '../dancer/character';
-import { MOVES } from '../dancer/moves';
+import { COMBAT, type Capsule, type Character } from '../dancer/character';
+import { MOVES, tempoScale } from '../dancer/moves';
 import { RULES } from '../../shared/rules.ts';
 import { planeNormal, type StagePlane } from '../engine/camera';
 import type { Gate, Other, SeenMove, Sight, V3 } from './brain';
 import type { Mind } from './mind';
-import { ATTACKS, axisTo, busyFor, canStart, durOf, freeIn, hypotheticalEvent, nextEighth, startBeat } from './body';
+import { ATTACKS, axisTo, busyFor, durOf, freeIn, hypotheticalEvent, nextEighth, startBeat } from './body';
 import { clashAt, dodgeCovers, dodgeHolds, parryWindow, reachOf, readThreat, type Threat } from './read';
+import { countersOf, exchangeFor, has, levelOf, OPTIONAL } from './vocabulary';
+import { PALMAS_MEET } from './clips';
 
 const clamp = (x: number, a: number, b: number) => Math.max(a, Math.min(b, x));
 const beatsOf = (sec: number, bpm: number) => (sec * bpm) / 60;
@@ -35,7 +37,12 @@ const secsOf = (beats: number, bpm: number) => (beats * 60) / bpm;
 export function jogoAxis(s: Sight, o: Other) { return axisTo(s.self, o.root[0], o.root[2]); }
 
 /** the other is free to answer: not in a move, not staggered */
-export function free(o: Other, bpm: number) { return !liveMove(o, bpm) && !(o.flags & 16); }
+export function free(o: Other, bpm: number) {
+  // (their body itself, when it is simulated here, says so a frame before the witness does: a move started this frame)
+  const m = o.character?.move;
+  if (m && !m.def.loop && m.t < m.dur * 0.75) return false;
+  return !liveMove(o, bpm) && !(o.flags & 16);
+}
 
 /** the partner's latest move and whether it is still going (its duration at the tempo) */
 export function liveMove(o: Other, bpm: number): SeenMove | null {
@@ -97,7 +104,13 @@ export interface AnswerStyle {
   dodge: number; parry: number; clash: number;
   /** how much the showy dodges (aú, rolê, macaco) are liked over the plain esquiva */
   flair: number;
+  /** chance of coming up out of a dodge (or a held block) into a counter of one's own */
+  counter?: number;
 }
+
+/** how an answer leans this time (the music's mood, a director's cue): weights on the answers' levels */
+export interface Lean { low: number; inverted: number; standing: number; clash: number; counter: number; /** free: the way the pair is turning (+1 to the right), which a dodge round the attack takes */ side?: number }
+export const LEAN_EVEN: Lean = { low: 1, inverted: 1, standing: 1, clash: 1, counter: 1 };
 
 interface Pending { serial: number; due: number }
 /** was the attacker moving toward this body as it started (closing faster than 0.3 m/s)? */
@@ -118,8 +131,14 @@ export class Reader {
       // stepping in before it is a wind-up of its own: someone who saw them come is reading sooner
       // (and under a barrage one is on guard: an attack within the last two seconds sharpens the next read)
       const guard = stepping(mv, me) ? 0.6 : 1, onGuard = o.moves.some((x) => x.attack && x.serial !== mv.serial && x.age < 2) ? 0.7 : 1;
-      const toward = Math.min(guard, onGuard);
-      w = { serial: mv.serial, due: style.reaction * toward * m.rng.range(0.8, 1.25) }; this.waiting.set(mv.serial, w);
+      // (and a lead a beat or two before it, a guard raised or a dip, is a telegraph: one who saw it expects the kick
+      // on the beat that follows, which is what makes the fast ones answerable)
+      const lead = o.moves.some((x) => !x.attack && x.serial !== mv.serial && mv.beat - x.beat > 0.4 && mv.beat - x.beat < 2.1) ? 0.45 : 1;
+      // (an attack only grows out of the ginga's back step on a strong beat: a player in the roda is ready on them)
+      const strong = Math.abs(mv.beat / 2 - Math.round(mv.beat / 2)) < 0.05 ? 0.75 : 1;
+      const toward = Math.min(guard, onGuard, lead, strong);
+      // (a person's reaction: log-normal about the median, a tail of slow reads, a lapse now and then)
+      w = { serial: mv.serial, due: m.rng.reaction(style.reaction * toward) }; this.waiting.set(mv.serial, w);
     }
     if (this.waiting.size > 32) for (const k of this.waiting.keys()) { if (k < mv.serial - 32) this.waiting.delete(k); }
     return w.due;
@@ -128,8 +147,9 @@ export class Reader {
 
 interface Option { move: string; start: number; kind: 'dodge' | 'clash' | 'parry'; dir: number; w: number; toward: [number, number] }
 
-/** read the partner's attacks and plan the answers (priority 3: above any offer) */
-export function answer(s: Sight, m: Mind, o: Other, style: AnswerStyle, reader: Reader) {
+/** read the partner's attacks and plan the answers (priority 3: above any offer); a dodge or a held block may come up
+ *  into a counter (the named exchanges in vocabulary.ts) */
+export function answer(s: Sight, m: Mind, o: Other, style: AnswerStyle, reader: Reader, lean: Lean = LEAN_EVEN, onAnswer?: (a: { move: string; kind: string; line: number; attack: SeenMove; counter: string | null }) => void) {
   const c = s.self, bpm = s.bpm;
   for (const mv of o.moves) {
     if (!mv.attack || m.handled.has(mv.serial)) continue;
@@ -147,7 +167,7 @@ export function answer(s: Sight, m: Mind, o: Other, style: AnswerStyle, reader: 
     const pad = th.first == null && th.min < 0.3 ? readThreat(mv.ev, c.hurtShapes().map((x) => ({ ...x, r: x.r + 0.2 })), plane, now) : null;
     const t = th.first != null ? th : cross && cross.first != null ? cross : pad && pad.first != null ? pad : null;
     if (!t) { reader.log?.(`${s.t.toFixed(2)} ${mv.name}#${mv.serial} age ${now.toFixed(2)}: passes (min ${th.min.toFixed(2)})`); continue; }
-    const opts = options(s, m, o, mv, t, th, style, now);
+    const opts = options(s, m, o, mv, t, th, style, now, lean);
     reader.log?.(`${s.t.toFixed(2)} ${mv.name}#${mv.serial} age ${now.toFixed(2)} touch ${t.first?.toFixed(2)}-${t.last?.toFixed(2)} body ${th.first != null} busy ${busyFor(c).toFixed(2)}: ${opts.map((x) => `${x.move}@${x.start.toFixed(2)}`).join(' ') || 'nothing fits'}`);
     if (!opts.length) continue;
     const pick = m.rng.weighted(opts, (x) => x.w)!;
@@ -165,11 +185,39 @@ export function answer(s: Sight, m: Mind, o: Other, style: AnswerStyle, reader: 
     m.plan({ move: pick.move, line, late: beatsOf(0.03, bpm), toward: pick.toward, prio: 3, why: `answer ${pick.kind}`, hold });
     reader.last = { serial: mv.serial, kind: pick.kind, move: pick.move };
     reader.log?.(`   -> ${pick.move} (${pick.kind}) at ${start.toFixed(2)}${start !== pick.start ? ' (misread)' : ''}`);
+    const counter = pick.kind === 'clash' ? null : planCounter(s, m, o, mv, pick.move, line, style, lean, hold);
+    onAnswer?.({ move: pick.move, kind: pick.kind, line, attack: mv, counter });
   }
 }
 
+/** the counter that comes up out of an answer, in the same motion: the named exchange's (a sweep out of the esquiva,
+ *  a push kick out of the held block), on an 8th line once the answer's recovery may be cut, and never before the
+ *  attacker has finished their own move and had a person's moment to see it coming (it is an offer too) */
+function planCounter(s: Sight, m: Mind, o: Other, mv: SeenMove, answerMove: string, line: number, style: AnswerStyle, lean: Lean, hold?: number): string | null {
+  const p = (style.counter ?? 0) * lean.counter;
+  if (p <= 0 || !m.rng.chance(Math.min(1, p))) return null;
+  const xc = exchangeFor(mv.name);
+  const list = countersOf(answerMove, xc && xc.answer.includes(answerMove) ? xc.counter : []);
+  if (!list.length) return null;
+  const bpm = s.bpm, a = jogoAxis(s, o);
+  // (the low counters when the play is low, the standing ones otherwise)
+  const name = m.rng.weighted(list, (n, ) => (levelOf(n) === 'low' ? lean.low : lean.standing) * (list.indexOf(n) === 0 ? 2.5 : 1) / (1 + m.recent(n, 4)));
+  if (!name) return null;
+  const def = MOVES[answerMove];
+  const cut = (def.active ? def.active[1] : 0.55) * durOf(answerMove, bpm) + (hold ?? 0) * 0.6;
+  const theirEnd = mv.beat + beatsOf(durOf(mv.name, bpm), bpm);
+  const fair = theirEnd + beatsOf(0.3 - (MOVES[name]?.windup ?? 0.3), bpm);
+  const at = Math.max(line + beatsOf(cut, bpm), line + 0.75, fair, line + (xc?.after ?? 0) * 0.6);
+  const l = nextEighth(at);
+  const toward: [number, number] = [a.dir[0], a.dir[1]];
+  // (on its frame: they are free to answer it, and it will at least come near them where they will be)
+  const ok = () => free(o, bpm) && wouldReach(s, name, o) !== false;
+  m.plan({ move: name, line: l, late: 0.35, toward, prio: 2.5, why: `counter (${answerMove})`, ok });
+  return name;
+}
+
 /** the answers that would work, each with its best start (on an 8th line when one fits) and a weight */
-function options(s: Sight, m: Mind, o: Other, mv: SeenMove, t: Threat, th: Threat, style: AnswerStyle, now: number): Option[] {
+function options(s: Sight, m: Mind, o: Other, mv: SeenMove, t: Threat, th: Threat, style: AnswerStyle, now: number, lean: Lean): Option[] {
   const c = s.self, bpm = s.bpm, out: Option[] = [];
   const lag = secsOf(s.beat - startBeat(s.beatPrev, s.beat), bpm);
   const freeFor = (name: string) => now - lag + freeIn(c, name);
@@ -186,11 +234,28 @@ function options(s: Sight, m: Mind, o: Other, mv: SeenMove, t: Threat, th: Threa
   const variety = (name: string) => 1 / (1 + 1.2 * m.recent(name, 5));
   // dodges: an evade covers the touch from its first frame to its last
   const pressed = o.moves.filter((x) => x.attack && x.age < 3).length >= 2, flair = style.flair * (pressed ? 0.25 : 1);
-  const dodges: [string, number, [number, number]][] = [['esquiva', pressed ? 2 : 1, back], ['role', flair, back], ['macaco', flair * 0.6, back]];
-  // aú toward the partner goes over the attack and comes down on the other side (only from close enough to pass)
+  // (the answer the named exchange calls for is the one a capoeirista falls into: liked well above the rest)
+  const xc = exchangeFor(mv.name), named = (n: string) => (xc && xc.answer.find(has) === n ? 2.5 : 1);
+  const lv = (n: string) => (levelOf(n) === 'low' ? lean.low : levelOf(n) === 'inverted' ? lean.inverted : lean.standing) * named(n);
+  // (free, straight back is the least of them: the side ones below carry the pair round the ring)
+  const fb = c.plane ? 1 : 0.7;
+  const dodges: [string, number, [number, number]][] = [['esquiva', (pressed ? 2 : 1) * fb, back], ['role', flair * fb, back], ['macaco', flair * 0.6, back]];
+  // aú toward the partner goes over the attack and comes down on the other side (only from close enough to pass);
+  // close, the rolê goes under it and through them the same way
   if (away.dist < 1.7 && c.grounded) dodges.push(['au', flair * 0.9, at]);
   else dodges.push(['au', flair * 0.4, back]);
-  for (const [name, w, toward] of dodges) {
+  if (away.dist < 1.25 && c.grounded) dodges.push(['role', flair * 0.8, at]);
+  // free: round it, to the side the pair is turning (the game moves round the roda)
+  if (!c.plane) {
+    const sg = lean.side ?? 1, side: [number, number] = [-away.dir[1] * sg, away.dir[0] * sg], sideB: [number, number] = [side[0] * 0.7 + back[0] * 0.7, side[1] * 0.7 + back[1] * 0.7];
+    dodges.push(['role', flair * 1.6, side], ['au', flair * 0.8, [side[0] * 0.8 + at[0] * 0.6, side[1] * 0.8 + at[1] * 0.6]], ['esquiva', pressed ? 2.4 : 1.4, sideB]);
+  }
+  // the low and inverted answers the library may have (requested from src/dancer: used once registered)
+  for (const n of [OPTIONAL.negativa, OPTIONAL.cocorinha]) if (has(n)) dodges.push([n, flair * 0.9, back]);
+  if (has(OPTIONAL.queda)) dodges.push([OPTIONAL.queda, flair * 0.6, back]);
+  for (const [name, w0, toward] of dodges) {
+    const w = w0 * lv(name);
+    if (w <= 0) continue;
     if (!c.grounded && name !== 'esquiva') continue;
     const d = durOf(name, bpm);
     const lo = (t.last ?? t.first!) + 0.02 - d, hi = t.first! - 0.01;
@@ -203,10 +268,10 @@ function options(s: Sight, m: Mind, o: Other, mv: SeenMove, t: Threat, th: Threa
   // a parry: the block raised just before the touch (only against a real touch of the body)
   if (th.first != null && c.grounded) {
     const pw = parryWindow(th, bpm);
-    if (pw) { const b = best(Math.max(pw[0], freeFor('block')), pw[1]); if (b && b.at <= pw[1]) out.push({ move: 'block', start: b.at, kind: 'parry', dir: 1, w: style.parry * g(b) * variety('block'), toward: back }); }
+    if (pw) { const b = best(Math.max(pw[0], freeFor('block')), pw[1]); if (b && b.at <= pw[1]) out.push({ move: 'block', start: b.at, kind: 'parry', dir: 1, w: style.parry * lean.standing * named('block') * g(b) * variety('block'), toward: back }); }
   }
   // a clash: a kick of one's own that meets theirs in the air
-  if (c.grounded && style.clash > 0) {
+  if (c.grounded && style.clash * lean.clash > 0) {
     for (const name of ['meia-lua', 'martelo', 'armada', 'bencao']) {
       const def = MOVES[name], d = durOf(name, bpm);
       // starts from now to just before their touch, on the 8ths first
@@ -217,7 +282,7 @@ function options(s: Sight, m: Mind, o: Other, mv: SeenMove, t: Threat, th: Threa
       for (const st of cands) {
         if (clashAt(c, name, st, mv.ev, t, bpm, c.plane, away.sign) != null) {
           const grid = Math.abs(beatsOf(st, bpm) + mv.beat - Math.round((beatsOf(st, bpm) + mv.beat) * 2) / 2) < 0.02;
-          out.push({ move: name, start: st, kind: 'clash', dir: away.sign, w: style.clash * (grid ? 1.6 : 1) * variety(name), toward: at });
+          out.push({ move: name, start: st, kind: 'clash', dir: away.sign, w: style.clash * lean.clash * (grid ? 1.6 : 1) * variety(name), toward: at });
           break;
         }
       }
@@ -277,12 +342,13 @@ export function liveGap(s: Sight, name: string, o: Other): number | null {
   const oc = o.character;
   if (!oc) return null;
   const ax = jogoAxis(s, o), ev = hypotheticalEvent(s.self, name, s.bpm, ax.sign);
-  const th = readThreat(ev, oc.hurtShapes(), s.self.plane);
+  const hurt = whereThen(o, name, s.bpm);
+  const th = readThreat(ev, hurt, s.self.plane);
   if (!th) return null;
   if (th.first == null) return th.min;
   // overlapping: how much further it could be and still touch (the hurt shapes padded until it no longer does)
   for (const pad of [0.04, 0.08, 0.12, 0.16]) {
-    const t2 = readThreat(ev, oc.hurtShapes().map((x) => ({ ...x, r: Math.max(0.001, x.r - pad) })), s.self.plane);
+    const t2 = readThreat(ev, hurt.map((x) => ({ ...x, r: Math.max(0.001, x.r - pad) })), s.self.plane);
     if (!t2 || t2.first == null) return -pad;
   }
   return -0.2;
@@ -294,11 +360,33 @@ export function wouldDo(s: Sight, name: string, want: OfferAim, o: Other): boole
   const oc = o.character;
   if (!oc) return null;
   const ax = jogoAxis(s, o), ev = hypotheticalEvent(s.self, name, s.bpm, ax.sign);
-  const th = readThreat(ev, oc.hurtShapes(), s.self.plane);
+  const th = readThreat(ev, whereThen(o, name, s.bpm), s.self.plane);
   if (!th) return false;
   if (want === 'touch') return th.first != null;
-  // (an invitation must above all not land; coming near is the hope, passing is no harm)
-  return th.first == null && th.min <= COMBAT.NEAR + 0.25;
+  // (an invitation must above all not land, even with the ginga's sway: 8 cm to spare; coming near is the hope,
+  // passing is no harm)
+  return th.first == null && th.min > 0.08 && th.min <= COMBAT.NEAR + 0.25;
+}
+
+/** would `name`, started now, touch the other or at least come near them (a counter: either is an exchange)? */
+export function wouldReach(s: Sight, name: string, o: Other): boolean | null {
+  const oc = o.character;
+  if (!oc) return null;
+  const ax = jogoAxis(s, o), ev = hypotheticalEvent(s.self, name, s.bpm, ax.sign);
+  const th = readThreat(ev, whereThen(o, name, s.bpm), s.self.plane);
+  return !!th && (th.first != null || th.min <= COMBAT.NEAR + 0.2);
+}
+
+/** the other's hurt shapes where they will be when `name` (started now) reaches them: carried on the way they are
+ *  moving through the attack's wind-up, at most half a metre (a read of where they are going, not where they stand) */
+export function whereThen(o: Other, name: string, bpm: number): Capsule[] {
+  const hurt = o.character!.hurtShapes();
+  const t = (MOVES[name]?.windup ?? 0.3) * tempoScale(bpm) + 0.05;
+  let dx = o.v[0] * t, dz = o.v[2] * t;
+  const l = Math.hypot(dx, dz);
+  if (l < 0.01) return hurt as Capsule[];
+  if (l > 0.5) { dx *= 0.5 / l; dz *= 0.5 / l; }
+  return hurt.map((x) => ({ ...x, ax: x.ax + dx, az: x.az + dz, bx: x.bx + dx, bz: x.bz + dz }));
 }
 
 /** plan `name` at the next 8th line toward the partner (and, for a flurry, the next attacks in each one's recovery) */
@@ -334,16 +422,32 @@ export function echo(s: Sight, m: Mind, o: Other, p: number, seen: Set<number>) 
     if (!echoable(mv.name) || !m.rng.chance(p)) continue;
     // their move was an echo of mine: don't bounce it back forever
     if (m.mine.some((x) => x.name === mv.name && mv.beat - x.beat > -0.3 && mv.beat - x.beat < 4.2)) continue;
-    const line = Math.round((mv.beat + 3.5) * 2) / 2;
+    // a reply, not a delay line: after one beat and a half to three and a half (inside the rules' bar), and not always
+    // the same move: mirrored (the other way round), or lower, or answered with its counter (those two earn no echo)
+    const delay = m.rng.pick([1.5, 2, 2, 2.5, 3, 3, 3.5]);
+    const line = Math.round((mv.beat + delay) * 2) / 2;
     if (line < startBeat(s.beatPrev, s.beat) + 0.25) continue;
     const a = jogoAxis(s, o);
-    const toward: [number, number] = mv.name === 'role' || mv.name === 'macaco' ? [-a.dir[0], -a.dir[1]] : [a.dir[0], a.dir[1]];
+    const v = m.rng.next();
+    let name = mv.name, mirror = false, why = 'echo';
+    if (v < 0.22 && (name === 'au' || name === 'role' || name === 'spin' || name === 'esquiva')) { mirror = true; why = 'echo mirrored'; }
+    else if (v < 0.36 && LOWER[name] && has(LOWER[name])) { name = LOWER[name]; why = 'echo lower'; }
+    else if (v < 0.48 && exchangeFor(name)) { const c = exchangeFor(name)!.counter.find(has); if (c) { name = c; why = 'echo with its counter'; } }
+    const back = name === 'role' || name === 'macaco';
+    const toward: [number, number] = back !== mirror ? [-a.dir[0], -a.dir[1]] : [a.dir[0], a.dir[1]];
     // an echoed attack still has to be safe for them: only from a distance it would touch at most where it can be read
-    if (MOVES[mv.name].attack && reachOf(mv.name).touch && a.dist < reachOf(mv.name).touch![0]) continue;
-    const attack = MOVES[mv.name].attack;
-    m.plan({ move: mv.name, line, late: 0.12, toward, prio: 1.2, why: 'echo', ok: attack ? () => free(o, s.bpm) : undefined });
+    const attack = !!MOVES[name]?.attack;
+    if (attack && reachOf(name).touch && a.dist < reachOf(name).touch![0]) continue;
+    // (off the strong beats when they are close: those are where attacks grow out of the ginga, theirs included)
+    const l2 = a.dist < 1.8 ? offBeat(line) : line;
+    m.plan({ move: name, line: l2, late: 0.12, toward, prio: 1.2, why, ok: attack ? () => free(o, s.bpm) : undefined });
   }
 }
+/** a line moved off the strong beats (0 and 2 of the bar, the ginga's back steps, where the attacks come) onto the 8th
+ *  after it: what isn't an attack keeps out of an attack's way */
+export const offBeat = (line: number) => (Math.abs(line / 2 - Math.round(line / 2)) < 1e-6 ? line + 0.5 : line);
+/** an attack's lower counterpart (an echo danced lower) */
+const LOWER: Record<string, string> = { 'meia-lua': 'rasteira', armada: 'compasso', martelo: 'meia-lua', spin: 'role', block: 'esquiva', au: 'role' };
 
 /** a move the partner has done twice at a steady interval, joined on its next repeat */
 export function unison(s: Sight, m: Mind, o: Other, p: number, joined: Set<number>) {
@@ -357,6 +461,8 @@ export function unison(s: Sight, m: Mind, o: Other, p: number, joined: Set<numbe
   const line = b.beat + I, sb = startBeat(s.beatPrev, s.beat);
   if (line < sb + 0.1) return;
   const ax = jogoAxis(s, o);
+  // (an attack danced in unison at a distance it reaches lands on both: only from out of its reach)
+  if (MOVES[b.name]?.attack && ax.dist < (reachOf(b.name).touch?.[1] ?? 0) + 0.25) return;
   m.plan({ move: b.name, line, late: 0.08, toward: [ax.dir[0], ax.dir[1]], prio: 1.5, why: 'unison' });
 }
 
@@ -380,7 +486,8 @@ export function merge(s: Sight, m: Mind, o: Other): boolean {
     m.cancel((p) => p.prio < 3);
     const close = a.dist < RULES.MERGE_DIST * 0.7;
     if (!close) m.claim({ x: a.dir[0], z: a.dir[1], k: clamp(a.dist * 0.5, 0.15, 0.6), walk: false, prio: 5, why: 'merge: come together', merge: a.dist < 1.5 });
-    else m.claim({ x: 0, z: 0, k: 0, walk: false, prio: 5, why: 'merge: hold', merge: true });
+    // (holding, the two keep turning about each other, slowly: free, a step to the side; locked that is no step at all)
+    else m.claim({ x: -a.dir[1], z: a.dir[0], k: s.self.plane ? 0 : 0.05, walk: false, prio: 5, why: 'merge: hold', merge: true });
     return true;
   }
   if (r.phase === 'fusion' || (r.phase === 'finale' && r.fusion)) {
@@ -458,12 +565,15 @@ export class Wander {
 }
 
 /** face a point and groove: the body hints' lookAt and groove; clap on the beat if asked (palmas, a named move) */
-export function watch(s: Sight, m: Mind, at: V3, clap: boolean, groove: number, body: { lookAt: V3 | null; groove: number }) {
+export function watch(s: Sight, m: Mind, at: V3, clap: boolean, groove: number, body: { lookAt: V3 | null; groove: number; clapAt: number }) {
   body.lookAt = at;
   body.groove = groove;
-  if (clap && !m.waiting(0.5) && MOVES.palmas && canStart(s.self, 'palmas')) {
-    const sb = startBeat(s.beatPrev, s.beat), line = Math.ceil(sb - 1e-6);
-    if (line - sb < 0.6) m.plan({ move: 'palmas', line, late: 0.06, toward: [0, 1], prio: 0.5, why: 'palmas' });
+  if (clap && MOVES.palmas && !m.presses.some((p) => p.why === 'palmas' || p.prio > 0.5)) {
+    // pressed so the hands meet on the beat (the clap's meeting is part-way through it)
+    const sb = startBeat(s.beatPrev, s.beat), lead = beatsOf(durOf('palmas', s.bpm) * PALMAS_MEET, s.bpm);
+    const beat = Math.ceil(sb + lead + 0.05), line = beat - lead;
+    const tMeet = s.t + secsOf(beat - s.beat, s.bpm);
+    if (line - sb < 0.9) m.plan({ move: 'palmas', line, late: 0.06, toward: [0, 1], prio: 0.5, why: 'palmas', done: (st) => { if (st) body.clapAt = tMeet; } });
   }
 }
 

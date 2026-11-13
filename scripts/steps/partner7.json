@@ -1,0 +1,196 @@
+[
+ {
+  "name": "p7-redwoods-roda",
+  "query": "roda=4&world=redwoods&dress=fire,water&level=0.6",
+  "fps": 5,
+  "seconds": 30,
+  "warm": 240,
+  "setup": "bend.set('redwoods', { hour: 19.4, dayGoes: false }); bend.wake(); bend.set('camera', { followDist: 9, followFov: 40, followPitch: 0.62, followSwing: 0 });",
+  "each": "bend.camera({ yaw: 0.6 }); if (Math.abs(t - Math.round(t)) < 0.01) { const p = bend.players(); console.warn('pair', JSON.stringify(p.slice(0, 2).map((x) => [+x.x.toFixed(2), +x.z.toFixed(2), x.move])), 'roda spacing', bend.roda ? bend.roda.spacing().toFixed(2) : 'none'); }",
+  "sheet": {
+   "cols": 10,
+   "rows": 3,
+   "width": 260
+  },
+  "stills": [
+   6,
+   15,
+   24
+  ],
+  "cues": {
+   "1": "{ const p = bend.players(); console.warn('pair', JSON.stringify(p.slice(0, 2).map((x) => [+x.x.toFixed(2), +x.z.toFixed(2), x.move])), 'roda spacing', bend.roda ? bend.roda.spacing().toFixed(2) : 'none'); }",
+   "15": "{ const p = bend.players(); console.warn('pair', JSON.stringify(p.slice(0, 2).map((x) => [+x.x.toFixed(2), +x.z.toFixed(2), x.move])), 'roda spacing', bend.roda ? bend.roda.spacing().toFixed(2) : 'none'); }",
+   "29.5": "{ const p = bend.players(); console.warn('pair', JSON.stringify(p.slice(0, 2).map((x) => [+x.x.toFixed(2), +x.z.toFixed(2), x.move])), 'roda spacing', bend.roda ? bend.roda.spacing().toFixed(2) : 'none'); }"
+  }
+ },
+ {
+  "name": "p7-redwoods-free",
+  "query": "jogo=partner&world=redwoods&free&dress=fire,water",
+  "fps": 5,
+  "seconds": 30,
+  "warm": 1,
+  "setup": "bend.set('redwoods', { hour: 19.4, dayGoes: false }); await bend.jogo.start(); bend.set('camera', { followDist: 8, followFov: 40, followPitch: 0.55, followSwing: 0 });",
+  "cues": {
+   "4.0": "bend.move(0,'meia-lua')",
+   "5.6": "bend.move(0,'esquiva')",
+   "7.2": "bend.move(0,'armada')",
+   "8.8": "bend.move(0,'spin')",
+   "10.4": "bend.move(0,'martelo')",
+   "12.0": "bend.move(0,'au')",
+   "13.6": "bend.move(0,'block')",
+   "15.2": "bend.move(0,'meia-lua')",
+   "16.8": "bend.move(0,'role')",
+   "18.4": "bend.move(0,'armada')",
+   "20.0": "bend.move(0,'meia-lua')",
+   "21.6": "bend.move(0,'esquiva')",
+   "23.2": "bend.move(0,'armada')",
+   "24.8": "bend.move(0,'spin')",
+   "26.4": "bend.move(0,'martelo')",
+   "28.0": "bend.move(0,'au')",
+   "29.6": "bend.move(0,'block')",
+   "31.2": "bend.move(0,'meia-lua')"
+  },
+  "each": "bend.camera({ yaw: 0.6 }); if (Math.abs(t - Math.round(t)) < 0.01) { const p = bend.players(); console.warn('pair', JSON.stringify(p.slice(0, 2).map((x) => [+x.x.toFixed(2), +x.z.toFixed(2), x.move])), 'roda spacing', bend.roda ? bend.roda.spacing().toFixed(2) : 'none'); }",
+  "sheet": {
+   "cols": 10,
+   "rows": 3,
+   "width": 260
+  },
+  "stills": [
+   8,
+   16,
+   24
+  ]
+ },
+ {
+  "name": "p7-redwoods-lock",
+  "query": "jogo=partner&world=redwoods&dress=fire,water",
+  "fps": 5,
+  "seconds": 30,
+  "warm": 1,
+  "setup": "bend.set('redwoods', { hour: 19.4, dayGoes: false }); await bend.jogo.start();",
+  "cues": {
+   "4.0": "bend.move(0,'meia-lua')",
+   "5.6": "bend.move(0,'esquiva')",
+   "7.2": "bend.move(0,'armada')",
+   "8.8": "bend.move(0,'spin')",
+   "10.4": "bend.move(0,'martelo')",
+   "12.0": "bend.move(0,'au')",
+   "13.6": "bend.move(0,'block')",
+   "15.2": "bend.move(0,'meia-lua')",
+   "16.8": "bend.move(0,'role')",
+   "18.4": "bend.move(0,'armada')",
+   "20.0": "bend.move(0,'meia-lua')",
+   "21.6": "bend.move(0,'esquiva')",
+   "23.2": "bend.move(0,'armada')",
+   "24.8": "bend.move(0,'spin')",
+   "26.4": "bend.move(0,'martelo')",
+   "28.0": "bend.move(0,'au')",
+   "29.6": "bend.move(0,'block')",
+   "31.2": "bend.move(0,'meia-lua')"
+  },
+  "sheet": {
+   "cols": 10,
+   "rows": 3,
+   "width": 260
+  },
+  "stills": [
+   8,
+   16,
+   24
+  ]
+ },
+ {
+  "name": "p7-temple-lock",
+  "query": "jogo=partner&world=temple&dress=fire,water",
+  "fps": 5,
+  "seconds": 30,
+  "warm": 1,
+  "setup": "await bend.jogo.start();",
+  "cues": {
+   "4.0": "bend.move(0,'meia-lua')",
+   "5.6": "bend.move(0,'esquiva')",
+   "7.2": "bend.move(0,'armada')",
+   "8.8": "bend.move(0,'spin')",
+   "10.4": "bend.move(0,'martelo')",
+   "12.0": "bend.move(0,'au')",
+   "13.6": "bend.move(0,'block')",
+   "15.2": "bend.move(0,'meia-lua')",
+   "16.8": "bend.move(0,'role')",
+   "18.4": "bend.move(0,'armada')",
+   "20.0": "bend.move(0,'meia-lua')",
+   "21.6": "bend.move(0,'esquiva')",
+   "23.2": "bend.move(0,'armada')",
+   "24.8": "bend.move(0,'spin')",
+   "26.4": "bend.move(0,'martelo')",
+   "28.0": "bend.move(0,'au')",
+   "29.6": "bend.move(0,'block')",
+   "31.2": "bend.move(0,'meia-lua')"
+  },
+  "sheet": {
+   "cols": 10,
+   "rows": 3,
+   "width": 260
+  },
+  "stills": [
+   8,
+   16,
+   24
+  ]
+ },
+ {
+  "name": "p7-roda-game",
+  "query": "jogo=partner&world=geode&dress=plasma,ice",
+  "fps": 5,
+  "seconds": 16,
+  "warm": 1,
+  "setup": "await bend.jogo.start();",
+  "cues": {
+   "4.0": "bend.move(0,'meia-lua')",
+   "5.6": "bend.move(0,'esquiva')",
+   "7.2": "bend.move(0,'armada')",
+   "8.8": "bend.move(0,'spin')",
+   "10.4": "bend.move(0,'martelo')",
+   "12.0": "bend.move(0,'au')",
+   "13.6": "bend.move(0,'block')",
+   "15.2": "bend.move(0,'meia-lua')",
+   "16.8": "bend.move(0,'role')",
+   "18.4": "bend.move(0,'armada')",
+   "20.0": "bend.move(0,'meia-lua')",
+   "21.6": "bend.move(0,'esquiva')",
+   "23.2": "bend.move(0,'armada')",
+   "24.8": "bend.move(0,'spin')",
+   "26.4": "bend.move(0,'martelo')",
+   "28.0": "bend.move(0,'au')",
+   "29.6": "bend.move(0,'block')",
+   "31.2": "bend.move(0,'meia-lua')",
+   "0.2": "console.warn('roda spacing', bend.roda ? bend.roda.spacing().toFixed(2) : 'none', JSON.stringify(bend.roda ? bend.roda.npcs() : []));",
+   "8.1": "console.warn('roda spacing', bend.roda ? bend.roda.spacing().toFixed(2) : 'none', JSON.stringify(bend.roda ? bend.roda.npcs() : []));",
+   "15.9": "console.warn('roda spacing', bend.roda ? bend.roda.spacing().toFixed(2) : 'none', JSON.stringify(bend.roda ? bend.roda.npcs() : []));"
+  },
+  "sheet": {
+   "cols": 8,
+   "rows": 2,
+   "width": 330
+  },
+  "stills": [
+   6,
+   12
+  ]
+ },
+ {
+  "name": "p7-direct",
+  "query": "jogo=partner&world=redwoods&free&dress=fire,water",
+  "fps": 5,
+  "seconds": 20,
+  "warm": 1,
+  "setup": "bend.set('redwoods', { hour: 19.4, dayGoes: false }); for (let i = 0; i < 100 && !bend.jogo; i++) await new Promise((r) => setTimeout(r, 50)); await bend.jogo.start(); bend.set('camera', { followDist: 8, followFov: 40, followPitch: 0.55, followSwing: 0 }); bend.jogo.partner.scene.direct('seat.1', { cues: [{\"at\":\"1.1\",\"bars\":2,\"circle\":\"left\"},{\"at\":\"3.1\",\"offer\":\"armada\"},{\"at\":\"3.1\",\"bars\":2,\"answer\":\"low\"},{\"at\":\"5.1\",\"bars\":1,\"pause\":true},{\"at\":\"6.1\",\"move\":\"au\"},{\"at\":\"7.1\",\"bars\":2,\"circle\":\"right\"}] });",
+  "each": "bend.camera({ yaw: 0.6 }); if (Math.abs(t - Math.round(t)) < 0.01) { const p = bend.players(); console.warn('pair', JSON.stringify(p.slice(0, 2).map((x) => [+x.x.toFixed(2), +x.z.toFixed(2), x.move])), 'roda spacing', bend.roda ? bend.roda.spacing().toFixed(2) : 'none'); }",
+  "sheet": {
+   "cols": 10,
+   "rows": 2,
+   "width": 260
+  },
+  "stills": []
+ }
+]

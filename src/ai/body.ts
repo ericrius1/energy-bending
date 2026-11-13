@@ -140,8 +140,9 @@ export function moveEventOf(c: Character): Record<string, any> | null {
   };
 }
 
-/** the start event a move would have if this body started it now facing `dir` (locked ±1) or its yaw (free): for
- *  planning (will my kick meet theirs?) with Character.shapesAt */
+/** the start event a move would have if this body started it now facing `dir` (locked ±1) or its yaw (free), carrying
+ *  the way it is moving (a move on the ground slides on with it): for planning (will my kick meet theirs?) with
+ *  Character.shapesAt */
 export function hypotheticalEvent(c: Character, name: string, bpm: number, dir = c.dir): Record<string, any> {
   const pl = c.plane;
   let yaw = c.yaw, f: [number, number];
@@ -150,7 +151,7 @@ export function hypotheticalEvent(c: Character, name: string, bpm: number, dir =
     yaw = Math.atan2(pl.right[0] * dir * Math.cos(o) + n[0] * Math.sin(o), pl.right[2] * dir * Math.cos(o) + n[2] * Math.sin(o));
     f = [pl.right[0] * dir, pl.right[2] * dir];
   } else f = [Math.sin(yaw), Math.cos(yaw)];
-  return { move: name, serial: -1, x: c.root[0], y: c.root[1], z: c.root[2], dir, yaw, fdir: f, vx: 0, vy: 0, vz: 0, air: false, bpm, hand: 'R' };
+  return { move: name, serial: -1, x: c.root[0], y: c.root[1], z: c.root[2], dir, yaw, fdir: f, vx: c.v[0], vy: 0, vz: c.v[2], air: false, bpm, hand: 'R' };
 }
 
 /** a vertical capsule where a body stands (for planning against a body that is moving: the root of its move) */
