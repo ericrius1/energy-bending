@@ -1,0 +1,60 @@
+[
+ {
+  "name": "cam-film-a",
+  "query": "play&two&dress=fire,water&world=pool",
+  "fps": 10,
+  "seconds": 12,
+  "warm": 240,
+  "setup": "bend.set('redwoods', { hour: 19.4, dayGoes: false }); bend.set('camera', { followDist: 5.2, followFov: 46, followPitch: 0.16, followSwing: 0 }); bend.gates.close('geode.redwoods'); bend.gates.close('redwoods.geode'); bend.gates.open({ id: 'pool.rw', world: 'pool', at: [0, 1.35, -4.6], normal: [0, 0, 1], radius: 1.35, to: { world: 'redwoods', portal: 'rw.pool' } }, { id: 'rw.pool', world: 'redwoods', at: [2.5, 1.35, 4.5], normal: [-0.4, 0, -0.92], radius: 1.35, to: { world: 'pool', portal: 'pool.rw' } }); bend.wake(); bend.place(0, -0.45, 0.2, Math.PI); bend.place(1, 0.45, 0.6, Math.PI); bend.camera({ yaw: 0 });",
+  "cues": {
+   "0.2": "bend.intent(0,{ moveZ: 0.75 }); bend.intent(1,{ moveZ: 0.75 });",
+   "5.2": "bend.intent(0,{ moveZ: 0 }); bend.intent(1,{ moveZ: 0 });",
+   "5.6": "bend.lock(true)",
+   "7.0": "bend.move(0,'armada')",
+   "7.3": "bend.move(1,'esquiva')",
+   "8.4": "bend.move(1,'au')",
+   "9.6": "bend.lock(false)"
+  },
+  "each": "if (t < 0.2) bend.camera({ yaw: 0 });",
+  "sheet": {
+   "cols": 8,
+   "rows": 4,
+   "width": 300
+  },
+  "stills": [
+   3,
+   5,
+   7.5,
+   11.5
+  ]
+ },
+ {
+  "name": "cam-film-b",
+  "query": "play&two&dress=fire,water&world=pool",
+  "fps": 10,
+  "seconds": 12,
+  "warm": 240,
+  "setup": "bend.set('redwoods', { hour: 19.4, dayGoes: false }); bend.set('camera', { followDist: 5.2, followFov: 46, followPitch: 0.16, followSwing: 0 }); bend.gates.close('geode.redwoods'); bend.gates.close('redwoods.geode'); bend.gates.open({ id: 'pool.rw', world: 'pool', at: [0, 1.35, -4.6], normal: [0, 0, 1], radius: 1.35, to: { world: 'redwoods', portal: 'rw.pool' } }, { id: 'rw.pool', world: 'redwoods', at: [-6.5, 1.35, -5.5], normal: [0.76, 0, 0.65], radius: 1.35, to: { world: 'pool', portal: 'pool.rw' } }); bend.wake(); bend.place(0, -0.45, 0.2, Math.PI); bend.place(1, 0.45, 0.6, Math.PI); bend.camera({ yaw: 0 });",
+  "cues": {
+   "0.2": "bend.intent(0,{ moveZ: 0.75 }); bend.intent(1,{ moveZ: 0.75 });",
+   "5.2": "bend.intent(0,{ moveZ: 0 }); bend.intent(1,{ moveZ: 0 });",
+   "5.6": "bend.lock(true)",
+   "7.0": "bend.move(0,'armada')",
+   "7.3": "bend.move(1,'esquiva')",
+   "8.4": "bend.move(1,'au')",
+   "9.6": "bend.lock(false)"
+  },
+  "each": "if (t < 0.2) bend.camera({ yaw: 0 });",
+  "sheet": {
+   "cols": 8,
+   "rows": 4,
+   "width": 300
+  },
+  "stills": [
+   3,
+   5,
+   7.5,
+   11.5
+  ]
+ }
+]

@@ -1,0 +1,164 @@
+[
+ {
+  "name": "cam-g2r",
+  "query": "play&dress=fire&world=geode",
+  "fps": 15,
+  "seconds": 5,
+  "warm": 200,
+  "setup": "bend.set('redwoods', { hour: 19.4, dayGoes: false }); bend.set('camera', { followDist: 3.6, followFov: 46, followPitch: 0.12, followSwing: 0 }); bend.wake(); bend.place(0,1.77,3.66,0.45); bend.camera({yaw:-2.69});",
+  "cues": {
+   "0.8": "bend.intent(0,{ moveZ: 0.6 })",
+   "4.0": "bend.intent(0,{ moveZ: 0 })"
+  },
+  "each": "if (t<0.8) bend.camera({yaw:-2.69});",
+  "sheet": {
+   "cols": 6,
+   "rows": 4,
+   "width": 400
+  },
+  "stills": [
+   2.2,
+   3,
+   4.6
+  ]
+ },
+ {
+  "name": "cam-r2g",
+  "query": "play&dress=water&world=redwoods",
+  "fps": 15,
+  "seconds": 5,
+  "warm": 200,
+  "setup": "bend.set('redwoods', { hour: 19.4, dayGoes: false }); bend.set('camera', { followDist: 3.6, followFov: 46, followPitch: 0.12, followSwing: 0 }); bend.wake(); bend.place(0,-4.52,-3.81,-2.29); bend.camera({yaw:0.86});",
+  "cues": {
+   "0.8": "bend.intent(0,{ moveZ: 0.6 })",
+   "4.0": "bend.intent(0,{ moveZ: 0 })"
+  },
+  "each": "if (t<0.8) bend.camera({yaw:0.86});",
+  "sheet": {
+   "cols": 6,
+   "rows": 4,
+   "width": 400
+  },
+  "stills": [
+   2.2,
+   3,
+   4.6
+  ]
+ },
+ {
+  "name": "cam-g2r-angle",
+  "query": "play&dress=fire&world=geode",
+  "fps": 15,
+  "seconds": 6,
+  "warm": 200,
+  "setup": "bend.set('redwoods', { hour: 19.4, dayGoes: false }); bend.wake(); bend.place(0,0.2,3.2,0.9); bend.camera({yaw:-2.2});",
+  "cues": {
+   "0.5": "bend.intent(0,{ moveZ: 0.7, moveX: 0.25 })",
+   "5.0": "bend.intent(0,{ moveZ: 0, moveX: 0 })"
+  },
+  "sheet": {
+   "cols": 6,
+   "rows": 4,
+   "width": 400
+  },
+  "stills": [
+   2.5,
+   3.5,
+   5.5
+  ]
+ },
+ {
+  "name": "cam-other-inside",
+  "query": "play&two&dress=fire,water&world=geode",
+  "fps": 10,
+  "seconds": 4,
+  "warm": 200,
+  "setup": "bend.set('redwoods', { hour: 19.4, dayGoes: false }); bend.set('camera', { followDist: 4.2, followFov: 44, followPitch: 0.1, followSwing: 0 }); bend.wake(); bend.place(0,1.5,3.0,0.45); bend.gates.place(bend.show.dancers[1],'redwoods'); bend.place(1,-4.6,-3.9,-2.29); bend.camera({yaw:-2.69});",
+  "cues": {
+   "1.0": "bend.move(1,'armada')",
+   "2.5": "bend.move(1,'au')"
+  },
+  "each": "bend.camera({yaw:-2.69});",
+  "sheet": {
+   "cols": 4,
+   "rows": 3,
+   "width": 400
+  },
+  "stills": [
+   1.5,
+   3
+  ]
+ },
+ {
+  "name": "cam-other-fire",
+  "query": "play&two&dress=water,fire&world=geode",
+  "fps": 10,
+  "seconds": 4,
+  "warm": 200,
+  "setup": "bend.set('redwoods', { hour: 19.4, dayGoes: false }); bend.set('camera', { followDist: 4.2, followFov: 44, followPitch: 0.1, followSwing: 0 }); bend.wake(); bend.place(0,0.6,2.6,0.45); bend.gates.place(bend.show.dancers[1],'redwoods'); bend.place(1,-4.6,-3.9,-2.29); bend.camera({yaw:-2.69});",
+  "cues": {
+   "1.0": "bend.move(1,'armada')",
+   "2.5": "bend.move(1,'au')"
+  },
+  "each": "bend.camera({yaw:-2.69});",
+  "sheet": {
+   "cols": 4,
+   "rows": 3,
+   "width": 400
+  },
+  "stills": [
+   1.5,
+   3
+  ]
+ },
+ {
+  "name": "cam-hub",
+  "query": "world=geode&dress=fire",
+  "fps": 4,
+  "seconds": 8,
+  "warm": 400,
+  "setup": "bend.set('camera',{ shots:false, autoOrbit:false });",
+  "each": "bend.camera({ idle:0, yaw: 2.6 + t*0.25, dist: 5.5, pitch: 0.05, height: 1.4, fov: 60 });",
+  "sheet": {
+   "cols": 8,
+   "rows": 4,
+   "width": 300
+  },
+  "stills": [
+   0,
+   4,
+   7
+  ]
+ },
+ {
+  "name": "cam-fly",
+  "query": "world=geode&dress=fire",
+  "fps": 30,
+  "seconds": 4,
+  "warm": 300,
+  "setup": "bend.set('redwoods', { hour: 19.4, dayGoes: false }); bend.set('gates', { fly: 'geode.redwoods', flySpeed: 0, flyT: -0.6, flyLength: 3 });",
+  "each": "bend.set('gates', { flyT: t < 2 ? -0.6 + t * 0.6 : 0.6 - (t - 2) * 0.6 });",
+  "sheet": {
+   "cols": 8,
+   "rows": 4,
+   "width": 300
+  }
+ },
+ {
+  "name": "cam-many",
+  "query": "world=geode&dress=fire",
+  "fps": 4,
+  "seconds": 3,
+  "warm": 200,
+  "setup": "bend.set('camera',{ shots:false, autoOrbit:false }); for (let k = 0; k < 4; k++) bend.gates.open({ id: 'x'+k, world: 'geode', at: [-3 + k*2, 1.35, -5.5], normal: [0,0,1], radius: 0.8, to: { world: 'temple', portal: 'y'+k } }, { id: 'y'+k, world: 'temple', at: [-4 + k*2.5, 1.4, 2], normal: [0,0,-1], radius: 0.8, to: { world: 'geode', portal: 'x'+k } });",
+  "each": "bend.camera({ idle:0, yaw: 0.2 + t*0.3, dist: 6, pitch: 0.1, height: 1.4, fov: 70 });",
+  "sheet": {
+   "cols": 4,
+   "rows": 3,
+   "width": 400
+  },
+  "stills": [
+   2
+  ]
+ }
+]

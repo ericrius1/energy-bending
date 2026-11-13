@@ -4,11 +4,21 @@
 //           (engine/shots.ts), its optional idle behaviour. On a tall screen it stands back (or widens the lens) far
 //           enough to keep every dancer in frame.
 //   follow: (free, with `follow` set) a third-person camera behind or beside a player: the right stick or the mouse
-//           turns it (`lookBy`), and when the player runs and leaves it alone it swings round behind them.
-//   locked: it eases round to face a StagePlane square on, with a long lens, framing a set of points (the dancers'
-//           joints) on that plane: the 2D side view a jogo locks into.
+//           turns it (`lookBy`), and when the player runs and leaves it alone it swings round behind them. It leads
+//           the way they travel, holds a partner who is near, lines up with a gate the player is heading for, and its
+//           boom shortens (fast) and grows back (slowly) to stay inside the world's room, above its ground and in
+//           front of anything `clearance` says is in the way (a gate's disc; a world's trunks when one says so).
+//   locked: it eases round to face a StagePlane, a little off square (the plane's `yaw` and `pitch`), with a long lens,
+//           framing the dancers on that plane: the 2D side view a jogo locks into. The framing is a game screen: both
+//           dancers inside a safe area, led by their velocity so a leap or a cartwheel is never cropped, widening
+//           quickly and settling back slowly.
 // Switching eases between the poses, so the camera is never cut. `apply(camera)` writes the result into weft's
 // Camera; the rig itself is plain numbers and can be stepped without a GPU.
+//
+// Gates (src/portals) move the rig's whole state by a rigid move (`carry`) when the player it follows crosses, in the
+// same frame as the player, so the rig always works in the coordinates of the world its player is in. Until the eye
+// itself has come through the disc (it is still on the near side, the portals drawing the view from there), `through`
+// names that disc: the eye is kept on lines through it and dollied through it within about a second, one move.
 //
 // A StagePlane is a vertical plane in a world, with a stage in its own 2D coordinates: s along `right` from `origin`,
 // y up from the origin's height. Ledges are spans of it (one-way unless solid, bobbing with the music when they say so,
@@ -47,6 +57,10 @@ export interface StagePlane {
   height?: number;
   /** the lens the locked camera prefers on this stage (degrees, top to bottom; default `camera.lockLens`) */
   lens?: number;
+  /** the locked camera's turn off square-on (rad about up, positive toward +right; default `camera.lockYaw`) and how
+   *  far it looks down onto the stage (rad; default `camera.lockPitch`): a little of both reads better than dead flat */
+  yaw?: number;
+  pitch?: number;
 }
 
 /** a ledge's height at a beat: a bobbing ledge rides a sine over four beats (shared by physics and drawing) */
@@ -64,8 +78,18 @@ export function planePoint(p: StagePlane, s: number, y: number, out: V3 = [0, 0,
 }
 
 /** what a follow camera follows: a point (the player's chest, or the middle of two), the way the player faces, how
- *  fast they travel (m/s), and how far apart the players are (0 for one) */
+ *  fast they travel (m/s), and how far apart the players are (0 for one). The player is `RigInput.dancers[0]` */
 export interface FollowTarget { x: number; y: number; z: number; yaw: number; speed: number; spread: number }
+
+/** a gate's disc as the rig sees it (in the rig's coordinates): its centre, unit normal, in-plane axes and open radius */
+export interface Disc { at: V3; n: V3; right: V3; up: V3; reach: number }
+
+/** the disc the eye still has to come through after its player crossed (the rig was carried, the eye is behind the
+ *  disc); `side` is the side the player is on (+1 in front of the disc), `t` seconds since the carry */
+export interface Through extends Disc { side: number; t: number; depth: number }
+
+/** a gate the followed player is heading for: its disc, the side the player is on, and how near (0 … 1) */
+export interface Approach extends Disc { side: number; w: number }
 
 export const cameraParams = defineParams('camera', {
   autoOrbit: true,
@@ -83,6 +107,15 @@ export const cameraParams = defineParams('camera', {
   followFov: 48,
   followSwing: 1.6,
   followWait: 1.2,
+  /** how far ahead of a travelling player the follow camera aims (seconds of their speed) */
+  followLead: 0.3,
+  /** how hard the follow camera lines up behind a player heading for a gate (rad/s at the face) */
+  gateAlign: 0.9,
+  /** the locked view's default turn off square-on and look down (rad; a stage plane may say its own) */
+  lockYaw: 0.1,
+  lockPitch: 0.07,
+  /** seconds of a dancer's velocity the locked framing looks ahead by (a leap is framed before it peaks) */
+  lockLead: 0.35,
 }, {
   autoOrbit: { label: 'orbit when idle' },
   orbitSpeed: { min: -0.5, max: 0.5 },
@@ -91,6 +124,11 @@ export const cameraParams = defineParams('camera', {
   lockLens: { min: 8, max: 40, label: 'lock lens (deg)' },
   followDist: { min: 2, max: 10, label: 'follow distance' },
   followSwing: { min: 0, max: 5, label: 'follow swing' },
+  followLead: { min: 0, max: 1 },
+  gateAlign: { min: 0, max: 6, label: 'line up with gates' },
+  lockYaw: { min: -0.5, max: 0.5, label: 'lock turn (rad)' },
+  lockPitch: { min: -0.2, max: 0.4, label: 'lock look down (rad)' },
+  lockLead: { min: 0, max: 1 },
 });
 
 /** what the rig needs to know about the frame */
@@ -112,6 +150,8 @@ export interface RigInput {
   room: number;
   /** the furthest it may dolly out */
   maxDist: number;
+  /** the floor's height under (x, z) in the world the rig is in (the follow camera stays above it) */
+  groundAt?: (x: number, z: number) => number;
 }
 
 /** the widest the lens goes on a tall screen (degrees, top to bottom) */
@@ -119,6 +159,8 @@ const WIDEST = 90;
 const clampPitch = (p: number) => Math.max(-0.15, Math.min(1.5, p));
 const smooth01 = (x: number) => { const k = Math.max(0, Math.min(1, x)); return k * k * (3 - 2 * k); };
 const wrap = (a: number) => Math.atan2(Math.sin(a), Math.cos(a));
+/** what the locked view frames of each body: hips, knees, feet, toes, head (and its top), elbows, hands, fingertips */
+const LOCK_JOINTS = [0, 3, 4, 6, 9, 10, 12, 18, 19, 22, 23, 26, 31, 32, 35];
 
 export class CameraRig {
   mode: 'free' | 'locked' = 'free';
@@ -165,6 +207,21 @@ export class CameraRig {
   private freeLook: V3 = [0, 0, 0];
   private freeFov = 36;
   private lockEye: V3 = [0, 0, 0];
+  /** the locked framing's extent on the plane (u0, u1, v0, v1), eased: out quickly, back slowly */
+  private lockExt = [0, 0, 0, 0];
+  /** the boom's share of its length (1: all of it), eased: in quickly, out slowly */
+  private pull = 1;
+
+  /** how much of the segment from the point looked at to the eye is clear (0 … 1): the portals answer with the gates'
+   *  discs (a camera must not stand behind one), a world may add its trunks and pillars. Rig coordinates */
+  clearance: ((from: V3, to: V3) => number) | null = null;
+  /** the disc the eye must still come through after a carry (see the file's note), or null */
+  through: Through | null = null;
+  /** the gate the followed player is heading for, or null (the portals set it each frame) */
+  approach: Approach | null = null;
+
+  /** the distance in focus: from the eye to what it looks at (the stage plane, locked) */
+  get focus() { return Math.hypot(this.look[0] - this.eye[0], this.look[1] - this.eye[1], this.look[2] - this.eye[2]); }
 
   /** turn the orbit by a drag (pixels) */
   orbit(dx: number, dy: number) {
@@ -173,9 +230,11 @@ export class CameraRig {
     this.idle = 0;
   }
   /** carried through a gate (src/portals) by a rigid move (column-major 4×4): the target and every eased point move
-   *  with it, the orbit turns by the move's turn about up and rises with it. The rig is an orbit and holds no roll or
-   *  tilt: what of the move it can't hold (a floor gate to a wall gate) the portals keep as a residual over its pose
-   *  and ease out. A locked plane stays the old world's: the caller locks to the new world's stage */
+   *  with it, the orbit turns by the move's turn about up and rises with it, so whatever it was doing (its springs, its
+   *  swing, its ease toward a lock) goes on in the new coordinates. The rig is an orbit and holds no roll or tilt: what
+   *  of the move it can't hold (a floor gate to a wall gate) the portals keep as a residual over its pose and ease
+   *  out. A locked plane stays the old world's (the portals don't carry a locked rig); `through` and `approach` are
+   *  the portals' to set again */
   carry(m: Float32Array) {
     const pt = (p: V3) => {
       const x = p[0], y = p[1], z = p[2];
@@ -185,6 +244,7 @@ export class CameraRig {
     for (const p of [this.target, this.freeEye, this.freeLook, this.lockC, this.lockEye, this.eye, this.look]) pt(p);
     this.height += this.target[1] - y0;
     this.yaw += Math.atan2(m[8], m[10]);
+    this.approach = null;
   }
 
   /** the follow camera turned by a look rate (a stick's -1..1, a mouse's more) over dt seconds */
@@ -220,6 +280,7 @@ export class CameraRig {
   update(dt: number, f: RigInput) {
     this.idle += dt;
     this.updateFree(dt, f);
+    this.settleEye(dt, f);
     const want = this.mode === 'locked' && this.plane ? 1 : 0;
     // a critically damped ease of the lock's weight (lockEase seconds to get most of the way)
     const k = 1 - Math.exp(-dt * 4.6 / Math.max(0.05, cameraParams.lockEase));
@@ -256,7 +317,7 @@ export class CameraRig {
 
   // ---------------------------------------------------------------- free
   private updateFree(dt: number, f: RigInput) {
-    if (this.follow) { this.updateFollow(dt, this.follow); return; }
+    if (this.follow) { this.updateFollow(dt, this.follow, f); return; }
     this.followInit = false;
     // the director's shot while idle: each value on a spring, the yaw drifting round
     if (cameraParams.shots && this.idle >= 4) {
@@ -307,21 +368,29 @@ export class CameraRig {
     this.freeLook[0] = t[0]; this.freeLook[1] = t[1]; this.freeLook[2] = t[2];
   }
 
-  /** the third-person camera: the target springs to the player, the yaw is the player's to turn, and swings round
-   *  behind them while they run and leave it alone */
+  /** the third-person camera: the target springs to the player (and a little ahead of where they run), the yaw is the
+   *  player's to turn, and swings round behind them while they run and leave it alone, or lines up with a gate they
+   *  are heading for; a partner near enough is kept in frame (the boom grows), one far off is let go */
   private followInit = false;
-  private updateFollow(dt: number, F: FollowTarget) {
+  private updateFollow(dt: number, F: FollowTarget, f: RigInput) {
     const P = cameraParams;
     this.lookIdle += dt;
+    // the player alone (dancers[0]'s chest) once the partner is far: the middle of two is nowhere useful
+    const me = f.dancers[0], o = 15 * 12;
+    const alone = me ? smooth01((F.spread - 5) / 3) : 0;
+    const fx = F.x + (alone ? (me[o] - F.x) * alone : 0), fy = F.y + (alone ? (me[o + 1] - 0.15 - F.y) * alone : 0), fz = F.z + (alone ? (me[o + 2] - F.z) * alone : 0);
+    // a little ahead of where they travel
+    const lead = Math.min(F.speed, 5) * P.followLead;
+    const ax = fx + Math.sin(F.yaw) * lead, az = fz + Math.cos(F.yaw) * lead;
     if (!this.followInit) {
       this.followInit = true;
-      this.target[0] = F.x; this.target[1] = F.y; this.target[2] = F.z;
+      this.target[0] = ax; this.target[1] = fy; this.target[2] = az;
     }
     const k = 1 - Math.exp(-dt * 6);
-    this.target[0] += (F.x - this.target[0]) * k;
+    this.target[0] += (ax - this.target[0]) * k;
     // (quick enough upward to keep a 2 m jump in frame)
-    this.target[1] += (F.y - this.target[1]) * (1 - Math.exp(-dt * (F.y > this.target[1] ? 7 : 4)));
-    this.target[2] += (F.z - this.target[2]) * k;
+    this.target[1] += (fy - this.target[1]) * (1 - Math.exp(-dt * (fy > this.target[1] ? 7 : 4)));
+    this.target[2] += (az - this.target[2]) * k;
     if (this.lookIdle > P.followWait) {
       // left alone: the pitch settles, and while they run the eye swings round behind them
       this.pitch += (P.followPitch - this.pitch) * (1 - Math.exp(-dt * 1.2));
@@ -331,14 +400,96 @@ export class CameraRig {
         this.yaw += Math.max(-most, Math.min(most, d));
       }
     }
-    const dist = P.followDist + F.spread * 0.7;
+    // heading for a gate: line up so the eye will pass through the disc right behind them (the eye on the line from the
+    // disc's middle through the player), and look a little flatter. The player's own look input wins
+    const A = this.approach;
+    if (A && A.w > 0 && P.gateAlign > 0) {
+      const give = A.w * Math.min(1, this.lookIdle / Math.max(0.1, P.followWait));
+      const want = Math.atan2(fx - A.at[0], fz - A.at[2]), d = wrap(want - this.yaw), most = P.gateAlign * give * dt;
+      this.yaw += Math.max(-most, Math.min(most, d));
+      this.pitch += (Math.min(this.pitch, 0.14) - this.pitch) * (1 - Math.exp(-dt * 2 * give));
+    }
+    let dist = P.followDist + Math.min(F.spread, 5) * 0.45 * (1 - alone);
+    this.fov = P.followFov;
+    // a partner near enough is kept in frame: stand back as far as it takes (to a limit) to hold both, hips and head
+    if (f.dancers.length > 1 && alone < 1) {
+      const t = Math.tan((this.fov * Math.PI) / 360), tx = t * Math.max(f.aspect, 0.5);
+      const sy = Math.sin(this.yaw), cy = Math.cos(this.yaw), cp = Math.cos(this.pitch), sp = Math.sin(this.pitch);
+      for (let d = 0; d < Math.min(2, f.dancers.length); d++) {
+        const w = f.dancers[d];
+        for (const j of [0, 18]) {
+          const x = w[j * 12] - this.target[0], y = w[j * 12 + 1] - this.target[1], z = w[j * 12 + 2] - this.target[2];
+          const across = Math.abs(x * cy - z * sy), toward = (x * sy + z * cy) * cp + y * sp;
+          dist = Math.max(dist, Math.min(P.followDist + 4, toward + (across + 0.5) / (0.8 * tx)));
+        }
+      }
+    }
     this.dist = dist;
-    this.freeFov = this.fov = P.followFov;
+    this.freeFov = this.fov;
     const t = this.target;
     this.freeEye[0] = t[0] + Math.sin(this.yaw) * Math.cos(this.pitch) * dist;
-    this.freeEye[1] = Math.max(t[1] + Math.sin(this.pitch) * dist, 0.25);
+    this.freeEye[1] = t[1] + Math.sin(this.pitch) * dist;
     this.freeEye[2] = t[2] + Math.cos(this.yaw) * Math.cos(this.pitch) * dist;
     this.freeLook[0] = t[0]; this.freeLook[1] = t[1]; this.freeLook[2] = t[2];
+  }
+
+  /** the boom (look point to eye) shortened to what is clear: the world's room and ground for a follow camera, and
+   *  `clearance` (gates' discs, trunks) for any free camera. It comes in quickly and goes back out slowly, so a trunk
+   *  passing is a short dolly, not a jump. Then, after a carry, the way through the disc (`passThrough`) */
+  private settleEye(dt: number, f: RigInput) {
+    const T = this.freeLook, E = this.freeEye;
+    const dx = E[0] - T[0], dy = E[1] - T[1], dz = E[2] - T[2], len = Math.hypot(dx, dy, dz);
+    let want = 1;
+    if (!this.through) {
+      if (this.follow) {
+        // the room: a circle about the world's middle, as far as the eye may stand
+        const a = dx * dx + dz * dz, b = T[0] * dx + T[2] * dz, c = T[0] * T[0] + T[2] * T[2] - f.room * f.room;
+        if (a > 1e-9 && c < 0) want = Math.min(want, (-b + Math.sqrt(Math.max(0, b * b - a * c))) / a);
+      }
+      if (this.clearance) want = Math.min(want, this.clearance(T, E));
+      // (never closer than a body's width: a camera inside the player is worse than one behind a leaf)
+      want = Math.max(want, Math.min(1, 0.9 / Math.max(len, 1e-3)));
+    }
+    this.pull += (want - this.pull) * (1 - Math.exp(-dt * (want < this.pull ? 16 : 1.6)));
+    E[0] = T[0] + dx * this.pull; E[1] = T[1] + dy * this.pull; E[2] = T[2] + dz * this.pull;
+    if (this.through) this.passThrough(dt, T, E, len);
+    else if (this.follow && f.groundAt) E[1] = Math.max(E[1], f.groundAt(E[0], E[2]) + 0.25);
+  }
+
+  /** after a carry the eye is still behind the disc its player came out of. Keep it on lines through the disc (the
+   *  line from the look point to the eye meets the plane inside it, so seen from the old world it never passes beside
+   *  the gate), and shorten the boom so the eye comes through within about a second: one continuous push through the
+   *  door behind the player, then the boom grows back */
+  private passThrough(dt: number, T: V3, E: V3, full: number) {
+    const g = this.through!;
+    g.t += dt;
+    const side = (p: V3) => ((p[0] - g.at[0]) * g.n[0] + (p[1] - g.at[1]) * g.n[1] + (p[2] - g.at[2]) * g.n[2]) * g.side;
+    const zT = side(T);
+    let zE = side(E);
+    if (zT <= 0 || zE >= 0) return;
+    // where the line meets the plane, kept well inside the disc
+    const k = zT / (zT - zE), L = Math.hypot(E[0] - T[0], E[1] - T[1], E[2] - T[2]);
+    const X: V3 = [T[0] + (E[0] - T[0]) * k - g.at[0], T[1] + (E[1] - T[1]) * k - g.at[1], T[2] + (E[2] - T[2]) * k - g.at[2]];
+    const lx = X[0] * g.right[0] + X[1] * g.right[1] + X[2] * g.right[2], ly = X[0] * g.up[0] + X[1] * g.up[1] + X[2] * g.up[2];
+    const r = Math.hypot(lx, ly), lim = g.reach * 0.75;
+    if (r > lim) {
+      const s = lim / r;
+      const Y: V3 = [g.at[0] + (g.right[0] * lx + g.up[0] * ly) * s, g.at[1] + (g.right[1] * lx + g.up[1] * ly) * s, g.at[2] + (g.right[2] * lx + g.up[2] * ly) * s];
+      const d: V3 = [Y[0] - T[0], Y[1] - T[1], Y[2] - T[2]], dl = Math.hypot(...d) || 1;
+      for (let a = 0; a < 3; a++) E[a] = T[a] + (d[a] / dl) * L;
+      zE = side(E);
+    }
+    // how far behind the plane the eye may still be: from where it was at the carry down past the plane
+    if (g.depth < 0) g.depth = -zE;
+    // (slow enough that the player has walked on a couple of metres when the eye comes through, and never nearer to
+    // the look point than 1.5 m: standing still at the face, the player is seen through the door until they move on)
+    const e = Math.exp(-g.t / 0.8), most = g.depth * e - 0.6 * (1 - e);
+    if (-zE > most) {
+      const f = Math.max(Math.min(1, 1.5 / Math.max(L, 1e-3)), (zT + most) / (zT - zE));
+      for (let a = 0; a < 3; a++) E[a] = T[a] + (E[a] - T[a]) * f;
+    }
+    // (the boom grows back from here once the eye is through)
+    this.pull = Math.min(this.pull, Math.hypot(E[0] - T[0], E[1] - T[1], E[2] - T[2]) / Math.max(full, 1e-3));
   }
 
   /** how far from the target (along the camera's yaw and pitch) it can stand and stay inside the world's room */
@@ -379,41 +530,93 @@ export class CameraRig {
   }
 
   // ---------------------------------------------------------------- locked
+  /** the locked view: the dancers' bodies (and where their velocity takes them in `lockLead` seconds) in the plane's
+   *  2D coordinates, with the floor, inside a safe area of the frame; the camera a little off square-on (the plane's
+   *  `yaw` and `pitch`), far enough back with the plane's lens to hold that, or as far as the room and the gates allow
+   *  with a wider lens. The extent widens quickly and settles slowly, so a leap or a cartwheel is never cropped and the
+   *  camera does not breathe with every kick */
   private updateLocked(dt: number, f: RigInput) {
-    const P = this.plane!, up: V3 = [0, 1, 0];
-    // the points' extent in the plane's 2D coordinates (or the whole stage when there are none)
+    const P = this.plane!, C = cameraParams, N = planeNormal(P);
+    const ox = P.origin[0], oy = P.origin[1], oz = P.origin[2];
     let u0 = Infinity, u1 = -Infinity, v0 = Infinity, v1 = -Infinity;
-    for (let i = 0; i < this.framingCount; i++) {
-      const x = this.framing[i * 3] - P.origin[0], y = this.framing[i * 3 + 1] - P.origin[1], z = this.framing[i * 3 + 2] - P.origin[2];
-      const u = x * P.right[0] + z * P.right[2];
-      u0 = Math.min(u0, u); u1 = Math.max(u1, u); v0 = Math.min(v0, y); v1 = Math.max(v1, y);
-    }
+    const add = (x: number, y: number, z: number) => {
+      const u = (x - ox) * P.right[0] + (z - oz) * P.right[2], v = y - oy;
+      if (u < u0) u0 = u;
+      if (u > u1) u1 = u;
+      if (v < v0) v0 = v;
+      if (v > v1) v1 = v;
+    };
+    if (f.dancers.length) {
+      for (const w of f.dancers) for (const j of LOCK_JOINTS) {
+        const o = j * 12, x = w[o], y = w[o + 1], z = w[o + 2];
+        add(x, y, z);
+        // where it is heading (a fast limb's lead capped at a metre)
+        const vx = w[o + 8] * C.lockLead, vy = w[o + 9] * C.lockLead, vz = w[o + 10] * C.lockLead, vl = Math.hypot(vx, vy, vz), s = vl > 1 ? 1 / vl : 1;
+        add(x + vx * s, y + vy * s, z + vz * s);
+      }
+    } else for (let i = 0; i < this.framingCount; i++) add(this.framing[i * 3], this.framing[i * 3 + 1], this.framing[i * 3 + 2]);
     if (!(u1 >= u0)) { u0 = -P.halfWidth; u1 = P.halfWidth; v0 = 0; v1 = P.height ?? 3; }
-    // a margin round them, and never less than a body's height of stage
-    const mu = 0.6, mv = 0.35;
-    u0 -= mu; u1 += mu; v0 = Math.min(v0, 0) - mv; v1 = Math.max(v1, v0 + 2.2) + mv;
-    const uc = (u0 + u1) / 2, vc = (v0 + v1) / 2, hu = (u1 - u0) / 2, hv = (v1 - v0) / 2;
-    // far enough back with the plane's lens to hold that; past the plane's limit, the lens widens instead
-    const lens = P.lens ?? cameraParams.lockLens, tanP = Math.tan((lens * Math.PI) / 360);
-    let D = Math.max(hv / tanP, hu / (tanP * Math.max(f.aspect, 0.2)));
+    // a margin round them (hands and hair beyond the joints), the floor under them, never less than a body of stage
+    u0 -= 0.3; u1 += 0.3; v0 = Math.min(v0, P.ground ?? 0) - 0.25; v1 = Math.max(v1 + 0.3, v0 + 2.4);
+    const X = this.lockExt;
+    // (fresh, or a dancer put somewhere else in one go, a respawn: the extent jumps out with them)
+    if (this.lockFresh) { X[0] = u0; X[1] = u1; X[2] = v0; X[3] = v1; }
+    else if (X[0] - u0 > 1.5 || u1 - X[1] > 1.5 || X[2] - v0 > 1.5 || v1 - X[3] > 1.5) {
+      X[0] = Math.min(X[0], u0); X[1] = Math.max(X[1], u1); X[2] = Math.min(X[2], v0); X[3] = Math.max(X[3], v1);
+    }
+    else {
+      const out = 1 - Math.exp(-dt * 9), back = 1 - Math.exp(-dt * 0.9);
+      X[0] += (u0 - X[0]) * (u0 < X[0] ? out : back); X[1] += (u1 - X[1]) * (u1 > X[1] ? out : back);
+      X[2] += (v0 - X[2]) * (v0 < X[2] ? out : back); X[3] += (v1 - X[3]) * (v1 > X[3] ? out : back);
+    }
+    const uc = (X[0] + X[1]) / 2, vc = (X[2] + X[3]) / 2;
+    // the composed angle: turned a little about up from square-on, and looking a little down
+    const ya = P.yaw ?? C.lockYaw, pa = P.pitch ?? C.lockPitch, cyw = Math.cos(ya), syw = Math.sin(ya);
+    const hx = N[0] * cyw + P.right[0] * syw, hz = N[2] * cyw + P.right[2] * syw;   // toward the eye, level
+    const cp = Math.cos(pa), sp = Math.sin(pa);
+    const back: V3 = [hx * cp, sp, hz * cp];                                        // toward the eye
+    const rt: V3 = [hz, 0, -hx];                                                    // the screen's right
+    const up: V3 = [-sp * hx, cp, -sp * hz];                                        // the screen's up
+    const c: V3 = [ox + P.right[0] * uc, oy + vc, oz + P.right[2] * uc];
+    // how far back to hold the four corners inside the safe area (93 % across, 86 % up and down)
+    const lens = P.lens ?? C.lockLens, tanP = Math.tan((lens * Math.PI) / 360), asp = Math.max(f.aspect, 0.2);
+    const corners: V3[] = [];
+    for (const u of [X[0], X[1]]) for (const v of [X[2], X[3]]) {
+      const qx = ox + P.right[0] * u - c[0], qy = oy + v - c[1], qz = oz + P.right[2] * u - c[2];
+      corners.push([qx * rt[0] + qz * rt[2], qx * up[0] + qy * up[1] + qz * up[2], qx * back[0] + qy * back[1] + qz * back[2]]);
+    }
+    const SX = 0.93, SY = 0.86;
+    let D = 0;
+    for (const [x, y, z] of corners) D = Math.max(D, Math.abs(x) / (SX * tanP * asp) + z, Math.abs(y) / (SY * tanP) + z);
     let fov = lens;
-    // the furthest it may stand: inside the world's room (from the middle of what it frames, along the normal)
-    const N = planeNormal(P), cx = P.origin[0] + P.right[0] * uc, cz = P.origin[2] + P.right[2] * uc;
-    const b = cx * N[0] + cz * N[2], room = Math.max(1, f.room - 0.3);
-    const maxD = Math.max(2, -b + Math.sqrt(Math.max(0, b * b - (cx * cx + cz * cz - room * room))));
+    // the furthest it may stand: inside the world's room (along `back` from the middle of what it frames), and in
+    // front of any gate's disc between it and the stage
+    const hb2 = back[0] * back[0] + back[2] * back[2] || 1, b = c[0] * back[0] + c[2] * back[2], room = Math.max(1, f.room - 0.3);
+    const cc = c[0] * c[0] + c[2] * c[2] - room * room;
+    let maxD = Math.max(2, (-b + Math.sqrt(Math.max(0, b * b - hb2 * cc))) / hb2);
+    if (this.clearance) {
+      const far: V3 = [c[0] + back[0] * maxD, c[1] + back[1] * maxD, c[2] + back[2] * maxD];
+      maxD = Math.max(2, maxD * this.clearance(c, far));
+    }
     if (D > maxD) {
       D = maxD;
-      fov = (Math.atan(Math.max(hv / D, hu / (D * Math.max(f.aspect, 0.2)))) * 360) / Math.PI;
+      let t = 0;
+      for (const [x, y, z] of corners) t = Math.max(t, Math.abs(x) / (SX * asp * Math.max(0.5, D - z)), Math.abs(y) / (SY * Math.max(0.5, D - z)));
+      fov = Math.min(WIDEST, (Math.atan(t) * 360) / Math.PI);
     }
-    const c: V3 = [cx, P.origin[1] + vc * up[1], cz];
-    // the framing eases too, so a kick that reaches out doesn't jolt the camera
-    const k = this.lockFresh ? 1 : 1 - Math.exp(-dt * 2.2);
+    // a light ease on top (the extent already eases), so nothing jitters
+    const k = this.lockFresh ? 1 : 1 - Math.exp(-dt * 6);
     this.lockFresh = false;
-    for (let a = 0; a < 3; a++) this.lockC[a] += (c[a] - this.lockC[a]) * k;
+    for (let a = 0; a < 3; a++) {
+      this.lockC[a] += (c[a] - this.lockC[a]) * k;
+      this.lockBack[a] += (back[a] - this.lockBack[a]) * k;
+    }
     this.lockD += (D - this.lockD) * k;
     this.lockFov += (fov - this.lockFov) * k;
-    for (let a = 0; a < 3; a++) this.lockEye[a] = this.lockC[a] + N[a] * this.lockD;
+    for (let a = 0; a < 3; a++) this.lockEye[a] = this.lockC[a] + this.lockBack[a] * this.lockD;
     // (kept from drifting when unlocked: the free yaw takes over from wherever the lock left it facing)
     if (this.mode === 'locked' && this.lockW > 0.98) this.yaw += wrap(Math.atan2(N[0], N[2]) - this.yaw) * Math.min(1, dt * 2);
   }
+  private lockBack: V3 = [0, 0, 1];
+
 }

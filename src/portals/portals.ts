@@ -1,21 +1,29 @@
-// Live gates between worlds. A gate pairs two discs in two worlds (portals/gate.ts). While a gate is on screen and
+/// Live gates between worlds. A gate pairs two discs in two worlds (portals/gate.ts). While a gate is on screen and
 // bigger than a few pixels, the world behind it is drawn live, this frame, from the view's camera carried through the
 // gate (portals/camera.ts: its near plane laid on the far disc), into a smaller view of its own (a "slot"), and shown
 // in the disc (portals/surface.wgsl). Slots are the frame's extra views (LIMITS.views): a few, rendered deepest first
-// in the 'gates' stage, so a gate seen through a gate is live one level down; past that a gate shows the last view it
-// had, blurred, or a shimmer.
+// in the 'gates' stage, so a gate seen through a gate is live one level down. The main view's slots go first to the
+// gate the followed player is heading for, then to a gate with a dancer seen through it, then to the biggest on screen.
+// A gate with no live view shows the last view it had, blurred, or its still: the far world seen square on through
+// it, taken by a slot nobody needed (each gate's once it opens, then now and then), soft and dim on the disc.
 //
 // Crossing is one rigid move. A dancer whose middle passes through a disc is carried (portals/carried.ts wraps its
 // controller, every joint goes through the move, and each matter kind carries its particles: MatterPasses.carry).
-// The camera passing through a disc carries the camera rig (and the main view goes to the other world with it). The
-// view was already live, so nothing is hidden: the exposure leans toward the far world's as a gate fills the screen,
-// and at the face the two agree. A dancer part way through is drawn in both worlds, each side cut at the door: each
-// view's `seen` uniform (engine/seen.wgsl) says, per dancer, whether it is in that view's world, carried how, and
-// which side of which plane is drawn.
+// The camera rig goes with the player it follows (or, for the director's camera, with the last dancer to leave its
+// world) in the same frame, by the same move (CameraRig.carry): from then on it works in that world's coordinates.
+// What is drawn does not jump: the main view is drawn from where the eye really is (`offset`, the rig's coordinates
+// back through the gate) until the eye itself comes through the disc, which the rig makes happen within a second or
+// two (CameraRig.through), on a line through the disc. The eye passing through a disc moves the main view to the
+// other world; a locked camera and a follow camera never pass through a disc on their own (`clear`: the rig keeps its
+// eye in front of any disc between it and what it looks at). The view was already live, so nothing is hidden: the
+// exposure leans toward the far world's as a gate fills the screen, and at the face the two agree. A dancer part way
+// through is drawn in both worlds, each side cut at the door: each view's `seen` uniform (engine/seen.wgsl) says, per
+// dancer, whether it is in that view's world, carried how, and which side of which plane is drawn.
 //
 // The API for the game: open(def), close(id), crossed(prev, next, world), pt / dir / quat through a gate, on(event),
-// worldOf(dancer) / place(dancer, world), seen(world, dancers) (the dancers as the main view's world sees them, for the
-// camera to follow), and travel(event) to apply a crossing the network reported.
+// worldOf(dancer) / place(dancer, world), rigWorld (the world the camera rig works in), seen(world, dancers) (the
+// dancers as a world sees them, for the camera to follow: seen(rigWorld, …)), and travel(event) to apply a crossing
+// the network reported. More gates than LIMITS.gates in a world is fine: each view draws the nearest.
 import type { Kit, Texture } from '@ericrius1/weft';
 import type { FrameBuilder, FrameCtx } from '../engine/frame';
 import { makeView, type ViewCtx } from '../engine/views';
@@ -31,6 +39,7 @@ import { JOINT_FLOATS, MAXJ } from '../skeleton/rig';
 import { LIMITS } from '../engine/limits';
 import { Gate, type GateDef } from './gate';
 import { GateCamera, setPose } from './camera';
+import { Camera } from '@ericrius1/weft';
 import { Surfaces, type GateRow } from './surface';
 import { Carried } from './carried';
 import { Rigid, dot, type Q4, type V3 } from './rigid';
@@ -83,7 +92,12 @@ interface Slot {
   parent: ViewCtx | null;
   /** the gate it showed last frame (its texture still holds that view) */
   was: Gate | null;
+  /** this frame it draws a still for its gate (no one sees it live: it is copied into the stills) */
+  still: boolean;
 }
+
+/** a gate's soft still of its far world: which layer of the stills it is in, and when it was taken (s) */
+interface Still { layer: number; at: number }
 
 const ROOT = 0; // the hips: a dancer's middle
 const NO_CLIP = [0, 0, 0, 1];
@@ -94,6 +108,10 @@ const SUITE_RIM: Record<string, V3> = {
   'Blue lace': [0.55, 0.7, 1.0], Midnight: [0.6, 0.45, 0.9], Dawn: [1.0, 0.65, 0.6], Custom: [0.8, 0.9, 0.7],
 };
 const CAMERA_RIM: V3 = [1.0, 0.92, 0.75];
+/** a world's gate view against the same world drawn full size, where they differ: the redwoods' mist and rays read
+ *  7 % brighter in the half-size view (measured at the face, both ways, 4-cameras.md); the geode matched within 1 %.
+ *  The cause (somewhere in the redwoods' air or scene at half size) is not traced: this evens it out until it is */
+const SLOT_GAIN: Record<string, number> = { redwoods: 0.93 };
 /** each world's hue for a gate with nothing live in it */
 const WORLD_HUE: Record<string, V3> = { geode: [0.55, 0.4, 1.0], redwoods: [0.55, 0.75, 0.4] };
 
@@ -125,23 +143,47 @@ export class Portals implements SceneLayer {
   private leanGate: Gate | null = null;
   private t = 0;
   private seenCache = new WeakMap<Dancer, Float32Array>();
+  /** the rig's coordinates → the main view's, while the rig has gone with its player and the eye is not through yet
+   *  (null: the same), and the world the rig is in then */
+  private offset: Rigid | null = null;
+  private rigAt: string | null = null;
+  /** the gate the followed player went through while the view was locked (the rig goes with them when it unlocks) */
+  private owed: Gate | null = null;
+  /** the gate the followed player is heading for (its live view comes first) */
+  private heading: Gate | null = null;
+  /** the gates' stills, and the one being taken this frame */
+  private stills = new Map<Gate, Still>();
+  private stillTex: Texture;
+  private stillSize: number;
+  private taking: { slot: Slot; layer: number } | null = null;
+  private stillCam = new Camera();
+  private lastTake = -1;
 
   constructor(private ctx: PortalsCtx) {
     const kit = (this.kit = ctx.kit);
     const S = Math.max(0, Math.min(ctx.slots, LIMITS.views, 3));
     for (let i = 0; i < S; i++) {
       const cam = new GateCamera();
-      const slot: Slot = { index: i, view: null!, cam, active: false, gate: null, parent: null, was: null };
+      const slot: Slot = { index: i, view: null!, cam, active: false, gate: null, parent: null, was: null, still: false };
       slot.view = makeView(kit, `gate${i}`, { world: ctx.main.world, scale: P.scale, camera: cam, on: () => slot.active });
       this.slots.push(slot);
     }
     this.views = this.slots.map((s) => s.view);
-    this.surfaces = new Surfaces(kit, () => this.slotTextures());
+    // each gate's still (a layer each): its far world seen square on through it, taken by a slot no live view needs
+    this.stillSize = ctx.coarse ? 128 : 256;
+    this.stillTex = kit.texture({ label: 'gates.stills', format: 'rgba16float', size: [this.stillSize, this.stillSize, LIMITS.gates], view: '2d-array' });
+    this.surfaces = new Surfaces(kit, () => this.slotTextures(), this.stillTex);
     if (ctx.coarse) { this.surfaces.motes = 40; P.live = Math.min(P.live, 1); P.scale = Math.min(P.scale, 0.4); }
     sceneLayers.register(this);
     ctx.frame.tick('travel', (f) => this.travelPhase(f), 'gates: dancers through a door, carried to the other world');
     ctx.frame.tick('gates', (f) => this.gatesPhase(f), 'gates: the camera through a door, the views behind each live gate');
+    // the rig keeps its eye in front of every disc between it and what it looks at (never behind a gate)
+    ctx.rig.clearance = (a, b) => this.clear(a, b);
   }
+
+  /** the world the camera rig works in: its player's, from the moment they cross (the main view follows once the eye
+   *  is through). What the camera's follow target and framing should be measured in: `seen(rigWorld, dancers)` */
+  get rigWorld() { return this.rigAt ?? this.ctx.main.world; }
 
   private slotTextures(): Texture[] {
     if (!this.slots.length) return [this.ctx.main.targets.air];
@@ -157,6 +199,12 @@ export class Portals implements SceneLayer {
       this.ctx.frame.add('gates', s.view.scene, `gate view ${s.index}`);
       post.declareAir(s.view, this.ctx.worlds, 'gates');
     }
+    // a still taken this frame: the middle square of its slot's view into the gate's layer (nothing on other frames)
+    this.ctx.frame.add('gates', this.kit.copy(() => (this.taking?.slot ?? this.slots[0]).view.targets.air, this.stillTex, 'gates.still', {
+      from: () => { const v = this.taking?.slot.view.view; return v ? [Math.max(0, (v.width - this.stillSize) >> 1), Math.max(0, (v.height - this.stillSize) >> 1), 0] : [0, 0, 0]; },
+      to: () => [0, 0, this.taking?.layer ?? 0],
+      size: () => (this.taking ? [this.stillSize, this.stillSize, 1] : [0, 0, 1]),
+    }), 'gates: a gate view copied into its still');
     post.exposureOf = () => this.exposure;
     // every world's own gates (a world lists its side of each pair; the partner world lists the other)
     for (const w of this.ctx.worlds) for (const def of w.portals) this.open({ ...def, world: w.id });
@@ -188,7 +236,7 @@ export class Portals implements SceneLayer {
       if (b && g.partner !== b) g.pair(b);
       if (b) b.want = 1;
     }
-    if (this.gates.size > LIMITS.gates) console.warn(`gates: ${this.gates.size} open, more than LIMITS.gates (${LIMITS.gates}); the rest aren't drawn`);
+    // (more than LIMITS.gates in a view's world is fine: each view draws the nearest LIMITS.gates on its screen)
     return opened;
   }
 
@@ -238,8 +286,9 @@ export class Portals implements SceneLayer {
   }
 
   /** every dancer as `world` sees it: its joints (carried through the gate it is nearest, for one in another world
-   *  joined to this one by an open gate), and their middle. What the camera follows and frames */
-  seen(world: string, dancers: readonly Dancer[]) {
+   *  joined to this one by an open gate), and their middle. What the camera follows and frames: it passes `reach`
+   *  (m), so a dancer in another world counts only while it is that near the gate (part way through, or just past) */
+  seen(world: string, dancers: readonly Dancer[], reach = Infinity) {
     const joints: Float32Array[] = [];
     let x = 0, z = 0;
     for (const d of dancers) {
@@ -251,7 +300,7 @@ export class Portals implements SceneLayer {
         const dd = Math.hypot(J[0] - g.at[0], J[1] - g.at[1], J[2] - g.at[2]);
         if (dd < bd) { bd = dd; best = g; }
       }
-      if (!best) continue;
+      if (!best || bd > reach) continue;
       let out = this.seenCache.get(d);
       if (!out) { out = new Float32Array(J.length); this.seenCache.set(d, out); }
       carryJoints(J, out, best.through, MAXJ);
@@ -283,9 +332,89 @@ export class Portals implements SceneLayer {
       if (!c) return;
       this.roots.set(d, now);
       this.carryDancer(d, k, c.gate, c.u, c.v, c.front, f.t, true);
+      this.rigAfter(c.gate, k, f.dancers);
       moved = true;
     });
     if (moved) this.ctx.bodies.upload(f.dancers, f.t);
+    this.lineUp(f.dancers);
+  }
+
+  /** the dancer the camera goes with: `follow`, or player one while the rig follows a player; null for the director's
+   *  camera (it goes when the last dancer in its world has gone) */
+  private lead() { return this.follow ?? (this.ctx.rig.follow ? 0 : null); }
+
+  /** a dancer went through `g`: the rig goes too, in the same frame, if it was the one it follows (or, for the
+   *  director's camera, the last one in its world). A locked rig stays (the lock frames the stage it is locked to) and
+   *  goes when it unlocks */
+  private rigAfter(g: Gate, k: number, dancers: readonly Dancer[]) {
+    const rig = this.ctx.rig, lead = this.lead();
+    if (g.world !== this.rigWorld || !g.partner) return;
+    const go = lead !== null ? k === lead : dancers.every((d, i) => i >= LIMITS.dancers || this.worldOf(d) !== g.world);
+    if (!go) return;
+    if (rig.mode === 'locked' || rig.locked > 0.02) { this.owed = g; return; }
+    this.carryRig(g, dancers[k]);
+  }
+
+  /** move the rig's whole state through `g` (CameraRig.carry) without moving what is drawn: the main view goes on
+   *  being drawn from where the eye really is (`offset`) until the eye itself comes through the partner disc, which
+   *  the rig is told to do (`through`) */
+  private carryRig(g: Gate, d: Dancer) {
+    const rig = this.ctx.rig, G = g.through, b = g.partner!;
+    rig.carry(G.mat4());
+    this.offset = (this.offset ?? new Rigid()).mul(G.inverse());
+    this.rigAt = b.world;
+    this.owed = null;
+    if (this.rigAt === this.ctx.main.world && this.offset.isIdentity(1e-4)) { this.settle(); return; }
+    const J = d.skeleton.world;
+    rig.through = { at: [...b.at], n: [...b.n], right: [...b.right], up: [...b.up], reach: b.reach, side: b.side([J[0], J[1], J[2]]) >= 0 ? 1 : -1, t: 0, depth: -1 };
+  }
+
+  /** the rig and the view agree again (the eye came through, or the rig was taken back) */
+  private settle() {
+    this.offset = null;
+    this.rigAt = null;
+    this.ctx.rig.through = null;
+  }
+
+  /** the gate the followed player is heading for, told to the rig (it lines up behind them) and to the slots (its
+   *  view comes first): one in their world, near, in reach of the disc, which they are walking toward */
+  private lineUp(dancers: readonly Dancer[]) {
+    const rig = this.ctx.rig, lead = this.lead(), d = lead !== null ? dancers[lead] : null;
+    rig.approach = null;
+    this.heading = null;
+    if (!d || this.worldOf(d) !== this.rigWorld || rig.mode === 'locked') return;
+    const J = d.skeleton.world, r: V3 = [J[0], J[1], J[2]], v: V3 = [J[8], J[9], J[10]];
+    let best = 0;
+    for (const g of this.gates.values()) {
+      if (g.world !== this.rigWorld || !g.passable) continue;
+      const sd = g.side(r), l = g.local(r), lateral = Math.hypot(l[0], l[1]), s = sd >= 0 ? 1 : -1;
+      if (Math.abs(sd) > 4.5 || lateral > g.reach + 1.2) continue;
+      const toward = -dot(v, g.n) * s;
+      const w = Math.min(1, (4.5 - Math.abs(sd)) / 3) * (toward > 0.25 ? 1 : Math.abs(sd) < 1.2 ? 0.5 : 0) * (lateral < g.reach ? 1 : 1 - (lateral - g.reach) / 1.2);
+      if (w > best) {
+        best = w;
+        this.heading = g;
+        rig.approach = { at: [...g.at], n: [...g.n], right: [...g.right], up: [...g.up], reach: g.reach, side: s, w };
+      }
+    }
+  }
+
+  /** how much of the segment a → b (rig coordinates) is clear of the gates' discs: a camera stands at least 30 cm in
+   *  front of any disc between it and what it looks at, never behind one (and so is never carried by one it grazes) */
+  private clear(a: V3, b: V3) {
+    let best = 1;
+    for (const g of this.gates.values()) {
+      // (not the gate the player is heading for: the camera is about to follow them through it)
+      if (g.world !== this.rigWorld || g.open <= 0.05 || g === this.heading) continue;
+      const sa = g.side(a), sb = g.side(b), m = 0.3;
+      // only a segment that goes through the plane, or ends just short of it, seen from a's side
+      if (Math.abs(sa) <= m || ((sa > 0) === (sb > 0) && Math.abs(sb) > m)) continue;
+      const d = Math.max(1e-9, Math.abs(sa - sb)), k = Math.min(1, Math.abs(sa) / d);
+      const l = g.local([a[0] + (b[0] - a[0]) * k, a[1] + (b[1] - a[1]) * k, a[2] + (b[2] - a[2]) * k]);
+      if (Math.hypot(l[0], l[1]) > g.reach + 0.4) continue;
+      best = Math.min(best, Math.max(0, (Math.abs(sa) - m) / d));
+    }
+    return best;
   }
 
   private carryDancer(d: Dancer, k: number, g: Gate, u: number, v: number, front: boolean, t: number, tell: boolean) {
@@ -318,7 +447,7 @@ export class Portals implements SceneLayer {
 
   // ---------------------------------------------------------------- the camera, the views ('gates' phase)
   private gatesPhase(f: FrameCtx) {
-    const kit = this.kit, cam = kit.camera, main = this.ctx.main, [W, H] = kit.size.render;
+    const kit = this.kit, cam = kit.camera, main = this.ctx.main, rig = this.ctx.rig, [W, H] = kit.size.render;
     this.t += f.dt;
     this.animate(f.dt);
     this.fly(f.dt);
@@ -328,22 +457,49 @@ export class Portals implements SceneLayer {
       const pose = poseOf(cam), O = this.residual.partial(this.residualW);
       setPoseRigid(cam, O.mul(pose));
     } else this.residual = null;
+    // the rig works in its player's world; the view is drawn from where the eye really is
+    if (this.offset && !P.fly) setPoseRigid(cam, this.offset.mul(poseOf(cam)));
+    // a lock while the eye is still on its way through a door: the rig goes back to where it is drawn from (nothing
+    // moves on screen) and owes the crossing until it unlocks
+    if (this.offset && rig.mode === 'locked') { rig.carry(this.offset.mat4()); this.settle(); this.oweLead(); }
     cam.update(W, H);
-    // ---- the camera through a door
+    // ---- the camera through a door: on its way after its player, on the fly path, or the director's free camera
+    // (never a locked one, and never a follow camera that its player has not led through)
     const eye: V3 = [cam.position[0], cam.position[1], cam.position[2]];
-    if (this.camWas && this.camWas.world === main.world) {
-      const c = this.crossed(this.camWas.p, eye, main.world);
+    const may = !!P.fly || !!this.offset || (!rig.follow && rig.locked < 0.01);
+    if (may && this.camWas && this.camWas.world === main.world) {
+      const c = this.crossed(this.camWas.p, eye, main.world, P.fly ? 0 : -0.1);
       if (c) { this.carryCamera(c.gate, c.u, c.v, c.front, f.t); cam.update(W, H); eye[0] = cam.position[0]; eye[1] = cam.position[1]; eye[2] = cam.position[2]; }
     }
     // (the last place it was strictly off every disc's plane: what the next crossing is measured from)
     if (!this.camWas || this.camWas.world !== main.world || ![...this.gates.values()].some((g) => g.world === main.world && g.onFace(eye))) {
       this.camWas = { p: eye, world: main.world };
     }
+    // unlocked with a crossing owed: the rig goes with its player now (drawn through the offset from the next frame)
+    if (!this.offset && this.owed && rig.mode === 'free' && rig.locked < 0.02) this.payOwed(f.dancers);
     // ---- the views behind the gates, and what each view sees of the dancers
-    this.assign(W, H);
+    this.assign(W, H, f.dancers);
     this.leanExposure(W, H, f.dt);
     this.see(f.dancers);
     this.tables(W, H);
+  }
+
+  /** while locked, the followed player is in another world than the rig: remember the gate between, to go through it
+   *  when the lock lets go */
+  private oweLead() {
+    const lead = this.lead(), d = lead !== null ? this.lastDancers[lead] : null;
+    if (!d) return;
+    const w = this.worldOf(d);
+    if (w === this.rigWorld) return;
+    for (const g of this.gates.values()) if (g.world === this.rigWorld && g.partner?.world === w) { this.owed = g; return; }
+  }
+
+  /** unlocked again with a crossing owed: go with the player now (the eye comes through the door as after any carry) */
+  private payOwed(dancers: readonly Dancer[]) {
+    const g = this.owed!, lead = this.lead(), d = lead !== null ? dancers[lead] : dancers.find((x) => this.worldOf(x) !== this.rigWorld);
+    this.owed = null;
+    if (!d || !g.partner || !g.passable || g.world !== this.rigWorld || this.worldOf(d) !== g.partner.world) return;
+    this.carryRig(g, d);
   }
 
   /** gates weave open and shut, flashes die away, ripples age; a dancer standing in a disc keeps it rippling */
@@ -351,7 +507,7 @@ export class Portals implements SceneLayer {
     for (const [id, g] of this.gates) {
       const k = dt / Math.max(0.05, P.openTime);
       g.open = g.want > g.open ? Math.min(g.want, g.open + k) : Math.max(g.want, g.open - k * 1.5);
-      if (g.want === 0 && g.open <= 0) { this.gates.delete(id); continue; }
+      if (g.want === 0 && g.open <= 0) { this.gates.delete(id); this.stills.delete(g); continue; }
       g.flash *= Math.exp(-dt * 1.6);
     }
   }
@@ -364,7 +520,11 @@ export class Portals implements SceneLayer {
     for (const d of this.lastDancers) if (!this.homes.has(d)) this.homes.set(d, from);
     const before = poseOf(cam), after = G.mul(before);
     if (P.fly) G.mul(this.flyCarry, this.flyCarry);
-    else {
+    else if (this.offset) {
+      // the eye coming through after its player: the rig is already in this world; the view catches up with it
+      this.offset = G.mul(this.offset);
+      if (b.world === this.rigAt && this.offset.isIdentity(1e-4)) this.settle();
+    } else {
       // the rig is an orbit (a target, a turn and a tilt round it): carry the target and turn the orbit by the gate's
       // turn about up; what that can't hold (a tilt, a roll) is left as a residual and eased out
       rig.carry(G.mat4());   // (CameraRig.carry: the target, the eased points, the orbit's turn and rise)
@@ -412,20 +572,26 @@ export class Portals implements SceneLayer {
     setPoseRigid(cam, this.flyCarry.mul(pose));
   }
 
-  /** which gates get live views this frame: the biggest on the main screen first, then gates seen through those */
-  private assign(W: number, H: number) {
+  /** which gates get live views this frame. On the main screen, in order: the gate the followed player is heading
+   *  for, a gate with a dancer seen through it, then the biggest on screen (the part of it on screen); then gates seen
+   *  through those. A slot nobody needs for a live view refreshes the soft still of a gate that isn't live */
+  private assign(W: number, H: number, dancers: readonly Dancer[]) {
     const main = this.ctx.main;
-    for (const s of this.slots) { s.was = s.active ? s.gate : null; s.active = false; s.gate = null; s.parent = null; }
+    for (const s of this.slots) { s.was = s.active && !s.still ? s.gate : null; s.active = false; s.gate = null; s.parent = null; s.still = false; }
+    this.taking = null;
     let next = 0;
-    // the main view's gates take up to `live` slots; gates seen through those take what is left
     const take = (parent: ViewCtx, cam: CamLike, world: string, skip: Gate | null, w: number, h: number, cap: number) => {
-      const c: { g: Gate; px: number }[] = [];
+      const c: { g: Gate; score: number }[] = [];
       for (const g of this.gates.values()) {
         if (g.world !== world || g === skip || !g.partner || g.open <= 0.02) continue;
         const sc = screenOf(g, cam, w, h);
-        if (sc.on && sc.px >= P.minPx) c.push({ g, px: sc.px });
+        if (!sc.on || sc.px < P.minPx) continue;
+        let score = sc.px;
+        if (g === this.heading) score += 1e6 * (0.5 + (this.ctx.rig.approach?.w ?? 0));
+        if (this.dancerThrough(g, cam.position, dancers)) score += 1e5;
+        c.push({ g, score });
       }
-      c.sort((a, b) => b.px - a.px);
+      c.sort((a, b) => b.score - a.score);
       const got: Slot[] = [];
       for (const { g } of c) {
         if (next >= cap) break;
@@ -438,10 +604,78 @@ export class Portals implements SceneLayer {
       return got;
     };
     const level1 = take(main, this.kit.camera, main.world, null, W, H, Math.min(P.live, this.slots.length));
+    // a still that is due takes the last slot before gates seen through gates do (at most four times a second, so
+    // those are live three frames in four or more; without this they would starve the stills)
+    const last = this.slots[this.slots.length - 1];
+    const still = P.stills && next < this.slots.length && this.refreshStill(last, main.world);
     if (P.depth >= 2) for (const s of level1) {
       const vw = s.view.view.width, vh = s.view.view.height;
-      take(s.view, s.cam, s.view.world, s.gate!.partner, vw / P.scale, vh / P.scale, this.slots.length);
+      take(s.view, s.cam, s.view.world, s.gate!.partner, vw / P.scale, vh / P.scale, this.slots.length - (still ? 1 : 0));
     }
+  }
+
+  /** whether a dancer in the gate's partner world would be seen through it from `eye`: carried back through the pair it
+   *  stands beyond the disc, and the line from the eye to it passes through the disc */
+  private dancerThrough(g: Gate, eye: ArrayLike<number>, dancers: readonly Dancer[]) {
+    const b = g.partner!, se = g.side(eye);
+    for (const d of dancers) {
+      if (this.worldOf(d) !== b.world) continue;
+      const J = d.skeleton.world;
+      for (const j of [0, 18]) {
+        const X = b.through.pt([J[j * 12], J[j * 12 + 1], J[j * 12 + 2]]), sx = g.side(X);
+        if (se * sx >= 0 || Math.hypot(X[0] - eye[0], X[1] - eye[1], X[2] - eye[2]) > 25) continue;
+        const k = se / (se - sx), l = g.local([eye[0] + (X[0] - eye[0]) * k, eye[1] + (X[1] - eye[1]) * k, eye[2] + (X[2] - eye[2]) * k]);
+        if (Math.hypot(l[0], l[1]) < g.reach) return true;
+      }
+    }
+    return false;
+  }
+
+  /** a slot no live view needs this frame takes one gate's still: a gate never taken first (the main view's world
+   *  before the others), else the oldest past eight seconds; at most one every quarter of a second. The camera stands
+   *  square on in front of the disc, the disc filling the middle square of the slot's view, which is copied into the
+   *  gate's layer of the stills (portals/surface.wgsl shows it, soft and dim, on a disc with no live view) */
+  private refreshStill(s: Slot, world: string): boolean {
+    if (this.t - this.lastTake < 0.25) return false;
+    const v = s.view.view;
+    if (v.width < this.stillSize || v.height < this.stillSize) return false;
+    let best: Gate | null = null, bestScore = -Infinity;
+    for (const g of this.gates.values()) {
+      if (!g.partner || g.open < 0.99 || this.slots.some((x) => x.active && x.gate === g)) continue;
+      const st = this.stills.get(g), age = st ? this.t - st.at : 1e3;
+      if (st && age < 8) continue;
+      const score = age + (g.world === world ? 1e4 : 0);
+      if (score > bestScore) { bestScore = score; best = g; }
+    }
+    if (!best) return false;
+    let st = this.stills.get(best);
+    if (!st) {
+      const used = new Set([...this.stills.values()].map((x) => x.layer));
+      let layer = 0;
+      while (used.has(layer)) layer++;
+      if (layer >= LIMITS.gates) {
+        // (more gates than layers: the oldest still of a gate in another world gives its layer up)
+        let old: Gate | null = null;
+        for (const [g, x] of this.stills) if (g.world !== world && (!old || x.at < this.stills.get(old)!.at)) old = g;
+        if (!old) return false;
+        layer = this.stills.get(old)!.layer;
+        this.stills.delete(old);
+      }
+      st = { layer, at: this.t };
+      this.stills.set(best, st);
+    }
+    st.at = this.t;
+    this.lastTake = this.t;
+    const c = this.stillCam, R = best.radius, d = R * 2.6;
+    setPose(c, [best.at[0] + best.n[0] * d, best.at[1] + best.n[1] * d, best.at[2] + best.n[2] * d], [-best.n[0], -best.n[1], -best.n[2]], best.up);
+    c.fovY = 2 * Math.atan(((R * 1.05) / d) * (v.height / this.stillSize));
+    c.near = 0.05;
+    c.update(v.width, v.height);
+    s.active = true; s.still = true; s.gate = best; s.parent = null;
+    s.view.world = best.partner!.world;
+    this.aim(s, c);
+    this.taking = { slot: s, layer: st.layer };
+    return true;
   }
 
   /** a slot's camera: its parent's carried through the gate, its near plane on the far disc */
@@ -516,7 +750,7 @@ export class Portals implements SceneLayer {
   private tables(W: number, H: number) {
     const main = this.ctx.main, worldOf = (id: string) => this.ctx.worlds.find((w) => w.id === id);
     const views: { v: ViewCtx; cam: CamLike; skip: Gate | null; order: number; w: number; h: number; clip: number[] }[] = [
-      { v: main, cam: this.kit.camera, skip: null, order: Infinity, w: W, h: H, clip: NO_CLIP },
+      { v: main, cam: this.kit.camera, skip: null, order: -1, w: W, h: H, clip: NO_CLIP },
       ...this.slots.filter((s) => s.active).map((s) => ({ v: s.view, cam: s.cam, skip: s.gate!.partner, order: s.index, w: s.view.view.width, h: s.view.view.height, clip: [...s.cam.clip!] })),
     ];
     // the side of each gate the eye was last strictly on (the main view's: where the camera was measured from)
@@ -532,22 +766,30 @@ export class Portals implements SceneLayer {
         // what to show: the slot that looks through it from this view (rendered before this view: a higher index),
         // or the one that showed it last frame, blurred
         let slot = -1, live = 0;
-        const s = this.slots.find((x) => x.active && x.gate === g && x.parent === v && x.index < order);
+        const s = this.slots.find((x) => x.active && x.gate === g && x.parent === v && x.index > order);
         if (s) { slot = s.index; live = 1; }
         else {
           const old = this.slots.find((x) => x.was === g && (!x.active || x.gate === g));
+          const st = this.stills.get(g);
           if (old) { slot = old.index; live = 0.5; }
+          // else its still (soft and dim), -1 - its layer
+          else if (st) live = -1 - st.layer;
         }
         const far = worldOf(g.partner.world);
-        const gain = Math.pow(Math.max(1e-3, (far?.exposure() ?? 1) / Math.max(1e-3, this.exposure)), P.match);
+        // (a world's live gate view can read brighter than the same world drawn full size: SLOT_GAIN takes it back)
+        const gain = Math.pow(Math.max(1e-3, (far?.exposure() ?? 1) / Math.max(1e-3, this.exposure)), P.match) * (live > 0.25 ? SLOT_GAIN[g.partner.world] ?? 1 : 1);
         const hue = WORLD_HUE[g.partner.world] ?? [0.6, 0.6, 0.8];
         const floor = worldOf(g.world)?.groundAt(g.at[0], g.at[2]) ?? 0;
         rows.push({
+          key: (live > 0.75 ? 0 : 1e6) + Math.hypot(g.at[0] - cam.position[0], g.at[1] - cam.position[1], g.at[2] - cam.position[2]),
           at: [...g.at, g.radius], right: [...g.right, g.open], up: [...g.up, g.seed], n: [...g.n, slot], rect: sc.rect,
           rim: [...g.rim, g.flash], look: [...hue, gain], info: [live, floor, P.glow, sideOf(g)],
           pokes: [0, 1, 2, 3].map((i) => { const p = g.pokes[i]; return p ? [p.u, p.v, this.t - p.t, p.s] : [0, 0, 0, 0]; }),
         });
       }
+      // past LIMITS.gates in one view the farthest are left out (live ones first)
+      rows.sort((a, b) => (a.key ?? 0) - (b.key ?? 0));
+      this.surfaces.face = P.faceDist;
       this.surfaces.fill(v, rows, this.t, clip);
     }
   }
@@ -639,7 +881,8 @@ function screenOf(g: Gate, c: CamLike, w: number, h: number) {
     return { on: Math.abs(l[2]) < g.radius * 3 && out < g.radius * 3, px: Math.sqrt(k) * Math.max(w, h) * 0.5, rect: [-1, -1, 1, 1] };
   }
   const on = x1 > -1 && x0 < 1 && y1 > -1 && y0 < 1;
-  const px = Math.max((x1 - x0) * w, (y1 - y0) * h) * 0.25;
+  // (its size is the part of it on screen: a gate mostly off the edge is not the biggest)
+  const px = Math.sqrt(Math.max(0, Math.min(x1, 1) - Math.max(x0, -1)) * w * Math.max(0, Math.min(y1, 1) - Math.max(y0, -1)) * h) * 0.25;
   const pad = 4 / Math.max(w, h);
   return { on, px, rect: [Math.max(-1, x0 - pad), Math.max(-1, y0 - pad), Math.min(1, x1 + pad), Math.min(1, y1 + pad)] };
 }
