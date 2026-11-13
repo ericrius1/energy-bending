@@ -138,8 +138,9 @@ fn flameLight(i: FOut) -> vec4f {
   let l = flameLight(i);
   // the smoke takes over from the light as a flame goes to smoke
   let rgb = l.rgb * sim.intensity * i.info.w * (1.0 - i.look.w);
-  // its distance where it is solid enough to be seen (min-blended into the scene's alpha); elsewhere far away
-  let dist = select(1e5, i.info.z, MIRROR == 0u && l.a > 0.25);
+  // its distance (min-blended into the scene's alpha) wherever it shows at all, even a faint tip: else the air and the
+  // depth of field treat it as the far background behind it, and a horizon cuts across the flames
+  let dist = select(1e5, i.info.z, MIRROR == 0u && l.a > 0.06);
   return vec4f(rgb, dist);
 }
 

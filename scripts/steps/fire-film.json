@@ -1,5 +1,5 @@
 [
-  {"name": "film-f000", "query": "world=geode", "params": {"dance": {"auto": false}}, "wake": true, "eval": "bend.loadout(0, { layers: [{ kind: 'fire', share: 1 }] }); bend.loadout(1, { layers: [{ kind: 'gems', share: 1, params: { suite: 'Sky' } }] });", "frames": 840, "shot": "close"},
+  {"name": "film-f000", "query": "world=geode&salsa", "params": {"dance": {"auto": false}}, "wake": true, "eval": "bend.loadout(0, { layers: [{ kind: 'fire', share: 1 }] }); bend.loadout(1, { layers: [{ kind: 'gems', share: 1, params: { suite: 'Sky' } }] });", "frames": 840, "shot": "close"},
   {"name": "film-f001", "frames": 1},
   {"name": "film-f002", "frames": 1},
   {"name": "film-f003", "frames": 1},

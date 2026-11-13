@@ -19,7 +19,7 @@ export const fireParams = defineParams('fire', {
   cling: 160,
   // look
   size: 0.021,
-  intensity: 0.012,
+  intensity: 0.011,
   stretch: 0.03,
   erode: 0.25,
   reflect: 0.35,
