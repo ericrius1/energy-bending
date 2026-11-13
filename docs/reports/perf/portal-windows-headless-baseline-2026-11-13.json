@@ -1,0 +1,5202 @@
+{
+ "schema": 1,
+ "runId": "mwevl0zqsrx6",
+ "suite": "default",
+ "startedAt": "2026-11-13T11:10:20.486Z",
+ "at": "2026-11-13T11:15:39.063Z",
+ "device": "portal-windows-headless",
+ "variant": "baseline",
+ "ua": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/157.0.0.0 Safari/537.36",
+ "platform": "Windows",
+ "mobile": false,
+ "brands": [
+  {
+   "brand": "Not-A.Brand",
+   "version": "99"
+  },
+  {
+   "brand": "Google Chrome",
+   "version": "157"
+  },
+  {
+   "brand": "Chromium",
+   "version": "157"
+  }
+ ],
+ "cores": 32,
+ "memoryGB": 32,
+ "screen": {
+  "w": 800,
+  "h": 600,
+  "dpr": 1,
+  "colorDepth": 24
+ },
+ "window": {
+  "w": 1280,
+  "h": 800
+ },
+ "baseline": true,
+ "class": {
+  "klass": "desktop",
+  "coarse": false,
+  "how": "probe",
+  "probe": {
+   "gpixPerS": 245.4,
+   "ms": 857,
+   "instances": 4096,
+   "latencyMs": 0.3,
+   "samples": [
+    [
+     18.4,
+     36
+    ],
+    [
+     20,
+     35.7
+    ],
+    [
+     17.9,
+     36.3
+    ],
+    [
+     19,
+     36.7
+    ],
+    [
+     17.9,
+     35.6
+    ],
+    [
+     18.4,
+     37.5
+    ],
+    [
+     18.5,
+     35.4
+    ],
+    [
+     19.1,
+     35.6
+    ],
+    [
+     19.6,
+     38
+    ],
+    [
+     19.1,
+     37
+    ],
+    [
+     19.4,
+     36
+    ],
+    [
+     18.4,
+     35.6
+    ]
+   ]
+  },
+  "adapter": {
+   "vendor": "nvidia",
+   "architecture": "blackwell",
+   "device": "0x2b85",
+   "description": "NVIDIA GeForce RTX 5090"
+  },
+  "gpuName": "ANGLE (NVIDIA, NVIDIA GeForce RTX 5090 (0x00002B85) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+  "appleGpu": false,
+  "webkit": false,
+  "pointerCoarse": false
+ },
+ "budget": {
+  "targetFps": 60,
+  "gpuMs": 14,
+  "renderScale": {
+   "min": 0.5,
+   "max": 1
+  },
+  "maxPixelRatio": 2,
+  "coarse": false,
+  "stones": 15000,
+  "flamesPerDancer": 150000,
+  "waterPerDancer": 100000,
+  "waterResolution": 1,
+  "waterSmooth": 2,
+  "steam": 9000,
+  "spriteScale": 1,
+  "field": {
+   "dims": [
+    48,
+    32,
+    48
+   ],
+   "cell": 0.18
+  },
+  "gates": {
+   "live": 2,
+   "scale": 0.5
+  },
+  "dof": true
+ },
+ "budgets": {
+  "desktop": {
+   "targetFps": 60,
+   "gpuMs": 14,
+   "renderScale": {
+    "min": 0.5,
+    "max": 1
+   },
+   "maxPixelRatio": 2,
+   "coarse": false,
+   "stones": 15000,
+   "flamesPerDancer": 150000,
+   "waterPerDancer": 100000,
+   "waterResolution": 1,
+   "waterSmooth": 2,
+   "steam": 9000,
+   "spriteScale": 1,
+   "field": {
+    "dims": [
+     48,
+     32,
+     48
+    ],
+    "cell": 0.18
+   },
+   "gates": {
+    "live": 2,
+    "scale": 0.5
+   },
+   "dof": true
+  },
+  "laptop": {
+   "targetFps": 60,
+   "gpuMs": 12,
+   "renderScale": {
+    "min": 0.5,
+    "max": 1
+   },
+   "maxPixelRatio": 1.5,
+   "coarse": false,
+   "stones": 12000,
+   "flamesPerDancer": 80000,
+   "waterPerDancer": 60000,
+   "waterResolution": 0.75,
+   "waterSmooth": 2,
+   "steam": 6000,
+   "spriteScale": 0.85,
+   "field": {
+    "dims": [
+     40,
+     28,
+     40
+    ],
+    "cell": 0.21
+   },
+   "gates": {
+    "live": 1,
+    "scale": 0.4
+   },
+   "dof": true
+  },
+  "phone": {
+   "targetFps": 30,
+   "gpuMs": 26,
+   "renderScale": {
+    "min": 0.5,
+    "max": 0.85
+   },
+   "maxPixelRatio": 2,
+   "coarse": true,
+   "stones": 9000,
+   "flamesPerDancer": 40000,
+   "waterPerDancer": 40000,
+   "waterResolution": 0.5,
+   "waterSmooth": 1,
+   "steam": 3000,
+   "spriteScale": 0.7,
+   "field": {
+    "dims": [
+     32,
+     24,
+     32
+    ],
+    "cell": 0.26
+   },
+   "gates": {
+    "live": 1,
+    "scale": 0.4
+   },
+   "dof": false
+  }
+ },
+ "adapter": {
+  "info": {
+   "vendor": "nvidia",
+   "architecture": "blackwell",
+   "device": "0x2b85",
+   "description": "NVIDIA GeForce RTX 5090",
+   "subgroupMinSize": 32,
+   "subgroupMaxSize": 32,
+   "isFallbackAdapter": false,
+   "driver": "D3D12 driver version 32.0.16.1088",
+   "backend": "D3D12",
+   "type": "discrete GPU",
+   "memoryHeaps": [
+    {},
+    {}
+   ],
+   "d3dShaderModel": 68,
+   "vkDriverVersion": null,
+   "powerPreference": "high-performance",
+   "subgroupMatrixConfigs": []
+  },
+  "isFallbackAdapter": null,
+  "features": [
+   "atomic-vec2u-min-max",
+   "bgra8unorm-storage",
+   "chromium-experimental-multi-draw-indirect",
+   "chromium-experimental-sampling-resource-table",
+   "chromium-experimental-timestamp-query-inside-passes",
+   "clip-distances",
+   "core-features-and-limits",
+   "depth-clip-control",
+   "depth32float-stencil8",
+   "dual-source-blending",
+   "float32-blendable",
+   "float32-filterable",
+   "indirect-first-instance",
+   "primitive-index",
+   "rg11b10ufloat-renderable",
+   "shader-f16",
+   "subgroup-size-control",
+   "subgroups",
+   "texture-component-swizzle",
+   "texture-compression-bc",
+   "texture-compression-bc-sliced-3d",
+   "texture-compression-unaligned",
+   "texture-formats-tier1",
+   "texture-formats-tier2",
+   "timestamp-query"
+  ],
+  "limits": {
+   "maxTextureDimension1D": 16384,
+   "maxTextureDimension2D": 16384,
+   "maxTextureDimension3D": 2048,
+   "maxTextureArrayLayers": 2048,
+   "maxBindGroups": 4,
+   "maxBindGroupsPlusVertexBuffers": 24,
+   "maxBindingsPerBindGroup": 1000,
+   "maxDynamicUniformBuffersPerPipelineLayout": 10,
+   "maxDynamicStorageBuffersPerPipelineLayout": 8,
+   "maxSampledTexturesPerShaderStage": 48,
+   "maxSamplersPerShaderStage": 16,
+   "maxStorageBuffersPerShaderStage": 16,
+   "maxStorageTexturesPerShaderStage": 8,
+   "maxUniformBuffersPerShaderStage": 12,
+   "maxUniformBufferBindingSize": 65536,
+   "maxStorageBufferBindingSize": 2147483644,
+   "minUniformBufferOffsetAlignment": 256,
+   "minStorageBufferOffsetAlignment": 256,
+   "maxVertexBuffers": 8,
+   "maxBufferSize": 2147483648,
+   "maxVertexAttributes": 30,
+   "maxVertexBufferArrayStride": 2048,
+   "maxInterStageShaderVariables": 28,
+   "maxColorAttachments": 8,
+   "maxColorAttachmentBytesPerSample": 128,
+   "maxComputeWorkgroupStorageSize": 32768,
+   "maxComputeInvocationsPerWorkgroup": 1024,
+   "maxComputeWorkgroupSizeX": 1024,
+   "maxComputeWorkgroupSizeY": 1024,
+   "maxComputeWorkgroupSizeZ": 64,
+   "maxComputeWorkgroupsPerDimension": 65535,
+   "maxImmediateSize": 64,
+   "maxStorageBuffersInFragmentStage": 16,
+   "maxStorageTexturesInFragmentStage": 8,
+   "maxStorageBuffersInVertexStage": 16,
+   "maxStorageTexturesInVertexStage": 8
+  }
+ },
+ "gpuDevice": {
+  "features": [
+   "core-features-and-limits",
+   "depth-clip-control",
+   "float32-filterable",
+   "indirect-first-instance",
+   "rg11b10ufloat-renderable",
+   "timestamp-query"
+  ],
+  "limits": {
+   "maxTextureDimension1D": 8192,
+   "maxTextureDimension2D": 8192,
+   "maxTextureDimension3D": 2048,
+   "maxTextureArrayLayers": 256,
+   "maxBindGroups": 4,
+   "maxBindGroupsPlusVertexBuffers": 24,
+   "maxBindingsPerBindGroup": 1000,
+   "maxDynamicUniformBuffersPerPipelineLayout": 8,
+   "maxDynamicStorageBuffersPerPipelineLayout": 4,
+   "maxSampledTexturesPerShaderStage": 16,
+   "maxSamplersPerShaderStage": 16,
+   "maxStorageBuffersPerShaderStage": 8,
+   "maxStorageTexturesPerShaderStage": 4,
+   "maxUniformBuffersPerShaderStage": 12,
+   "maxUniformBufferBindingSize": 65536,
+   "maxStorageBufferBindingSize": 134217728,
+   "minUniformBufferOffsetAlignment": 256,
+   "minStorageBufferOffsetAlignment": 256,
+   "maxVertexBuffers": 8,
+   "maxBufferSize": 268435456,
+   "maxVertexAttributes": 16,
+   "maxVertexBufferArrayStride": 2048,
+   "maxInterStageShaderVariables": 16,
+   "maxColorAttachments": 8,
+   "maxColorAttachmentBytesPerSample": 32,
+   "maxComputeWorkgroupStorageSize": 16384,
+   "maxComputeInvocationsPerWorkgroup": 256,
+   "maxComputeWorkgroupSizeX": 256,
+   "maxComputeWorkgroupSizeY": 256,
+   "maxComputeWorkgroupSizeZ": 64,
+   "maxComputeWorkgroupsPerDimension": 65535,
+   "maxImmediateSize": 64,
+   "maxStorageBuffersInFragmentStage": 8,
+   "maxStorageTexturesInFragmentStage": 4,
+   "maxStorageBuffersInVertexStage": 8,
+   "maxStorageTexturesInVertexStage": 4
+  }
+ },
+ "ready": {
+  "pipelines": 433,
+  "distinct": 98,
+  "failed": 0
+ },
+ "audio": "on",
+ "profiler": {
+  "available": true,
+  "note": ""
+ },
+ "loads": [
+  {
+   "group": "play",
+   "bootMs": 10558,
+   "refresh": {
+    "hz": 54.9,
+    "ms": 18.2,
+    "medianMs": 18.2,
+    "p95Ms": 19.1,
+    "snapped": false
+   },
+   "url": "https://portal-windows.tail4a295a.ts.net:5441/energybending/?perf=default&sink=https%3A%2F%2Fportal-windows.tail4a295a.ts.net%3A5441%2Fenergybending%2F__perf&baseline&device=portal-windows-headless&play&two&perfgroup=0&perfrun=mwevl0zqsrx6",
+   "class": "desktop",
+   "how": "probe",
+   "probe": {
+    "gpixPerS": 245.4,
+    "ms": 857,
+    "instances": 4096,
+    "latencyMs": 0.3,
+    "samples": [
+     [
+      18.4,
+      36
+     ],
+     [
+      20,
+      35.7
+     ],
+     [
+      17.9,
+      36.3
+     ],
+     [
+      19,
+      36.7
+     ],
+     [
+      17.9,
+      35.6
+     ],
+     [
+      18.4,
+      37.5
+     ],
+     [
+      18.5,
+      35.4
+     ],
+     [
+      19.1,
+      35.6
+     ],
+     [
+      19.6,
+      38
+     ],
+     [
+      19.1,
+      37
+     ],
+     [
+      19.4,
+      36
+     ],
+     [
+      18.4,
+      35.6
+     ]
+    ]
+   },
+   "ready": {
+    "pipelines": 433,
+    "distinct": 98,
+    "failed": 0
+   },
+   "audio": true
+  },
+  {
+   "group": "gems",
+   "bootMs": 2065,
+   "refresh": {
+    "hz": 55.2,
+    "ms": 18.1,
+    "medianMs": 18.1,
+    "p95Ms": 19.1,
+    "snapped": false
+   },
+   "url": "https://portal-windows.tail4a295a.ts.net:5441/energybending/?perf=default&sink=https%3A%2F%2Fportal-windows.tail4a295a.ts.net%3A5441%2Fenergybending%2F__perf&baseline&device=portal-windows-headless&perfgroup=1&perfrun=mwevl0zqsrx6",
+   "class": "desktop",
+   "how": "cache",
+   "probe": {
+    "gpixPerS": 245.4,
+    "ms": 857,
+    "instances": 4096,
+    "latencyMs": 0.3,
+    "samples": [
+     [
+      18.4,
+      36
+     ],
+     [
+      20,
+      35.7
+     ],
+     [
+      17.9,
+      36.3
+     ],
+     [
+      19,
+      36.7
+     ],
+     [
+      17.9,
+      35.6
+     ],
+     [
+      18.4,
+      37.5
+     ],
+     [
+      18.5,
+      35.4
+     ],
+     [
+      19.1,
+      35.6
+     ],
+     [
+      19.6,
+      38
+     ],
+     [
+      19.1,
+      37
+     ],
+     [
+      19.4,
+      36
+     ],
+     [
+      18.4,
+      35.6
+     ]
+    ]
+   },
+   "ready": {
+    "pipelines": 433,
+    "distinct": 98,
+    "failed": 0
+   },
+   "audio": true
+  }
+ ],
+ "scenes": [
+  {
+   "id": "critic-800-redwoods-close",
+   "note": "fire and water, redwoods at dusk, close (two live gates)",
+   "group": "play",
+   "size": "1280x800",
+   "world": "redwoods",
+   "stageMs": 471,
+   "runs": [
+    {
+     "mode": "auto",
+     "seconds": 5,
+     "frames": {
+      "n": 275,
+      "mean": 18.241,
+      "p50": 18.1,
+      "p95": 19,
+      "p99": 19.4,
+      "max": 19.4,
+      "fps": 54.8,
+      "dropped": 0,
+      "late": 0
+     },
+     "cpu": {
+      "frame": {
+       "n": 275,
+       "mean": 1.299,
+       "p50": 1.3,
+       "p95": 1.8,
+       "p99": 2.3,
+       "max": 2.7
+      },
+      "phases": {
+       "input": 0.027,
+       "dancers": 0.221,
+       "travel": 0.009,
+       "camera": 0.05,
+       "gates": 0.124,
+       "worlds": 0.051,
+       "matter": 0.172,
+       "post": 0.013,
+       "audio": 0.035
+      }
+     },
+     "gpu": {
+      "available": true,
+      "trusted": true,
+      "passesTrusted": true,
+      "frames": 275,
+      "frame": {
+       "n": 275,
+       "mean": 3.586,
+       "p50": 3.311,
+       "p95": 5.984,
+       "p99": 6.745,
+       "max": 6.977
+      },
+      "passes": {
+       "scene": 1.878,
+       "air": 0.384,
+       "scene.gate0": 0.349,
+       "scene.gate1": 0.253,
+       "water.splat.depth": 0.073,
+       "water.splat.thick": 0.049,
+       "lens": 0.043,
+       "water.smooth.x0": 0.027,
+       "field.step": 0.025,
+       "water.surface": 0.025,
+       "water.smooth.y0": 0.023,
+       "water.smooth.x1": 0.023,
+       "water.smooth.x2": 0.023,
+       "water.smooth.y1": 0.022,
+       "water.smooth.y2": 0.022,
+       "air.gate0": 0.022,
+       "air.gate1": 0.02,
+       "fire.sim": 0.012,
+       "water.sim": 0.012,
+       "trail": 0.011,
+       "grade": 0.008,
+       "gems.sim": 0.007,
+       "bloom.down0": 0.006,
+       "bloom.up0": 0.006,
+       "temple.ripples.a": 0.005,
+       "gems.cull.gate0": 0.005,
+       "ice.mist": 0.004,
+       "gems.cull": 0.004,
+       "gems.sparks": 0.003,
+       "steam.sim": 0.003,
+       "gems.cull.gate1": 0.003,
+       "bloom.down1": 0.003,
+       "bloom.up1": 0.003,
+       "field.probe": 0.002,
+       "temple.ripples.b": 0.002,
+       "bloom.down2": 0.002,
+       "bloom.down3": 0.002,
+       "bloom.down4": 0.002,
+       "bloom.up3": 0.002,
+       "bloom.up2": 0.002
+      }
+     },
+     "renderScale": {
+      "end": 1,
+      "mean": 1,
+      "min": 1,
+      "max": 1
+     },
+     "render": [
+      1280,
+      800
+     ],
+     "canvas": [
+      1280,
+      800
+     ],
+     "dpr": 1,
+     "liveGates": 2
+    },
+    {
+     "mode": "fixed",
+     "seconds": 5,
+     "frames": {
+      "n": 275,
+      "mean": 18.224,
+      "p50": 18.1,
+      "p95": 18.9,
+      "p99": 19.1,
+      "max": 19.6,
+      "fps": 54.9,
+      "dropped": 0,
+      "late": 0
+     },
+     "cpu": {
+      "frame": {
+       "n": 275,
+       "mean": 1.305,
+       "p50": 1.2,
+       "p95": 2,
+       "p99": 2.4,
+       "max": 2.5
+      },
+      "phases": {
+       "input": 0.023,
+       "dancers": 0.231,
+       "travel": 0.007,
+       "camera": 0.046,
+       "gates": 0.126,
+       "worlds": 0.053,
+       "matter": 0.167,
+       "post": 0.012,
+       "audio": 0.035
+      }
+     },
+     "gpu": {
+      "available": true,
+      "trusted": true,
+      "passesTrusted": true,
+      "frames": 274,
+      "frame": {
+       "n": 274,
+       "mean": 3.498,
+       "p50": 3.34,
+       "p95": 5.535,
+       "p99": 6.126,
+       "max": 6.286
+      },
+      "passes": {
+       "scene": 1.8,
+       "air": 0.384,
+       "scene.gate0": 0.368,
+       "scene.gate1": 0.253,
+       "water.splat.depth": 0.073,
+       "water.splat.thick": 0.049,
+       "lens": 0.043,
+       "water.smooth.x0": 0.027,
+       "water.surface": 0.027,
+       "field.step": 0.025,
+       "water.smooth.x1": 0.024,
+       "water.smooth.x2": 0.024,
+       "water.smooth.y0": 0.023,
+       "water.smooth.y1": 0.022,
+       "water.smooth.y2": 0.022,
+       "air.gate0": 0.022,
+       "air.gate1": 0.021,
+       "fire.sim": 0.012,
+       "water.sim": 0.012,
+       "trail": 0.011,
+       "grade": 0.008,
+       "gems.sim": 0.007,
+       "bloom.down0": 0.006,
+       "temple.ripples.a": 0.005,
+       "gems.cull.gate0": 0.005,
+       "gems.cull": 0.004,
+       "bloom.up0": 0.004,
+       "gems.sparks": 0.003,
+       "ice.mist": 0.003,
+       "steam.sim": 0.003,
+       "gems.cull.gate1": 0.003,
+       "bloom.down1": 0.003,
+       "bloom.up1": 0.003,
+       "field.probe": 0.002,
+       "temple.ripples.b": 0.002,
+       "bloom.down2": 0.002,
+       "bloom.down3": 0.002,
+       "bloom.down4": 0.002,
+       "bloom.up3": 0.002,
+       "bloom.up2": 0.002
+      }
+     },
+     "renderScale": {
+      "end": 1,
+      "mean": 1,
+      "min": 1,
+      "max": 1
+     },
+     "render": [
+      1280,
+      800
+     ],
+     "canvas": [
+      1280,
+      800
+     ],
+     "dpr": 1,
+     "liveGates": 2
+    }
+   ],
+   "matter": {
+    "field": {
+     "cells": "48×32×48",
+     "cell": 0.18,
+     "origin": "-4.32,-0.54,-3.96",
+     "deposits": 0,
+     "dropped": 0,
+     "vortices": 0,
+     "probes": 1,
+     "aura": "loadouts"
+    },
+    "fire": {
+     "flames": 150016,
+     "dancers": "0",
+     "burn": 1
+    },
+    "gems": {
+     "stones": 0,
+     "simulated": 15000,
+     "fixtures": 2600,
+     "specimens": 11
+    },
+    "ice": {
+     "particles": 100000,
+     "waterLayers": 1,
+     "iceLayers": 0,
+     "forms": "0.00,0.00",
+     "setPieces": 0,
+     "setShards": 0
+    },
+    "plasma": {
+     "arcs": 0,
+     "arcSegments": 0
+    },
+    "steam": {
+     "puffs": 9000
+    },
+    "water": {
+     "sharedWith": "ice"
+    }
+   },
+   "views": [
+    {
+     "id": "main",
+     "world": "redwoods",
+     "on": true
+    },
+    {
+     "id": "gate0",
+     "world": "geode",
+     "on": true
+    },
+    {
+     "id": "gate1",
+     "world": "temple",
+     "on": true
+    },
+    {
+     "id": "gate2",
+     "world": "geode",
+     "on": false
+    }
+   ],
+   "errors": []
+  },
+  {
+   "id": "critic-800-geode-hub-pair",
+   "note": "fire and water in the geode hub, wide, two live gates",
+   "group": "play",
+   "size": "1280x800",
+   "world": "geode",
+   "stageMs": 50,
+   "runs": [
+    {
+     "mode": "auto",
+     "seconds": 5,
+     "frames": {
+      "n": 275,
+      "mean": 18.199,
+      "p50": 18.1,
+      "p95": 19,
+      "p99": 19.2,
+      "max": 19.3,
+      "fps": 54.9,
+      "dropped": 0,
+      "late": 0
+     },
+     "cpu": {
+      "frame": {
+       "n": 275,
+       "mean": 1.202,
+       "p50": 1.2,
+       "p95": 1.8,
+       "p99": 2.1,
+       "max": 2.4
+      },
+      "phases": {
+       "input": 0.017,
+       "dancers": 0.208,
+       "travel": 0.008,
+       "camera": 0.047,
+       "gates": 0.13,
+       "worlds": 0.033,
+       "matter": 0.158,
+       "post": 0.013,
+       "audio": 0.027
+      }
+     },
+     "gpu": {
+      "available": true,
+      "trusted": true,
+      "passesTrusted": true,
+      "frames": 275,
+      "frame": {
+       "n": 275,
+       "mean": 2.229,
+       "p50": 2.152,
+       "p95": 3.4,
+       "p99": 3.836,
+       "max": 3.885
+      },
+      "passes": {
+       "scene": 0.92,
+       "scene.gate1": 0.249,
+       "scene.gate0": 0.249,
+       "air": 0.07,
+       "water.splat.depth": 0.052,
+       "water.splat.thick": 0.047,
+       "lens": 0.043,
+       "water.smooth.x0": 0.027,
+       "field.step": 0.025,
+       "water.smooth.y0": 0.023,
+       "water.smooth.x1": 0.023,
+       "water.smooth.x2": 0.023,
+       "water.smooth.y1": 0.022,
+       "water.smooth.y2": 0.022,
+       "air.gate1": 0.022,
+       "water.surface": 0.02,
+       "air.gate0": 0.019,
+       "fire.sim": 0.012,
+       "water.sim": 0.012,
+       "trail": 0.009,
+       "grade": 0.008,
+       "gems.sim": 0.007,
+       "bloom.down0": 0.007,
+       "pool.ripples.a": 0.005,
+       "gems.cull": 0.005,
+       "bloom.up3": 0.005,
+       "pool.ripples.b": 0.004,
+       "temple.ripples.a": 0.004,
+       "bloom.up1": 0.004,
+       "bloom.up0": 0.004,
+       "field.probe": 0.003,
+       "gems.sparks": 0.003,
+       "ice.mist": 0.003,
+       "steam.sim": 0.003,
+       "gems.cull.gate1": 0.003,
+       "gems.cull.gate0": 0.003,
+       "bloom.down1": 0.003,
+       "temple.ripples.b": 0.002,
+       "bloom.down2": 0.002,
+       "bloom.down3": 0.002,
+       "bloom.down4": 0.002,
+       "bloom.up2": 0.002
+      }
+     },
+     "renderScale": {
+      "end": 1,
+      "mean": 1,
+      "min": 1,
+      "max": 1
+     },
+     "render": [
+      1280,
+      800
+     ],
+     "canvas": [
+      1280,
+      800
+     ],
+     "dpr": 1,
+     "liveGates": 2
+    },
+    {
+     "mode": "fixed",
+     "seconds": 5,
+     "frames": {
+      "n": 274,
+      "mean": 18.259,
+      "p50": 18.2,
+      "p95": 19,
+      "p99": 19.4,
+      "max": 19.7,
+      "fps": 54.8,
+      "dropped": 0,
+      "late": 0
+     },
+     "cpu": {
+      "frame": {
+       "n": 274,
+       "mean": 1.318,
+       "p50": 1.3,
+       "p95": 2,
+       "p99": 2.5,
+       "max": 2.5
+      },
+      "phases": {
+       "input": 0.027,
+       "dancers": 0.219,
+       "travel": 0.008,
+       "camera": 0.042,
+       "gates": 0.137,
+       "worlds": 0.031,
+       "matter": 0.179,
+       "post": 0.014,
+       "audio": 0.033
+      }
+     },
+     "gpu": {
+      "available": true,
+      "trusted": true,
+      "passesTrusted": true,
+      "frames": 274,
+      "frame": {
+       "n": 274,
+       "mean": 2.233,
+       "p50": 2.202,
+       "p95": 2.956,
+       "p99": 3.288,
+       "max": 3.568
+      },
+      "passes": {
+       "scene": 0.928,
+       "scene.gate1": 0.249,
+       "scene.gate0": 0.248,
+       "air": 0.07,
+       "water.splat.depth": 0.052,
+       "water.splat.thick": 0.047,
+       "lens": 0.044,
+       "water.smooth.x0": 0.027,
+       "field.step": 0.025,
+       "water.smooth.y0": 0.023,
+       "water.smooth.x1": 0.023,
+       "water.smooth.x2": 0.023,
+       "water.smooth.y1": 0.022,
+       "water.smooth.y2": 0.022,
+       "air.gate1": 0.021,
+       "air.gate0": 0.019,
+       "water.surface": 0.015,
+       "fire.sim": 0.012,
+       "water.sim": 0.011,
+       "trail": 0.009,
+       "bloom.up0": 0.008,
+       "grade": 0.008,
+       "gems.sim": 0.007,
+       "bloom.down0": 0.006,
+       "pool.ripples.a": 0.005,
+       "gems.cull": 0.005,
+       "pool.ripples.b": 0.004,
+       "temple.ripples.a": 0.004,
+       "gems.cull.gate0": 0.004,
+       "bloom.up3": 0.004,
+       "bloom.up2": 0.004,
+       "bloom.up1": 0.004,
+       "gems.sparks": 0.003,
+       "ice.mist": 0.003,
+       "steam.sim": 0.003,
+       "gems.cull.gate1": 0.003,
+       "bloom.down1": 0.003,
+       "field.probe": 0.002,
+       "temple.ripples.b": 0.002,
+       "bloom.down2": 0.002,
+       "bloom.down3": 0.002,
+       "bloom.down4": 0.002
+      }
+     },
+     "renderScale": {
+      "end": 1,
+      "mean": 1,
+      "min": 1,
+      "max": 1
+     },
+     "render": [
+      1280,
+      800
+     ],
+     "canvas": [
+      1280,
+      800
+     ],
+     "dpr": 1,
+     "liveGates": 2
+    }
+   ],
+   "matter": {
+    "field": {
+     "cells": "48×32×48",
+     "cell": 0.18,
+     "origin": "-4.32,-0.72,-3.24",
+     "deposits": 0,
+     "dropped": 0,
+     "vortices": 0,
+     "probes": 1,
+     "aura": "loadouts"
+    },
+    "fire": {
+     "flames": 150016,
+     "dancers": "0",
+     "burn": 1
+    },
+    "gems": {
+     "stones": 0,
+     "simulated": 15000,
+     "fixtures": 2600,
+     "specimens": 11
+    },
+    "ice": {
+     "particles": 100000,
+     "waterLayers": 1,
+     "iceLayers": 0,
+     "forms": "0.00,0.00",
+     "setPieces": 0,
+     "setShards": 0
+    },
+    "plasma": {
+     "arcs": 0,
+     "arcSegments": 0
+    },
+    "steam": {
+     "puffs": 9000
+    },
+    "water": {
+     "sharedWith": "ice"
+    }
+   },
+   "views": [
+    {
+     "id": "main",
+     "world": "geode",
+     "on": true
+    },
+    {
+     "id": "gate0",
+     "world": "pool",
+     "on": true
+    },
+    {
+     "id": "gate1",
+     "world": "temple",
+     "on": true
+    },
+    {
+     "id": "gate2",
+     "world": "geode",
+     "on": false
+    }
+   ],
+   "errors": []
+  },
+  {
+   "id": "critic-1080-redwoods-close",
+   "note": "fire and water, redwoods at dusk, close (two live gates)",
+   "group": "play",
+   "size": "1920x1080",
+   "world": "redwoods",
+   "stageMs": 49,
+   "runs": [
+    {
+     "mode": "auto",
+     "seconds": 5,
+     "frames": {
+      "n": 275,
+      "mean": 18.232,
+      "p50": 18.2,
+      "p95": 19,
+      "p99": 19.2,
+      "max": 19.3,
+      "fps": 54.8,
+      "dropped": 0,
+      "late": 0
+     },
+     "cpu": {
+      "frame": {
+       "n": 275,
+       "mean": 1.058,
+       "p50": 1,
+       "p95": 1.5,
+       "p99": 1.7,
+       "max": 1.7
+      },
+      "phases": {
+       "input": 0.026,
+       "dancers": 0.22,
+       "travel": 0.005,
+       "camera": 0.043,
+       "gates": 0.055,
+       "worlds": 0.036,
+       "matter": 0.153,
+       "post": 0.009,
+       "audio": 0.029
+      }
+     },
+     "gpu": {
+      "available": true,
+      "trusted": true,
+      "passesTrusted": true,
+      "frames": 275,
+      "frame": {
+       "n": 275,
+       "mean": 4.017,
+       "p50": 3.945,
+       "p95": 4.629,
+       "p99": 4.921,
+       "max": 5.35
+      },
+      "passes": {
+       "scene": 2.346,
+       "air": 0.773,
+       "water.splat.depth": 0.096,
+       "lens": 0.078,
+       "water.splat.thick": 0.059,
+       "water.smooth.x0": 0.049,
+       "water.smooth.x1": 0.044,
+       "water.smooth.y0": 0.043,
+       "water.smooth.x2": 0.043,
+       "water.smooth.y1": 0.042,
+       "water.smooth.y2": 0.041,
+       "water.surface": 0.037,
+       "field.step": 0.025,
+       "trail": 0.019,
+       "grade": 0.014,
+       "fire.sim": 0.013,
+       "water.sim": 0.012,
+       "bloom.down0": 0.008,
+       "gems.sim": 0.007,
+       "bloom.up0": 0.006,
+       "gems.cull": 0.004,
+       "bloom.down1": 0.004,
+       "gems.sparks": 0.003,
+       "ice.mist": 0.003,
+       "steam.sim": 0.003,
+       "bloom.up2": 0.003,
+       "bloom.up1": 0.003,
+       "field.probe": 0.002,
+       "bloom.down2": 0.002,
+       "bloom.down3": 0.002,
+       "bloom.down4": 0.002,
+       "bloom.up3": 0.002
+      }
+     },
+     "renderScale": {
+      "end": 1,
+      "mean": 1,
+      "min": 1,
+      "max": 1
+     },
+     "render": [
+      1920,
+      1080
+     ],
+     "canvas": [
+      1920,
+      1080
+     ],
+     "dpr": 1,
+     "liveGates": 0
+    },
+    {
+     "mode": "fixed",
+     "seconds": 5,
+     "frames": {
+      "n": 275,
+      "mean": 18.208,
+      "p50": 18.1,
+      "p95": 19,
+      "p99": 19.1,
+      "max": 19.6,
+      "fps": 54.9,
+      "dropped": 0,
+      "late": 0
+     },
+     "cpu": {
+      "frame": {
+       "n": 275,
+       "mean": 0.975,
+       "p50": 1,
+       "p95": 1.5,
+       "p99": 2,
+       "max": 2.1
+      },
+      "phases": {
+       "input": 0.021,
+       "dancers": 0.192,
+       "travel": 0.007,
+       "camera": 0.041,
+       "gates": 0.052,
+       "worlds": 0.032,
+       "matter": 0.141,
+       "post": 0.011,
+       "audio": 0.028
+      }
+     },
+     "gpu": {
+      "available": true,
+      "trusted": true,
+      "passesTrusted": true,
+      "frames": 275,
+      "frame": {
+       "n": 275,
+       "mean": 3.941,
+       "p50": 3.846,
+       "p95": 4.944,
+       "p99": 5.366,
+       "max": 5.498
+      },
+      "passes": {
+       "scene": 2.268,
+       "air": 0.774,
+       "water.splat.depth": 0.096,
+       "lens": 0.079,
+       "water.splat.thick": 0.059,
+       "water.smooth.x0": 0.049,
+       "water.smooth.x1": 0.044,
+       "water.smooth.y0": 0.043,
+       "water.smooth.x2": 0.043,
+       "water.smooth.y1": 0.042,
+       "water.smooth.y2": 0.041,
+       "water.surface": 0.037,
+       "field.step": 0.025,
+       "trail": 0.019,
+       "grade": 0.014,
+       "fire.sim": 0.013,
+       "water.sim": 0.012,
+       "bloom.down0": 0.008,
+       "gems.sim": 0.007,
+       "bloom.up0": 0.006,
+       "gems.cull": 0.004,
+       "bloom.down1": 0.004,
+       "gems.sparks": 0.003,
+       "ice.mist": 0.003,
+       "steam.sim": 0.003,
+       "bloom.down2": 0.003,
+       "bloom.up2": 0.003,
+       "bloom.up1": 0.003,
+       "field.probe": 0.002,
+       "bloom.down3": 0.002,
+       "bloom.down4": 0.002,
+       "bloom.up3": 0.002
+      }
+     },
+     "renderScale": {
+      "end": 1,
+      "mean": 1,
+      "min": 1,
+      "max": 1
+     },
+     "render": [
+      1920,
+      1080
+     ],
+     "canvas": [
+      1920,
+      1080
+     ],
+     "dpr": 1,
+     "liveGates": 0
+    }
+   ],
+   "matter": {
+    "field": {
+     "cells": "48×32×48",
+     "cell": 0.18,
+     "origin": "-4.32,-0.72,-3.96",
+     "deposits": 0,
+     "dropped": 0,
+     "vortices": 0,
+     "probes": 1,
+     "aura": "loadouts"
+    },
+    "fire": {
+     "flames": 150016,
+     "dancers": "0",
+     "burn": 1
+    },
+    "gems": {
+     "stones": 0,
+     "simulated": 15000,
+     "fixtures": 2600,
+     "specimens": 11
+    },
+    "ice": {
+     "particles": 100000,
+     "waterLayers": 1,
+     "iceLayers": 0,
+     "forms": "0.00,0.00",
+     "setPieces": 0,
+     "setShards": 0
+    },
+    "plasma": {
+     "arcs": 0,
+     "arcSegments": 0
+    },
+    "steam": {
+     "puffs": 9000
+    },
+    "water": {
+     "sharedWith": "ice"
+    }
+   },
+   "views": [
+    {
+     "id": "main",
+     "world": "redwoods",
+     "on": true
+    },
+    {
+     "id": "gate0",
+     "world": "pool",
+     "on": false
+    },
+    {
+     "id": "gate1",
+     "world": "temple",
+     "on": false
+    },
+    {
+     "id": "gate2",
+     "world": "geode",
+     "on": false
+    }
+   ],
+   "errors": []
+  },
+  {
+   "id": "critic-1080-geode-hub-pair",
+   "note": "fire and water in the geode hub, wide, two live gates",
+   "group": "play",
+   "size": "1920x1080",
+   "world": "geode",
+   "stageMs": 49,
+   "runs": [
+    {
+     "mode": "auto",
+     "seconds": 5,
+     "frames": {
+      "n": 275,
+      "mean": 18.203,
+      "p50": 18.1,
+      "p95": 18.8,
+      "p99": 19.1,
+      "max": 19.4,
+      "fps": 54.9,
+      "dropped": 0,
+      "late": 0
+     },
+     "cpu": {
+      "frame": {
+       "n": 275,
+       "mean": 1.16,
+       "p50": 1.1,
+       "p95": 1.7,
+       "p99": 2.1,
+       "max": 2.4
+      },
+      "phases": {
+       "input": 0.018,
+       "dancers": 0.2,
+       "travel": 0.006,
+       "camera": 0.045,
+       "gates": 0.124,
+       "worlds": 0.028,
+       "matter": 0.141,
+       "post": 0.011,
+       "audio": 0.031
+      }
+     },
+     "gpu": {
+      "available": true,
+      "trusted": true,
+      "passesTrusted": true,
+      "frames": 275,
+      "frame": {
+       "n": 275,
+       "mean": 3.025,
+       "p50": 2.905,
+       "p95": 3.984,
+       "p99": 4.137,
+       "max": 4.273
+      },
+      "passes": {
+       "scene": 1.531,
+       "scene.gate1": 0.254,
+       "scene.gate0": 0.252,
+       "air": 0.104,
+       "lens": 0.078,
+       "water.splat.depth": 0.054,
+       "water.smooth.x0": 0.049,
+       "water.splat.thick": 0.045,
+       "water.smooth.y0": 0.043,
+       "water.smooth.x1": 0.043,
+       "water.smooth.x2": 0.042,
+       "water.smooth.y1": 0.041,
+       "water.smooth.y2": 0.041,
+       "air.gate1": 0.03,
+       "air.gate0": 0.027,
+       "field.step": 0.026,
+       "water.surface": 0.021,
+       "trail": 0.016,
+       "grade": 0.014,
+       "fire.sim": 0.012,
+       "water.sim": 0.012,
+       "bloom.down0": 0.008,
+       "gems.sim": 0.007,
+       "bloom.up0": 0.006,
+       "pool.ripples.a": 0.005,
+       "temple.ripples.a": 0.005,
+       "gems.cull": 0.005,
+       "bloom.down1": 0.005,
+       "pool.ripples.b": 0.004,
+       "steam.sim": 0.004,
+       "bloom.up1": 0.004,
+       "gems.sparks": 0.003,
+       "ice.mist": 0.003,
+       "gems.cull.gate1": 0.003,
+       "gems.cull.gate0": 0.003,
+       "bloom.up2": 0.003,
+       "field.probe": 0.002,
+       "temple.ripples.b": 0.002,
+       "bloom.down2": 0.002,
+       "bloom.down3": 0.002,
+       "bloom.down4": 0.002,
+       "bloom.up3": 0.002
+      }
+     },
+     "renderScale": {
+      "end": 1,
+      "mean": 1,
+      "min": 1,
+      "max": 1
+     },
+     "render": [
+      1920,
+      1080
+     ],
+     "canvas": [
+      1920,
+      1080
+     ],
+     "dpr": 1,
+     "liveGates": 2
+    },
+    {
+     "mode": "fixed",
+     "seconds": 5,
+     "frames": {
+      "n": 275,
+      "mean": 18.238,
+      "p50": 18.2,
+      "p95": 19,
+      "p99": 19.4,
+      "max": 19.5,
+      "fps": 54.8,
+      "dropped": 0,
+      "late": 0
+     },
+     "cpu": {
+      "frame": {
+       "n": 275,
+       "mean": 1.202,
+       "p50": 1.2,
+       "p95": 1.7,
+       "p99": 2.1,
+       "max": 2.3
+      },
+      "phases": {
+       "input": 0.025,
+       "dancers": 0.199,
+       "travel": 0.008,
+       "camera": 0.046,
+       "gates": 0.132,
+       "worlds": 0.031,
+       "matter": 0.151,
+       "post": 0.013,
+       "audio": 0.025
+      }
+     },
+     "gpu": {
+      "available": true,
+      "trusted": true,
+      "passesTrusted": true,
+      "frames": 275,
+      "frame": {
+       "n": 275,
+       "mean": 3.004,
+       "p50": 2.85,
+       "p95": 3.976,
+       "p99": 4.334,
+       "max": 4.492
+      },
+      "passes": {
+       "scene": 1.524,
+       "scene.gate1": 0.254,
+       "scene.gate0": 0.251,
+       "air": 0.105,
+       "lens": 0.078,
+       "water.splat.depth": 0.055,
+       "water.smooth.x0": 0.049,
+       "water.splat.thick": 0.045,
+       "water.smooth.x1": 0.043,
+       "water.smooth.x2": 0.043,
+       "water.smooth.y0": 0.042,
+       "water.smooth.y1": 0.041,
+       "water.smooth.y2": 0.041,
+       "air.gate1": 0.029,
+       "air.gate0": 0.027,
+       "field.step": 0.025,
+       "water.surface": 0.02,
+       "trail": 0.016,
+       "grade": 0.014,
+       "fire.sim": 0.012,
+       "water.sim": 0.012,
+       "bloom.down0": 0.008,
+       "gems.sim": 0.007,
+       "bloom.up2": 0.007,
+       "bloom.up0": 0.007,
+       "pool.ripples.a": 0.005,
+       "gems.cull": 0.005,
+       "pool.ripples.b": 0.004,
+       "temple.ripples.a": 0.004,
+       "steam.sim": 0.004,
+       "bloom.down1": 0.004,
+       "bloom.up1": 0.004,
+       "gems.sparks": 0.003,
+       "ice.mist": 0.003,
+       "gems.cull.gate1": 0.003,
+       "gems.cull.gate0": 0.003,
+       "field.probe": 0.002,
+       "temple.ripples.b": 0.002,
+       "bloom.down2": 0.002,
+       "bloom.down3": 0.002,
+       "bloom.down4": 0.002,
+       "bloom.up3": 0.002
+      }
+     },
+     "renderScale": {
+      "end": 1,
+      "mean": 1,
+      "min": 1,
+      "max": 1
+     },
+     "render": [
+      1920,
+      1080
+     ],
+     "canvas": [
+      1920,
+      1080
+     ],
+     "dpr": 1,
+     "liveGates": 2
+    }
+   ],
+   "matter": {
+    "field": {
+     "cells": "48×32×48",
+     "cell": 0.18,
+     "origin": "-4.32,-0.54,-3.24",
+     "deposits": 0,
+     "dropped": 0,
+     "vortices": 0,
+     "probes": 1,
+     "aura": "loadouts"
+    },
+    "fire": {
+     "flames": 150016,
+     "dancers": "0",
+     "burn": 1
+    },
+    "gems": {
+     "stones": 0,
+     "simulated": 15000,
+     "fixtures": 2600,
+     "specimens": 11
+    },
+    "ice": {
+     "particles": 100000,
+     "waterLayers": 1,
+     "iceLayers": 0,
+     "forms": "0.00,0.00",
+     "setPieces": 0,
+     "setShards": 0
+    },
+    "plasma": {
+     "arcs": 0,
+     "arcSegments": 0
+    },
+    "steam": {
+     "puffs": 9000
+    },
+    "water": {
+     "sharedWith": "ice"
+    }
+   },
+   "views": [
+    {
+     "id": "main",
+     "world": "geode",
+     "on": true
+    },
+    {
+     "id": "gate0",
+     "world": "pool",
+     "on": true
+    },
+    {
+     "id": "gate1",
+     "world": "temple",
+     "on": true
+    },
+    {
+     "id": "gate2",
+     "world": "geode",
+     "on": false
+    }
+   ],
+   "errors": []
+  },
+  {
+   "id": "pair-pool-wide",
+   "note": "fire and water, pool, wide (7 m)",
+   "group": "play",
+   "size": "native",
+   "world": "pool",
+   "stageMs": 50,
+   "runs": [
+    {
+     "mode": "auto",
+     "seconds": 5,
+     "frames": {
+      "n": 275,
+      "mean": 18.193,
+      "p50": 18.1,
+      "p95": 18.8,
+      "p99": 19.2,
+      "max": 19.4,
+      "fps": 55,
+      "dropped": 0,
+      "late": 0
+     },
+     "cpu": {
+      "frame": {
+       "n": 275,
+       "mean": 1.184,
+       "p50": 1.2,
+       "p95": 1.7,
+       "p99": 2,
+       "max": 2.3
+      },
+      "phases": {
+       "input": 0.024,
+       "dancers": 0.212,
+       "travel": 0.01,
+       "camera": 0.048,
+       "gates": 0.108,
+       "worlds": 0.021,
+       "matter": 0.165,
+       "post": 0.011,
+       "audio": 0.035
+      }
+     },
+     "gpu": {
+      "available": true,
+      "trusted": true,
+      "passesTrusted": true,
+      "frames": 269,
+      "frame": {
+       "n": 269,
+       "mean": 1.394,
+       "p50": 1.334,
+       "p95": 1.691,
+       "p99": 2.562,
+       "max": 2.909
+      },
+      "passes": {
+       "scene": 0.457,
+       "scene.gate0": 0.329,
+       "water.splat.depth": 0.052,
+       "water.splat.thick": 0.048,
+       "air": 0.046,
+       "lens": 0.045,
+       "water.smooth.x0": 0.028,
+       "field.step": 0.026,
+       "water.smooth.y0": 0.024,
+       "water.smooth.x1": 0.023,
+       "water.smooth.x2": 0.023,
+       "water.smooth.y1": 0.022,
+       "water.smooth.y2": 0.022,
+       "fire.sim": 0.015,
+       "water.sim": 0.014,
+       "water.surface": 0.012,
+       "trail": 0.011,
+       "grade": 0.008,
+       "gems.sim": 0.007,
+       "bloom.down0": 0.006,
+       "pool.ripples.a": 0.005,
+       "gems.cull.gate0": 0.005,
+       "bloom.up0": 0.005,
+       "gems.sparks": 0.004,
+       "steam.sim": 0.004,
+       "gems.cull": 0.004,
+       "pool.ripples.b": 0.003,
+       "ice.mist": 0.003,
+       "air.gate0": 0.003,
+       "bloom.down1": 0.003,
+       "bloom.up1": 0.003,
+       "field.probe": 0.002,
+       "bloom.down2": 0.002,
+       "bloom.down3": 0.002,
+       "bloom.down4": 0.002,
+       "bloom.up3": 0.002,
+       "bloom.up2": 0.002
+      }
+     },
+     "renderScale": {
+      "end": 1,
+      "mean": 1,
+      "min": 1,
+      "max": 1
+     },
+     "render": [
+      1280,
+      800
+     ],
+     "canvas": [
+      1280,
+      800
+     ],
+     "dpr": 1,
+     "liveGates": 1
+    },
+    {
+     "mode": "fixed",
+     "seconds": 5,
+     "frames": {
+      "n": 275,
+      "mean": 18.197,
+      "p50": 18.1,
+      "p95": 18.9,
+      "p99": 19.3,
+      "max": 19.6,
+      "fps": 55,
+      "dropped": 0,
+      "late": 0
+     },
+     "cpu": {
+      "frame": {
+       "n": 275,
+       "mean": 1.068,
+       "p50": 1,
+       "p95": 1.5,
+       "p99": 1.9,
+       "max": 2.2
+      },
+      "phases": {
+       "input": 0.024,
+       "dancers": 0.207,
+       "travel": 0.007,
+       "camera": 0.035,
+       "gates": 0.101,
+       "worlds": 0.014,
+       "matter": 0.148,
+       "post": 0.009,
+       "audio": 0.032
+      }
+     },
+     "gpu": {
+      "available": true,
+      "trusted": true,
+      "passesTrusted": true,
+      "frames": 273,
+      "frame": {
+       "n": 273,
+       "mean": 1.41,
+       "p50": 1.351,
+       "p95": 1.788,
+       "p99": 2.779,
+       "max": 2.788
+      },
+      "passes": {
+       "scene": 0.444,
+       "scene.gate0": 0.334,
+       "water.splat.depth": 0.052,
+       "water.splat.thick": 0.047,
+       "air": 0.047,
+       "lens": 0.045,
+       "water.smooth.x0": 0.029,
+       "field.step": 0.028,
+       "water.smooth.y0": 0.025,
+       "water.smooth.x1": 0.024,
+       "water.smooth.x2": 0.023,
+       "water.smooth.y1": 0.022,
+       "water.smooth.y2": 0.022,
+       "water.surface": 0.018,
+       "fire.sim": 0.017,
+       "water.sim": 0.016,
+       "trail": 0.012,
+       "gems.sim": 0.008,
+       "grade": 0.008,
+       "pool.ripples.a": 0.006,
+       "gems.cull": 0.006,
+       "bloom.down0": 0.006,
+       "gems.sparks": 0.005,
+       "gems.cull.gate0": 0.005,
+       "bloom.up0": 0.005,
+       "ice.mist": 0.004,
+       "steam.sim": 0.004,
+       "air.gate0": 0.004,
+       "pool.ripples.b": 0.003,
+       "bloom.down1": 0.003,
+       "bloom.up1": 0.003,
+       "field.probe": 0.002,
+       "bloom.down2": 0.002,
+       "bloom.down3": 0.002,
+       "bloom.down4": 0.002,
+       "bloom.up3": 0.002,
+       "bloom.up2": 0.002
+      }
+     },
+     "renderScale": {
+      "end": 1,
+      "mean": 1,
+      "min": 1,
+      "max": 1
+     },
+     "render": [
+      1280,
+      800
+     ],
+     "canvas": [
+      1280,
+      800
+     ],
+     "dpr": 1,
+     "liveGates": 1
+    }
+   ],
+   "matter": {
+    "field": {
+     "cells": "48×32×48",
+     "cell": 0.18,
+     "origin": "-4.32,-0.54,-3.96",
+     "deposits": 0,
+     "dropped": 0,
+     "vortices": 0,
+     "probes": 1,
+     "aura": "loadouts"
+    },
+    "fire": {
+     "flames": 150016,
+     "dancers": "0",
+     "burn": 1
+    },
+    "gems": {
+     "stones": 0,
+     "simulated": 15000,
+     "fixtures": 2600,
+     "specimens": 11
+    },
+    "ice": {
+     "particles": 100000,
+     "waterLayers": 1,
+     "iceLayers": 0,
+     "forms": "0.00,0.00",
+     "setPieces": 0,
+     "setShards": 0
+    },
+    "plasma": {
+     "arcs": 0,
+     "arcSegments": 0
+    },
+    "steam": {
+     "puffs": 9000
+    },
+    "water": {
+     "sharedWith": "ice"
+    }
+   },
+   "views": [
+    {
+     "id": "main",
+     "world": "pool",
+     "on": true
+    },
+    {
+     "id": "gate0",
+     "world": "geode",
+     "on": true
+    },
+    {
+     "id": "gate1",
+     "world": "temple",
+     "on": false
+    },
+    {
+     "id": "gate2",
+     "world": "geode",
+     "on": false
+    }
+   ],
+   "errors": []
+  },
+  {
+   "id": "pair-pool-close",
+   "note": "fire and water, pool, close (2.6 m)",
+   "group": "play",
+   "size": "native",
+   "world": "pool",
+   "stageMs": 48,
+   "runs": [
+    {
+     "mode": "auto",
+     "seconds": 5,
+     "frames": {
+      "n": 274,
+      "mean": 18.265,
+      "p50": 18.2,
+      "p95": 18.9,
+      "p99": 19.2,
+      "max": 19.4,
+      "fps": 54.7,
+      "dropped": 0,
+      "late": 0
+     },
+     "cpu": {
+      "frame": {
+       "n": 274,
+       "mean": 1.505,
+       "p50": 1.4,
+       "p95": 2.5,
+       "p99": 3.6,
+       "max": 3.8
+      },
+      "phases": {
+       "input": 0.04,
+       "dancers": 0.328,
+       "travel": 0.009,
+       "camera": 0.066,
+       "gates": 0.085,
+       "worlds": 0.02,
+       "matter": 0.212,
+       "post": 0.018,
+       "audio": 0.038
+      }
+     },
+     "gpu": {
+      "available": true,
+      "trusted": true,
+      "passesTrusted": true,
+      "frames": 274,
+      "frame": {
+       "n": 274,
+       "mean": 1.819,
+       "p50": 1.709,
+       "p95": 2.249,
+       "p99": 2.713,
+       "max": 4.188
+      },
+      "passes": {
+       "scene": 1.134,
+       "water.splat.depth": 0.08,
+       "water.splat.thick": 0.051,
+       "lens": 0.044,
+       "air": 0.042,
+       "water.smooth.x0": 0.027,
+       "field.step": 0.025,
+       "water.smooth.x2": 0.024,
+       "water.smooth.y0": 0.023,
+       "water.smooth.x1": 0.023,
+       "water.smooth.y1": 0.023,
+       "water.smooth.y2": 0.023,
+       "water.surface": 0.015,
+       "fire.sim": 0.012,
+       "water.sim": 0.012,
+       "trail": 0.009,
+       "grade": 0.008,
+       "gems.sim": 0.007,
+       "bloom.down0": 0.006,
+       "pool.ripples.a": 0.005,
+       "gems.cull": 0.005,
+       "bloom.up0": 0.005,
+       "gems.sparks": 0.003,
+       "ice.mist": 0.003,
+       "steam.sim": 0.003,
+       "bloom.down1": 0.003,
+       "bloom.up1": 0.003,
+       "field.probe": 0.002,
+       "pool.ripples.b": 0.002,
+       "bloom.down2": 0.002,
+       "bloom.down3": 0.002,
+       "bloom.down4": 0.002,
+       "bloom.up3": 0.002,
+       "bloom.up2": 0.002
+      }
+     },
+     "renderScale": {
+      "end": 1,
+      "mean": 1,
+      "min": 1,
+      "max": 1
+     },
+     "render": [
+      1280,
+      800
+     ],
+     "canvas": [
+      1280,
+      800
+     ],
+     "dpr": 1,
+     "liveGates": 0
+    },
+    {
+     "mode": "fixed",
+     "seconds": 5,
+     "frames": {
+      "n": 275,
+      "mean": 18.193,
+      "p50": 18.1,
+      "p95": 18.7,
+      "p99": 19.1,
+      "max": 19.1,
+      "fps": 55,
+      "dropped": 0,
+      "late": 0
+     },
+     "cpu": {
+      "frame": {
+       "n": 275,
+       "mean": 1.252,
+       "p50": 1.2,
+       "p95": 1.9,
+       "p99": 2.8,
+       "max": 3
+      },
+      "phases": {
+       "input": 0.027,
+       "dancers": 0.279,
+       "travel": 0.006,
+       "camera": 0.05,
+       "gates": 0.064,
+       "worlds": 0.017,
+       "matter": 0.185,
+       "post": 0.012,
+       "audio": 0.045
+      }
+     },
+     "gpu": {
+      "available": true,
+      "trusted": true,
+      "passesTrusted": true,
+      "frames": 275,
+      "frame": {
+       "n": 275,
+       "mean": 1.858,
+       "p50": 1.744,
+       "p95": 2.238,
+       "p99": 3.883,
+       "max": 4.26
+      },
+      "passes": {
+       "scene": 1.149,
+       "water.splat.depth": 0.084,
+       "water.splat.thick": 0.051,
+       "lens": 0.046,
+       "air": 0.044,
+       "water.smooth.x0": 0.032,
+       "field.step": 0.03,
+       "water.smooth.y0": 0.027,
+       "fire.sim": 0.024,
+       "water.smooth.x1": 0.024,
+       "water.smooth.y1": 0.024,
+       "water.smooth.x2": 0.024,
+       "water.smooth.y2": 0.024,
+       "water.sim": 0.021,
+       "water.surface": 0.019,
+       "trail": 0.017,
+       "gems.sim": 0.01,
+       "grade": 0.009,
+       "gems.sparks": 0.007,
+       "bloom.down0": 0.007,
+       "pool.ripples.a": 0.006,
+       "ice.mist": 0.005,
+       "gems.cull": 0.005,
+       "bloom.up0": 0.005,
+       "steam.sim": 0.004,
+       "field.probe": 0.003,
+       "pool.ripples.b": 0.003,
+       "bloom.down1": 0.003,
+       "bloom.down2": 0.003,
+       "bloom.up3": 0.003,
+       "bloom.up2": 0.003,
+       "bloom.up1": 0.003,
+       "bloom.down3": 0.002,
+       "bloom.down4": 0.002
+      }
+     },
+     "renderScale": {
+      "end": 1,
+      "mean": 1,
+      "min": 1,
+      "max": 1
+     },
+     "render": [
+      1280,
+      800
+     ],
+     "canvas": [
+      1280,
+      800
+     ],
+     "dpr": 1,
+     "liveGates": 0
+    }
+   ],
+   "matter": {
+    "field": {
+     "cells": "48×32×48",
+     "cell": 0.18,
+     "origin": "-4.32,-0.54,-3.96",
+     "deposits": 0,
+     "dropped": 0,
+     "vortices": 0,
+     "probes": 1,
+     "aura": "loadouts"
+    },
+    "fire": {
+     "flames": 150016,
+     "dancers": "0",
+     "burn": 1
+    },
+    "gems": {
+     "stones": 0,
+     "simulated": 15000,
+     "fixtures": 2600,
+     "specimens": 11
+    },
+    "ice": {
+     "particles": 100000,
+     "waterLayers": 1,
+     "iceLayers": 0,
+     "forms": "0.00,0.00",
+     "setPieces": 0,
+     "setShards": 0
+    },
+    "plasma": {
+     "arcs": 0,
+     "arcSegments": 0
+    },
+    "steam": {
+     "puffs": 9000
+    },
+    "water": {
+     "sharedWith": "ice"
+    }
+   },
+   "views": [
+    {
+     "id": "main",
+     "world": "pool",
+     "on": true
+    },
+    {
+     "id": "gate0",
+     "world": "geode",
+     "on": false
+    },
+    {
+     "id": "gate1",
+     "world": "temple",
+     "on": false
+    },
+    {
+     "id": "gate2",
+     "world": "geode",
+     "on": false
+    }
+   ],
+   "errors": []
+  },
+  {
+   "id": "pair-redwoods-wide",
+   "note": "fire and water, redwoods, wide (7 m)",
+   "group": "play",
+   "size": "native",
+   "world": "redwoods",
+   "stageMs": 50,
+   "runs": [
+    {
+     "mode": "auto",
+     "seconds": 5,
+     "frames": {
+      "n": 274,
+      "mean": 18.27,
+      "p50": 18.2,
+      "p95": 18.9,
+      "p99": 19.3,
+      "max": 20.9,
+      "fps": 54.7,
+      "dropped": 0,
+      "late": 0
+     },
+     "cpu": {
+      "frame": {
+       "n": 274,
+       "mean": 1.201,
+       "p50": 1.1,
+       "p95": 1.9,
+       "p99": 2.3,
+       "max": 2.7
+      },
+      "phases": {
+       "input": 0.028,
+       "dancers": 0.245,
+       "travel": 0.007,
+       "camera": 0.043,
+       "gates": 0.08,
+       "worlds": 0.042,
+       "matter": 0.166,
+       "post": 0.014,
+       "audio": 0.03
+      }
+     },
+     "gpu": {
+      "available": true,
+      "trusted": true,
+      "passesTrusted": true,
+      "frames": 273,
+      "frame": {
+       "n": 273,
+       "mean": 2.126,
+       "p50": 2.057,
+       "p95": 2.471,
+       "p99": 2.757,
+       "max": 3.167
+      },
+      "passes": {
+       "scene": 1.165,
+       "air": 0.389,
+       "water.splat.depth": 0.052,
+       "water.splat.thick": 0.048,
+       "lens": 0.045,
+       "water.smooth.x0": 0.028,
+       "field.step": 0.027,
+       "water.smooth.y0": 0.024,
+       "water.smooth.x1": 0.023,
+       "water.smooth.x2": 0.023,
+       "water.smooth.y1": 0.022,
+       "water.smooth.y2": 0.022,
+       "water.surface": 0.021,
+       "fire.sim": 0.017,
+       "trail": 0.015,
+       "water.sim": 0.014,
+       "gems.sim": 0.008,
+       "grade": 0.008,
+       "bloom.down0": 0.006,
+       "gems.sparks": 0.004,
+       "ice.mist": 0.004,
+       "gems.cull": 0.004,
+       "bloom.up0": 0.004,
+       "steam.sim": 0.003,
+       "bloom.down1": 0.003,
+       "bloom.up1": 0.003,
+       "field.probe": 0.002,
+       "bloom.down2": 0.002,
+       "bloom.down3": 0.002,
+       "bloom.down4": 0.002,
+       "bloom.up3": 0.002,
+       "bloom.up2": 0.002
+      }
+     },
+     "renderScale": {
+      "end": 1,
+      "mean": 1,
+      "min": 1,
+      "max": 1
+     },
+     "render": [
+      1280,
+      800
+     ],
+     "canvas": [
+      1280,
+      800
+     ],
+     "dpr": 1,
+     "liveGates": 0
+    },
+    {
+     "mode": "fixed",
+     "seconds": 5,
+     "frames": {
+      "n": 275,
+      "mean": 18.24,
+      "p50": 18.2,
+      "p95": 19,
+      "p99": 19.3,
+      "max": 20.5,
+      "fps": 54.8,
+      "dropped": 0,
+      "late": 0
+     },
+     "cpu": {
+      "frame": {
+       "n": 275,
+       "mean": 0.909,
+       "p50": 0.9,
+       "p95": 1.4,
+       "p99": 1.6,
+       "max": 1.6
+      },
+      "phases": {
+       "input": 0.027,
+       "dancers": 0.165,
+       "travel": 0.004,
+       "camera": 0.032,
+       "gates": 0.067,
+       "worlds": 0.027,
+       "matter": 0.137,
+       "post": 0.009,
+       "audio": 0.02
+      }
+     },
+     "gpu": {
+      "available": true,
+      "trusted": true,
+      "passesTrusted": true,
+      "frames": 275,
+      "frame": {
+       "n": 275,
+       "mean": 2.34,
+       "p50": 2.101,
+       "p95": 3.058,
+       "p99": 4.864,
+       "max": 7.002
+      },
+      "passes": {
+       "scene": 1.237,
+       "air": 0.389,
+       "water.splat.depth": 0.052,
+       "water.splat.thick": 0.047,
+       "lens": 0.046,
+       "field.step": 0.034,
+       "water.smooth.x0": 0.032,
+       "water.surface": 0.029,
+       "water.smooth.y0": 0.027,
+       "fire.sim": 0.026,
+       "water.smooth.x1": 0.024,
+       "water.smooth.y1": 0.024,
+       "water.smooth.x2": 0.023,
+       "water.smooth.y2": 0.023,
+       "trail": 0.023,
+       "water.sim": 0.022,
+       "gems.sim": 0.01,
+       "grade": 0.009,
+       "gems.sparks": 0.008,
+       "bloom.down0": 0.007,
+       "ice.mist": 0.006,
+       "gems.cull": 0.005,
+       "bloom.up0": 0.005,
+       "steam.sim": 0.004,
+       "field.probe": 0.003,
+       "bloom.down1": 0.003,
+       "bloom.down2": 0.003,
+       "bloom.up3": 0.003,
+       "bloom.up2": 0.003,
+       "bloom.up1": 0.003,
+       "bloom.down3": 0.002,
+       "bloom.down4": 0.002
+      }
+     },
+     "renderScale": {
+      "end": 1,
+      "mean": 1,
+      "min": 1,
+      "max": 1
+     },
+     "render": [
+      1280,
+      800
+     ],
+     "canvas": [
+      1280,
+      800
+     ],
+     "dpr": 1,
+     "liveGates": 0
+    }
+   ],
+   "matter": {
+    "field": {
+     "cells": "48×32×48",
+     "cell": 0.18,
+     "origin": "-4.32,-0.54,-3.96",
+     "deposits": 0,
+     "dropped": 0,
+     "vortices": 0,
+     "probes": 1,
+     "aura": "loadouts"
+    },
+    "fire": {
+     "flames": 150016,
+     "dancers": "0",
+     "burn": 1
+    },
+    "gems": {
+     "stones": 0,
+     "simulated": 15000,
+     "fixtures": 2600,
+     "specimens": 11
+    },
+    "ice": {
+     "particles": 100000,
+     "waterLayers": 1,
+     "iceLayers": 0,
+     "forms": "0.00,0.00",
+     "setPieces": 0,
+     "setShards": 0
+    },
+    "plasma": {
+     "arcs": 0,
+     "arcSegments": 0
+    },
+    "steam": {
+     "puffs": 9000
+    },
+    "water": {
+     "sharedWith": "ice"
+    }
+   },
+   "views": [
+    {
+     "id": "main",
+     "world": "redwoods",
+     "on": true
+    },
+    {
+     "id": "gate0",
+     "world": "geode",
+     "on": false
+    },
+    {
+     "id": "gate1",
+     "world": "temple",
+     "on": false
+    },
+    {
+     "id": "gate2",
+     "world": "geode",
+     "on": false
+    }
+   ],
+   "errors": []
+  },
+  {
+   "id": "pair-redwoods-close",
+   "note": "fire and water, redwoods, close (2.6 m)",
+   "group": "play",
+   "size": "native",
+   "world": "redwoods",
+   "stageMs": 47,
+   "runs": [
+    {
+     "mode": "auto",
+     "seconds": 5,
+     "frames": {
+      "n": 275,
+      "mean": 18.218,
+      "p50": 18.1,
+      "p95": 18.9,
+      "p99": 19.2,
+      "max": 19.4,
+      "fps": 54.9,
+      "dropped": 0,
+      "late": 0
+     },
+     "cpu": {
+      "frame": {
+       "n": 275,
+       "mean": 0.931,
+       "p50": 1,
+       "p95": 1.3,
+       "p99": 1.7,
+       "max": 2.2
+      },
+      "phases": {
+       "input": 0.023,
+       "dancers": 0.178,
+       "travel": 0.008,
+       "camera": 0.035,
+       "gates": 0.056,
+       "worlds": 0.03,
+       "matter": 0.133,
+       "post": 0.011,
+       "audio": 0.022
+      }
+     },
+     "gpu": {
+      "available": true,
+      "trusted": true,
+      "passesTrusted": true,
+      "frames": 274,
+      "frame": {
+       "n": 274,
+       "mean": 3.002,
+       "p50": 2.815,
+       "p95": 4.531,
+       "p99": 5.062,
+       "max": 5.654
+      },
+      "passes": {
+       "scene": 1.892,
+       "air": 0.395,
+       "water.splat.depth": 0.085,
+       "water.splat.thick": 0.05,
+       "lens": 0.048,
+       "water.surface": 0.045,
+       "field.step": 0.035,
+       "water.smooth.x0": 0.035,
+       "fire.sim": 0.032,
+       "trail": 0.031,
+       "water.smooth.y0": 0.03,
+       "water.sim": 0.028,
+       "water.smooth.y1": 0.026,
+       "water.smooth.x1": 0.025,
+       "water.smooth.x2": 0.025,
+       "water.smooth.y2": 0.025,
+       "gems.sim": 0.013,
+       "gems.sparks": 0.01,
+       "grade": 0.009,
+       "ice.mist": 0.008,
+       "bloom.down0": 0.007,
+       "gems.cull": 0.006,
+       "bloom.up0": 0.005,
+       "steam.sim": 0.004,
+       "bloom.down1": 0.004,
+       "bloom.up2": 0.004,
+       "field.probe": 0.003,
+       "bloom.down2": 0.003,
+       "bloom.down3": 0.003,
+       "bloom.up3": 0.003,
+       "bloom.up1": 0.003,
+       "bloom.down4": 0.002
+      }
+     },
+     "renderScale": {
+      "end": 1,
+      "mean": 1,
+      "min": 1,
+      "max": 1
+     },
+     "render": [
+      1280,
+      800
+     ],
+     "canvas": [
+      1280,
+      800
+     ],
+     "dpr": 1,
+     "liveGates": 0
+    },
+    {
+     "mode": "fixed",
+     "seconds": 5,
+     "frames": {
+      "n": 274,
+      "mean": 18.263,
+      "p50": 18.2,
+      "p95": 19,
+      "p99": 19.1,
+      "max": 19.6,
+      "fps": 54.8,
+      "dropped": 0,
+      "late": 0
+     },
+     "cpu": {
+      "frame": {
+       "n": 274,
+       "mean": 0.935,
+       "p50": 1,
+       "p95": 1.3,
+       "p99": 1.4,
+       "max": 1.6
+      },
+      "phases": {
+       "input": 0.02,
+       "dancers": 0.179,
+       "travel": 0.006,
+       "camera": 0.038,
+       "gates": 0.057,
+       "worlds": 0.028,
+       "matter": 0.146,
+       "post": 0.006,
+       "audio": 0.021
+      }
+     },
+     "gpu": {
+      "available": true,
+      "trusted": true,
+      "passesTrusted": true,
+      "frames": 274,
+      "frame": {
+       "n": 274,
+       "mean": 3.016,
+       "p50": 2.829,
+       "p95": 4.53,
+       "p99": 5.112,
+       "max": 5.194
+      },
+      "passes": {
+       "scene": 1.927,
+       "air": 0.395,
+       "water.splat.depth": 0.085,
+       "water.splat.thick": 0.05,
+       "lens": 0.048,
+       "water.surface": 0.045,
+       "water.smooth.x0": 0.035,
+       "field.step": 0.033,
+       "fire.sim": 0.032,
+       "trail": 0.031,
+       "water.smooth.y0": 0.03,
+       "water.sim": 0.029,
+       "water.smooth.y1": 0.026,
+       "water.smooth.x1": 0.025,
+       "water.smooth.y2": 0.025,
+       "water.smooth.x2": 0.024,
+       "gems.sim": 0.013,
+       "gems.sparks": 0.01,
+       "grade": 0.009,
+       "ice.mist": 0.008,
+       "bloom.down0": 0.007,
+       "gems.cull": 0.006,
+       "bloom.up0": 0.005,
+       "steam.sim": 0.004,
+       "bloom.down1": 0.004,
+       "field.probe": 0.003,
+       "bloom.down2": 0.003,
+       "bloom.down3": 0.003,
+       "bloom.up3": 0.003,
+       "bloom.up2": 0.003,
+       "bloom.up1": 0.003,
+       "bloom.down4": 0.002
+      }
+     },
+     "renderScale": {
+      "end": 1,
+      "mean": 1,
+      "min": 1,
+      "max": 1
+     },
+     "render": [
+      1280,
+      800
+     ],
+     "canvas": [
+      1280,
+      800
+     ],
+     "dpr": 1,
+     "liveGates": 0
+    }
+   ],
+   "matter": {
+    "field": {
+     "cells": "48×32×48",
+     "cell": 0.18,
+     "origin": "-4.32,-0.54,-3.96",
+     "deposits": 0,
+     "dropped": 0,
+     "vortices": 0,
+     "probes": 1,
+     "aura": "loadouts"
+    },
+    "fire": {
+     "flames": 150016,
+     "dancers": "0",
+     "burn": 1
+    },
+    "gems": {
+     "stones": 0,
+     "simulated": 15000,
+     "fixtures": 2600,
+     "specimens": 11
+    },
+    "ice": {
+     "particles": 100000,
+     "waterLayers": 1,
+     "iceLayers": 0,
+     "forms": "0.00,0.00",
+     "setPieces": 0,
+     "setShards": 0
+    },
+    "plasma": {
+     "arcs": 0,
+     "arcSegments": 0
+    },
+    "steam": {
+     "puffs": 9000
+    },
+    "water": {
+     "sharedWith": "ice"
+    }
+   },
+   "views": [
+    {
+     "id": "main",
+     "world": "redwoods",
+     "on": true
+    },
+    {
+     "id": "gate0",
+     "world": "geode",
+     "on": false
+    },
+    {
+     "id": "gate1",
+     "world": "temple",
+     "on": false
+    },
+    {
+     "id": "gate2",
+     "world": "geode",
+     "on": false
+    }
+   ],
+   "errors": []
+  },
+  {
+   "id": "hub-gates",
+   "note": "the geode hub, fire and water, two live gates",
+   "group": "play",
+   "size": "native",
+   "world": "geode",
+   "stageMs": 49,
+   "runs": [
+    {
+     "mode": "auto",
+     "seconds": 5,
+     "frames": {
+      "n": 275,
+      "mean": 18.22,
+      "p50": 18.1,
+      "p95": 19,
+      "p99": 19.4,
+      "max": 19.6,
+      "fps": 54.9,
+      "dropped": 0,
+      "late": 0
+     },
+     "cpu": {
+      "frame": {
+       "n": 275,
+       "mean": 1.104,
+       "p50": 1.1,
+       "p95": 1.6,
+       "p99": 2.2,
+       "max": 2.7
+      },
+      "phases": {
+       "input": 0.025,
+       "dancers": 0.183,
+       "travel": 0.004,
+       "camera": 0.043,
+       "gates": 0.127,
+       "worlds": 0.028,
+       "matter": 0.136,
+       "post": 0.011,
+       "audio": 0.025
+      }
+     },
+     "gpu": {
+      "available": true,
+      "trusted": true,
+      "passesTrusted": true,
+      "frames": 274,
+      "frame": {
+       "n": 274,
+       "mean": 2.123,
+       "p50": 2.022,
+       "p95": 2.608,
+       "p99": 2.876,
+       "max": 2.966
+      },
+      "passes": {
+       "scene": 0.9,
+       "scene.gate1": 0.251,
+       "scene.gate0": 0.25,
+       "air": 0.07,
+       "water.splat.depth": 0.053,
+       "water.splat.thick": 0.047,
+       "lens": 0.044,
+       "water.smooth.x0": 0.027,
+       "field.step": 0.026,
+       "water.smooth.y0": 0.023,
+       "water.smooth.x1": 0.023,
+       "water.smooth.x2": 0.023,
+       "water.smooth.y1": 0.022,
+       "water.smooth.y2": 0.022,
+       "air.gate1": 0.022,
+       "air.gate0": 0.019,
+       "water.surface": 0.015,
+       "fire.sim": 0.014,
+       "water.sim": 0.013,
+       "trail": 0.01,
+       "grade": 0.008,
+       "gems.sim": 0.007,
+       "bloom.down0": 0.006,
+       "pool.ripples.a": 0.005,
+       "temple.ripples.a": 0.005,
+       "gems.cull": 0.005,
+       "pool.ripples.b": 0.004,
+       "gems.sparks": 0.004,
+       "bloom.up0": 0.004,
+       "ice.mist": 0.003,
+       "steam.sim": 0.003,
+       "gems.cull.gate1": 0.003,
+       "gems.cull.gate0": 0.003,
+       "bloom.down1": 0.003,
+       "bloom.up1": 0.003,
+       "field.probe": 0.002,
+       "temple.ripples.b": 0.002,
+       "bloom.down2": 0.002,
+       "bloom.down3": 0.002,
+       "bloom.down4": 0.002,
+       "bloom.up3": 0.002,
+       "bloom.up2": 0.002
+      }
+     },
+     "renderScale": {
+      "end": 1,
+      "mean": 1,
+      "min": 1,
+      "max": 1
+     },
+     "render": [
+      1280,
+      800
+     ],
+     "canvas": [
+      1280,
+      800
+     ],
+     "dpr": 1,
+     "liveGates": 2
+    },
+    {
+     "mode": "fixed",
+     "seconds": 5,
+     "frames": {
+      "n": 275,
+      "mean": 18.23,
+      "p50": 18.1,
+      "p95": 19,
+      "p99": 19.2,
+      "max": 19.5,
+      "fps": 54.9,
+      "dropped": 0,
+      "late": 0
+     },
+     "cpu": {
+      "frame": {
+       "n": 275,
+       "mean": 0.976,
+       "p50": 1,
+       "p95": 1.4,
+       "p99": 1.7,
+       "max": 1.9
+      },
+      "phases": {
+       "input": 0.021,
+       "dancers": 0.161,
+       "travel": 0.004,
+       "camera": 0.033,
+       "gates": 0.112,
+       "worlds": 0.026,
+       "matter": 0.118,
+       "post": 0.012,
+       "audio": 0.023
+      }
+     },
+     "gpu": {
+      "available": true,
+      "trusted": true,
+      "passesTrusted": true,
+      "frames": 274,
+      "frame": {
+       "n": 274,
+       "mean": 2.351,
+       "p50": 2.185,
+       "p95": 2.922,
+       "p99": 5.672,
+       "max": 6.402
+      },
+      "passes": {
+       "scene": 0.953,
+       "scene.gate1": 0.259,
+       "scene.gate0": 0.25,
+       "air": 0.07,
+       "water.splat.depth": 0.053,
+       "water.splat.thick": 0.046,
+       "lens": 0.046,
+       "field.step": 0.032,
+       "water.smooth.x0": 0.032,
+       "water.smooth.y0": 0.027,
+       "water.smooth.x1": 0.024,
+       "water.smooth.y1": 0.024,
+       "water.smooth.x2": 0.024,
+       "fire.sim": 0.023,
+       "water.smooth.y2": 0.023,
+       "air.gate1": 0.023,
+       "water.surface": 0.021,
+       "water.sim": 0.02,
+       "air.gate0": 0.02,
+       "trail": 0.015,
+       "gems.sim": 0.009,
+       "grade": 0.009,
+       "gems.sparks": 0.007,
+       "pool.ripples.a": 0.006,
+       "gems.cull": 0.006,
+       "bloom.down0": 0.006,
+       "temple.ripples.a": 0.005,
+       "ice.mist": 0.005,
+       "bloom.up2": 0.005,
+       "bloom.up0": 0.005,
+       "pool.ripples.b": 0.004,
+       "steam.sim": 0.004,
+       "gems.cull.gate1": 0.004,
+       "gems.cull.gate0": 0.004,
+       "field.probe": 0.003,
+       "temple.ripples.b": 0.003,
+       "bloom.down1": 0.003,
+       "bloom.down2": 0.003,
+       "bloom.up3": 0.003,
+       "bloom.up1": 0.003,
+       "bloom.down3": 0.002,
+       "bloom.down4": 0.002
+      }
+     },
+     "renderScale": {
+      "end": 1,
+      "mean": 1,
+      "min": 1,
+      "max": 1
+     },
+     "render": [
+      1280,
+      800
+     ],
+     "canvas": [
+      1280,
+      800
+     ],
+     "dpr": 1,
+     "liveGates": 2
+    }
+   ],
+   "matter": {
+    "field": {
+     "cells": "48×32×48",
+     "cell": 0.18,
+     "origin": "-4.32,-0.54,-3.24",
+     "deposits": 0,
+     "dropped": 0,
+     "vortices": 0,
+     "probes": 1,
+     "aura": "loadouts"
+    },
+    "fire": {
+     "flames": 150016,
+     "dancers": "0",
+     "burn": 1
+    },
+    "gems": {
+     "stones": 0,
+     "simulated": 15000,
+     "fixtures": 2600,
+     "specimens": 11
+    },
+    "ice": {
+     "particles": 100000,
+     "waterLayers": 1,
+     "iceLayers": 0,
+     "forms": "0.00,0.00",
+     "setPieces": 0,
+     "setShards": 0
+    },
+    "plasma": {
+     "arcs": 0,
+     "arcSegments": 0
+    },
+    "steam": {
+     "puffs": 9000
+    },
+    "water": {
+     "sharedWith": "ice"
+    }
+   },
+   "views": [
+    {
+     "id": "main",
+     "world": "geode",
+     "on": true
+    },
+    {
+     "id": "gate0",
+     "world": "pool",
+     "on": true
+    },
+    {
+     "id": "gate1",
+     "world": "temple",
+     "on": true
+    },
+    {
+     "id": "gate2",
+     "world": "geode",
+     "on": false
+    }
+   ],
+   "errors": []
+  },
+  {
+   "id": "locked-forge",
+   "note": "fire and water clashing in the forge, locked",
+   "group": "play",
+   "size": "native",
+   "world": "forge",
+   "stageMs": 1561,
+   "runs": [
+    {
+     "mode": "auto",
+     "seconds": 5,
+     "frames": {
+      "n": 275,
+      "mean": 18.219,
+      "p50": 18.1,
+      "p95": 19,
+      "p99": 19.3,
+      "max": 19.3,
+      "fps": 54.9,
+      "dropped": 0,
+      "late": 0
+     },
+     "cpu": {
+      "frame": {
+       "n": 275,
+       "mean": 0.969,
+       "p50": 1,
+       "p95": 1.5,
+       "p99": 1.9,
+       "max": 2.5
+      },
+      "phases": {
+       "input": 0.023,
+       "dancers": 0.206,
+       "travel": 0.004,
+       "camera": 0.04,
+       "gates": 0.052,
+       "worlds": 0.017,
+       "matter": 0.165,
+       "post": 0.008,
+       "audio": 0.051
+      }
+     },
+     "gpu": {
+      "available": true,
+      "trusted": true,
+      "passesTrusted": true,
+      "frames": 274,
+      "frame": {
+       "n": 274,
+       "mean": 5.648,
+       "p50": 5.551,
+       "p95": 6.49,
+       "p99": 6.735,
+       "max": 6.962
+      },
+      "passes": {
+       "scene": 4.834,
+       "lens": 0.209,
+       "water.splat.depth": 0.087,
+       "water.splat.thick": 0.051,
+       "water.smooth.x0": 0.027,
+       "field.step": 0.025,
+       "water.smooth.y0": 0.024,
+       "water.smooth.x1": 0.024,
+       "water.smooth.x2": 0.024,
+       "water.smooth.y2": 0.024,
+       "water.smooth.y1": 0.023,
+       "water.surface": 0.023,
+       "fire.sim": 0.013,
+       "water.sim": 0.012,
+       "air": 0.009,
+       "trail": 0.009,
+       "grade": 0.008,
+       "gems.sim": 0.007,
+       "bloom.down0": 0.006,
+       "steam.sim": 0.004,
+       "gems.cull": 0.004,
+       "bloom.up0": 0.004,
+       "gems.sparks": 0.003,
+       "ice.mist": 0.003,
+       "bloom.down1": 0.003,
+       "bloom.up1": 0.003,
+       "field.probe": 0.002,
+       "bloom.down2": 0.002,
+       "bloom.down3": 0.002,
+       "bloom.down4": 0.002,
+       "bloom.up3": 0.002,
+       "bloom.up2": 0.002
+      }
+     },
+     "renderScale": {
+      "end": 1,
+      "mean": 1,
+      "min": 1,
+      "max": 1
+     },
+     "render": [
+      1280,
+      800
+     ],
+     "canvas": [
+      1280,
+      800
+     ],
+     "dpr": 1,
+     "liveGates": 0
+    },
+    {
+     "mode": "fixed",
+     "seconds": 5,
+     "frames": {
+      "n": 275,
+      "mean": 18.229,
+      "p50": 18.1,
+      "p95": 19,
+      "p99": 19.1,
+      "max": 19.3,
+      "fps": 54.9,
+      "dropped": 0,
+      "late": 0
+     },
+     "cpu": {
+      "frame": {
+       "n": 275,
+       "mean": 0.894,
+       "p50": 0.9,
+       "p95": 1.4,
+       "p99": 1.7,
+       "max": 2
+      },
+      "phases": {
+       "input": 0.015,
+       "dancers": 0.189,
+       "travel": 0.004,
+       "camera": 0.038,
+       "gates": 0.052,
+       "worlds": 0.013,
+       "matter": 0.149,
+       "post": 0.011,
+       "audio": 0.04
+      }
+     },
+     "gpu": {
+      "available": true,
+      "trusted": true,
+      "passesTrusted": true,
+      "frames": 274,
+      "frame": {
+       "n": 274,
+       "mean": 5.933,
+       "p50": 5.948,
+       "p95": 6.5,
+       "p99": 6.875,
+       "max": 7.161
+      },
+      "passes": {
+       "scene": 4.98,
+       "lens": 0.207,
+       "water.splat.depth": 0.086,
+       "water.splat.thick": 0.05,
+       "water.smooth.x0": 0.027,
+       "field.step": 0.025,
+       "water.smooth.y0": 0.024,
+       "water.smooth.x1": 0.024,
+       "water.smooth.x2": 0.024,
+       "water.smooth.y2": 0.024,
+       "water.smooth.y1": 0.023,
+       "water.surface": 0.023,
+       "fire.sim": 0.013,
+       "water.sim": 0.012,
+       "air": 0.009,
+       "trail": 0.009,
+       "grade": 0.008,
+       "gems.sim": 0.007,
+       "bloom.down0": 0.006,
+       "steam.sim": 0.004,
+       "gems.cull": 0.004,
+       "bloom.up0": 0.004,
+       "gems.sparks": 0.003,
+       "ice.mist": 0.003,
+       "bloom.down1": 0.003,
+       "bloom.up1": 0.003,
+       "field.probe": 0.002,
+       "bloom.down2": 0.002,
+       "bloom.down3": 0.002,
+       "bloom.down4": 0.002,
+       "bloom.up3": 0.002,
+       "bloom.up2": 0.002
+      }
+     },
+     "renderScale": {
+      "end": 1,
+      "mean": 1,
+      "min": 1,
+      "max": 1
+     },
+     "render": [
+      1280,
+      800
+     ],
+     "canvas": [
+      1280,
+      800
+     ],
+     "dpr": 1,
+     "liveGates": 0
+    }
+   ],
+   "matter": {
+    "field": {
+     "cells": "48×32×48",
+     "cell": 0.18,
+     "origin": "-4.32,-0.54,-4.32",
+     "deposits": 0,
+     "dropped": 0,
+     "vortices": 0,
+     "probes": 1,
+     "aura": "loadouts"
+    },
+    "fire": {
+     "flames": 150016,
+     "dancers": "0",
+     "burn": 1
+    },
+    "gems": {
+     "stones": 0,
+     "simulated": 15000,
+     "fixtures": 2600,
+     "specimens": 11
+    },
+    "ice": {
+     "particles": 100000,
+     "waterLayers": 1,
+     "iceLayers": 0,
+     "forms": "0.00,0.00",
+     "setPieces": 0,
+     "setShards": 0
+    },
+    "plasma": {
+     "arcs": 0,
+     "arcSegments": 0
+    },
+    "steam": {
+     "puffs": 9000
+    },
+    "water": {
+     "sharedWith": "ice"
+    }
+   },
+   "views": [
+    {
+     "id": "main",
+     "world": "forge",
+     "on": true
+    },
+    {
+     "id": "gate0",
+     "world": "geode",
+     "on": false
+    },
+    {
+     "id": "gate1",
+     "world": "redwoods",
+     "on": false
+    },
+    {
+     "id": "gate2",
+     "world": "temple",
+     "on": false
+    }
+   ],
+   "errors": []
+  },
+  {
+   "id": "critic-800-ice-plasma",
+   "note": "plasma and ice, temple",
+   "group": "play",
+   "size": "1280x800",
+   "world": "temple",
+   "stageMs": 42,
+   "runs": [
+    {
+     "mode": "auto",
+     "seconds": 5,
+     "frames": {
+      "n": 275,
+      "mean": 18.241,
+      "p50": 18.2,
+      "p95": 18.9,
+      "p99": 19.1,
+      "max": 20.1,
+      "fps": 54.8,
+      "dropped": 0,
+      "late": 0
+     },
+     "cpu": {
+      "frame": {
+       "n": 275,
+       "mean": 0.994,
+       "p50": 0.9,
+       "p95": 1.4,
+       "p99": 2.4,
+       "max": 9.6
+      },
+      "phases": {
+       "input": 0.027,
+       "dancers": 0.2,
+       "travel": 0.005,
+       "camera": 0.039,
+       "gates": 0.056,
+       "worlds": 0.019,
+       "matter": 0.167,
+       "post": 0.01,
+       "audio": 0.022
+      }
+     },
+     "gpu": {
+      "available": true,
+      "trusted": true,
+      "passesTrusted": true,
+      "frames": 275,
+      "frame": {
+       "n": 275,
+       "mean": 1.141,
+       "p50": 1.123,
+       "p95": 1.368,
+       "p99": 1.56,
+       "max": 1.891
+      },
+      "passes": {
+       "scene": 0.572,
+       "water.splat.depth": 0.049,
+       "lens": 0.048,
+       "water.splat.thick": 0.047,
+       "air": 0.046,
+       "water.smooth.x0": 0.028,
+       "field.step": 0.027,
+       "water.smooth.y0": 0.023,
+       "water.smooth.x1": 0.023,
+       "water.smooth.x2": 0.023,
+       "water.smooth.y1": 0.022,
+       "water.smooth.y2": 0.022,
+       "fire.sim": 0.017,
+       "water.sim": 0.014,
+       "trail": 0.012,
+       "water.surface": 0.011,
+       "grade": 0.008,
+       "gems.sim": 0.007,
+       "bloom.down0": 0.006,
+       "temple.ripples.a": 0.005,
+       "bloom.up0": 0.005,
+       "gems.sparks": 0.004,
+       "ice.mist": 0.004,
+       "steam.sim": 0.004,
+       "gems.cull": 0.004,
+       "bloom.down1": 0.003,
+       "bloom.up2": 0.003,
+       "bloom.up1": 0.003,
+       "field.probe": 0.002,
+       "temple.ripples.b": 0.002,
+       "bloom.down2": 0.002,
+       "bloom.down3": 0.002,
+       "bloom.down4": 0.002,
+       "bloom.up3": 0.002
+      }
+     },
+     "renderScale": {
+      "end": 1,
+      "mean": 1,
+      "min": 1,
+      "max": 1
+     },
+     "render": [
+      1280,
+      800
+     ],
+     "canvas": [
+      1280,
+      800
+     ],
+     "dpr": 1,
+     "liveGates": 0
+    },
+    {
+     "mode": "fixed",
+     "seconds": 5,
+     "frames": {
+      "n": 274,
+      "mean": 18.249,
+      "p50": 18.2,
+      "p95": 19,
+      "p99": 19.3,
+      "max": 19.4,
+      "fps": 54.8,
+      "dropped": 0,
+      "late": 0
+     },
+     "cpu": {
+      "frame": {
+       "n": 274,
+       "mean": 0.862,
+       "p50": 0.8,
+       "p95": 1.3,
+       "p99": 1.5,
+       "max": 1.7
+      },
+      "phases": {
+       "input": 0.02,
+       "dancers": 0.18,
+       "travel": 0.003,
+       "camera": 0.033,
+       "gates": 0.056,
+       "worlds": 0.019,
+       "matter": 0.137,
+       "post": 0.007,
+       "audio": 0.021
+      }
+     },
+     "gpu": {
+      "available": true,
+      "trusted": true,
+      "passesTrusted": true,
+      "frames": 274,
+      "frame": {
+       "n": 274,
+       "mean": 1.238,
+       "p50": 1.141,
+       "p95": 1.557,
+       "p99": 3.023,
+       "max": 5.004
+      },
+      "passes": {
+       "scene": 0.608,
+       "air": 0.052,
+       "lens": 0.051,
+       "water.splat.depth": 0.049,
+       "water.splat.thick": 0.047,
+       "water.smooth.x0": 0.032,
+       "field.step": 0.03,
+       "fire.sim": 0.026,
+       "water.smooth.y0": 0.026,
+       "water.smooth.x1": 0.024,
+       "water.smooth.y1": 0.024,
+       "water.smooth.x2": 0.023,
+       "water.smooth.y2": 0.022,
+       "water.sim": 0.021,
+       "trail": 0.018,
+       "water.surface": 0.014,
+       "gems.sim": 0.01,
+       "grade": 0.01,
+       "gems.sparks": 0.007,
+       "bloom.down0": 0.007,
+       "temple.ripples.a": 0.006,
+       "ice.mist": 0.006,
+       "gems.cull": 0.005,
+       "bloom.up0": 0.005,
+       "steam.sim": 0.004,
+       "bloom.up1": 0.004,
+       "field.probe": 0.003,
+       "temple.ripples.b": 0.003,
+       "bloom.down1": 0.003,
+       "bloom.down2": 0.003,
+       "bloom.up3": 0.003,
+       "bloom.up2": 0.003,
+       "bloom.down3": 0.002,
+       "bloom.down4": 0.002
+      }
+     },
+     "renderScale": {
+      "end": 1,
+      "mean": 1,
+      "min": 1,
+      "max": 1
+     },
+     "render": [
+      1280,
+      800
+     ],
+     "canvas": [
+      1280,
+      800
+     ],
+     "dpr": 1,
+     "liveGates": 0
+    }
+   ],
+   "matter": {
+    "field": {
+     "cells": "48×32×48",
+     "cell": 0.18,
+     "origin": "-4.32,-0.54,-4.32",
+     "deposits": 0,
+     "dropped": 0,
+     "vortices": 0,
+     "probes": 1,
+     "aura": "loadouts"
+    },
+    "fire": {
+     "flames": 150016,
+     "dancers": "0",
+     "burn": 1
+    },
+    "gems": {
+     "stones": 0,
+     "simulated": 15000,
+     "fixtures": 2600,
+     "specimens": 11
+    },
+    "ice": {
+     "particles": 100000,
+     "waterLayers": 0,
+     "iceLayers": 1,
+     "forms": "0.00,0.00",
+     "setPieces": 0,
+     "setShards": 0
+    },
+    "plasma": {
+     "arcs": 1,
+     "arcSegments": 32
+    },
+    "steam": {
+     "puffs": 9000
+    },
+    "water": {
+     "sharedWith": "ice"
+    }
+   },
+   "views": [
+    {
+     "id": "main",
+     "world": "temple",
+     "on": true
+    },
+    {
+     "id": "gate0",
+     "world": "geode",
+     "on": false
+    },
+    {
+     "id": "gate1",
+     "world": "redwoods",
+     "on": false
+    },
+    {
+     "id": "gate2",
+     "world": "temple",
+     "on": false
+    }
+   ],
+   "errors": []
+  },
+  {
+   "id": "critic-1080-ice-plasma",
+   "note": "plasma and ice, temple",
+   "group": "play",
+   "size": "1920x1080",
+   "world": "temple",
+   "stageMs": 39,
+   "runs": [
+    {
+     "mode": "auto",
+     "seconds": 5,
+     "frames": {
+      "n": 275,
+      "mean": 18.217,
+      "p50": 18.1,
+      "p95": 19,
+      "p99": 19.3,
+      "max": 19.7,
+      "fps": 54.9,
+      "dropped": 0,
+      "late": 0
+     },
+     "cpu": {
+      "frame": {
+       "n": 275,
+       "mean": 0.963,
+       "p50": 1,
+       "p95": 1.6,
+       "p99": 1.9,
+       "max": 1.9
+      },
+      "phases": {
+       "input": 0.024,
+       "dancers": 0.187,
+       "travel": 0.006,
+       "camera": 0.039,
+       "gates": 0.064,
+       "worlds": 0.018,
+       "matter": 0.159,
+       "post": 0.007,
+       "audio": 0.028
+      }
+     },
+     "gpu": {
+      "available": true,
+      "trusted": true,
+      "passesTrusted": true,
+      "frames": 275,
+      "frame": {
+       "n": 275,
+       "mean": 1.769,
+       "p50": 1.718,
+       "p95": 2.028,
+       "p99": 2.369,
+       "max": 2.575
+      },
+      "passes": {
+       "scene": 0.892,
+       "lens": 0.09,
+       "air": 0.079,
+       "water.smooth.x0": 0.051,
+       "water.splat.depth": 0.049,
+       "water.splat.thick": 0.047,
+       "water.smooth.y0": 0.046,
+       "water.smooth.x1": 0.043,
+       "water.smooth.x2": 0.042,
+       "water.smooth.y1": 0.041,
+       "water.smooth.y2": 0.041,
+       "field.step": 0.028,
+       "trail": 0.027,
+       "water.surface": 0.026,
+       "fire.sim": 0.021,
+       "water.sim": 0.017,
+       "grade": 0.014,
+       "bloom.down0": 0.009,
+       "gems.sim": 0.008,
+       "temple.ripples.a": 0.006,
+       "gems.sparks": 0.006,
+       "bloom.up0": 0.006,
+       "ice.mist": 0.005,
+       "steam.sim": 0.004,
+       "gems.cull": 0.004,
+       "bloom.down1": 0.004,
+       "bloom.up1": 0.004,
+       "bloom.down2": 0.003,
+       "bloom.up3": 0.003,
+       "bloom.up2": 0.003,
+       "field.probe": 0.002,
+       "temple.ripples.b": 0.002,
+       "bloom.down3": 0.002,
+       "bloom.down4": 0.002
+      }
+     },
+     "renderScale": {
+      "end": 1,
+      "mean": 1,
+      "min": 1,
+      "max": 1
+     },
+     "render": [
+      1920,
+      1080
+     ],
+     "canvas": [
+      1920,
+      1080
+     ],
+     "dpr": 1,
+     "liveGates": 0
+    },
+    {
+     "mode": "fixed",
+     "seconds": 5,
+     "frames": {
+      "n": 275,
+      "mean": 18.246,
+      "p50": 18.2,
+      "p95": 19,
+      "p99": 19.5,
+      "max": 20.6,
+      "fps": 54.8,
+      "dropped": 0,
+      "late": 0
+     },
+     "cpu": {
+      "frame": {
+       "n": 275,
+       "mean": 0.997,
+       "p50": 1,
+       "p95": 1.4,
+       "p99": 1.6,
+       "max": 1.7
+      },
+      "phases": {
+       "input": 0.027,
+       "dancers": 0.194,
+       "travel": 0.006,
+       "camera": 0.039,
+       "gates": 0.064,
+       "worlds": 0.021,
+       "matter": 0.148,
+       "post": 0.011,
+       "audio": 0.031
+      }
+     },
+     "gpu": {
+      "available": true,
+      "trusted": true,
+      "passesTrusted": true,
+      "frames": 275,
+      "frame": {
+       "n": 275,
+       "mean": 1.723,
+       "p50": 1.697,
+       "p95": 1.91,
+       "p99": 2.194,
+       "max": 2.379
+      },
+      "passes": {
+       "scene": 0.899,
+       "air": 0.094,
+       "lens": 0.09,
+       "water.smooth.x0": 0.05,
+       "water.splat.depth": 0.049,
+       "water.splat.thick": 0.047,
+       "water.smooth.y0": 0.044,
+       "water.smooth.x1": 0.044,
+       "water.smooth.x2": 0.043,
+       "water.smooth.y1": 0.041,
+       "water.smooth.y2": 0.041,
+       "field.step": 0.026,
+       "trail": 0.02,
+       "water.surface": 0.018,
+       "fire.sim": 0.016,
+       "grade": 0.014,
+       "water.sim": 0.013,
+       "bloom.down0": 0.009,
+       "gems.sim": 0.007,
+       "bloom.up0": 0.006,
+       "temple.ripples.a": 0.005,
+       "bloom.down1": 0.005,
+       "gems.sparks": 0.004,
+       "ice.mist": 0.004,
+       "steam.sim": 0.004,
+       "gems.cull": 0.004,
+       "bloom.up1": 0.004,
+       "bloom.down2": 0.003,
+       "bloom.up2": 0.003,
+       "field.probe": 0.002,
+       "temple.ripples.b": 0.002,
+       "bloom.down3": 0.002,
+       "bloom.down4": 0.002,
+       "bloom.up3": 0.002
+      }
+     },
+     "renderScale": {
+      "end": 1,
+      "mean": 1,
+      "min": 1,
+      "max": 1
+     },
+     "render": [
+      1920,
+      1080
+     ],
+     "canvas": [
+      1920,
+      1080
+     ],
+     "dpr": 1,
+     "liveGates": 0
+    }
+   ],
+   "matter": {
+    "field": {
+     "cells": "48×32×48",
+     "cell": 0.18,
+     "origin": "-4.32,-0.72,-4.32",
+     "deposits": 0,
+     "dropped": 0,
+     "vortices": 0,
+     "probes": 1,
+     "aura": "loadouts"
+    },
+    "fire": {
+     "flames": 150016,
+     "dancers": "0",
+     "burn": 1
+    },
+    "gems": {
+     "stones": 0,
+     "simulated": 15000,
+     "fixtures": 2600,
+     "specimens": 11
+    },
+    "ice": {
+     "particles": 100000,
+     "waterLayers": 0,
+     "iceLayers": 1,
+     "forms": "0.00,0.00",
+     "setPieces": 0,
+     "setShards": 0
+    },
+    "plasma": {
+     "arcs": 1,
+     "arcSegments": 24
+    },
+    "steam": {
+     "puffs": 9000
+    },
+    "water": {
+     "sharedWith": "ice"
+    }
+   },
+   "views": [
+    {
+     "id": "main",
+     "world": "temple",
+     "on": true
+    },
+    {
+     "id": "gate0",
+     "world": "geode",
+     "on": false
+    },
+    {
+     "id": "gate1",
+     "world": "redwoods",
+     "on": false
+    },
+    {
+     "id": "gate2",
+     "world": "temple",
+     "on": false
+    }
+   ],
+   "errors": []
+  },
+  {
+   "id": "gems-geode",
+   "note": "gem dancers only, geode",
+   "group": "gems",
+   "size": "native",
+   "world": "geode",
+   "stageMs": 512,
+   "runs": [
+    {
+     "mode": "auto",
+     "seconds": 5,
+     "frames": {
+      "n": 274,
+      "mean": 18.264,
+      "p50": 18.2,
+      "p95": 19.1,
+      "p99": 19.4,
+      "max": 20,
+      "fps": 54.8,
+      "dropped": 0,
+      "late": 0
+     },
+     "cpu": {
+      "frame": {
+       "n": 274,
+       "mean": 1.042,
+       "p50": 1,
+       "p95": 1.8,
+       "p99": 2.4,
+       "max": 3.8
+      },
+      "phases": {
+       "input": 0.003,
+       "dancers": 0.123,
+       "travel": 0.013,
+       "camera": 0.073,
+       "gates": 0.119,
+       "worlds": 0.011,
+       "matter": 0.13,
+       "post": 0.014,
+       "audio": 0.054
+      }
+     },
+     "gpu": {
+      "available": true,
+      "trusted": true,
+      "passesTrusted": true,
+      "frames": 274,
+      "frame": {
+       "n": 274,
+       "mean": 0.622,
+       "p50": 0.534,
+       "p95": 1.176,
+       "p99": 1.197,
+       "max": 1.9
+      },
+      "passes": {
+       "scene": 0.244,
+       "air": 0.117,
+       "lens": 0.049,
+       "field.step": 0.037,
+       "trail": 0.025,
+       "gems.sim": 0.014,
+       "gems.cull": 0.014,
+       "gems.sparks": 0.01,
+       "grade": 0.009,
+       "bloom.down0": 0.007,
+       "bloom.up0": 0.005,
+       "steam.sim": 0.004,
+       "field.probe": 0.003,
+       "bloom.down1": 0.003,
+       "bloom.up3": 0.003,
+       "bloom.up2": 0.003,
+       "bloom.up1": 0.003,
+       "bloom.down2": 0.002,
+       "bloom.down3": 0.002,
+       "bloom.down4": 0.002
+      }
+     },
+     "renderScale": {
+      "end": 1,
+      "mean": 1,
+      "min": 1,
+      "max": 1
+     },
+     "render": [
+      1280,
+      800
+     ],
+     "canvas": [
+      1280,
+      800
+     ],
+     "dpr": 1,
+     "liveGates": 0
+    },
+    {
+     "mode": "fixed",
+     "seconds": 5,
+     "frames": {
+      "n": 275,
+      "mean": 18.228,
+      "p50": 18.2,
+      "p95": 19,
+      "p99": 19.2,
+      "max": 19.2,
+      "fps": 54.9,
+      "dropped": 0,
+      "late": 0
+     },
+     "cpu": {
+      "frame": {
+       "n": 275,
+       "mean": 0.831,
+       "p50": 0.8,
+       "p95": 1.3,
+       "p99": 1.7,
+       "max": 1.8
+      },
+      "phases": {
+       "input": 0.002,
+       "dancers": 0.092,
+       "travel": 0.008,
+       "camera": 0.056,
+       "gates": 0.103,
+       "worlds": 0.013,
+       "matter": 0.097,
+       "post": 0.009,
+       "audio": 0.049
+      }
+     },
+     "gpu": {
+      "available": true,
+      "trusted": true,
+      "passesTrusted": true,
+      "frames": 275,
+      "frame": {
+       "n": 275,
+       "mean": 0.781,
+       "p50": 0.722,
+       "p95": 1.325,
+       "p99": 1.849,
+       "max": 2.498
+      },
+      "passes": {
+       "scene": 0.333,
+       "air": 0.177,
+       "lens": 0.049,
+       "field.step": 0.037,
+       "trail": 0.026,
+       "gems.sim": 0.015,
+       "gems.cull": 0.011,
+       "gems.sparks": 0.01,
+       "grade": 0.009,
+       "bloom.down0": 0.007,
+       "bloom.up0": 0.005,
+       "steam.sim": 0.004,
+       "field.probe": 0.003,
+       "bloom.down1": 0.003,
+       "bloom.down2": 0.003,
+       "bloom.up3": 0.003,
+       "bloom.up2": 0.003,
+       "bloom.up1": 0.003,
+       "bloom.down3": 0.002,
+       "bloom.down4": 0.002
+      }
+     },
+     "renderScale": {
+      "end": 1,
+      "mean": 1,
+      "min": 1,
+      "max": 1
+     },
+     "render": [
+      1280,
+      800
+     ],
+     "canvas": [
+      1280,
+      800
+     ],
+     "dpr": 1,
+     "liveGates": 0
+    }
+   ],
+   "matter": {
+    "field": {
+     "cells": "48×32×48",
+     "cell": 0.18,
+     "origin": "-4.68,-0.36,-3.96",
+     "deposits": 0,
+     "dropped": 0,
+     "vortices": 0,
+     "probes": 1,
+     "aura": "loadouts"
+    },
+    "fire": {
+     "flames": 0,
+     "dancers": "",
+     "burn": 1
+    },
+    "gems": {
+     "stones": 15000,
+     "simulated": 15000,
+     "fixtures": 2600,
+     "specimens": 11
+    },
+    "ice": {
+     "particles": 0,
+     "waterLayers": 0,
+     "iceLayers": 0,
+     "forms": "0.00,0.00",
+     "setPieces": 0,
+     "setShards": 0
+    },
+    "plasma": {
+     "arcs": 0,
+     "arcSegments": 0
+    },
+    "steam": {
+     "puffs": 9000
+    },
+    "water": {
+     "sharedWith": "ice"
+    }
+   },
+   "views": [
+    {
+     "id": "main",
+     "world": "geode",
+     "on": true
+    },
+    {
+     "id": "gate0",
+     "world": "geode",
+     "on": false
+    },
+    {
+     "id": "gate1",
+     "world": "geode",
+     "on": false
+    },
+    {
+     "id": "gate2",
+     "world": "geode",
+     "on": false
+    }
+   ],
+   "errors": []
+  },
+  {
+   "id": "gems-redwoods",
+   "note": "gem dancers only, redwoods",
+   "group": "gems",
+   "size": "native",
+   "world": "redwoods",
+   "stageMs": 44,
+   "runs": [
+    {
+     "mode": "auto",
+     "seconds": 5,
+     "frames": {
+      "n": 273,
+      "mean": 18.37,
+      "p50": 18.3,
+      "p95": 19.1,
+      "p99": 19.6,
+      "max": 20.2,
+      "fps": 54.4,
+      "dropped": 0,
+      "late": 0
+     },
+     "cpu": {
+      "frame": {
+       "n": 273,
+       "mean": 1.571,
+       "p50": 1.5,
+       "p95": 2.2,
+       "p99": 2.7,
+       "max": 3.8
+      },
+      "phases": {
+       "input": 0.004,
+       "dancers": 0.142,
+       "travel": 0.014,
+       "camera": 0.095,
+       "gates": 0.209,
+       "worlds": 0.093,
+       "matter": 0.122,
+       "post": 0.016,
+       "audio": 0.048
+      }
+     },
+     "gpu": {
+      "available": true,
+      "trusted": true,
+      "passesTrusted": true,
+      "frames": 273,
+      "frame": {
+       "n": 273,
+       "mean": 2.501,
+       "p50": 2.502,
+       "p95": 3.018,
+       "p99": 3.408,
+       "max": 3.635
+      },
+      "passes": {
+       "scene": 1.592,
+       "air": 0.36,
+       "scene.gate0": 0.052,
+       "scene.gate1": 0.046,
+       "lens": 0.045,
+       "scene.gate2": 0.032,
+       "field.step": 0.03,
+       "air.gate2": 0.016,
+       "air.gate0": 0.016,
+       "trail": 0.016,
+       "gems.sim": 0.01,
+       "gems.cull": 0.008,
+       "grade": 0.008,
+       "bloom.down0": 0.006,
+       "pool.ripples.a": 0.005,
+       "gems.sparks": 0.005,
+       "gems.cull.gate0": 0.004,
+       "bloom.down1": 0.004,
+       "bloom.up0": 0.004,
+       "steam.sim": 0.003,
+       "gems.cull.gate2": 0.003,
+       "gems.cull.gate1": 0.003,
+       "air.gate1": 0.003,
+       "bloom.up2": 0.003,
+       "bloom.up1": 0.003,
+       "field.probe": 0.002,
+       "pool.ripples.b": 0.002,
+       "bloom.down2": 0.002,
+       "bloom.down3": 0.002,
+       "bloom.down4": 0.002,
+       "bloom.up3": 0.002
+      }
+     },
+     "renderScale": {
+      "end": 1,
+      "mean": 1,
+      "min": 1,
+      "max": 1
+     },
+     "render": [
+      1280,
+      800
+     ],
+     "canvas": [
+      1280,
+      800
+     ],
+     "dpr": 1,
+     "liveGates": 2.36
+    },
+    {
+     "mode": "fixed",
+     "seconds": 5,
+     "frames": {
+      "n": 273,
+      "mean": 18.329,
+      "p50": 18.3,
+      "p95": 19.1,
+      "p99": 19.2,
+      "max": 19.5,
+      "fps": 54.6,
+      "dropped": 0,
+      "late": 0
+     },
+     "cpu": {
+      "frame": {
+       "n": 273,
+       "mean": 1.204,
+       "p50": 1.2,
+       "p95": 1.7,
+       "p99": 1.9,
+       "max": 1.9
+      },
+      "phases": {
+       "input": 0.002,
+       "dancers": 0.125,
+       "travel": 0.012,
+       "camera": 0.069,
+       "gates": 0.112,
+       "worlds": 0.052,
+       "matter": 0.135,
+       "post": 0.019,
+       "audio": 0.063
+      }
+     },
+     "gpu": {
+      "available": true,
+      "trusted": true,
+      "passesTrusted": true,
+      "frames": 271,
+      "frame": {
+       "n": 271,
+       "mean": 1.933,
+       "p50": 1.798,
+       "p95": 2.532,
+       "p99": 3.678,
+       "max": 4.167
+      },
+      "passes": {
+       "scene": 1.26,
+       "air": 0.4,
+       "lens": 0.046,
+       "field.step": 0.031,
+       "trail": 0.019,
+       "gems.sim": 0.012,
+       "gems.cull": 0.009,
+       "grade": 0.008,
+       "bloom.down0": 0.006,
+       "bloom.up0": 0.006,
+       "gems.sparks": 0.005,
+       "bloom.down1": 0.005,
+       "bloom.up1": 0.004,
+       "steam.sim": 0.003,
+       "bloom.up2": 0.003,
+       "field.probe": 0.002,
+       "bloom.down2": 0.002,
+       "bloom.down3": 0.002,
+       "bloom.down4": 0.002,
+       "bloom.up3": 0.002
+      }
+     },
+     "renderScale": {
+      "end": 1,
+      "mean": 1,
+      "min": 1,
+      "max": 1
+     },
+     "render": [
+      1280,
+      800
+     ],
+     "canvas": [
+      1280,
+      800
+     ],
+     "dpr": 1,
+     "liveGates": 0
+    }
+   ],
+   "matter": {
+    "field": {
+     "cells": "48×32×48",
+     "cell": 0.18,
+     "origin": "-4.32,-0.54,-4.68",
+     "deposits": 0,
+     "dropped": 0,
+     "vortices": 0,
+     "probes": 1,
+     "aura": "loadouts"
+    },
+    "fire": {
+     "flames": 0,
+     "dancers": "",
+     "burn": 1
+    },
+    "gems": {
+     "stones": 15000,
+     "simulated": 15000,
+     "fixtures": 2600,
+     "specimens": 11
+    },
+    "ice": {
+     "particles": 0,
+     "waterLayers": 0,
+     "iceLayers": 0,
+     "forms": "0.00,0.00",
+     "setPieces": 0,
+     "setShards": 0
+    },
+    "plasma": {
+     "arcs": 0,
+     "arcSegments": 0
+    },
+    "steam": {
+     "puffs": 9000
+    },
+    "water": {
+     "sharedWith": "ice"
+    }
+   },
+   "views": [
+    {
+     "id": "main",
+     "world": "redwoods",
+     "on": true
+    },
+    {
+     "id": "gate0",
+     "world": "geode",
+     "on": false
+    },
+    {
+     "id": "gate1",
+     "world": "forge",
+     "on": false
+    },
+    {
+     "id": "gate2",
+     "world": "pool",
+     "on": false
+    }
+   ],
+   "errors": []
+  },
+  {
+   "id": "gems-pool",
+   "note": "gem dancers only, pool",
+   "group": "gems",
+   "size": "native",
+   "world": "pool",
+   "stageMs": 41,
+   "runs": [
+    {
+     "mode": "auto",
+     "seconds": 5,
+     "frames": {
+      "n": 273,
+      "mean": 18.364,
+      "p50": 18.3,
+      "p95": 19,
+      "p99": 19.4,
+      "max": 19.8,
+      "fps": 54.5,
+      "dropped": 0,
+      "late": 0
+     },
+     "cpu": {
+      "frame": {
+       "n": 273,
+       "mean": 1.312,
+       "p50": 1.3,
+       "p95": 1.7,
+       "p99": 2,
+       "max": 11.6
+      },
+      "phases": {
+       "input": 0.003,
+       "dancers": 0.167,
+       "travel": 0.01,
+       "camera": 0.101,
+       "gates": 0.114,
+       "worlds": 0.038,
+       "matter": 0.154,
+       "post": 0.021,
+       "audio": 0.045
+      }
+     },
+     "gpu": {
+      "available": true,
+      "trusted": true,
+      "passesTrusted": true,
+      "frames": 273,
+      "frame": {
+       "n": 273,
+       "mean": 0.516,
+       "p50": 0.39,
+       "p95": 0.974,
+       "p99": 1.34,
+       "max": 1.508
+      },
+      "passes": {
+       "scene": 0.205,
+       "lens": 0.057,
+       "air": 0.043,
+       "trail": 0.028,
+       "field.step": 0.026,
+       "gems.sim": 0.013,
+       "grade": 0.011,
+       "gems.cull": 0.01,
+       "gems.sparks": 0.009,
+       "pool.ripples.a": 0.008,
+       "bloom.down0": 0.007,
+       "bloom.down1": 0.005,
+       "bloom.up0": 0.005,
+       "steam.sim": 0.004,
+       "field.probe": 0.003,
+       "pool.ripples.b": 0.003,
+       "bloom.down2": 0.003,
+       "bloom.up3": 0.003,
+       "bloom.up2": 0.003,
+       "bloom.up1": 0.003,
+       "bloom.down3": 0.002,
+       "bloom.down4": 0.002
+      }
+     },
+     "renderScale": {
+      "end": 1,
+      "mean": 1,
+      "min": 1,
+      "max": 1
+     },
+     "render": [
+      1280,
+      800
+     ],
+     "canvas": [
+      1280,
+      800
+     ],
+     "dpr": 1,
+     "liveGates": 0
+    },
+    {
+     "mode": "fixed",
+     "seconds": 5,
+     "frames": {
+      "n": 273,
+      "mean": 18.325,
+      "p50": 18.3,
+      "p95": 19,
+      "p99": 19.2,
+      "max": 19.6,
+      "fps": 54.6,
+      "dropped": 0,
+      "late": 0
+     },
+     "cpu": {
+      "frame": {
+       "n": 273,
+       "mean": 1.228,
+       "p50": 1.2,
+       "p95": 1.8,
+       "p99": 2.1,
+       "max": 2.2
+      },
+      "phases": {
+       "input": 0.003,
+       "dancers": 0.128,
+       "travel": 0.009,
+       "camera": 0.072,
+       "gates": 0.122,
+       "worlds": 0.03,
+       "matter": 0.139,
+       "post": 0.016,
+       "audio": 0.053
+      }
+     },
+     "gpu": {
+      "available": true,
+      "trusted": true,
+      "passesTrusted": true,
+      "frames": 273,
+      "frame": {
+       "n": 273,
+       "mean": 0.786,
+       "p50": 0.819,
+       "p95": 1.228,
+       "p99": 1.879,
+       "max": 1.9
+      },
+      "passes": {
+       "scene": 0.226,
+       "lens": 0.076,
+       "trail": 0.066,
+       "air": 0.064,
+       "field.step": 0.045,
+       "gems.sim": 0.028,
+       "gems.sparks": 0.022,
+       "scene.gate0": 0.019,
+       "gems.cull": 0.017,
+       "pool.ripples.a": 0.013,
+       "grade": 0.012,
+       "bloom.down0": 0.01,
+       "bloom.down1": 0.008,
+       "field.probe": 0.006,
+       "steam.sim": 0.006,
+       "pool.ripples.b": 0.005,
+       "bloom.up0": 0.005,
+       "bloom.down2": 0.004,
+       "bloom.down3": 0.004,
+       "bloom.up3": 0.004,
+       "bloom.up2": 0.004,
+       "bloom.up1": 0.004,
+       "air.gate0": 0.003,
+       "bloom.down4": 0.003,
+       "gems.cull.gate0": 0.002
+      }
+     },
+     "renderScale": {
+      "end": 1,
+      "mean": 1,
+      "min": 1,
+      "max": 1
+     },
+     "render": [
+      1280,
+      800
+     ],
+     "canvas": [
+      1280,
+      800
+     ],
+     "dpr": 1,
+     "liveGates": 0.21
+    }
+   ],
+   "matter": {
+    "field": {
+     "cells": "48×32×48",
+     "cell": 0.18,
+     "origin": "-4.32,-0.36,-3.78",
+     "deposits": 0,
+     "dropped": 0,
+     "vortices": 0,
+     "probes": 1,
+     "aura": "loadouts"
+    },
+    "fire": {
+     "flames": 0,
+     "dancers": "",
+     "burn": 1
+    },
+    "gems": {
+     "stones": 15000,
+     "simulated": 15000,
+     "fixtures": 2600,
+     "specimens": 11
+    },
+    "ice": {
+     "particles": 0,
+     "waterLayers": 0,
+     "iceLayers": 0,
+     "forms": "0.00,0.00",
+     "setPieces": 0,
+     "setShards": 0
+    },
+    "plasma": {
+     "arcs": 0,
+     "arcSegments": 0
+    },
+    "steam": {
+     "puffs": 9000
+    },
+    "water": {
+     "sharedWith": "ice"
+    }
+   },
+   "views": [
+    {
+     "id": "main",
+     "world": "pool",
+     "on": true
+    },
+    {
+     "id": "gate0",
+     "world": "geode",
+     "on": false
+    },
+    {
+     "id": "gate1",
+     "world": "forge",
+     "on": false
+    },
+    {
+     "id": "gate2",
+     "world": "pool",
+     "on": false
+    }
+   ],
+   "errors": []
+  },
+  {
+   "id": "gems-temple",
+   "note": "gem dancers only, temple",
+   "group": "gems",
+   "size": "native",
+   "world": "temple",
+   "stageMs": 39,
+   "runs": [
+    {
+     "mode": "auto",
+     "seconds": 5,
+     "frames": {
+      "n": 273,
+      "mean": 18.319,
+      "p50": 18.2,
+      "p95": 19,
+      "p99": 19.5,
+      "max": 21,
+      "fps": 54.6,
+      "dropped": 0,
+      "late": 0
+     },
+     "cpu": {
+      "frame": {
+       "n": 273,
+       "mean": 1.219,
+       "p50": 1.2,
+       "p95": 1.7,
+       "p99": 2,
+       "max": 2
+      },
+      "phases": {
+       "input": 0.003,
+       "dancers": 0.128,
+       "travel": 0.012,
+       "camera": 0.075,
+       "gates": 0.099,
+       "worlds": 0.045,
+       "matter": 0.149,
+       "post": 0.017,
+       "audio": 0.052
+      }
+     },
+     "gpu": {
+      "available": true,
+      "trusted": true,
+      "passesTrusted": true,
+      "frames": 273,
+      "frame": {
+       "n": 273,
+       "mean": 0.634,
+       "p50": 0.576,
+       "p95": 0.904,
+       "p99": 1.654,
+       "max": 2.49
+      },
+      "passes": {
+       "scene": 0.343,
+       "air": 0.057,
+       "lens": 0.048,
+       "field.step": 0.023,
+       "trail": 0.02,
+       "gems.sim": 0.01,
+       "gems.cull": 0.009,
+       "grade": 0.009,
+       "gems.sparks": 0.007,
+       "bloom.down0": 0.007,
+       "temple.ripples.a": 0.005,
+       "bloom.up0": 0.005,
+       "bloom.down1": 0.004,
+       "temple.ripples.b": 0.003,
+       "steam.sim": 0.003,
+       "bloom.down2": 0.003,
+       "bloom.up3": 0.003,
+       "bloom.up2": 0.003,
+       "bloom.up1": 0.003,
+       "field.probe": 0.002,
+       "bloom.down3": 0.002,
+       "bloom.down4": 0.002
+      }
+     },
+     "renderScale": {
+      "end": 1,
+      "mean": 1,
+      "min": 1,
+      "max": 1
+     },
+     "render": [
+      1280,
+      800
+     ],
+     "canvas": [
+      1280,
+      800
+     ],
+     "dpr": 1,
+     "liveGates": 0
+    },
+    {
+     "mode": "fixed",
+     "seconds": 5,
+     "frames": {
+      "n": 273,
+      "mean": 18.342,
+      "p50": 18.3,
+      "p95": 19.1,
+      "p99": 19.6,
+      "max": 19.7,
+      "fps": 54.5,
+      "dropped": 0,
+      "late": 0
+     },
+     "cpu": {
+      "frame": {
+       "n": 273,
+       "mean": 1.296,
+       "p50": 1.2,
+       "p95": 2,
+       "p99": 3,
+       "max": 4.4
+      },
+      "phases": {
+       "input": 0.005,
+       "dancers": 0.138,
+       "travel": 0.012,
+       "camera": 0.076,
+       "gates": 0.116,
+       "worlds": 0.037,
+       "matter": 0.143,
+       "post": 0.021,
+       "audio": 0.053
+      }
+     },
+     "gpu": {
+      "available": true,
+      "trusted": true,
+      "passesTrusted": true,
+      "frames": 271,
+      "frame": {
+       "n": 271,
+       "mean": 0.711,
+       "p50": 0.636,
+       "p95": 1.163,
+       "p99": 2.084,
+       "max": 2.645
+      },
+      "passes": {
+       "scene": 0.427,
+       "lens": 0.047,
+       "air": 0.041,
+       "field.step": 0.023,
+       "trail": 0.02,
+       "gems.sim": 0.012,
+       "grade": 0.009,
+       "gems.cull": 0.008,
+       "gems.sparks": 0.007,
+       "bloom.down0": 0.006,
+       "temple.ripples.a": 0.005,
+       "bloom.up0": 0.005,
+       "steam.sim": 0.004,
+       "bloom.down1": 0.004,
+       "temple.ripples.b": 0.003,
+       "bloom.down2": 0.003,
+       "bloom.up3": 0.003,
+       "bloom.up2": 0.003,
+       "bloom.up1": 0.003,
+       "field.probe": 0.002,
+       "bloom.down3": 0.002,
+       "bloom.down4": 0.002
+      }
+     },
+     "renderScale": {
+      "end": 1,
+      "mean": 1,
+      "min": 1,
+      "max": 1
+     },
+     "render": [
+      1280,
+      800
+     ],
+     "canvas": [
+      1280,
+      800
+     ],
+     "dpr": 1,
+     "liveGates": 0
+    }
+   ],
+   "matter": {
+    "field": {
+     "cells": "48×32×48",
+     "cell": 0.18,
+     "origin": "-4.32,-0.18,-4.32",
+     "deposits": 0,
+     "dropped": 0,
+     "vortices": 0,
+     "probes": 1,
+     "aura": "loadouts"
+    },
+    "fire": {
+     "flames": 0,
+     "dancers": "",
+     "burn": 1
+    },
+    "gems": {
+     "stones": 15000,
+     "simulated": 15000,
+     "fixtures": 2600,
+     "specimens": 11
+    },
+    "ice": {
+     "particles": 0,
+     "waterLayers": 0,
+     "iceLayers": 0,
+     "forms": "0.00,0.00",
+     "setPieces": 0,
+     "setShards": 0
+    },
+    "plasma": {
+     "arcs": 0,
+     "arcSegments": 0
+    },
+    "steam": {
+     "puffs": 9000
+    },
+    "water": {
+     "sharedWith": "ice"
+    }
+   },
+   "views": [
+    {
+     "id": "main",
+     "world": "temple",
+     "on": true
+    },
+    {
+     "id": "gate0",
+     "world": "geode",
+     "on": false
+    },
+    {
+     "id": "gate1",
+     "world": "forge",
+     "on": false
+    },
+    {
+     "id": "gate2",
+     "world": "pool",
+     "on": false
+    }
+   ],
+   "errors": []
+  },
+  {
+   "id": "gems-forge",
+   "note": "gem dancers only, forge",
+   "group": "gems",
+   "size": "native",
+   "world": "forge",
+   "stageMs": 52,
+   "runs": [
+    {
+     "mode": "auto",
+     "seconds": 5,
+     "frames": {
+      "n": 273,
+      "mean": 18.378,
+      "p50": 18.3,
+      "p95": 19,
+      "p99": 19.5,
+      "max": 19.9,
+      "fps": 54.4,
+      "dropped": 0,
+      "late": 0
+     },
+     "cpu": {
+      "frame": {
+       "n": 273,
+       "mean": 2.444,
+       "p50": 2,
+       "p95": 5.4,
+       "p99": 7.9,
+       "max": 14.7
+      },
+      "phases": {
+       "input": 0.004,
+       "dancers": 0.357,
+       "travel": 0.014,
+       "camera": 0.152,
+       "gates": 0.239,
+       "worlds": 0.082,
+       "matter": 0.258,
+       "post": 0.03,
+       "audio": 0.124
+      }
+     },
+     "gpu": {
+      "available": true,
+      "trusted": true,
+      "passesTrusted": true,
+      "frames": 272,
+      "frame": {
+       "n": 272,
+       "mean": 0.519,
+       "p50": 0.475,
+       "p95": 0.711,
+       "p99": 0.954,
+       "max": 5.025
+      },
+      "passes": {
+       "scene": 0.296,
+       "lens": 0.045,
+       "field.step": 0.018,
+       "trail": 0.011,
+       "air": 0.009,
+       "gems.sim": 0.008,
+       "gems.cull": 0.008,
+       "grade": 0.008,
+       "bloom.down0": 0.006,
+       "bloom.up0": 0.005,
+       "gems.sparks": 0.003,
+       "steam.sim": 0.003,
+       "bloom.down1": 0.003,
+       "bloom.up1": 0.003,
+       "field.probe": 0.002,
+       "bloom.down2": 0.002,
+       "bloom.down3": 0.002,
+       "bloom.down4": 0.002,
+       "bloom.up3": 0.002,
+       "bloom.up2": 0.002
+      }
+     },
+     "renderScale": {
+      "end": 1,
+      "mean": 1,
+      "min": 1,
+      "max": 1
+     },
+     "render": [
+      1280,
+      800
+     ],
+     "canvas": [
+      1280,
+      800
+     ],
+     "dpr": 1,
+     "liveGates": 0
+    },
+    {
+     "mode": "fixed",
+     "seconds": 5,
+     "frames": {
+      "n": 272,
+      "mean": 18.41,
+      "p50": 18.2,
+      "p95": 18.9,
+      "p99": 19.4,
+      "max": 54.2,
+      "fps": 54.3,
+      "dropped": 2,
+      "late": 1
+     },
+     "cpu": {
+      "frame": {
+       "n": 272,
+       "mean": 2.953,
+       "p50": 2,
+       "p95": 7,
+       "p99": 12.4,
+       "max": 61.2
+      },
+      "phases": {
+       "input": 0.007,
+       "dancers": 0.336,
+       "travel": 0.032,
+       "camera": 0.152,
+       "gates": 0.298,
+       "worlds": 0.059,
+       "matter": 0.263,
+       "post": 0.025,
+       "audio": 0.095
+      }
+     },
+     "gpu": {
+      "available": true,
+      "trusted": true,
+      "passesTrusted": true,
+      "frames": 267,
+      "frame": {
+       "n": 267,
+       "mean": 0.607,
+       "p50": 0.579,
+       "p95": 0.773,
+       "p99": 1.156,
+       "max": 2.715
+      },
+      "passes": {
+       "scene": 0.373,
+       "field.step": 0.045,
+       "lens": 0.044,
+       "trail": 0.011,
+       "gems.cull": 0.009,
+       "air": 0.008,
+       "grade": 0.008,
+       "gems.sim": 0.007,
+       "bloom.down0": 0.006,
+       "steam.sim": 0.004,
+       "bloom.up0": 0.004,
+       "bloom.down1": 0.003,
+       "bloom.up1": 0.003,
+       "field.probe": 0.002,
+       "gems.sparks": 0.002,
+       "bloom.down2": 0.002,
+       "bloom.down3": 0.002,
+       "bloom.down4": 0.002,
+       "bloom.up3": 0.002,
+       "bloom.up2": 0.002
+      }
+     },
+     "renderScale": {
+      "end": 1,
+      "mean": 1,
+      "min": 1,
+      "max": 1
+     },
+     "render": [
+      1280,
+      800
+     ],
+     "canvas": [
+      1280,
+      800
+     ],
+     "dpr": 1,
+     "liveGates": 0
+    }
+   ],
+   "matter": {
+    "field": {
+     "cells": "48×32×48",
+     "cell": 0.18,
+     "origin": "-4.32,-0.36,-4.32",
+     "deposits": 0,
+     "dropped": 0,
+     "vortices": 0,
+     "probes": 1,
+     "aura": "loadouts"
+    },
+    "fire": {
+     "flames": 0,
+     "dancers": "",
+     "burn": 0.01
+    },
+    "gems": {
+     "stones": 26000,
+     "simulated": 26000,
+     "fixtures": 2600,
+     "specimens": 11
+    },
+    "ice": {
+     "particles": 0,
+     "waterLayers": 0,
+     "iceLayers": 0,
+     "forms": "0.00,0.00",
+     "setPieces": 0,
+     "setShards": 0
+    },
+    "plasma": {
+     "arcs": 0,
+     "arcSegments": 0
+    },
+    "steam": {
+     "puffs": 9000
+    },
+    "water": {
+     "sharedWith": "ice"
+    }
+   },
+   "views": [
+    {
+     "id": "main",
+     "world": "forge",
+     "on": true
+    },
+    {
+     "id": "gate0",
+     "world": "geode",
+     "on": false
+    },
+    {
+     "id": "gate1",
+     "world": "forge",
+     "on": false
+    },
+    {
+     "id": "gate2",
+     "world": "pool",
+     "on": false
+    }
+   ],
+   "errors": []
+  }
+ ],
+ "errors": [],
+ "done": true,
+ "finishedAt": "2026-11-13T11:15:39.063Z",
+ "received": {
+  "at": "2026-11-13T11:15:39.475Z",
+  "from": "100.75.132.74",
+  "tailnetName": "portal-windows",
+  "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/157.0.0.0 Safari/537.36",
+  "login": "ericrius1@gmail.com"
+ }
+}
