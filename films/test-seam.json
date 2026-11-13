@@ -1,0 +1,27 @@
+{
+  "name": "test-seam",
+  "note": "the seam check's shot: a redwoods jogo at dusk, the partner brain against scripted moves, a slow handheld orbit (scripts/film-seams.mjs)",
+  "bpm": 112,
+  "shots": [
+    {
+      "id": "jogo",
+      "mode": "jogo",
+      "world": "redwoods",
+      "hour": 19.4,
+      "cast": [{ "dress": "fire" }, { "dress": "water", "brain": "playful", "seed": 7 }],
+      "from": "1.1",
+      "bars": 4,
+      "yawBase": "stage",
+      "cues": [
+        { "at": "1.1", "seat": 0, "move": "meia-lua" },
+        { "at": "2.1", "seat": 0, "move": "armada" },
+        { "at": "3.1", "seat": 0, "move": "au" },
+        { "at": "4.1", "seat": 0, "move": "martelo" }
+      ],
+      "camera": [
+        { "at": "1.1", "around": "pair", "yaw": 0.25, "pitch": 0.12, "dist": 5.0, "height": 1.0, "fov": 36, "orbit": 0.05, "handheld": 1, "focus": "pair" },
+        { "at": "5.1", "dist": 3.8, "pitch": 0.08 }
+      ]
+    }
+  ]
+}

@@ -140,12 +140,12 @@ export class AiPartner implements Brain {
   private brain: PartnerBrain;
   private t = 0;
   private readied = false;
-  constructor(private ctx: AiPartnerCtx, public preset: PresetName = 'playful', seed = 23) {
+  constructor(private ctx: AiPartnerCtx, public preset: PresetName = 'playful', private seed = 23) {
     this.brain = new PartnerBrain({ preset, seed, clips: ctx.clips ?? null });
   }
 
   /** change the preset (a new brain, same seat) */
-  setPreset(p: PresetName) { this.preset = p; this.brain = new PartnerBrain({ preset: p, seed: 23, clips: this.ctx.clips ?? null }); this.driver = null; }
+  setPreset(p: PresetName) { this.preset = p; this.brain = new PartnerBrain({ preset: p, seed: this.seed, clips: this.ctx.clips ?? null }); this.driver = null; }
 
   think(v: PartnerView): Intent {
     const it = makeIntent();

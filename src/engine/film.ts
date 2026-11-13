@@ -4,6 +4,7 @@
 // recorder (scripts/film.mjs), which pipes it to ffmpeg. The score is written down as it plays and rendered offline at
 // the end (an OfflineAudioContext, so it is exactly what the frames show) into a WAV posted after the last frame.
 // No titles and no text: the film is the dance. Gem Dancers' film.ts on the bend hooks.
+// `?cut=timeline` is a shot of a film's timeline instead (films/*.json, rendered by scripts/film.mjs): film-shot.ts.
 import { wav, type Recorder } from '../audio/instrument';
 import { renderOffline } from '../audio/synth/synth';
 import type { Programme } from '../dancer/programme';
@@ -166,6 +167,8 @@ const JOGO: Cut = { cues: [[0, (f) => f.prelude()], [0.05, (f) => f.wake()]], pa
 const CUTS: Record<string, Cut> = { showcase: { cues: CUES, paths: PATHS, holds: HOLDS }, dream: DREAM, forest: FOREST, short: SHORT, jogo: JOGO };
 
 export async function film(api: FilmApi, recorder: Recorder, sink: string, seconds = 60, fps = 60, cutName = 'showcase') {
+  // a shot of a film's timeline (films/*.json, scripts/film.mjs): the shot comes from the recorder
+  if (cutName === 'timeline') return (await import('./film-shot')).shoot(api, recorder, sink);
   const cut = CUTS[cutName] ?? CUTS.showcase;
   const { cues: CUES, paths: PATHS, holds: HOLDS, each } = cut;
   if (api.failed) {
