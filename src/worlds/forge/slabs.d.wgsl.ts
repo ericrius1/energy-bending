@@ -152,6 +152,15 @@ export interface WorldLight {
   pool: Pool;
   temple: Temple;
   forge: Forge;
+  sight: Sight;
+}
+export interface SightBody {
+  lo: Vec4;
+  hi: Vec4;
+}
+export interface Sight {
+  body: Partial<SightBody>[];
+  k: Vec4;
 }
 export interface KeyLight {
   dir: Vec3;
@@ -171,5 +180,5 @@ export interface VOut {
   info: Vec4;
 }
 
-declare const shader: Shader<{ Frame: Frame; Geode: Geode; Forest: Forest; Pool: Pool; Temple: Temple; Forge: Forge; FireLight: FireLight; FireLights: FireLights; WorldLight: WorldLight; KeyLight: KeyLight; Column: Column; VOut: VOut }, 'frame' | 'worldLight' | 'columns' | 'poolWaves' | 'templeWaves' | 'samp_linear' | 'samp_repeat' | 'samp_nearest' | 'samp_shadow'>;
+declare const shader: Shader<{ Frame: Frame; Geode: Geode; Forest: Forest; Pool: Pool; Temple: Temple; Forge: Forge; FireLight: FireLight; FireLights: FireLights; WorldLight: WorldLight; SightBody: SightBody; Sight: Sight; KeyLight: KeyLight; Column: Column; VOut: VOut }, 'frame' | 'worldLight' | 'columns' | 'poolWaves' | 'templeWaves' | 'samp_linear' | 'samp_repeat' | 'samp_nearest' | 'samp_shadow'>;
 export default shader;

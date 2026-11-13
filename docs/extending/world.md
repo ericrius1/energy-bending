@@ -81,6 +81,11 @@ export class Pool implements World {
   `backdrop` is drawn first with no depth (a fullscreen floor and sky, alpha = view distance for the air and the
   depth of field), `opaque` after the matter, `glow` additive with `depthWrite: false`. Pass `enabled: s.on` to every
   draw: it is what lets two views show two worlds in one frame.
+- **The near fade.** Every solid thing a dancer could stand behind or the camera could graze (columns, trunks, logs,
+  blades, slabs, lanterns: what `solids` describes) calls `if (sightDrop(i.wp, i.pos.xy)) { discard; }` first in its
+  fragment shader (worlds/light.wgsl, worlds/fade.ts): it dissolves what is within 0.6 m of the eye or stands well in
+  front of a framed dancer, a dither, in the main view only. No binding; nothing below the dancers' feet fades, so a
+  floor may call it too. A backdrop never does (it has no depth to show through to).
 - `mirrorFloor`: true only for a floor the gems should mirror themselves in (the geode's agate). A world that draws its
   own reflections (water, through `worldScene`) says false, or the stones are reflected twice.
 - `fixtures`: matter the world is built of, e.g. `{ kind: 'gems', count, radius, specimens, seed, enabled }` (the

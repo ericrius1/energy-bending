@@ -19,6 +19,8 @@ import { matterKinds, type MatterPasses } from './matter/core/kind';
 import { Field } from './matter/field/field';
 import { worlds as worldDefs, type World, type WorldCtx } from './worlds/world';
 import { shareWorldLight } from './worlds/shared';
+import { NearFade } from './worlds/fade';
+import { solidsOf } from './portals/solids';
 import { PostChain } from './post/post';
 import { Music } from './audio/music';
 import { Show } from './dancer/show';
@@ -74,6 +76,8 @@ const worldOf = (id: string) => worlds.find((w) => w.id === id) ?? worlds[0];
 shareWorldLight(kit, worlds);
 const start = query.get('world') ?? (query.get('scene') === 'forest' ? 'redwoods' : 'geode');
 const main = makeView(kit, 'main', { world: worldOf(start).id, main: true });
+// the near fade (worlds/fade.ts): solid things near the eye or across the dancers dissolve, in the main view only
+const fade = new NearFade(kit, main);
 const pip = query.has('pip') ? makePip(kit, worlds.find((w) => w.id !== main.world)?.id ?? main.world) : null;
 // the gates between worlds (src/portals): their views join the frame's (drawn before the main one, in 'gates')
 const gates = new Portals({
@@ -194,6 +198,7 @@ frame.tick('post', (f) => {
   const W = worldOf(main.world);
   post.stage.dim = rig.locked * (W.stageDim ?? 0.55);
   post.update(f, W, rig.focus);
+  fade.update(f.dt, kit.camera.position, solidsOf(W), gates.seen(main.world, show.dancers.filter((d) => d.framed), 2).joints, (x, z) => W.groundAt(x, z));
 }, 'post chain');
 
 frame.tick('audio', (f) => {
@@ -262,7 +267,7 @@ const bend = installHooks({
   pending: () => gems?.pending ?? null,
   grabYuv: () => post.grabYuv(),
 });
-Object.assign(bend, { gates, device });
+Object.assign(bend, { gates, device, fade });
 if (query.has('perfgroup')) void import('./engine/perfrun').then((m) => m.perfRun({ bend, kit, frame, views, choice: device, ready }));
 if (FILM) {
   kit.manual = true;

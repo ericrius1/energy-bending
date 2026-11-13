@@ -255,6 +255,7 @@ fn carving(kind: f32, u: f32, v: f32, hw: f32, height: f32, seed: f32) -> f32 {
 
 // ---------------------------------------------------------------- the light on stone
 @fragment fn fs(i: VOut) -> @location(0) vec4f {
+  if (sightDrop(i.wp, i.pos.xy)) { discard; }   // the near fade (worlds/fade.ts)
   let seed = i.info.x;
   let kind = i.info.y;
   // (the normals are made outward; the stones are drawn from both sides)
