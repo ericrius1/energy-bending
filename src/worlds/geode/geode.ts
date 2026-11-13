@@ -85,7 +85,7 @@ export class Geode implements World {
     this.shared = { geode: this.u };
     // a stage through the middle, seen from the front, with a lens long enough to flatten it but short enough to
     // stay inside the wall (7.4 m out)
-    this.stages = [{ id: 'centre', origin: [0, 0, 0], right: [1, 0, 0], normal: [0, 0, 1], halfWidth: 4, height: 3, ledges: [], lens: 20, maxDistance: P.caveRadius - 1.4 }];
+    this.stages = [{ id: 'centre', origin: [0, 0, 0], right: [1, 0, 0], halfWidth: 4, ground: 0, ledges: [], spawns: [[-1.2, 0], [1.2, 0]] }];
     // the wall: crystal points and clusters pointing in at the stage, thicker and bigger where the dome meets the floor
     this.fixtures = [{ kind: 'gems', id: 'geode.wall', shape: 'dome', count: Math.min(P.caveStones, 4096), radius: P.caveRadius,
       specimens: ['quartz', 'citrine', 'amethyst', 'celestite'], seed: 4242, enabled: () => geodeParams.cave }];

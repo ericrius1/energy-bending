@@ -1,12 +1,19 @@
-// The camera rig. Two modes:
+// The camera rig. Three ways to look:
 //   free:   Gem Dancers' orbit round the dancers (drag to turn, wheel or pinch to move in and out), following their
 //           middle. When nobody has touched it for a few seconds it eases to the director's current shot
 //           (engine/shots.ts), its optional idle behaviour. On a tall screen it stands back (or widens the lens) far
 //           enough to keep every dancer in frame.
+//   follow: (free, with `follow` set) a third-person camera behind or beside a player: the right stick or the mouse
+//           turns it (`lookBy`), and when the player runs and leaves it alone it swings round behind them.
 //   locked: it eases round to face a StagePlane square on, with a long lens, framing a set of points (the dancers'
 //           joints) on that plane: the 2D side view a jogo locks into.
-// Switching eases between the two poses, so the camera is never cut. `apply(camera)` writes the result into weft's
+// Switching eases between the poses, so the camera is never cut. `apply(camera)` writes the result into weft's
 // Camera; the rig itself is plain numbers and can be stepped without a GPU.
+//
+// A StagePlane is a vertical plane in a world, with a stage in its own 2D coordinates: s along `right` from `origin`,
+// y up from the origin's height. Ledges are spans of it (one-way unless solid, bobbing with the music when they say so,
+// at the height `ledgeY(ledge, beat)` gives); the ground is a floor at y (or null: a pit). The dancers' physics
+// (dancer/character.ts) collides with it when locked; the camera stands on the side `planeNormal` points to.
 import { spring } from 'math/time';
 import type { Camera } from '@ericrius1/weft';
 import { SHOTS, fitSetOf, type Shot } from './shots';
@@ -14,24 +21,46 @@ import { defineParams } from './params';
 
 type V3 = [number, number, number];
 
-/** a vertical plane in a world that the view can lock to. Its 2D coordinates are (along `right`, up) from `origin`;
- *  `normal` points to the side the camera stands on. Ledges are in those 2D coordinates (wave 1 adds collision). */
+/** a span of a stage plane a dancer can stand on: s from x0 to x1, its top at y (plane coordinates, m). One-way (jump
+ *  up through it, drop down with crouch) unless `solid` (a box `thick` deep you can't pass); `bob` is how far it rises
+ *  and falls with the music (m) */
+export interface Ledge { id: string; x0: number; x1: number; y: number; solid?: boolean; thick?: number; bob?: number }
+
+/** a vertical plane in a world that the view can lock to (see the file's opening note) */
 export interface StagePlane {
   id: string;
-  origin: V3;
-  /** unit, horizontal */
-  right: V3;
-  /** unit, horizontal, right × up turned toward the audience: where the camera stands */
-  normal: V3;
-  /** how much of the plane is stage (m, either side of the origin and up from it) */
+  /** a point on the plane at the floor: s = 0, y = 0 */
+  origin: [number, number, number];
+  /** unit, horizontal: the plane's +s */
+  right: [number, number, number];
+  /** how much of the plane is stage (m, either side of the origin): the walls the dancers stop at */
   halfWidth: number;
-  height: number;
-  ledges: { x0: number; x1: number; y: number }[];
-  /** the lens it prefers (degrees, top to bottom) and the furthest the camera may stand from the plane (m): a lens
-   *  widens past it instead (inside the geode the wall is 7.4 m out) */
-  lens: number;
-  maxDistance: number;
+  /** the floor's height (plane y, m), or null for a pit (fall out and re-form at a spawn) */
+  ground: number | null;
+  ledges: Ledge[];
+  /** where the players appear: [s, y] per seat */
+  spawns: [number, number][];
+  /** the height of a ledge at a beat, when the stage moves its ledges its own way (default: `ledgeY`) */
+  ledgeY?: (ledge: Ledge, beat: number) => number;
 }
+
+/** a ledge's height at a beat: a bobbing ledge rides a sine over four beats (shared by physics and drawing) */
+export function ledgeY(ledge: Ledge, beat: number) {
+  return ledge.bob ? ledge.y + ledge.bob * Math.sin(beat * Math.PI * 0.5) : ledge.y;
+}
+
+/** the horizontal unit normal toward the side the locked camera stands on (right x up) */
+export function planeNormal(p: { right: V3 }): V3 { return [-p.right[2], 0, p.right[0]]; }
+
+/** a stage plane's point (s, y) in the world */
+export function planePoint(p: StagePlane, s: number, y: number, out: V3 = [0, 0, 0]): V3 {
+  out[0] = p.origin[0] + p.right[0] * s; out[1] = p.origin[1] + y; out[2] = p.origin[2] + p.right[2] * s;
+  return out;
+}
+
+/** what a follow camera follows: a point (the player's chest, or the middle of two), the way the player faces, how
+ *  fast they travel (m/s), and how far apart the players are (0 for one) */
+export interface FollowTarget { x: number; y: number; z: number; yaw: number; speed: number; spread: number }
 
 export const cameraParams = defineParams('camera', {
   autoOrbit: true,
@@ -40,11 +69,23 @@ export const cameraParams = defineParams('camera', {
   shots: true,
   /** seconds a locked camera takes to get there (and back) */
   lockEase: 1.1,
+  /** the locked view's lens (degrees, top to bottom): long, so the side view is nearly flat */
+  lockLens: 18,
+  /** the follow camera: how far behind (m), how high it looks down (rad), its lens, how fast it swings behind a
+   *  running player when left alone (rad/s), and how long it waits first (s) */
+  followDist: 4.6,
+  followPitch: 0.22,
+  followFov: 48,
+  followSwing: 1.6,
+  followWait: 1.2,
 }, {
   autoOrbit: { label: 'orbit when idle' },
   orbitSpeed: { min: -0.5, max: 0.5 },
   shots: { label: "director's shots" },
   lockEase: { min: 0.2, max: 4, label: 'lock ease (s)' },
+  lockLens: { min: 8, max: 40, label: 'lock lens (deg)' },
+  followDist: { min: 2, max: 10, label: 'follow distance' },
+  followSwing: { min: 0, max: 5, label: 'follow swing' },
 });
 
 /** what the rig needs to know about the frame */
@@ -90,6 +131,10 @@ export class CameraRig {
   zoom = 1;
   /** while the dancers are coming down between dances it stands a little further back */
   falling = false;
+  // ---- follow (free, with a player to follow)
+  follow: FollowTarget | null = null;
+  /** seconds since the look input last moved the follow camera */
+  lookIdle = 99;
   // ---- locked
   plane: StagePlane | null = null;
   /** points (x, y, z triples) to frame on the plane; when empty, the plane's stage is framed */
@@ -120,6 +165,14 @@ export class CameraRig {
   orbit(dx: number, dy: number) {
     this.yaw -= dx * 0.006;
     this.pitch = clampPitch(this.pitch + dy * 0.004);
+    this.idle = 0;
+  }
+  /** the follow camera turned by a look rate (a stick's -1..1, a mouse's more) over dt seconds */
+  lookBy(x: number, y: number, dt: number) {
+    if (Math.abs(x) + Math.abs(y) < 1e-3) return;
+    this.yaw -= x * 2.6 * dt;
+    this.pitch = Math.max(-0.1, Math.min(1.1, this.pitch - y * 1.6 * dt));
+    this.lookIdle = 0;
     this.idle = 0;
   }
   /** a pinch's turn (pixels) */
@@ -183,6 +236,8 @@ export class CameraRig {
 
   // ---------------------------------------------------------------- free
   private updateFree(dt: number, f: RigInput) {
+    if (this.follow) { this.updateFollow(dt, this.follow); return; }
+    this.followInit = false;
     // the director's shot while idle: each value on a spring, the yaw drifting round
     if (cameraParams.shots && this.idle >= 4) {
       const s = SHOTS[this.shot];
@@ -228,6 +283,39 @@ export class CameraRig {
     const t = this.target;
     this.freeEye[0] = t[0] + Math.sin(this.yaw) * Math.cos(this.pitch) * dist;
     this.freeEye[1] = t[1] + Math.sin(this.pitch) * dist;
+    this.freeEye[2] = t[2] + Math.cos(this.yaw) * Math.cos(this.pitch) * dist;
+    this.freeLook[0] = t[0]; this.freeLook[1] = t[1]; this.freeLook[2] = t[2];
+  }
+
+  /** the third-person camera: the target springs to the player, the yaw is the player's to turn, and swings round
+   *  behind them while they run and leave it alone */
+  private followInit = false;
+  private updateFollow(dt: number, F: FollowTarget) {
+    const P = cameraParams;
+    this.lookIdle += dt;
+    if (!this.followInit) {
+      this.followInit = true;
+      this.target[0] = F.x; this.target[1] = F.y; this.target[2] = F.z;
+    }
+    const k = 1 - Math.exp(-dt * 6);
+    this.target[0] += (F.x - this.target[0]) * k;
+    this.target[1] += (F.y - this.target[1]) * (1 - Math.exp(-dt * 3));
+    this.target[2] += (F.z - this.target[2]) * k;
+    if (this.lookIdle > P.followWait) {
+      // left alone: the pitch settles, and while they run the eye swings round behind them
+      this.pitch += (P.followPitch - this.pitch) * (1 - Math.exp(-dt * 1.2));
+      if (F.speed > 0.6) {
+        const want = F.yaw + Math.PI, d = wrap(want - this.yaw);
+        const most = P.followSwing * dt * Math.min(1, (this.lookIdle - P.followWait) / 0.8) * Math.min(1, F.speed / 2.5);
+        this.yaw += Math.max(-most, Math.min(most, d));
+      }
+    }
+    const dist = P.followDist + F.spread * 0.7;
+    this.dist = dist;
+    this.freeFov = this.fov = P.followFov;
+    const t = this.target;
+    this.freeEye[0] = t[0] + Math.sin(this.yaw) * Math.cos(this.pitch) * dist;
+    this.freeEye[1] = Math.max(t[1] + Math.sin(this.pitch) * dist, 0.25);
     this.freeEye[2] = t[2] + Math.cos(this.yaw) * Math.cos(this.pitch) * dist;
     this.freeLook[0] = t[0]; this.freeLook[1] = t[1]; this.freeLook[2] = t[2];
   }
@@ -279,28 +367,32 @@ export class CameraRig {
       const u = x * P.right[0] + z * P.right[2];
       u0 = Math.min(u0, u); u1 = Math.max(u1, u); v0 = Math.min(v0, y); v1 = Math.max(v1, y);
     }
-    if (!(u1 >= u0)) { u0 = -P.halfWidth; u1 = P.halfWidth; v0 = 0; v1 = P.height; }
+    if (!(u1 >= u0)) { u0 = -P.halfWidth; u1 = P.halfWidth; v0 = 0; v1 = 3; }
     // a margin round them, and never less than a body's height of stage
     const mu = 0.6, mv = 0.35;
     u0 -= mu; u1 += mu; v0 = Math.min(v0, 0) - mv; v1 = Math.max(v1, v0 + 2.2) + mv;
     const uc = (u0 + u1) / 2, vc = (v0 + v1) / 2, hu = (u1 - u0) / 2, hv = (v1 - v0) / 2;
     // far enough back with the plane's lens to hold that; past the plane's limit, the lens widens instead
-    const tanP = Math.tan((P.lens * Math.PI) / 360);
+    const lens = cameraParams.lockLens, tanP = Math.tan((lens * Math.PI) / 360);
     let D = Math.max(hv / tanP, hu / (tanP * Math.max(f.aspect, 0.2)));
-    let fov = P.lens;
-    if (D > P.maxDistance) {
-      D = P.maxDistance;
+    let fov = lens;
+    // the furthest it may stand: inside the world's room (from the middle of what it frames, along the normal)
+    const N = planeNormal(P), cx = P.origin[0] + P.right[0] * uc, cz = P.origin[2] + P.right[2] * uc;
+    const b = cx * N[0] + cz * N[2], room = Math.max(1, f.room - 0.3);
+    const maxD = Math.max(2, -b + Math.sqrt(Math.max(0, b * b - (cx * cx + cz * cz - room * room))));
+    if (D > maxD) {
+      D = maxD;
       fov = (Math.atan(Math.max(hv / D, hu / (D * Math.max(f.aspect, 0.2)))) * 360) / Math.PI;
     }
-    const c: V3 = [P.origin[0] + P.right[0] * uc, P.origin[1] + vc * up[1], P.origin[2] + P.right[2] * uc];
+    const c: V3 = [cx, P.origin[1] + vc * up[1], cz];
     // the framing eases too, so a kick that reaches out doesn't jolt the camera
     const k = this.lockFresh ? 1 : 1 - Math.exp(-dt * 2.2);
     this.lockFresh = false;
     for (let a = 0; a < 3; a++) this.lockC[a] += (c[a] - this.lockC[a]) * k;
     this.lockD += (D - this.lockD) * k;
     this.lockFov += (fov - this.lockFov) * k;
-    for (let a = 0; a < 3; a++) this.lockEye[a] = this.lockC[a] + P.normal[a] * this.lockD;
+    for (let a = 0; a < 3; a++) this.lockEye[a] = this.lockC[a] + N[a] * this.lockD;
     // (kept from drifting when unlocked: the free yaw takes over from wherever the lock left it facing)
-    if (this.mode === 'locked' && this.lockW > 0.98) this.yaw += wrap(Math.atan2(P.normal[0], P.normal[2]) - this.yaw) * Math.min(1, dt * 2);
+    if (this.mode === 'locked' && this.lockW > 0.98) this.yaw += wrap(Math.atan2(N[0], N[2]) - this.yaw) * Math.min(1, dt * 2);
   }
 }
