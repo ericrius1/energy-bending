@@ -49,6 +49,9 @@ export const LIMITS = {
   /** Line segments of plasma arcs drawn in one frame (matter/plasma/arcs.ts): an arc with its forks is ~30, so this
    *  holds well over a hundred arcs. 32 bytes each. */
   arcSegments: 4096,
+  /** Gates open in all the worlds at once (src/portals). Each is a row of a small uniform per view (208 bytes), and a
+   *  ray test in the pixels its disc covers; eight is a few doors per world. */
+  gates: 8,
 } as const;
 
 export type Limits = typeof LIMITS;

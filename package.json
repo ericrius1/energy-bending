@@ -15,7 +15,7 @@
     "prebuild": "node tools/engine-latest.mjs --strict",
     "shot": "node scripts/shot.mjs",
     "film": "node scripts/film.mjs",
-    "test": "node scripts/check-limits.mjs && node scripts/test-ts.mjs && node scripts/test-audio.mjs && npm run test:net",
+    "test": "node scripts/check-limits.mjs && node scripts/test-ts.mjs && node scripts/test-audio.mjs && node scripts/check-portals.mjs && npm run test:net",
     "test:net": "node test/rules.test.ts && node test/room.test.ts && node test/codec.test.ts && node test/localnet.test.ts && node test/integration.test.ts && node test/smoothness.test.ts",
     "start": "node server/index.ts",
     "server": "node server/index.ts"

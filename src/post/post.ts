@@ -6,7 +6,7 @@ import type { Kit, RenderPass, Texture, UniformBuffer } from '@ericrius1/weft';
 import postShader, { type Post as PostU } from './post.wgsl';
 import airShader from './air.wgsl';
 import yuvShader from './yuv.wgsl';
-import type { FrameBuilder, FrameCtx } from '../engine/frame';
+import type { FrameBuilder, FrameCtx, Stage } from '../engine/frame';
 import type { ViewCtx } from '../engine/views';
 import type { World } from '../worlds/world';
 import { defineParams, onParams } from '../engine/params';
@@ -91,13 +91,18 @@ export class PostChain {
     frame.add('end', history.swap, 'post');
   }
 
-  /** a view's air pass: one draw per world, each enabled while the view shows that world */
-  declareAir(view: ViewCtx, worlds: readonly World[]) {
+  /** the main view's exposure (× postParams.exposure): its world's own, unless something leans it (src/portals: as a
+   *  gate fills the screen the exposure leans toward the far world's) */
+  exposureOf: (world: World) => number = (w) => w.exposure();
+
+  /** a view's air pass: one draw per world, each enabled while the view shows that world (a gate's view puts it in
+   *  the 'gates' stage, before the scene that shows it) */
+  declareAir(view: ViewCtx, worlds: readonly World[], stage: Stage = 'air') {
     const pass = this.kit.pass({ label: view.id === 'main' ? 'air' : `air.${view.id}`, color: [{ target: view.targets.air }], view: view.id === 'main' ? undefined : view.view, enabled: view.on });
     for (const w of worlds) {
       pass.fullscreen(airShader, { label: `air.${w.id}${view.id === 'main' ? '' : `.${view.id}`}`, bind: { src: view.targets.hdr }, constants: { WORLD: w.light }, enabled: () => view.world === w.id });
     }
-    this.frame.add('air', pass, 'post');
+    this.frame.add(stage, pass, 'post');
   }
 
   /** show a view in a corner of the canvas: `rect` gives [x, y, w, h] as fractions of the canvas */
@@ -121,7 +126,7 @@ export class PostChain {
 
   /** each frame: the exposure the main view's world wants, and the focus on what the camera looks at */
   update(_f: FrameCtx, world: World, focus: number) {
-    this._post.exposure = postParams.exposure * world.exposure();
+    this._post.exposure = postParams.exposure * this.exposureOf(world);
     this._post.focus = focus;
     this.post.set(this._post);
   }

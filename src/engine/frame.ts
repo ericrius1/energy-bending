@@ -13,6 +13,8 @@ import type { ViewCtx } from './views';
 export const STAGES = [
   'sim',    // matter simulation: compute steps that move particles (and the readbacks that follow them)
   'cull',   // per view: level-of-detail culls that fill draw lists for that view's camera
+  'gates',  // the views through live gates (src/portals): each one's scene and air, deepest first, so the views that
+            // show them (the main one last) can sample them in their own scene pass this frame
   'scene',  // per view: the scene pass (the world, then the matter in it)
   'air',    // per view: light in the air, fog
   'post',   // the main view's depth of field, trails, bloom
@@ -25,7 +27,9 @@ export type Stage = (typeof STAGES)[number];
 export const PHASES = [
   'input',    // pointer, keys, webcam: what the players are doing
   'dancers',  // controllers pose the skeletons; the joints go up to the GPU
+  'travel',   // dancers whose middle passed through a gate are carried to the other world (src/portals)
   'camera',   // the camera rig follows them
+  'gates',    // the camera through a gate (and the main view with it), then the camera behind each live gate
   'worlds',   // each world on screen updates its light (the day going by)
   'matter',   // each matter kind sets its uniforms (it can read the camera and the world now)
   'post',     // the post chain's uniforms

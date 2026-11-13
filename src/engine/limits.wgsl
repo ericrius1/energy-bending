@@ -14,3 +14,4 @@ const FIELD_DEPOSITS: u32 = 32u;  // LIMITS.fieldDeposits
 const FIELD_VORTICES: u32 = 4u;   // LIMITS.fieldVortices
 const FIELD_PROBES: u32 = 16u;    // LIMITS.fieldProbes
 const STEAM_MAX: u32 = 65536u;    // LIMITS.steam
+const MAX_GATES: u32 = 8u;        // LIMITS.gates
