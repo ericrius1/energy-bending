@@ -189,7 +189,11 @@ frame.tick('worlds', (f) => {
 frame.tick('matter', (f) => { for (const k of kinds) k.update(f); }, 'matter kinds');
 
 frame.tick('post', (f) => {
-  post.update(f, worldOf(main.world), rig.focus);
+  // the locked view's stage dim (post.ts PostChain.stage): what lies beyond the stage darkens and softens a little as the
+  // lock comes in, by the world's taste (World.stageDim; 0.55 where a world says nothing), focused on the stage plane
+  const W = worldOf(main.world);
+  post.stage.dim = rig.locked * (W.stageDim ?? 0.55);
+  post.update(f, W, rig.focus);
 }, 'post chain');
 
 frame.tick('audio', (f) => {

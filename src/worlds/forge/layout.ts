@@ -45,7 +45,7 @@ export function layoutForge(o: { coarse: boolean; seed?: number }): ForgeLayout 
   const r = () => mulberry32.sample(rng);
   // the stage: the anvil (the floor: its top is y = 0), two floats beside it, the crown over the middle
   const stage: Slab[] = [
-    { id: 'anvil', x: 0, z: 0, top: 0, rx: 4.0, rz: 3.2, lobe: [-5.6, -3.6, 1.9], R: 0.4, depth: 7.5, bob: 0, row: [5, 5], solid: true },
+    { id: 'anvil', x: 0, z: 0, top: 0, rx: 4.0, rz: 3.2, lobe: [-4.9, -2.85, 2.6], R: 0.4, depth: 7.5, bob: 0, row: [5, 5], solid: true },
     // (their middles hang out past the anvil's edge; their edges, over it, hang short and clear of it)
     { id: 'floatL', x: -4.75, z: 0, top: 1.75, rx: 1.15, rz: 0.95, R: 0.33, depth: 1.4, bob: 0.18, row: [1, 1] },
     { id: 'floatR', x: 4.75, z: 0, top: 1.75, rx: 1.15, rz: 0.95, R: 0.33, depth: 1.4, bob: 0.18, row: [1, 1] },

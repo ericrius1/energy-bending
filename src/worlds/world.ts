@@ -93,6 +93,9 @@ export interface World {
   /** the same big solid things as simple shapes (capsules and boxes, src/worlds/solids.ts), built from the description
    *  the world draws them from, for a camera that wants more than `clear` (a near fade, a path planned round them) */
   readonly solids?: readonly Solid[];
+  /** how much the locked view dims and softens what lies beyond the stage (post.ts PostChain.stage, × the lock's
+   *  weight; default 0.55): lower where the backdrop is the point (the temple's moon) */
+  readonly stageDim?: number;
   /** how far from the middle the camera may stand, and the furthest it may dolly out */
   readonly room: number;
   readonly maxDist: number;

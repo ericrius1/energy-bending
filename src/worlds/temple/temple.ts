@@ -98,6 +98,8 @@ export class Temple implements World {
   readonly id = 'temple';
   readonly light = 3;
   readonly mood = 0.1;
+  /** the moon over the far gate is the lock's backdrop: dimmed less than other worlds' */
+  readonly stageDim = 0.35;
   readonly shared;
   readonly stages: StagePlane[];
   readonly portals: PortalDef[];
