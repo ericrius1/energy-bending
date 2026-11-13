@@ -42,7 +42,7 @@ export async function netPlay(ctx: NetPlayCtx) {
   }
   const seat = session.seat ?? session.slot ?? 0, other = seat === 1 ? 0 : 1;
   const me = play.controllers[0];
-  const meDancer = show.dancers.find((d) => d.controller === me)!;
+  const meDancer = play.dancers[0];
   // the loadouts the room gives the seats (kept on through restaging: the show's dress for each slot)
   show.dress = [];
   meDancer.loadout = dressed(SEAT_DRESS[seat] ?? 'gems')!;

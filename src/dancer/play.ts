@@ -86,6 +86,8 @@ export function flatSteps(stretches: readonly IceLedge[]): Ledge[] {
 export interface PlayHandle {
   readonly hub: InputHub;
   readonly controllers: IntentController[];
+  /** the players' dancers, in seat order (the show stages them later: show.dancers may not hold them yet) */
+  readonly dancers: Dancer[];
   /** the plane locking uses (the world's own stage) */
   plane(): StagePlane | null;
   /** add a dancer played from elsewhere (the network's NetController): it joins the cast after the players */
@@ -214,5 +216,5 @@ export async function playDemo(ctx: PlayCtx): Promise<PlayHandle> {
     pad?.update();
   }, 'play: the lock, partners, the follow camera');
 
-  return { hub, controllers, plane: () => lockedPlane, addDancer: (d) => { others.push(d); show.stage(show.program); } };
+  return { hub, controllers, dancers, plane: () => lockedPlane, addDancer: (d) => { others.push(d); show.stage(show.program); } };
 }
