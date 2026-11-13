@@ -42,7 +42,9 @@ export const templeParams = defineParams('temple', {
   stone: '#a29e94',
   wetGloss: 1,
   /** the afterglow's low light on the stones' fronts (it rakes the carving) */
-  afterglow: 0.22,
+  afterglow: 0.16,
+  /** the moonlit sky's cool fill on the stone */
+  skyFill: 0.05,
   /** how quickly the stone dries once the tide has left it (per cycle of the tide) */
   dry: 4,
   /** the moon's path on the water: how bright, how wide (the facets' slope), how fine its sparkle (per m) */
@@ -155,7 +157,7 @@ export class Temple implements World {
       zenith: [...hex(P.zenith), P.stars], horizon: [...hex(P.horizon), 0], dusk: [...hex(P.dusk), P.duskAmt], duskDir: [0, 0, 1, 2.2],
       moon: [Math.sin(az) * Math.cos(el), Math.sin(el), -Math.cos(az) * Math.cos(el), (P.moonSize * Math.PI) / 360],
       moonCol: [...hex(P.moonCol), P.moonLight], sea: [...hex(P.sea), P.depthDim], stone: [...hex(P.stone), P.wetGloss],
-      glitter: [P.glitter, P.glitterWidth, P.sparkle, P.veil], tide2: [P.afterglow, 0, 0, 0],
+      glitter: [P.glitter, P.glitterWidth, P.sparkle, P.veil], tide2: [P.afterglow, P.skyFill, 0, 0],
     });
     this.march[2] = P.haze;
     this.u.set({ march: this.march });

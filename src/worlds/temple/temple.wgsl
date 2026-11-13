@@ -27,7 +27,7 @@ struct Temple {
                     // w: how quickly wet stone dries once the water has left it (per cycle)
   glitter: vec4f,   // the moon's path on the water: x how bright, y how wide (the slope of the facets), z how fine the
                     // sparkle (per m); w: the thin cloud over the moon (how thick)
-  tide2: vec4f,     // x: how strong the afterglow's low light on the stone's fronts is
+  tide2: vec4f,     // x: how strong the afterglow's low light on the stone's fronts is, y: the moonlit sky's cool fill
   lights: array<vec4f, 8>,  // each dancer's light: xyz where it is (the chest), w: -
   glow: array<vec4f, 8>,    // its colour × strength
   cols: array<vec4f, 24>,   // the pillars that throw the moon's shadow: xz of the foot, radius, top

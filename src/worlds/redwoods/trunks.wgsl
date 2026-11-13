@@ -211,11 +211,11 @@ fn bark(i: VOut) -> vec4f {
   // tips; on the fallen giant, grey-green lichen down its sides and dark rot where it lies in the wet
   if (i.stageP > 0.5 && i.end.x < 0.5) {
     let patchy = vnoise(i.wp * 3.1) * 0.6 + vnoise(i.wp * 11.0) * 0.4;
-    let top = smoothstep(0.1, 0.75, N0.y + (patchy - 0.5) * 0.9);
+    let top = smoothstep(0.35, 0.85, N0.y + (patchy - 0.5) * 0.7);
     let moss = mix(vec3f(0.03, 0.06, 0.012), vec3f(0.09, 0.14, 0.025), smoothstep(0.4, 0.9, vnoise(i.wp * 23.0))) * (0.6 + 0.6 * hs.r);
     albedo = mix(albedo, moss, top * 0.9);
     let side = smoothstep(0.55, 0.75, vnoise(i.wp * 5.3 + 3.0)) * (1.0 - abs(N0.y)) * step(0.5, y + 0.5) * step(y, 1.6);
-    albedo = mix(albedo, vec3f(0.12, 0.13, 0.1) * (0.7 + 0.5 * hs.r), side * 0.45);
+    albedo = mix(albedo, vec3f(0.12, 0.13, 0.1) * (0.7 + 0.5 * hs.r), side * 0.25);
     albedo *= 1.0 - 0.5 * smoothstep(0.35, 0.05, y) * smoothstep(0.0, -0.5, N0.y);
   }
   // an old fire scar, blackened, up one side of some of the trunks

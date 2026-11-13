@@ -341,8 +341,8 @@ fn carving(kind: f32, u: f32, v: f32, hw: f32, height: f32, seed: f32) -> f32 {
   let grain = vnoise(wp * 41.0 + seed * 3.0);
   let beds = 0.5 + 0.5 * sin(wp.y * 23.0 + vnoise(wp * 1.7) * 4.0 + seed * 9.0);
   var albedo = worldLight.temple.stone.rgb * (0.86 + 0.2 * n1) * (0.93 + 0.12 * grain) * (0.96 + 0.05 * beds);
-  let pits = smoothstep(0.74, 0.82, vnoise(wp * 23.0 + seed));
-  albedo *= 1.0 - 0.3 * pits - 0.35 * groove;
+  let pits = smoothstep(0.78, 0.86, vnoise(wp * 47.0 + seed));
+  albedo *= 1.0 - 0.14 * pits - 0.35 * groove;
   // fresh stone where it chipped: paler, warmer, not yet weathered
   albedo = mix(albedo, worldLight.temple.stone.rgb * vec3f(1.1, 1.07, 1.0), chip * 0.5);
   // the rain's streaks: dark, grey-green, running down from every top and joint, long and narrow, fading as they go
@@ -375,8 +375,12 @@ fn carving(kind: f32, u: f32, v: f32, hw: f32, height: f32, seed: f32) -> f32 {
   let diff = max(dot(N, Ld), 0.0);
   // the afterglow behind the audience, low: a warm light raking the fronts (it is what shows the carving)
   let La = normalize(worldLight.temple.duskDir.xyz + vec3f(0.0, 0.32, 0.0));
-  let after = worldLight.temple.dusk.rgb * worldLight.temple.dusk.w * worldLight.temple.tide2.x * templeAfterShade(wp);
-  var col = albedo * (moon * diff + after * max(dot(N, La), 0.0) * ao + templeAmbient(N, ao, wp, 1.0) * ao);
+  let dusk = mix(vec3f(luma(worldLight.temple.dusk.rgb)), worldLight.temple.dusk.rgb, 0.55);
+  let after = dusk * worldLight.temple.dusk.w * worldLight.temple.tide2.x * templeAfterShade(wp);
+  // and the moonlit sky over the court: a cool fill from above and in front, so the fronts are blue-grey stone in the
+  // night, the warmth only where the afterglow or a dancer's fire touches them
+  let skyFill = worldLight.temple.moonCol.rgb * worldLight.temple.moonCol.w * worldLight.temple.tide2.y * (0.45 + 0.35 * N.y + 0.2 * N.z);
+  var col = albedo * (moon * diff + after * max(dot(N, La), 0.0) * ao + skyFill * ao + templeAmbient(N, ao, wp, 1.0) * ao);
   // the moon behind it lights its edges (the light grazing round the sides toward us)
   // (round the sides only: a top seen at a glance isn't lit from behind)
   let edgeOn = pow(1.0 - max(dot(N, V), 0.0), 3.0) * max(dot(-V, Ld), 0.0) * (1.0 - abs(N.y));

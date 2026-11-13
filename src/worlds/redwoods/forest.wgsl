@@ -130,8 +130,11 @@ fn pathAt(xz: vec2f) -> f32 {
   let side = vec2f(-ba.y, ba.x) * inverseSqrt(l2);
   // (it winds a little)
   let c = a + ba * h + side * sin(h * 5.0 + 1.3) * 0.35 * h;
+  let dc = length(xz - c);
+  // (most of the ground is nowhere near it: no noise for those)
+  if (dc > 0.7) { return 0.0; }
   let w = mix(0.55, 0.3, h) * (0.85 + 0.3 * vnoise2(xz * 1.7));
-  return smoothstep(w, w * 0.35, length(xz - c)) * smoothstep(1.0, 0.65, h);
+  return smoothstep(w, w * 0.35, dc) * smoothstep(1.0, 0.65, h);
 }
 
 /** whether xz is clear of the trunks' feet (by `room` past their flare) and of the fallen log; only the ring and its
