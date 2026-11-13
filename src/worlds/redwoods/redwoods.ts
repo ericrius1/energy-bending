@@ -128,7 +128,7 @@ export class Redwoods implements World {
         constants: { SIDES: 44, RINGS: 48, FIRST: 0 }, enabled: on,
       });
       pass.draw(trunkShader, {
-        label: 'redwoods.stage', vertex: 'vs_stage', bind: { stage: this.pieces(), barkTex: this.tex.bark, barkH: this.tex.barkH }, count: 28 * (14 + 4 * 2 - 1) * 6,
+        label: 'redwoods.stage', vertex: 'vs_stage', fragment: 'fs_stage', bind: { stage: this.pieces(), barkTex: this.tex.bark, barkH: this.tex.barkH }, count: 28 * (14 + 4 * 2 - 1) * 6,
         instances: this.stage.pieces.length, constants: { SIDES: 28, RINGS: 14, CAPR: 4 }, cull: 'none', enabled: on,
       });
       pass.draw(trunkShader, {

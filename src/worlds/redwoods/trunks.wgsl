@@ -171,7 +171,16 @@ fn profile(s: f32, len: f32, r0: f32, sh: vec4f, a: f32) -> f32 {
   return o;
 }
 
-@fragment fn fs(i: VOut) -> @location(0) vec4f {
+@fragment fn fs(i: VOut) -> @location(0) vec4f { return bark(i); }
+
+/** a stage log's: the same, but a log settled into the ground is cut away under it (the ground is the backdrop, which
+ *  writes no depth). (Its own entry, so the trunks keep their early depth test.) */
+@fragment fn fs_stage(i: VOut) -> @location(0) vec4f {
+  if (i.wp.y < 0.0) { discard; }
+  return bark(i);
+}
+
+fn bark(i: VOut) -> vec4f {
   let V = normalize(frame.camPos - i.wp);
   let N0 = normalize(i.n);
   let T = normalize(i.around - N0 * dot(i.around, N0));

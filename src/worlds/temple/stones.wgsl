@@ -62,7 +62,9 @@ fn turn(s: Stone, v: vec3f) -> vec3f {
   let cr = array<vec2f, 6>(vec2f(0.0, 0.0), vec2f(1.0, 0.0), vec2f(1.0, 1.0), vec2f(0.0, 0.0), vec2f(1.0, 1.0), vec2f(0.0, 1.0))[k % 6u];
   let g = (vec2f(f32(quad % N), f32(quad / N)) + cr) / f32(N) * 2.0 - 1.0;
   let carve = u32(s.look.z);
-  if (face == 2u && carve >= 8u) { o.pos = vec4f(2.0, 2.0, 2.0, 1.0); return o; }
+  // an open block (the platform) has no top (the backdrop's floor is its top) and no foot either: the backdrop writes no
+  // depth, so anything drawn under the floor would show through it
+  if ((face == 2u || face == 3u) && carve >= 8u) { o.pos = vec4f(2.0, 2.0, 2.0, 1.0); return o; }
   // the faces: +x, -x, +y, -y, +z, -z, each wound to face out
   var p = vec3f(0.0);
   var n = vec3f(0.0);
@@ -86,7 +88,7 @@ fn turn(s: Stone, v: vec3f) -> vec3f {
   o.n = turn(s, n);
   o.local = q;
   o.info = vec4f(s.look.x, f32(carve % 8u), f32(face), s.size.y);
-  o.shape = vec4f(0.0, half.x, half.z, s.look.y);
+  o.shape = vec4f(select(0.0, 2.0, carve >= 8u), half.x, half.z, s.look.y);
   return o;
 }
 
@@ -172,7 +174,9 @@ fn carving(kind: f32, u: f32, v: f32, height: f32, seed: f32) -> f32 {
   var N = normalize(i.n);
   let geomN = normalize(cross(dpdx(i.wp), dpdy(i.wp)));
   var groove = 0.0;
-  if (i.shape.x < 0.5) {
+  // (the platform's inner walls, seen through the floor from inside the court, aren't there)
+  if (i.shape.x > 1.5 && dot(N, frame.camPos - i.wp) < 0.0) { discard; }
+  if (i.shape.x < 0.5 || i.shape.x > 1.5) {
     // a block: its face's own coordinates (u across, v up the face), carving into the light, edges worn round
     let face = u32(i.info.z);
     let hx = i.shape.y;
