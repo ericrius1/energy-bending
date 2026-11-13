@@ -19,6 +19,39 @@ if (mode === 'reach') {
   for (const n of ATTACKS) { const r = reachOf(n); console.log(n.padEnd(9), 'touch', r.touch?.map((x) => x.toFixed(2)).join('-'), 'near to', r.near.toFixed(2), 'windup', MOVES[n].windup.toFixed(2), 'active', MOVES[n].active!.map((u) => (u * MOVES[n].dur).toFixed(2)).join('-')); }
   throw 0;
 }
+if (mode === 'diary') {
+  // two partners, printing every second: where they stand, the pair's angle, what each decided
+  const A = new PartnerBrain({ seed: Number(seed) }), B = new PartnerBrain({ seed: Number(seed) * 3 + 1 });
+  const free = process.argv.includes('-f');
+  let shown = [0, 0];
+  simulate({ plane: free ? null : plane, stage: plane, seats: [process.argv.includes('-s') ? new StillBrain() : A, B], seconds: Number(secs), each: (f) => {
+    if (Math.abs(f.t % 1) > 1 / 120) return;
+    const [a, b] = f.bodies;
+    console.log(`${f.t.toFixed(0).padStart(3)}s b${f.beat.toFixed(1)} ${f.ref.session.phase} T${f.ref.session.tension.toFixed(0)} d ${Math.hypot(a.x - b.x, a.z - b.z).toFixed(2)} ang ${(Math.atan2(b.z - a.z, b.x - a.x) * 57.3).toFixed(0)} A(${a.x.toFixed(1)},${a.z.toFixed(1)}) ${a.move?.name ?? ''} B(${b.x.toFixed(1)},${b.z.toFixed(1)}) ${b.move?.name ?? ''}`);
+    [A, B].forEach((br, k) => { for (const l of br.diary.slice(shown[k] >= br.diary.length ? br.diary.length : 0)) if (!l.startsWith('#')) console.log(`      ${k ? 'B' : 'A'}: ${l}`); });
+    shown = [A.diary.length, B.diary.length];
+    A.diary.length = 0; B.diary.length = 0; shown = [0, 0];
+  } });
+  throw 0;
+}
+if (mode === 'why') {
+  // every exchange, with the reason the attacker had for the attack (offer, counter, echo …) and what the attacked was doing
+  const br = [new PartnerBrain({ seed: Number(seed) }), new PartnerBrain({ seed: Number(seed) * 3 + 1 })];
+  const tally: Record<string, Record<string, number>> = {};
+  const logs: string[][] = [[], []];
+  br.forEach((b, k) => { b.reader.log = (x) => { logs[k].push(x); if (logs[k].length > 4) logs[k].shift(); }; });
+  simulate({ plane: process.argv.includes('-f') ? null : plane, stage: plane, seats: [br[0], br[1]], seconds: Number(secs), each: (f) => {
+    if (f.ref.onXch) return;
+    f.ref.onXch = (target, res) => {
+      const by = 1 - target, mv = br[by].mind.mine[br[by].mind.mine.length - 1], d = f.bodies[target];
+      const why = (mv?.why ?? '?').replace(/ \(.*\)/, '');
+      (tally[why] ??= {})[res] = (tally[why][res] ?? 0) + 1;
+      if (res === 'hit') console.log(`${mv?.name} (${mv?.why}) hit seat ${target} in ${d.move?.name ?? 'ginga'} ${d.move ? (d.move.t / d.move.dur).toFixed(2) : ''}\n    ${logs[target].join('\n    ')}`);
+    };
+  } });
+  console.log(JSON.stringify(tally));
+  throw 0;
+}
 if (mode === 'measure') {
   // the report's numbers: three seeded three-minute sessions locked on the geode's stage and three free on the floor
   for (const free of [false, true]) for (const sd of [11, 12, 13]) {
