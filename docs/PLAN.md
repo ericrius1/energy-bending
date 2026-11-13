@@ -188,8 +188,10 @@ same-screen and online. Built (`docs/reports/3-jogo.md`), with the brains (`src/
 agents execute; repeat until it is beautiful. The first turn of the loop is done: the critic's look and plan
 (`docs/reports/3-critique.md`), its ten tasks built in parallel (`4-*.md`: fire as a field, water and ice, the depth
 contract and the lens, cameras through gates, steam fronts, the five worlds, gems and hearts, the device budget) and
-merged with the jogo and the brains (`docs/reports/5-integration.md`, which lists what is still open). The films
-(the critic's task 10) are next. Then one or two films with no text, the server on Railway,
+merged with the jogo and the brains (`docs/reports/5-integration.md`). The second turn is done too: the second
+critic (`6-critique.md`: the fusion, water, white-out), the film tool (`6-film-tool.md`), its seven tasks (`7-*.md`)
+and their integration (`docs/reports/8-integration.md`, which lists what is left before the films are rendered at
+master quality). The films are next. Then one or two films with no text, the server on Railway,
 the site at ericlevin.dev/energybending, and a place in the portfolio.
 
 ## Shared habits

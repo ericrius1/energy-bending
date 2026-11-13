@@ -9,8 +9,9 @@
 4. It runs on WebGPU through weft (`@ericrius1/weft`), an explicit list of passes with WGSL as the source of data.
 5. The plan of record is `docs/PLAN.md`. Reports: `docs/reports/0-foundation.md`, the eight wave 1 reports
    (`1-*.md`), the first integration (`2-integration.md`), the critic's look and plan (`3-critique.md`), the jogo and
-   the brains (`3-jogo.md`, `3-brains.md`), the second wave (`4-*.md`) and the second integration,
-   `docs/reports/5-integration.md` (read that one first: what joins what now, and the open items).
+   the brains (`3-jogo.md`, `3-brains.md`), the second wave (`4-*.md`), the second integration (`5-integration.md`),
+   the second critic (`6-critique.md`), the film tool (`6-film-tool.md`), the last wave (`7-*.md`) and the third
+   integration, `docs/reports/8-integration.md` (read that one first: what joins what now, and what is left).
 
 ## Run it
 
@@ -30,7 +31,7 @@ dancer and its 13-landmark copy), `?wander` (motion-matched dancers walking to r
 locked to the world's stage plane; `l` toggles), `?world=redwoods|pool|temple|forge`, `?panel` (or `/`),
 `?debug` (weft's overlay: GPU time per pass), `?baseline` (only WebGPU's default limits: a phone's), `?noautores`, `?you` (webcam on first touch; `y` toggles),
 `?jogo=same|partner|online|script` (the game: src/play; `&partner=playful|calm|fierce|mirror|standin`, `&roda=N`,
-`&free`), `?play&partner`, `?roda`, `?teach`, `?npcs=5` (the brains' demos: src/ai), `?class=desktop|laptop|phone`
+`&free`, `&bpm=N` a local room's tempo), `?play&partner`, `?roda`, `?teach`, `?npcs=5` (the brains' demos: src/ai), `?class=desktop|laptop|phone`
 (the device's budget; `?probe` measures again), `?perf=default|quick&sink=…` (the self-measuring suite, 4-perf.md),
 `?dress=fire,water` (loadout presets per dancer: matter/core/presets.ts), `?play` (a playable dancer; `&two` adds a
 bot partner; `&net=ROOM&server=ws://…/ws` plays online), `?net=ROOM` (the mocap net demo), `?gates` (debug gates; the
@@ -49,7 +50,7 @@ src/
   engine/            limits (caps), registry, params + panel, frame (stages and phases), views (a view's scene and
                      glow passes), scene (declaration per view and phase, focus sources), camera rig (free / locked,
                      through gates) and shots, pip, perf (device classes and budgets; perfrun: ?perf), hooks
-                     (window.bend), film
+                     (window.bend), film (the cut path), film-shot and filmcam (a film's timeline: films/*.json)
   skeleton/          rig + Skeleton (posed joints, the GPU layout), clips (CMU mocap), landmarks (13 points),
                      retarget (landmarks onto the rig), locomotion/ (motion matching: moves.ts, mover.ts)
   dancer/            Dancer, Controller and the controllers (mocap, landmark, camera, wander), the programme and show
@@ -67,7 +68,8 @@ src/
                      (narrow-range filter, luminous shading, ice's facets) in every view and the geode's mirror, drops
   matter/ice/        shards, mist, set ice (ledges, melt, shatter)
   matter/reactions/  steam: fronts, wisps, drips and sparks where bodies meet (drawn after the depth of field, capped)
-  worlds/            World contract and registry, light.wgsl (world light per pipeline, group 2, with the dancers'
+  worlds/            World contract and registry, solids.ts (World.solids: the one description of a world's solid
+                     things, read by the camera, World.clear and the brains), light.wgsl (world light per pipeline, group 2, with the dancers'
                      fire), shared.ts (its one uniform: a slot per world, lightSlot), stage.ts (stage planes), water/ (ripples and the surface of the pool and temple)
   worlds/geode|redwoods|pool|temple|forge/   the five worlds, each with its stage, ledges and portal sites
   portals/           live gates: slots (views), the gate camera, the disc's surface, crossing, carrying
@@ -82,7 +84,10 @@ src/
                      scripts, the partner adapter (src/ai's PartnerBrain by default), the roda round it
   ai/                brains: the Brain contract, Scene, BrainDriver, the partner, free dancers (roda), the teacher
 shared/ server/ test/   the protocol and the jogo rules, the room server, the net tests
-scripts/             shot.mjs (stills + GPU timings; a step's `eval`/`eval2` run in the page with `bend`), film.mjs,
+films/               the films' timelines (scripts/film.mjs renders them; docs/extending/film.md)
+scripts/             shot.mjs (stills + GPU timings; a step's `eval`/`eval2` run in the page with `bend`), film.mjs (a
+                     timeline, shot by shot in takes under the lock; film-serve.mjs serves it without hot reload,
+                     film-seams.mjs checks the seams),
                      test-ts.mjs, test-audio.mjs, check-portals.mjs, check-limits.mjs,
                      check-bindings.mjs (the binding budget), audio-lab.mjs, lib/browser.mjs
 sketches/            dance-first-2d/: the 2D prototype, plain JS with its own package.json, ignored by typecheck/build
@@ -140,10 +145,13 @@ pass: additive, never the opaque distance).
 - `Loadout { layers: { kind, share, parts?, params? }[] }`, `BodyPart = 'torso'|'head'|'arms'|'hands'|'legs'|'feet'`.
   Optional on `MatterPasses`: `hear(ears)` (its voice), `carry(moves)` (a dancer through a gate; a move may carry
   `within`, a sphere: what was shed further off stays), `declarePost(post)` (translucent matter over the focused
-  image), `focus(view)` (the depth contract, above). Every cull and draw of a dancer's particles binds the view's
+  image), `focus(view)` (the depth contract, above), `body(view)` (a translucent body's rgba16float texture: r its
+  distance, g how much shows through, ba its refraction; the air dims, tints and bends fire's glow behind it with it;
+  water's is the only one; kind.ts). Every cull and draw of a dancer's particles binds the view's
   `seen`. Hearts: `heartsOf(kit)` / `hearts.wgsl` (`heartVeil`, `heartLight`, `heartDepth`) for matter round a gem heart.
 - `World { id; light; mood; shared; stages; portals; spawns; fixtures; mirrorFloor; room; maxDist; fallY?; load;
-  update; declareScene(scene); groundAt; exposure; tone; ambience; grade?; waterY?(); clear?(a, b) }`, registered as
+  update; declareScene(scene); groundAt; exposure; tone; ambience; grade?; waterY?(); clear?(a, b); solids?;
+  stageDim? }` (`solids`: capsules and boxes, `src/worlds/solids.ts`; every world but the Pool has them), registered as
   `worlds.register({ id, make(ctx) })`; `PortalDef { id, at, normal, radius, to, up? }`.
 - `Controller { kind; rig; update(dt, ctx: FrameCtx, out: Skeleton); carry?(m) }`; `Dancer = skeleton + controller +
   loadout`, plus `form` (0 … 1, the one power form), `presence` (0 … 1, set by the show) and `world` (from the gates).
@@ -157,8 +165,13 @@ pass: additive, never the opaque distance).
   tightness })`, `fusionFront`) and `fieldWind / fieldHeat / fieldWet / fieldSteam / fieldDry` (matter/field/field.wgsl,
   group 3). Measured: a body's surface reads about ±0.6, 0.3 m out ±0.08, a metre out nothing; a kick's wake about
   3 m/s a metre behind.
-- The jogo: `bend.jogo` (state, run, preset, setPartner, events, history, stats); a brain is `Brain.think(Sight)` →
-  `Intent`, seated by a `BrainDriver` (docs/extending/brain.md); RULES.moves names every move that scores.
+- The jogo: `bend.jogo` (state, run, preset, setPartner, partner (`teach(brain, s)`, `direct(direction)`), events,
+  history, stats); `bend.front.begin(mode, query, joined?)` on the plain page; a brain is `Brain.think(Sight)` →
+  `Intent`, seated by a `BrainDriver` (docs/extending/brain.md), its `Sight.stage.solids` keeping a free pair off the
+  world's solids; RULES.moves names every move that scores (with negativa, cocorinha, compasso, queda-de-rins, bow).
+- `PostChain.stage = { dim, at }` (main.ts sets `dim` from the lock × `World.stageDim`), `PostChain.focusFrom(view, f)`
+  (not used yet). The film tool: docs/extending/film.md (timelines, takes, filmcam; `set: { jogo: { rings: 0 } }`
+  hides the floor rings).
 - `Session` / `NetController` (src/net), `Portals` (`bend.gates`), `Music` (`bend.music`): see their guides.
 - Hooks: `bend.loadout`, `bend.dress(d, preset)`, `bend.form(d, v)`, `bend.players/intent/move/place`, `bend.gates`.
 
@@ -243,7 +256,7 @@ Regenerate with `node scripts/check-bindings.mjs --table` (one row per stage) af
 | matter/water/surface.wgsl | v/f | 6 / 9 | 2 / 2 | 4 / 7 | 0 / 0 | 0 1 2 3 |
 | play/glow.wgsl | v/f | 3 / 2 | 1 / 0 | 0 / 0 | 0 / 0 | 0 1 |
 | portals/surface.wgsl | v/f | 3 / 3 | 0 / 0 | 4 / 4 | 0 / 0 | 0 1 |
-| post/air.wgsl | v/f | 3 / 3 | 0 / 0 | 2 / 8 | 0 / 0 | 0 1 2 |
+| post/air.wgsl | v/f | 3 / 4 | 0 / 0 | 2 / 9 | 0 / 0 | 0 1 2 |
 | post/post.wgsl | v/f | 2 / 3 | 0 / 0 | 0 / 3 | 0 / 0 | 0 1 |
 | post/yuv.wgsl | c | 3 | 1 | 1 | 0 | 0 1 |
 | worlds/redwoods/grass.wgsl | v/f | 6 / 6 | 2 / 2 | 4 / 4 | 0 / 0 | 0 2 3 |
@@ -254,8 +267,8 @@ Regenerate with `node scripts/check-bindings.mjs --table` (one row per stage) af
 
 The tight ones now: **storage buffers** in the gems' sim and cull (7 of 8: one more storage buffer in either needs
 packing first); **uniform buffers** in the water surface's fragment stage (9 of 12: the bodies' group for the bone
-frames and the hearts) and the gems' sim (8); **sampled textures** in the air's fragment stage (8 of 16: the scene,
-the glow, three focus slots, the opaque and surfaced copies, the world light's). The world light costs a lit shader 1
+frames and the hearts) and the gems' sim (8); **sampled textures** in the air's fragment stage (9 of 16: the scene,
+the glow, three focus slots, the body texture, the opaque and surfaced copies, the world light's). The world light costs a lit shader 1
 uniform and 2 sampled textures however many worlds there are.
 
 ## Capture a still, read timings

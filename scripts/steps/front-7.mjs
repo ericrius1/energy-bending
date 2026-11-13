@@ -88,7 +88,11 @@ try {
     await shot('play-1', { frames: 54 });
     await shot('play-3', { frames: 120 });
     await shot('play-8', { frames: 300 });
-    console.log('jogo:', JSON.stringify(await page.evaluate(() => { const j = window.bend.jogo; return j ? { phase: j.phase, players: window.bend.players().length, href: location.search } : null; })));
+    const lesson = () => page.evaluate(() => { const j = window.bend.jogo, T = j?.partner?.teaching; return j ? { phase: j.phase, players: window.bend.players().length, href: location.search, teaching: T ? { name: T.name, done: T.done, phase: T.phase, calls: T.log.map((x) => `${x.call.join('+')}${x.answered ? '' : ' (let pass)'}`) } : null } : null; });
+    console.log('jogo:', JSON.stringify(await lesson()));
+    // the first lesson: the teacher's calls (nobody answers in a capture, so it calls the meia-lua again)
+    await shot('play-20', { frames: 720 });
+    console.log('jogo:', JSON.stringify(await lesson()));
   }
 } finally {
   await browser.close();
