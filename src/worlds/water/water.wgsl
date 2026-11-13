@@ -58,6 +58,7 @@ fn waterToPixel(p: vec3f, dims: vec2f) -> vec4f {
 fn waterMarch(src: texture_2d<f32>, p: vec3f, r: vec3f, steps: i32, far: f32, jit: f32, wy: f32) -> vec3f {
   let dims = vec2f(textureDimensions(src));
   var t0 = 0.0;
+  var before = true;
   for (var k = 0; k < steps; k++) {
     let t = far * pow((f32(k) + jit) / f32(steps), 1.8) + 0.01;
     let x = p + r * t;
@@ -69,20 +70,30 @@ fn waterMarch(src: texture_2d<f32>, p: vec3f, r: vec3f, steps: i32, far: f32, ji
     // the height of what that pixel shows (along the same line of sight as x)
     let shown = frame.camPos.y + (x.y - frame.camPos.y) * (sd.a / max(along, 1e-3));
     let thin = mix(0.006, 0.02, smoothstep(0.05, 0.6, t)) + along * 0.002;
-    if (gap > thin && gap < 0.25 + t * 0.12 && shown > wy + 0.005 && !waterBroken(sd)) {
-      // between the last step and this one: a few halvings to where it crosses
+    // the ray passed behind what a pixel shows in this step (it was in front at the last): find where. A step longer
+    // than the thing is thick no longer jumps it (that left a thin body's reflection as salt and pepper)
+    let crossed = gap > thin && (before || gap < 0.25 + t * 0.12);
+    if (crossed && (before || shown > wy + 0.005) && !waterBroken(sd)) {
       var lo = t0;
       var hi = t;
-      for (var b = 0; b < 5; b++) {
+      for (var b = 0; b < 6; b++) {
         let m = 0.5 * (lo + hi);
         let xm = p + r * m;
         let qm = waterToPixel(xm, dims);
         let sm = textureLoad(src, vec2i(qm.xy), 0);
         if (dot(xm - frame.camPos, frame.camFwd) - sm.a > 0.0) { hi = m; } else { lo = m; }
       }
-      let qh = waterToPixel(p + r * hi, dims);
-      return vec3f(hi, qh.w * smoothstep(far, far * 0.6, hi), 1.0);
+      // where it crosses, it must pass just behind the surface there (not far behind a thin thing in front)
+      let xh = p + r * hi;
+      let qh = waterToPixel(xh, dims);
+      let sh = textureLoad(src, vec2i(qh.xy), 0);
+      let ah = dot(xh - frame.camPos, frame.camFwd);
+      let shownH = frame.camPos.y + (xh.y - frame.camPos.y) * (sh.a / max(ah, 1e-3));
+      if (ah - sh.a < 0.25 + hi * 0.12 && shownH > wy + 0.005 && !waterBroken(sh)) {
+        return vec3f(hi, qh.w * smoothstep(far, far * 0.6, hi), 1.0);
+      }
     }
+    before = gap <= thin;
     t0 = t;
   }
   return vec3f(0.0);
