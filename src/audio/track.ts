@@ -22,10 +22,11 @@ export function loopOf(t: TrackInfo) {
 /** where in the file (s) the track is at `beats` since its bar 1 (negative: before bar 1, the file's own lead-in, and
  *  before the file begins a negative time) */
 export function trackPos(t: TrackInfo, beats: number) {
-  const p = t.downbeat + (beats * 60) / t.bpm;
-  const L = loopOf(t);
-  if (p < L.end) return p;
-  return L.start + ((p - L.start) % (L.end - L.start));
+  // (in beats, so the loop's ends are whole numbers and a beat on its end is its start, not a hair before it)
+  const b0 = t.loop.startBar * 4, b1 = t.loop.endBar * 4;
+  let b = beats;
+  if (b >= b1 - 1e-9) { b = b0 + ((b - b0) % (b1 - b0)); if (b >= b1 - 1e-9) b = b0; }
+  return t.downbeat + (b * 60) / t.bpm;
 }
 
 /** the bar of the file (0 is bar 1) at `beats` since its bar 1 */

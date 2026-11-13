@@ -3,6 +3,8 @@
 //        [--url http://127.0.0.1:5435/energybending/] [--port 5436] [--take 10] [--only-take 2] [--hevc] [--av1]
 //        [--no-encode] [--out docs/reports/media/film] [--prefix 6 (the contact sheets' name: <prefix>-film-…)]
 //        [--no-score (the pictures alone, silence under them: a quick look while working on a timeline)]
+//        [--seconds 36 (every shot that long)] [--size 1280x720 (a preview's size)] [--name x (<film>-x-preview.mp4)]
+//        [--flash (the sync check)]
 //   (anything else as the first argument is the older path, a cut of src/engine/film.ts: scripts/film-cut.mjs)
 // Each shot is one page (?film&cut=timeline, src/engine/film-shot.ts) that plays the shot from its first frame; the
 // frames from its in-point are read back as YUV 4:2:0 and posted here. A shot is cut into takes (`--take` seconds,
@@ -17,6 +19,14 @@
 // out after it). Then, with no lock held, the takes are joined and encoded: a high-quality H.264 master and a web
 // copy (HEVC or AV1 too with --hevc / --av1), or one preview file. --sheet writes a contact sheet per shot
 // (docs/reports/media/6-film-<film>-<shot>-sheet.jpg). docs/extending/film.md is the guide.
+// A film with `"audio": { "track": "<world>" }` (or a file) is scored by that track: its tempo is the film's, each
+// shot's page runs the music's clock on the track's grid (the plan's `track`: the film's track beat at the shot's
+// in-point; the first shot's page chooses, a bar line of the track on its grid's start, and says so in info.json), the
+// game's own groove is silent, and the track is laid under the whole film with that bar on that grid line, the shots'
+// recorded scores (the matter voices, stones, feet and the jogo's sounds) mixed under it at the game's own balance.
+// Every shot is rendered a beat long and cut where its end falls on a whole beat of the track (to the frame).
+// --flash lights the frames on the track's beats and measures, from the encoded picture, how far each flash is from
+// the beat the track has there (the sync check).
 import http from 'node:http';
 import { spawn, spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
@@ -29,7 +39,7 @@ import { CHROME, gpuFlags, takeLock } from './lib/browser.mjs';
 const argv = process.argv.slice(2);
 if (!argv[0] || !/\.(json|mjs)$/.test(argv[0])) { await import('./film-cut.mjs'); process.exit(0); }
 
-const VALUED = new Set(['url', 'port', 'take', 'shot', 'out', 'only-take', 'cdp', 'variant', 'sheet-n', 'prefix']);
+const VALUED = new Set(['url', 'port', 'take', 'shot', 'out', 'only-take', 'cdp', 'variant', 'sheet-n', 'prefix', 'seconds', 'size', 'name']);
 const opts = {}, pos = [];
 for (let i = 0; i < argv.length; i++) {
   const a = argv[i];
@@ -50,11 +60,32 @@ const log = (...a) => console.log(`[film ${new Date().toISOString().slice(11, 19
 // ---------------------------------------------------------------- the timeline
 const film = FILE.endsWith('.mjs') ? (await import(pathToFileURL(FILE).href)).default : JSON.parse(readFileSync(FILE, 'utf8'));
 const NAME = film.name ?? basename(FILE).replace(/\.(json|mjs)$/, '');
-const BPM = film.bpm ?? 112;
+// the film's track: a world's (public/music/tracks.json, measured by scripts/music-analyze.mjs) or a file, measured now
+const MANIFEST = JSON.parse(readFileSync(join(ROOT, 'public/music/tracks.json'), 'utf8'));
+const TRACK = await (async () => {
+  const a = film.audio?.track;
+  if (!a) return null;
+  const known = MANIFEST.tracks[a] ?? MANIFEST.tracks[MANIFEST.worlds?.[a]];
+  if (known) {
+    const wav = join(MEDIA_DIR(), 'music', `${known.id}.wav`);
+    return { ...known, page: known.id, source: existsSync(wav) ? wav : join(ROOT, 'public', known.file) };
+  }
+  const path = resolve(join(FILE, '..'), a);
+  if (!existsSync(path)) fail(`audio.track ${a}: neither a world's track nor a file`);
+  const { analyse } = await import('./music-analyze.mjs');
+  const A = analyse(path, { bpm: film.audio.bpm ?? film.bpm ?? 112 });
+  const page = film.audio.key ?? MANIFEST.worlds?.[film.shots[0]?.world] ?? null;
+  return { id: basename(path), bpm: A.bpm, downbeat: A.downbeat, loop: null, source: path, page };
+})();
+function MEDIA_DIR() { return join(ROOT, 'docs/reports/media'); }
+const BPM = TRACK ? TRACK.bpm : film.bpm ?? 112;
+const SPB = 60 / BPM;
 const Q = PREVIEW
   ? { label: 'preview', size: [960, 540], fps: 30, every: 2, scale: 1, take: 20 }
   : { label: 'master', size: (film.size ?? '1920x1080').split('x').map(Number), fps: film.fps ?? 60, every: 60 / (film.fps ?? 60), scale: film.scale ?? 1.5, take: 10 };
 if (opts.take != null) Q.take = Number(opts.take) || Infinity;
+if (opts.size) Q.size = String(opts.size).split('x').map(Number);   // (a preview at another size: --size 1280x720)
+if (opts.seconds != null) for (const sh of film.shots) { delete sh.bars; delete sh.beats; sh.seconds = Number(opts.seconds); }
 const [W, H] = Q.size;
 const shots = film.shots.map((s, n) => normalize(s, n));
 const pick = opts.shot ? String(opts.shot).split(',').map((x) => shots.find((s) => s.id === x || String(s.n + 1) === x) ?? fail(`no shot ${x}`)) : shots;
@@ -69,6 +100,9 @@ function normalize(s0, n) {
   if (s.hour != null) s.set = { ...s.set, redwoods: { ...(s.set.redwoods ?? {}), hour: s.hour, dayGoes: false } };
   s.seconds = s.bars != null ? (s.bars * 4 * 60) / BPM : s.beats != null ? (s.beats * 60) / BPM : s.seconds;
   if (!(s.seconds > 0)) fail(`shot ${s.id}: give it bars, beats or seconds`);
+  // (on a track every shot is rendered a beat long: it is cut where its end falls on a whole beat of the track)
+  s.nominal = s.seconds;
+  if (TRACK) s.seconds += SPB;
   s.mode = s.mode ?? (s.jogo ? 'jogo' : 'play');
   return s;
 }
@@ -80,8 +114,8 @@ function pageQuery(s) {
     const brain = (s.cast ?? []).find((c) => c?.brain);
     if (brain) { q.set('partner', brain.brain); if (brain.seed != null) q.set('seed', String(brain.seed)); }
     if (s.lock === false) q.set('free', '');
-    // the film's tempo: the jogo's local room plays at it (src/play/index.ts &bpm; the rules' 112 otherwise)
-    if (s.bpm && s.bpm !== 112) q.set('bpm', String(s.bpm));
+    // the film's tempo: the jogo's local room plays at it (src/play/index.ts &bpm; the world's track's otherwise)
+    if (TRACK || (s.bpm && s.bpm !== 112)) q.set('bpm', String(s.bpm));
     // a hold before the jogo's room starts (src/play/index.ts &hold): the dancers asleep in their heaps until then
     if (s.hold != null) q.set('hold', String(s.hold));
   } else if (s.mode === 'play') { q.set('play', ''); q.set('two', ''); }
@@ -90,6 +124,8 @@ function pageQuery(s) {
   const dress = (s.cast ?? []).map((c) => c?.dress ?? 'fire');
   if (dress.length) q.set('dress', dress.join(','));
   for (const [k, v] of Object.entries(s.query ?? {})) q.set(k, String(v));
+  // (a film with no track keeps the generative score: each world's track would otherwise be the page's music)
+  if (!TRACK) q.set('procedural', '');
   return q.toString().replace(/=(&|$)/g, '$1');
 }
 /** what the page needs of the shot (no node-only fields) */
@@ -109,16 +145,36 @@ const buildHash = (() => {
   for (const f of ['index.html', 'package-lock.json']) if (existsSync(join(ROOT, f))) h.update(readFileSync(join(ROOT, f)));
   return h.digest('hex').slice(0, 12);
 })();
-const shotKey = (s) => createHash('sha1').update(JSON.stringify({ shot: shotForPage(s), q: pageQuery(s), W, H, fps: Q.fps, every: Q.every, scale: Q.scale, take: Q.take, build: buildHash, v: opts.variant ?? '' })).digest('hex').slice(0, 16);
+const shotKey = (s) => createHash('sha1').update(JSON.stringify({ shot: shotForPage(s), q: pageQuery(s), W, H, fps: Q.fps, every: Q.every, scale: Q.scale, take: Q.take, build: buildHash, v: opts.variant ?? '', track: s.track ?? null, flash: !!opts.flash })).digest('hex').slice(0, 16);
 
 // ---------------------------------------------------------------- the plan: which takes each shot still needs
 const takeFrames = Number.isFinite(Q.take) ? Math.round(Q.take * Q.fps) : Infinity;
-for (const s of shots) {
-  s.frames = Math.round(s.seconds * Q.fps);
-  s.takes = Math.max(1, Math.ceil(s.frames / takeFrames));
-  s.dir = join(OUT, 'cache', Q.label, `${NAME}-${s.id}-${opts.variant ? `${opts.variant}-` : ''}${shotKey(s)}`);
-  s.takePath = (k) => join(s.dir, `take-${String(k).padStart(3, '0')}.mkv`);
+const infoOf = (s) => (existsSync(join(s.dir, 'info.json')) ? JSON.parse(readFileSync(join(s.dir, 'info.json'), 'utf8')) : null);
+/** each shot's place on the film and on the track, in order: its in-point's film time (`at`), the track's beat there
+ *  (`track.beatAtIn`: the first shot's from its info, once rendered), its cache, and the frames it keeps (`keep`:
+ *  its end on the track's nearest whole beat) */
+function place() {
+  let at = 0, beat0 = null;
+  for (const s of shots) {
+    s.frames = Math.round(s.seconds * Q.fps);
+    s.takes = Math.max(1, Math.ceil(s.frames / takeFrames));
+    s.track = TRACK ? { id: TRACK.page, beatAtIn: s.n === 0 ? null : beat0 == null ? null : +(beat0 + at / SPB).toFixed(4), ...(TRACK.page === TRACK.id ? {} : { bpm: TRACK.bpm }) } : null;
+    s.dir = join(OUT, 'cache', Q.label, `${NAME}-${s.id}-${opts.variant ? `${opts.variant}-` : ''}${shotKey(s)}`);
+    s.takePath = (k) => join(s.dir, `take-${String(k).padStart(3, '0')}.mkv`);
+    s.at = at;
+    let len = s.nominal;
+    if (TRACK) {
+      if (s.n === 0) beat0 = infoOf(s)?.track?.trackBeatAtIn ?? null;
+      const bIn = s.n === 0 ? beat0 : s.track.beatAtIn;
+      if (bIn != null) len = (Math.round(bIn + s.nominal / SPB) - bIn) * SPB;
+    }
+    s.keep = Math.min(s.frames, Math.round((at + len) * Q.fps) - Math.round(at * Q.fps));
+    s.len = len;
+    at += len;
+  }
+  return beat0;
 }
+place();
 log(`${NAME}: ${shots.length} shots, ${shots.reduce((a, s) => a + s.seconds, 0).toFixed(1)} s, ${Q.label} ${W}x${H} @ ${Q.fps} (scale ${Q.scale}), takes of ${Number.isFinite(takeFrames) ? takeFrames : 'all'} frames, build ${buildHash}`);
 
 // ---------------------------------------------------------------- the browser and the sink
@@ -202,7 +258,7 @@ async function renderShot(s, k0, k1, audio) {
   const start = k0 ? k0 * takeFrames : 0, end = Math.min(s.frames, k1 * takeFrames);
   const pauses = [];
   for (let k = 1; k < s.takes; k++) if (k * takeFrames < end) pauses.push(k * takeFrames);
-  const plan = { fps: Q.fps, every: Q.every, start, end, total: s.frames, pauses, audio, tail: 2.5 };
+  const plan = { fps: Q.fps, every: Q.every, start, end, total: s.frames, pauses, audio, tail: 2.5, track: s.track, flash: !!opts.flash };
   mkdirSync(s.dir, { recursive: true });
   const url = `${URL0}?film&cut=timeline&sink=http://127.0.0.1:${PORT}&w=${W}&h=${H}&scale=${Q.scale}&fps=${Q.fps}&noautores&${pageQuery(s)}`;
   const problems = [];
@@ -262,7 +318,10 @@ async function renderShot(s, k0, k1, audio) {
 
 // ---------------------------------------------------------------- render what's missing
 const t0 = Date.now();
-for (const s of pick) {
+for (const s0 of pick) {
+  place();   // (the first shot rendered, the others know the track's beat at their in-points)
+  const s = s0;
+  if (TRACK && s.n > 0 && s.track.beatAtIn == null) fail(`${s.id}: the first shot (${shots[0].id}) must be rendered first: its info says where the track is`);
   if (opts.force) rmSync(s.dir, { recursive: true, force: true });
   const only = opts['only-take'] != null ? Number(opts['only-take']) : null;
   const missing = [];
@@ -290,10 +349,12 @@ for (const s of pick) {
   const lf = join(work, `${s.id}.txt`);
   writeFileSync(lf, list([...Array(s.takes).keys()].map((k) => s.takePath(k))));
   s.joined = join(work, `${s.id}.mkv`);
-  await ff(['-f', 'concat', '-safe', '0', '-i', lf, '-c', 'copy', s.joined]);
+  await ff(['-f', 'concat', '-safe', '0', '-i', lf, '-c', 'copy', '-frames:v', String(s.keep), s.joined]);
   s.info = existsSync(join(s.dir, 'info.json')) ? JSON.parse(readFileSync(join(s.dir, 'info.json'), 'utf8')) : null;
 }
-const T = pick.reduce((a, s) => a + s.frames / Q.fps, 0);
+const BEAT0 = place();
+if (TRACK) log(`track ${TRACK.id} (${TRACK.bpm.toFixed(3)} bpm, from ${relative(ROOT, TRACK.source)}): the film's first frame is its beat ${BEAT0?.toFixed(3)}; cuts at ${pick.map((s) => (s.at + s.len).toFixed(3)).join(', ')} s (beats ${pick.map((s) => (BEAT0 + (s.at + s.len) / SPB).toFixed(2)).join(', ')})`);
+const T = pick.reduce((a, s) => a + s.keep / Q.fps, 0);
 const lf = join(work, 'film.txt');
 writeFileSync(lf, list(pick.map((s) => s.joined)));
 const picture = join(work, 'picture.mkv');
@@ -304,7 +365,7 @@ const XIN = 0.04, XOUT = film.ringOut ?? 0.45;
 const ains = [], parts = [];
 let at = 0;
 pick.forEach((s, j) => {
-  const len = s.frames / Q.fps, wav = join(s.dir, 'score.wav');
+  const len = s.keep / Q.fps, wav = join(s.dir, 'score.wav');
   if (s.info && existsSync(wav)) {
     const pre = j ? XIN : 0, post = j < pick.length - 1 ? XOUT : 2;
     const a0 = Math.max(0, s.info.inTime - pre), dur = len + pre + post;
@@ -315,7 +376,19 @@ pick.forEach((s, j) => {
   at += len;
 });
 const score = join(work, 'score.wav');
-if (parts.length) await ff([...ains, '-filter_complex', `${parts.join(';')};${parts.map((_, n) => `[a${n}]`).join('')}amix=inputs=${parts.length}:normalize=0:dropout_transition=0,atrim=duration=${T.toFixed(4)}[a]`, '-map', '[a]', '-c:a', 'pcm_s16le', '-ar', '48000', score]);
+if (TRACK) {
+  // the track under the whole film: the film's first frame is the track's beat BEAT0 (so the file's place there is
+  // its bar 1 plus that many beats); the shots' scores under it at the game's balance (in the game both pass the
+  // output's 0.72: here the track is at its own level, so the scores are lifted by 1 / 0.72), then a limiter at -1 dB
+  if (BEAT0 == null) fail('the first shot has no track beat in its info.json: render it again');
+  const p0 = TRACK.downbeat + BEAT0 * SPB, under = film.audio?.score ?? 1;
+  const tin = ains.length / 2;
+  const trackPart = `[${tin}:a]${p0 >= 0 ? `atrim=start=${p0.toFixed(5)},asetpts=PTS-STARTPTS` : `adelay=${Math.round(-p0 * 1000)}:all=1`},aformat=sample_rates=48000:channel_layouts=stereo,volume=${(film.audio?.gain ?? 1).toFixed(3)}[tr]`;
+  const mixIn = parts.length ? `${parts.join(';')};${parts.map((_, n) => `[a${n}]`).join('')}amix=inputs=${parts.length}:normalize=0:dropout_transition=0,volume=${(under / 0.72).toFixed(4)}[sc];` : '';
+  const graph = `${mixIn}${trackPart};${parts.length ? '[tr][sc]amix=inputs=2:normalize=0:dropout_transition=0,' : '[tr]'}alimiter=limit=0.891:level=false,atrim=duration=${T.toFixed(4)}[a]`;
+  await ff([...ains, '-i', TRACK.source, '-filter_complex', graph, '-map', '[a]', '-c:a', 'pcm_s16le', '-ar', '48000', score]);
+  if (TRACK.loop && TRACK.downbeat + (BEAT0 + T / SPB) * SPB > TRACK.loop.end) log(`(the film runs past the track's loop: the page's chords follow the loop, the file plays on)`);
+} else if (parts.length) await ff([...ains, '-filter_complex', `${parts.join(';')};${parts.map((_, n) => `[a${n}]`).join('')}amix=inputs=${parts.length}:normalize=0:dropout_transition=0,atrim=duration=${T.toFixed(4)}[a]`, '-map', '[a]', '-c:a', 'pcm_s16le', '-ar', '48000', score]);
 else await ff(['-f', 'lavfi', '-i', `anullsrc=r=48000:cl=stereo`, '-t', T.toFixed(3), score]);
 
 // fades at the film's ends, then the encodes
@@ -330,7 +403,7 @@ const encode = async (file, video, audio, extraVf = '') => {
   outs.push({ file, s, mb: statSync(file).size / 1e6 });
   log(`→ ${relative(ROOT, file)} (${(statSync(file).size / 1e6).toFixed(1)} MB, ${s.toFixed(0)} s to encode)`);
 };
-const sel = opts.shot ? `-${pick.map((s) => s.id).join('-')}` : '';
+const sel = opts.name ? `-${opts.name}` : opts.shot ? `-${pick.map((s) => s.id).join('-')}` : '';
 if (PREVIEW) await encode(join(OUT, `${NAME}${sel}-preview.mp4`), ['-c:v', 'libx264', '-preset', 'medium', '-crf', '20'], ['-c:a', 'aac', '-b:a', '192k']);
 else {
   // the master: x264 slow at crf 14 (visually lossless for this footage), high profile, 2 s GOP; AAC 320k
@@ -350,5 +423,19 @@ if (opts.sheet) {
     log(`sheet ${relative(ROOT, file)}`);
   }
 }
-writeFileSync(join(work, 'run.json'), JSON.stringify({ film: NAME, quality: Q.label, size: [W, H], fps: Q.fps, scale: Q.scale, build: buildHash, renderS, holds, outs, shots: pick.map((s) => ({ id: s.id, seconds: s.seconds, frames: s.frames, takes: s.takes, dir: relative(ROOT, s.dir), info: s.info })) }, null, 1));
+// ---------------------------------------------------------------- the sync check (--flash)
+let sync = null;
+if (opts.flash && TRACK) {
+  // each frame's mean luma; a flash is a frame much brighter than the one before; its time against the track's beat
+  const r = spawnSync(FFMPEG, ['-hide_banner', '-i', picture, '-vf', 'signalstats,metadata=print:key=lavfi.signalstats.YAVG:file=-', '-f', 'null', '-'], { encoding: 'utf8', maxBuffer: 1 << 28 });
+  const y = [...r.stdout.matchAll(/YAVG=([\d.]+)/g)].map((m) => Number(m[1]));
+  const flashes = [];
+  for (let i = 1; i < y.length; i++) if (y[i] > y[i - 1] * 1.6 && y[i] - y[i - 1] > 12) flashes.push(i);
+  const errs = flashes.map((i) => { const t = i / Q.fps, b = BEAT0 + t / SPB; return (b - Math.round(b)) * SPB * 1000; });
+  const abs = errs.map(Math.abs).sort((a, b) => a - b);
+  const beats = Math.floor(T / SPB);
+  sync = { flashes: flashes.length, beats, medianMs: +(abs[Math.floor(abs.length / 2)] ?? NaN).toFixed(1), worstMs: +(abs[abs.length - 1] ?? NaN).toFixed(1), frameMs: +(1000 / Q.fps).toFixed(1), firstErrs: errs.slice(0, 12).map((e) => +e.toFixed(1)) };
+  log(`sync: ${flashes.length} flashes over ${beats} beats; each from the track's beat: median ${sync.medianMs} ms, worst ${sync.worstMs} ms (a frame is ${sync.frameMs} ms)`);
+}
+writeFileSync(join(work, 'run.json'), JSON.stringify({ film: NAME, quality: Q.label, track: TRACK ? { id: TRACK.id, bpm: TRACK.bpm, beat0: BEAT0, source: relative(ROOT, TRACK.source) } : null, sync, size: [W, H], fps: Q.fps, scale: Q.scale, build: buildHash, renderS, holds, outs, shots: pick.map((s) => ({ id: s.id, seconds: s.seconds, frames: s.frames, keep: s.keep, at: s.at, takes: s.takes, dir: relative(ROOT, s.dir), info: s.info })) }, null, 1));
 process.exit(0);

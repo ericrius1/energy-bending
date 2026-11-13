@@ -5,6 +5,7 @@
 // and prints how far that is from the clock: the music and FrameCtx.beat (the clock's beat) agree to within that.
 //   node scripts/music-check.mjs [--url http://127.0.0.1:5481/energybending/] [--worlds geode,temple] [--seconds 30]
 //        [--switch temple]   (start in the first world, change to this one after 10 s: the crossfade on a bar line)
+//        [--seam]            (put the clock 12 beats before the loop's end after the touch: the loop's seam)
 // Takes the shared render lock (the page renders on the GPU); Chrome runs muted, which still runs the audio graph.
 import { launch, takeLock } from './lib/browser.mjs';
 
@@ -25,7 +26,7 @@ try {
     page.on('pageerror', (e) => warn.push(String(e).slice(0, 200)));
     await page.goto(`${URL0}?world=${world}`, { waitUntil: 'load' });
     await page.waitForFunction(() => document.body.classList.contains('ready') && window.bend?.music, { timeout: 180000 });
-    const r = await page.evaluate(async (SECONDS, switchTo) => {
+    const r = await page.evaluate(async (SECONDS, switchTo, seam) => {
       const B = window.bend, M = B.music;
       const id0 = M.engine.track?.id;
       if (!id0) return { error: 'no track' };
@@ -35,6 +36,10 @@ try {
       const decodeWaitMs = performance.now() - w0;
       M.start(57);
       const ctx = M.live.ctx;
+      await ctx.resume().catch(() => {});
+      const w1 = performance.now();
+      while (ctx.state !== 'running' && performance.now() - w1 < 5000) await new Promise((r) => setTimeout(r, 50));
+      if (ctx.state !== 'running') return { error: `the AudioContext is ${ctx.state}` };
       const src = `class Rec extends AudioWorkletProcessor {
         constructor() { super(); this.buf = new Float32Array(8192); this.n = 0; this.t = 0; }
         process(inp) { const c = inp[0] && inp[0][0]; if (!c) return true; if (this.n === 0) this.t = currentTime;
@@ -47,9 +52,11 @@ try {
       node.port.onmessage = (e) => chunks.push(e.data);
       M.live.synth.mix.track.connect(node);
       node.connect(new GainNode(ctx, { gain: 0 })).connect(ctx.destination);
+      if (seam) { const T = M.engine.track; M.clock.anchor(M.now() + 0.1, T.loop.endBar * 4 - 12, M.now()); }
       const tStart = ctx.currentTime, beats = [];
       let switchAt = null;
-      while (ctx.currentTime < tStart + SECONDS) {
+      const p0 = performance.now();
+      while (ctx.currentTime < tStart + SECONDS && performance.now() - p0 < (SECONDS + 20) * 1000) {
         await new Promise((r) => setTimeout(r, 100));
         const t = ctx.currentTime;
         // FrameCtx.beat as the frame read it, the clock's beat now, and where the clock puts the track now
@@ -83,7 +90,7 @@ try {
       }
       const ev = M.engine.events.filter((x) => x.type === 'track');
       return { id0, decodeWaitMs: Math.round(decodeWaitMs), sampleRate: sr, bpm: M.clock.bpm, res, switchAt: switchAt && switchAt - tStart, beats: beats.filter((_, i) => i % 50 === 0), stats: M.deck.stats(), trackAt: M.engine.trackAt - tStart, track: M.engine.track.id };
-    }, SECONDS, opt.switch ?? null);
+    }, SECONDS, opt.switch ?? null, !!opt.seam);
     if (r.error) { console.log(`${world}: ${r.error}`); bad++; await page.close(); continue; }
     const good = r.res.filter((x) => x.errMs != null && x.r > 0.5), errs = good.map((x) => Math.abs(x.errMs)).sort((a, b) => a - b);
     const worst = errs[errs.length - 1] ?? NaN, med = errs[Math.floor(errs.length / 2)] ?? NaN;

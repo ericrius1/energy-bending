@@ -2,7 +2,9 @@
 
 Everything is on the music's clock. `src/audio/` is one system: a clock that owns time (FrameCtx.beat reads it), one
 harmony that everything pitched asks, an engine that decides the groove a 16th at a time, and an instrument that
-sounds it (live on an AudioContext, or written down for a film and rendered offline). This guide says how to give a
+sounds it (live on an AudioContext, or written down for a film and rendered offline). In the game the music is each
+world's track (section 5): the clock runs on the track, the harmony is the track's key and chords, and the engine's
+own groove is silent (`?procedural` brings it back; the audio lab and its tests still play it). This guide says how to give a
 matter kind a voice, how a move gets its sound, how to add a mood, and how to measure what you made. The module map and
 the measurements are in `docs/reports/1-audio.md`.
 
@@ -125,3 +127,64 @@ offline, saves WAVs to `docs/reports/media/audio/` (git-ignored) and prints peak
 in `lab.ts` for anything new. What to look for: peaks under −1 dBFS and no clipped samples; a crest factor of 8 to 14
 dB for music (under 6 is squashed, over 18 spiky); the mud band (250-500 Hz) not above the bass band; the harsh band
 (2-6 kHz) not far above the others; moods within 2 dB of each other in loudness at the same level.
+
+## 5. A world's track (the music)
+
+Each world plays a recorded track (Suno instrumentals, `docs/music/`): `public/music/<id>.m4a`, described in
+`public/music/tracks.json` and `shared/tracks.ts` (the same numbers; the game, the room server and the film tool read
+them). Both are written by `scripts/music-analyze.mjs`, never by hand.
+
+**How the game plays it.** The music's clock (`clock.ts`) runs at the track's tempo with its bar 1 on beat 0, so
+`FrameCtx.beat`, the jogo's judging (`music.beatError`), the brains and the temple's tide are on the track's beat.
+`audio/track.ts` maps a beat on the clock to a place in the file (`trackPos`: on from bar 1, then round the loop for
+ever). `audio/deck.ts` plays the file there, AudioBufferSourceNode segments started at a time and a place: it keeps no
+time of its own, it checks every scheduler tick that the sound is where the clock says (re-placing it if it is more
+than 12 ms off), crossfades 30 ms at the loop's seam (a bar line), and on a world change fades the old track over a
+second while the new one starts at its bar 1 on the next bar line (the clock's origin and tempo change there). In a
+jogo the room says: its shared clock's epoch is the track's bar 1 and its tempo is the track's (`shared/rules.ts`
+`tempoOf`); a seat's travel to another world gives the room a new epoch on its next bar line at the new world's
+tempo (`retempo`), so both players hear the same bar of the same track. The engine plays no groove under a track;
+what is left (the matter voices, the stones, the feet, the players' melody, the jogo's sounds, the drop's sweep and
+hit) plays on the track's grid in its key: the harmony's mood is made from the track (`trackMood`: the key's
+pentatonic, its seven triads) and each bar's chord is the triad the analysis heard in that bar. Under a track the
+world's sounds, the effects and the jogo's sounds are turned down (`Mix.under`, `UNDER` in `synth/mix.ts`); the track
+comes in after the limiter, so the compressor never pumps it. Volume and mute work on everything as before.
+
+Loading: the first world's file is fetched and decoded (an OfflineAudioContext at 48 kHz) as the page loads, so the
+first touch starts it at once; the other files are fetched eight seconds later and decoded when their world comes.
+At most two stay decoded (a 3-minute track is about 70 MB of samples).
+
+**Add or replace a world's track.**
+
+1. Put the download (`<title>.mp3` or `.wav`) in a folder outside the repository (Eric's: his Downloads folder).
+2. Add or change its line in `TRACKS` at the top of `scripts/music-analyze.mjs`: `id` (the file's name), `title` (the
+   download's name), `worlds` (the worlds that play it), the `bpm` and `key` it was asked for (the tempo is searched
+   within -20 % … +25 % of it), and its Suno id. Record the id in `docs/music/suno/chosen.txt`.
+3. `node scripts/music-analyze.mjs --only <id> --clicks` (`--from <folder>`; `--no-encode` measures again without
+   encoding). It brings the track to one tempo (rubberband, beat by beat, at most ±4 %: Suno drifts, up to 3 % over a
+   track here), encodes it (AAC 160 kb/s, -16 LUFS, under -1 dBTP), writes the manifest and prints what it measured.
+   The conformed WAV (`docs/reports/media/music/<id>.wav`, git-ignored) is what the films lay under them.
+4. Look at the numbers (below), listen to `docs/reports/media/music/<id>-clicks.m4a` (clicks on the grid, a high one
+   on each downbeat) and `<id>-seam.wav` (four bars either side of the loop's seam, crossfaded as the game does).
+5. With a server running (`node scripts/film-serve.mjs 5482`): `node scripts/music-check.mjs --worlds <world>` (the
+   track recorded off the deck in the real page, half a second at a time, against where the clock puts it; `--seam`
+   starts it just before the loop's end, `--switch <world>` changes world after 10 s) and
+   `node scripts/music-online.mjs --world <world>` (two browsers in one room: where each will be in the track at the
+   same moment on the room's clock; `--travel <world>` then moves the room).
+
+**What it measures, and what to look for.**
+
+| printed | means | good |
+|---|---|---|
+| `bpm` | the tempo after conforming (the harmonic comb of the onsets, refined to 0.002 bpm) | |
+| `the source: a…b bpm` | the tempo through the original (16 s windows) and the stretch applied | stretch within ±4 % |
+| `steady` | in every 4-bar window with a clear pulse, how far its beats sit from the line | within ±10 ms |
+| `bar 1 at` | the first downbeat at or after the music starts | |
+| `downbeat scores … margin` | which beat of four is the downbeat (harmony changing, chord purity, the low band, onsets) | margin over 1.1; under it, check by ear |
+| `key` | the whole track's chroma against the Krumhansl-Kessler profiles, `r` the fit | r over 0.5 |
+| `loop bars a…b` | whole bars (counted from 0) inside the body, where the grid holds, whose ends sound most alike | seam cost under 0.7 |
+| `on the grid` | beats with an onset within 20 / 40 ms, the median offset | most within 20, median near 0 |
+
+A downbeat the analysis got wrong (the clicks' accent on beat 2, say) moves only what happens "on a bar line" (a
+fusion's landing, a new world's track, the per-bar chords): the beat is right either way. There is no override yet; add
+one to `TRACKS` (beats to move bar 1 by) if a track needs it.

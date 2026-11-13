@@ -63,6 +63,8 @@ export class Music {
   /** the track files (live only) and the deck that plays them (from the first touch) */
   readonly loader: TrackLoader | null = null;
   deck: Deck | null = null;
+  /** the track is fixed (a film's: its world's or its rooms' don't change it) */
+  trackFixed = false;
 
   constructor(private film: boolean, private world: () => World, stones: string[], listener: Listener, kinds: readonly object[] = [], readonly tracks = false) {
     const out = this.out.instrument;
@@ -81,6 +83,8 @@ export class Music {
     const tr = tracks ? trackFor(w.id) : null;
     if (tr) {
       this.engine.setTrack(tr, true);
+      // (the players' melody is a lead over the groove: under a recorded track, a quieter one)
+      this.conductor.params.gain = 0.5;
       if (film) out.under(0, 1);
       else {
         // the first world's track now (decoded before the first touch), the others' files a little later
@@ -134,7 +138,7 @@ export class Music {
 
   /** follow a room's shared clock; its world (the jogo's) names the track, whose bar 1 is the clock's epoch */
   syncTo(s: Sync & { world?: string | null }) {
-    const tr = this.tracks ? trackFor(s.world) : undefined;
+    const tr = this.tracks && !this.trackFixed ? trackFor(s.world) : undefined;
     if (tr) void this.loader?.want(tr);
     this.engine.syncTo({ epoch: s.epoch, bpm: s.bpm, track: tr === null ? undefined : tr });
   }
@@ -144,7 +148,7 @@ export class Music {
     const w = this.world(), ws = worldSound(w);
     this.engine.setPlace(ws.moodIndex, w.tone(), ws.room, ws.grooveWet);
     // its track from the next bar line (a room's clock says for itself; a world with no track keeps the last one)
-    const tr = this.tracks ? trackFor(w.id) : null;
+    const tr = this.tracks && !this.trackFixed ? trackFor(w.id) : null;
     if (tr && !this.engine.clock.sync) { this.engine.setTrack(tr); void this.loader?.want(tr); }
   }
 
