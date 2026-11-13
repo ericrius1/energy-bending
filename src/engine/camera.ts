@@ -121,8 +121,9 @@ export class Solids {
       } else this.bounds.set([...s.c, Math.hypot(...s.h)], i * 4);
     });
   }
-  /** how much of the way from a to b (0 … 1) a sphere of radius r moves before it touches a solid. A solid a is
-   *  already inside (with r) is passed over: it is what the camera looks at standing against (a dancer on a stump) */
+  /** how much of the way from a to b (0 … 1) a sphere of radius r moves before it touches a solid. Near a solid that
+   *  a already stands by (a dancer on a slab, against a column) the sphere shrinks to start clear of it; one a is
+   *  inside is passed over */
   sweep(a: V3, b: V3, r: number, hit?: (i: number) => void): number {
     const dx = b[0] - a[0], dy = b[1] - a[1], dz = b[2] - a[2], L2 = dx * dx + dy * dy + dz * dz;
     if (L2 < 1e-10) return 1;
@@ -134,7 +135,12 @@ export class Solids {
       const t = Math.max(0, Math.min(best, (px * dx + py * dy + pz * dz) / L2));
       const qx = px - dx * t, qy = py - dy * t, qz = pz - dz * t, R = B[o + 3] + r;
       if (qx * qx + qy * qy + qz * qz > R * R) continue;
-      const s = this.list[i], k = s.kind === 'capsule' ? sweepCapsule(s, a, dx, dy, dz, r) : sweepBox(s, a, dx, dy, dz, r);
+      // (a start nearer a solid than r, a dancer standing on a slab or against a column: the sphere is made small
+      // enough to start clear of it, so it is caught only by moving into it, not by where it began)
+      const s = this.list[i], d0 = distTo(s, a);
+      if (d0 <= 0.02) continue;
+      const rr = Math.min(r, d0 * 0.9);
+      const k = s.kind === 'capsule' ? sweepCapsule(s, a, dx, dy, dz, rr) : sweepBox(s, a, dx, dy, dz, rr);
       if (k < best) { best = k; hit?.(i); }
     }
     return best;
@@ -740,13 +746,19 @@ export class CameraRig {
       const e = Math.min(1.3, up + l), k = (len * Math.cos(e)) / h;
       return [T[0] + dx * k, T[1] + len * Math.sin(e), T[2] + dz * k];
     };
-    let best = 0, bestLen = S.sweep(T, at(0), C.clearSoft) * len;
+    // (what is clear of the solids and of the gates' discs alike: a tilt can see over either)
+    const clear = (p: V3) => Math.min(S.sweep(T, p, C.clearSoft), this.clearance ? this.clearance(T, p) : 1) * len;
+    let best = 0, bestLen = clear(at(0));
     if (bestLen < len - 0.05) {
       for (const l of LIFTS) {
         // (a tilt down only where it keeps the eye 40 cm over the floor: under a bough, never into the ground)
         const p = at(l);
-        if (l < 0 && p[1] < Math.max(this.waterY ?? -Infinity, f.groundAt ? f.groundAt(p[0], p[2]) : 0) + 0.4) continue;
-        const L = S.sweep(T, p, C.clearSoft) * len;
+        if (l < 0) {
+          // (and only over ground as high as what it looks at stands on: never down past a floating slab's edge)
+          const gp = f.groundAt ? f.groundAt(p[0], p[2]) : 0, gt = f.groundAt ? f.groundAt(T[0], T[2]) : 0;
+          if (gp < gt - 0.5 || p[1] < Math.max(this.waterY ?? -Infinity, gp, gt) + 0.4) continue;
+        }
+        const L = clear(p);
         if (L > bestLen + 0.5) { best = l; bestLen = L; }
       }
     }

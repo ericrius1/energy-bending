@@ -287,6 +287,14 @@ const stepRig = (rig, n, f, each) => { for (let i = 0; i < n; i++) { each?.(i); 
   okc(pulled > 0, `the boom came in for the columns (${(pulled / 60).toFixed(1)} s of 12 nearer than 6 m)`);
 }
 
+// a dancer standing on a slab (the forge's crown): the boom rising away from it is not pinned by the slab underfoot,
+// one going down through it is
+{
+  const S = new Solids([boxOn([0, 2.6, 0], [2.6, 0.5, 1.7])]);
+  const T = [0, 3.9, 0.3], up = S.sweep(T, [0, 5.3, 8.2], 0.5), down = S.sweep(T, [0.5, 1.0, 1.0], 0.5);
+  okc(up === 1 && down < 0.5, `standing on a slab: a boom rising away is clear (${up.toFixed(2)}), one down through it is not (${down.toFixed(2)})`);
+}
+
 // the locked view sees past a column: one standing between the stage's own angle and the dancers turns the view
 {
   const plane = { id: 's', origin: [0, 0, 0], right: [1, 0, 0], halfWidth: 5.75, ground: 0, ledges: [], spawns: [[-2, 0], [2, 0]], lens: 20, yaw: 0.1 };

@@ -1,5 +1,5 @@
 // The cameras' last stretch (docs/reports/7-cameras.md), run one take at a time with scripts/critic-cap.mjs --prefix 7:
-//   node scripts/steps/cameras7-gen.mjs && node scripts/critic-cap.mjs scripts/steps/cameras7.json --only <take> --prefix 7 --shots shots/cameras7 --url http://[::1]:5454/energybending/
+//   node scripts/steps/cameras7-gen.mjs && node scripts/critic-cap.mjs scripts/steps/cameras7.json --only <take> --prefix 7 --shots shots/cameras7 --url http://[::1]:5458/energybending/
 // The critic's five world orbits and the temple partner take (scripts/steps/critic6-gen.mjs, the same stagings), and a
 // scripted player walking through each of the hub's gates and back: placed 4 m in front of the gate facing it, the
 // camera behind, the stick held "into the screen" (moveZ: 1; moveY is up, a jump, not a walk) until they are through;
@@ -38,14 +38,31 @@ for (const to of ['redwoods', 'pool', 'temple', 'forge']) {
       bend.wake(); bend.set('camera', { followDist: 3.6, followFov: 44, followPitch: 0.1 });
       bend.place(0, P[0], P[1], Math.atan2(-n[0], -n[2])); bend.camera({ yaw: Math.atan2(n[0], n[2]) });
       bend.intent(0, { moveZ: 1, walk: true }); window.walk = [];`,
-    each: "const p = bend.players()[0]; window.walk.push([+t.toFixed(2), +p.x.toFixed(3), +p.z.toFixed(3), bend.stats().world, bend.rig.eye.map((v) => +v.toFixed(2))]);",
+    each: "const p = bend.players()[0], r = bend.rig; window.walk.push([+t.toFixed(2), +p.x.toFixed(3), +p.z.toFixed(3), bend.stats().world, r.eye.map((v) => +v.toFixed(2)), +Math.hypot(r.eye[0] - r.look[0], r.eye[1] - r.look[1], r.eye[2] - r.look[2]).toFixed(2), !!r.through]);",
     cues: {
       // through, then stop
       '4.4': 'bend.intent(0, { moveZ: 0 });',
       // turn the camera to look back at the gate from beyond the player (as a player would with the look stick)
       '5.0': `${find} const b = g.partner, p = bend.players()[0]; bend.camera({ yaw: Math.atan2(p.x - b.at[0], p.z - b.at[2]) });`,
       '5.4': 'bend.intent(0, { moveZ: 1, walk: true });',
-      '9.9': "console.warn('walk', JSON.stringify(window.walk));",
+      // the walk in each world and each way: the most it strays from the line between its ends, how far it went, the
+      // camera behind it at the end of each run (cos of eye→player against the way they walk; 1 is straight behind),
+      // and the nearest the eye came to what it looks at
+      '9.6': `const W = window.walk, runs = [];
+        for (const leg of [W.filter((w) => w[0] > 0.3 && w[0] < 4.4), W.filter((w) => w[0] > 5.8)]) {
+          let run = [];
+          const flush = () => { if (run.length > 3) runs.push(run); run = []; };
+          for (const w of leg) { if (run.length && run[0][3] !== w[3]) flush(); run.push(w); }
+          flush();
+        }
+        const out = runs.map((r) => {
+          const a = r[0], b = r[r.length - 1], dx = b[1] - a[1], dz = b[2] - a[2], L = Math.hypot(dx, dz) || 1;
+          let off = 0;
+          for (const w of r) off = Math.max(off, Math.abs(((w[1] - a[1]) * dz - (w[2] - a[2]) * dx) / L));
+          const e = b[4], ex = b[1] - e[0], ez = b[2] - e[2];
+          return { world: a[3], from: a[0], to: b[0], went: +L.toFixed(2), off: +off.toFixed(3), behind: +((ex * dx + ez * dz) / (Math.hypot(ex, ez) * L)).toFixed(2), nearest: Math.min(...r.map((w) => w[5])) };
+        });
+        for (const o of out) console.warn('walk', JSON.stringify(o));`,
     },
     sheet: { cols: 10, rows: 5, width: 200 }, stills: [1.6, 3.2, 6.4, 8.4],
   });
