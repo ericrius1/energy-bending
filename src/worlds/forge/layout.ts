@@ -70,7 +70,7 @@ export function layoutForge(o: { coarse: boolean; seed?: number }): ForgeLayout 
         const e = Math.min(1, Math.sqrt(ex * ex + ez * ez));
         const hang = 0.5 + s.depth * Math.pow(Math.max(0, 1 - e * e), 0.8) * (0.7 + 0.6 * r());
         // (an island's columns stand at many heights; the stage's are one flat floor)
-        const top = island ? s.top + (r() - 0.5) * 1.2 * s.R - e * e * s.R * 1.5 : s.top;
+        const top = island ? s.top + (r() - 0.5) * 0.3 * s.R - e * e * Math.max(s.rx, s.rz) * 0.12 : s.top;
         cols.push(cx, cz, top, s.R, hang, slab, r(), island ? 1 : 0);
       }
     }
@@ -93,7 +93,7 @@ export function layoutForge(o: { coarse: boolean; seed?: number }): ForgeLayout 
     // (keep the audience's side clear: the locked camera stands at +z)
     if (Math.sin(a) > 0.55 && far < 60) a += Math.PI;
     const size = 1.5 + far * 0.05 * (0.5 + r());
-    islands.push({ id: `isle${i}`, x: Math.cos(a) * far, z: Math.sin(a) * far, top: -14 + 30 * r() + far * 0.08, rx: size * (0.8 + 0.5 * r()), rz: size * (0.6 + 0.4 * r()), R: 0.45 + size * 0.09, depth: size * (1.4 + r()), bob: 0 });
+    islands.push({ id: `isle${i}`, x: Math.cos(a) * far, z: Math.sin(a) * far, top: -14 + 30 * r() + far * 0.08, rx: size * (0.8 + 0.5 * r()), rz: size * (0.6 + 0.4 * r()), R: 0.35 + size * 0.045, depth: size * (1.2 + r()), bob: 0 });
   }
   islands.forEach((s, i) => add(s, STAGE_SLABS + i, true));
   return { slabs: [...stage, ...islands], ledges, columns: new Float32Array(cols), stageColumns, count: cols.length / COLUMN_FLOATS };

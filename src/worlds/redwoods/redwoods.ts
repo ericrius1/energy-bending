@@ -93,8 +93,8 @@ export class Redwoods implements World {
       spawns: [[-1.2, 0], [1.2, 0]], lens: 22, maxDistance: ROOM + 1,
     })];
     this.spawns = spawnsOf(this.stages[0]);
-    // one gate, back to the geode: in the open meadow in front of the stage, clear of the log and the trees' feet
-    this.portals = [{ id: 'redwoods.geode', at: [-3.6, 1.35, 6.4], normal: [0.5, 0, -0.87], radius: 1.3, to: { world: 'geode', portal: 'geode.redwoods' } }];
+    // one gate, back to the geode: in the open meadow behind the stage's left end, clear of the log and the trees' feet
+    this.portals = [{ id: 'redwoods.geode', at: [-6.5, 1.35, -5.5], normal: [0.76, 0, 0.65], radius: 1.3, to: { world: 'geode', portal: 'geode.redwoods' } }];
     this.forest = kit.uniforms(lightShader.structs.Forest, 'redwoods.light');
     this.forest.set(this.woods.values);
     this.shared = { forest: this.forest };
@@ -129,7 +129,7 @@ export class Redwoods implements World {
       });
       pass.draw(trunkShader, {
         label: 'redwoods.stage', vertex: 'vs_stage', bind: { stage: this.pieces(), barkTex: this.tex.bark, barkH: this.tex.barkH }, count: 28 * (14 + 4 * 2 - 1) * 6,
-        instances: this.stage.pieces.length, constants: { SIDES: 28, RINGS: 14, CAPR: 4 }, enabled: on,
+        instances: this.stage.pieces.length, constants: { SIDES: 28, RINGS: 14, CAPR: 4 }, cull: 'none', enabled: on,
       });
       pass.draw(trunkShader, {
         label: 'redwoods.trunks.far', bind: { logs, barkTex: this.tex.bark, barkH: this.tex.barkH }, count: 19 * 16 * 6, instances: L.far + L.limbs,
@@ -169,8 +169,8 @@ export class Redwoods implements World {
   /** the meadow, or the fallen log's top where it lies */
   groundAt(x: number, z: number) {
     const [px, , across] = toPlane(this.stages[0], [x, 0, z]);
-    const log = this.stage.ledges[0];
-    if (px >= log.x0 && px <= log.x1 && Math.abs(across) < log.y * 0.5) return log.y * 0.5 + Math.sqrt(Math.max(0, (log.y * 0.5) ** 2 - across * across));
+    const log = this.stage.ledges[0], R = this.stage.plate[0], cy = log.y - R;
+    if (px >= log.x0 && px <= log.x1 && Math.abs(across) < R) return Math.max(0, cy + Math.sqrt(R * R - across * across));
     return 0;
   }
   exposure() { return this.woods.expo; }

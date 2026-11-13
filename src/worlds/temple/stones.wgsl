@@ -29,7 +29,7 @@ struct VOut {
   @location(0) wp: vec3f,
   @location(1) n: vec3f,
   @location(2) local: vec3f,
-  @location(3) @interpolate(flat) info: vec4f,   // seed, carving, part (block: its face 0 … 5; drum: 0 side, 1 an end), height
+  @location(3) @interpolate(flat) info: vec4f,   // seed, carving, part (block: its face 0 to 5; drum: 0 side, 1 an end), height
   @location(4) @interpolate(flat) shape: vec4f,  // x: 1 a drum; block: y half width, z half depth, w how ragged; drum: y radius, z how ragged
 }
 
@@ -201,7 +201,7 @@ fn carving(kind: f32, u: f32, v: f32, height: f32, seed: f32) -> f32 {
       let F = 20.0;
       let g = 0.5 + 0.5 * cos(a * F);
       let slope = -sin(a * F) * F * 0.5;
-      groove = smoothstep(0.85, 0.0, g) * 0.6;
+      groove = smoothstep(0.85, 0.0, g) * 0.22;
       let T = normalize(cross(vec3f(0.0, 1.0, 0.0), N) + vec3f(1e-5));
       N = normalize(N + T * slope * 0.025 * (1.0 - g));
     }
@@ -231,13 +231,17 @@ fn carving(kind: f32, u: f32, v: f32, height: f32, seed: f32) -> f32 {
   let moon = temple.moonCol.rgb * temple.moonCol.w * templeShadow(wp + N * 0.03);
   let ao = (1.0 - 0.55 * groove) * mix(0.55, 1.0, smoothstep(0.0, 0.7, wp.y + 0.3));
   let diff = max(dot(N, Ld), 0.0);
-  var col = albedo * (moon * diff + templeAmbient(N, ao, wp) * ao);
+  var col = albedo * (moon * diff + templeAmbient(N, ao, wp, 1.0) * ao);
+  // the moon behind it lights its edges (the light grazing round the sides toward us)
+  let edgeOn = pow(1.0 - max(dot(N, V), 0.0), 3.0) * max(dot(-V, Ld), 0.0);
+  col += moon * albedo * edgeOn * 1.5;
   // wet stone shines: the moon's highlight and the sky in it
   let R = reflect(-V, N);
   let gloss = mix(0.06, 1.0, wet) * temple.stone.w;
   col += moon * pow(max(dot(R, Ld), 0.0), mix(12.0, 80.0, wet)) * gloss * 0.6;
   let fres = 0.04 + 0.96 * pow(1.0 - max(dot(N, V), 0.0), 5.0);
-  col += templeSky(normalize(vec3f(R.x, abs(R.y), R.z)), 0.0) * fres * gloss * 0.5;
+  // (dry stone is rough: it only mirrors the sky when it's wet)
+  col += templeSky(normalize(vec3f(R.x, abs(R.y), R.z)), 0.0) * fres * gloss * mix(0.08, 0.5, wet);
   col = templeUnder(col, wp, albedo * moon * diff);
   return vec4f(col, dot(wp - frame.camPos, frame.camFwd));
 }

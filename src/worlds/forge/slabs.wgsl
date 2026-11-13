@@ -45,7 +45,7 @@ fn corner(k: u32, r: f32) -> vec2f {
   var n = vec3f(0.0, 1.0, 0.0);
   var part = 0.0;
   var across = 0.5;
-  let tipLen = R * (0.6 + 0.9 * fract(c.b.z * 13.7));
+  let tipLen = R * (0.25 + 0.6 * fract(c.b.z * 13.7));
   let tipAt = vec2f(fract(c.b.z * 7.1) - 0.5, fract(c.b.z * 3.3) - 0.5) * R * 0.5;
   if (vi < 18u) {
     let k = vi / 3u;
@@ -121,10 +121,11 @@ fn corner(k: u32, r: f32) -> vec2f {
   let fireL = forge.fire.rgb * forge.fire.w;
   let kd = normalize(forge.key.xyz);
   let up = max(-N.y, 0.0);
-  var col = albedo * (fireL * (max(dot(N, kd), 0.0) * 0.5 + up * 0.8) + forgeAmbient(N, 1.0 - joint * 0.5, wp));
+  var col = albedo * (fireL * (max(dot(N, kd), 0.0) * 0.4 + up * 0.35) + forgeAmbient(N, 1.0 - joint * 0.5, wp, 1.0));
   let R = reflect(-V, N);
   let fres = 0.04 + 0.96 * pow(1.0 - max(dot(N, V), 0.0), 5.0);
-  col += forgeSky(R, 0.0) * fres * forge.stone.w * select(0.4, 1.0, part < 1.5);
+  // (the worn tops shine a little with the aurora, the sides less)
+  col += forgeSky(R, 0.0) * mix(fres, 0.08 + fres, select(0.0, 1.0, part < 1.5)) * forge.stone.w * select(0.4, 1.0, part < 1.5);
   // molten light: in the seams and joints, the deeper the hotter, and at the tips; on the anvil's top, its seams
   let t = forge.heat.y;
   let flick = 0.75 + 0.25 * sin(t * 2.3 + seed * 40.0 + wp.y * 3.0);
@@ -132,7 +133,7 @@ fn corner(k: u32, r: f32) -> vec2f {
   // (only some joints and seams run hot, in patches)
   let patchy = smoothstep(0.45, 0.75, vnoise(wp * 0.7 + seed * 3.0));
   var hot = (joint * 0.9 + edge * 0.25) * deep * patchy;
-  if (part > 2.5) { hot = 0.08 + 0.7 * smoothstep(i.local.w, i.local.w + 0.6, below) * (0.4 + 0.6 * fract(seed * 11.3)); }
+  if (part > 2.5) { hot = 0.05 + 0.45 * smoothstep(i.local.w, i.local.w + 0.4, below) * step(0.45, fract(seed * 11.3)); }
   if (part > 0.5 && part < 1.5 && anvil) { hot = 0.22 * smoothstep(0.55, 0.8, vnoise(wp * 0.9 + vec3f(0.0, t * 0.05, 0.0))); }
   col += forge.seam.rgb * forge.seam.w * hot * flick * select(1.0, 0.3, i.info.z > 0.5);
   return vec4f(col, dot(wp - frame.camPos, frame.camFwd));

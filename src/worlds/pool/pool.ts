@@ -15,10 +15,10 @@ import { Ripples } from '../water/ripples';
 import { stagePlane, spawnsOf, type StagePlane } from '../stage';
 
 export const poolParams = defineParams('pool', {
-  zenith: '#010206',
-  horizon: '#070a1a',
-  glow: '#ffae78',
-  glowAmt: 0.1,
+  zenith: '#010207',
+  horizon: '#0a0e2a',
+  glow: '#ffb48c',
+  glowAmt: 0.12,
   stars: 1,
   /** the light on the dancers from above, and the glow's rim on them from behind */
   keyLight: 1.1,

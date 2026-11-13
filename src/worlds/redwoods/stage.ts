@@ -57,24 +57,28 @@ export function layoutStage(trunks: Float32Array): RedwoodsStage {
     { id: 'bough', x0: low.x0, x1: low.x1, y: low.y, thick: low.r * 2 },
     { id: 'high', x0: high.x0, x1: high.x1, y: high.y, thick: high.r * 2 },
   ];
-  // the fallen giant: one radius (its top is the ledge) from the broken end to where it flares into its roots
-  const R = log.y / 2;
-  chain([[-2.2, R, R], [log.x0 - 0.1, R, R]], 0, [2, 0]);
-  chain([[log.x0 - 0.1, R, R], [-9.7, R + 0.1, R * 1.55]], 0, [0, 0]);
+  // the fallen giant, settled into the ground (its middle a little above it): one radius from the broken end to where
+  // it flares into its roots, so its top is the ledge
+  const R = 0.85, cy = log.y - R;
+  chain([[-2.2, cy, R], [log.x0 - 0.1, cy, R]], 0, [2, 0]);
+  chain([[log.x0 - 0.1, cy, R], [-9.7, cy + 0.15, R * 1.4]], 0, [0, 0]);
   // the root plate, torn up on its edge, earth and roots on its face; root stubs reaching out of it
-  const plateX = -10.0, plateY = 0.95, plateR = 1.45;
+  const plateX = -10.05, plateY = 1.05, plateR = 1.6;
   chain([[-9.75, plateY, plateR], [plateX - 0.35, plateY, plateR * 0.92]], 1, [3, 3]);
   for (let k = 0; k < 6; k++) {
     const a = (k / 6) * Math.PI * 2 + 0.4;
     const ry = Math.sin(a) * plateR * 0.85, rz = Math.cos(a) * plateR * 0.85;
-    const at: V3 = [right[0] * (plateX - 0.25) - right[2] * rz, plateY + ry, right[2] * (plateX - 0.25) + right[0] * rz];
+    const at: V3 = [right[0] * (plateX - 0.3) - right[2] * rz, plateY + ry, right[2] * (plateX - 0.3) + right[0] * rz];
     const to: V3 = [at[0] - right[0] * (0.9 + 0.3 * (k % 2)) - right[2] * rz * 0.5, Math.max(-0.2, at[1] + ry * 0.4 - 0.3), at[2] - right[2] * (0.9 + 0.3 * (k % 2)) + right[0] * rz * 0.5];
     pieces.push({ a: at, ra: 0.13, b: to, rb: 0.035, capA: 0, capB: 0, kind: 0, seed: (seed = (seed * 9.31 + 0.37) % 1) });
   }
   // the low bough: out of the trunk, down, level along its ledge, its tip lifting
-  chain([[T - 1.4, 2.6, 0.3], [8.3, 2.12, 0.24], [low.x1 + 0.2, low.y - low.r, low.r], [low.x0 - 0.2, low.y - low.r, low.r], [low.x0 - 1.1, low.y - 0.02, 0.07]]);
-  // the high bough: out of the trunk higher up, down over the low one, level along its ledge, on over the middle
-  chain([[T - 1.2, 6.7, 0.38], [7.8, 5.6, 0.31], [5.0, 4.7, 0.26], [2.6, 3.6, 0.22], [high.x1 + 0.1, high.y - high.r, high.r], [high.x0 - 0.3, high.y - high.r, high.r], [high.x0 - 1.6, high.y + 0.18, 0.07]]);
+  chain([[T - 1.4, 2.6, 0.3], [9.2, 2.42, 0.27], [8.0, 2.18, 0.235], [6.8, 2.0, 0.2], [low.x1 + 0.2, low.y - low.r, low.r],
+    [low.x0 - 0.2, low.y - low.r, low.r], [low.x0 - 0.8, low.y - 0.13, 0.13], [low.x0 - 1.3, low.y + 0.02, 0.095]]);
+  // the high bough: out of the trunk higher up, down over the low one (clear of a head standing on it), level along its
+  // ledge, on over the middle, its tip lifting
+  chain([[T - 1.2, 6.7, 0.38], [9.0, 6.25, 0.34], [7.6, 5.55, 0.3], [6.1, 4.8, 0.27], [4.6, 4.15, 0.245], [3.2, 3.75, 0.22], [2.1, 3.3, 0.2],
+    [high.x1 + 0.1, high.y - high.r, high.r], [high.x0 - 0.3, high.y - high.r, high.r], [high.x0 - 1.0, high.y - 0.12, 0.14], [high.x0 - 1.7, high.y + 0.05, 0.095]]);
   const a = P(log.x1 + 0.1, 0), b = P(-9.6, 0), pc = P(plateX, 0);
   return { right, ledges, pieces, log: [a[0], a[2], b[0], b[2]], plate: [R, pc[0], pc[2], plateR] };
 }

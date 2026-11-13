@@ -11,7 +11,7 @@ import lightShader, { type Geode as GeodeU } from '../light.wgsl';
 import backdropShader from './backdrop.wgsl';
 import moteShader from './motes.wgsl';
 import shelfShader from './shelves.wgsl';
-import { layoutShelves, packBlades, STAGE_Z } from './shelves';
+import { layoutShelves, packBlades } from './shelves';
 import { stagePlane, spawnsOf } from '../stage';
 import type { Fixture, PortalDef, World, WorldCtx } from '../world';
 import type { ScenePass } from '../../engine/scene';
@@ -93,14 +93,14 @@ export class Geode implements World {
     if (ctx.coarse) Object.assign(P, { caveStones: 700, motes: 700 });
     this.u = ctx.kit.uniforms(lightShader.structs.Geode, 'geode.light');
     this.shared = { geode: this.u };
-    // a stage across the back of the hollow, seen from the front, its ledges the crystal shelves grown out of the wall
-    // behind it; the lens long enough to flatten it but the camera inside the wall (12 m out at most)
+    // a stage through the middle, seen from the front, its ledges the crystal shelves grown out of the wall; the lens
+    // long enough to flatten it but the camera inside the wall (7.1 m out at most)
     const shelves = layoutShelves({ caveRadius: P.caveRadius });
     this.blades = shelves.blades;
     this.bladeBuf = ctx.kit.storage({ label: 'geode.shelves', data: packBlades(this.blades), usage: ['storage'] });
     this.stages = [stagePlane({
-      id: 'wall', origin: [0, 0, STAGE_Z], right: [1, 0, 0], halfWidth: 5.75, ground: 0, ledges: shelves.ledges,
-      spawns: [[-2.45, 0], [2.45, 0]], lens: 20, maxDistance: P.caveRadius - STAGE_Z - 1.6,
+      id: 'centre', origin: [0, 0, 0], right: [1, 0, 0], halfWidth: 5.75, ground: 0, ledges: shelves.ledges,
+      spawns: [[-2.45, 0], [2.45, 0]], lens: 20, maxDistance: P.caveRadius - 1.4,
     })];
     this.spawns = spawnsOf(this.stages[0]);
     // the hub's gates, one to each world, round the floor facing the middle (the stage's shelves behind, the
@@ -109,7 +109,7 @@ export class Geode implements World {
       const l = Math.hypot(x, z);
       return { id: `geode.${id}`, at: [x, 1.35, z], normal: [-x / l, 0, -z / l], radius: 1.25, to: { world, portal: `${world}.geode` } };
     };
-    this.portals = [gate('pool', 'pool', -6.5, 0.9), gate('temple', 'temple', 6.5, 0.9), gate('forge', 'forge', -4.3, 4.9), gate('redwoods', 'redwoods', 4.3, 4.9)];
+    this.portals = [gate('pool', 'pool', -6.0, 3.0), gate('temple', 'temple', 6.0, 3.0), gate('forge', 'forge', -2.9, 6.0), gate('redwoods', 'redwoods', 2.9, 6.0)];
     // the wall: crystal points and clusters pointing in at the stage, thicker and bigger where the dome meets the floor
     this.fixtures = [{ kind: 'gems', id: 'geode.wall', shape: 'dome', count: Math.min(P.caveStones, 4096), radius: P.caveRadius,
       specimens: ['quartz', 'citrine', 'amethyst', 'celestite'], seed: 4242, enabled: () => geodeParams.cave }];

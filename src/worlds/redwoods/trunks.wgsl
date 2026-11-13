@@ -41,7 +41,7 @@ struct VOut {
   @location(4) ang: f32,
   @location(5) @interpolate(flat) seed: f32,
   @location(6) @interpolate(flat) limb: f32,
-  @location(7) end: vec2f,   // x: 0 bark, 1 a cut or broken end (heartwood), 2 a root plate's face (earth); y: out from the middle (0 … 1)
+  @location(7) end: vec2f,   // x: 0 bark, 1 a cut or broken end (heartwood), 2 a root plate's face (earth); y: out from the middle (0 to 1)
 }
 
 // metres of bark the texture spans round a trunk, and up it

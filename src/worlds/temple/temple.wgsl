@@ -164,11 +164,13 @@ fn templeEnv(d: vec3f, p: vec3f) -> vec3f {
   return templeSky(vec3f(d.x, -d.y, d.z), 0.3) * F + sea * (1.0 - F);
 }
 
-fn templeAmbient(N: vec3f, ao: f32, p: vec3f) -> vec3f {
+/** the soft light on a surface facing N (fire: how much of the dancers' own light to add: matter takes a little of it,
+ *  or a fire dancer would light its own body) */
+fn templeAmbient(N: vec3f, ao: f32, p: vec3f, fire: f32) -> vec3f {
   let sky = temple.zenith.rgb * 2.2 + temple.horizon.rgb * 0.4;
-  let west = temple.dusk.rgb * temple.dusk.w * 0.07 * (0.5 + 0.5 * dot(N, temple.duskDir.xyz));
+  let west = temple.dusk.rgb * temple.dusk.w * 0.12 * (0.5 + 0.5 * dot(N, temple.duskDir.xyz));
   let below = temple.moonCol.rgb * temple.moonCol.w * 0.05 + temple.sea.rgb * 0.5;
-  return (mix(below, sky, N.y * 0.5 + 0.5) + west) * (0.3 + 0.7 * ao) * 1.8 + templeFire(p, N, 0.3);
+  return (mix(below, sky, N.y * 0.5 + 0.5) + west) * (0.3 + 0.7 * ao) * 1.8 + templeFire(p, N, 0.3) * fire;
 }
 
 /** the air over the court: a sea haze, lying low, glowing with the afterglow in the west and round the moon */

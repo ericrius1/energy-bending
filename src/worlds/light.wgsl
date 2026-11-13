@@ -45,8 +45,8 @@ fn worldEnv(d: vec3f, p: vec3f) -> vec3f {
 fn worldAmbient(N: vec3f, ao: f32, p: vec3f) -> vec3f {
   if (WORLD == 1u) { return woodsAmbient(N) * (0.25 + 0.75 * ao) * 1.6 + lampLight(p, N, 0.2) * 0.5; }
   if (WORLD == 2u) { return poolAmbient(N, ao); }
-  if (WORLD == 3u) { return templeAmbient(N, ao, p); }
-  if (WORLD == 4u) { return forgeAmbient(N, ao, p); }
+  if (WORLD == 3u) { return templeAmbient(N, ao, p, 0.25); }
+  if (WORLD == 4u) { return forgeAmbient(N, ao, p, 0.25); }
   return geodeAmbient(N, ao);
 }
 

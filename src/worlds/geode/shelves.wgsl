@@ -107,13 +107,17 @@ fn toWorld(b: Blade, q: vec3f) -> vec3f {
   let R = reflect(-V, N);
   // where it leaves the wall it's in the dark; out over the stage it's in the light
   let out = smoothstep(0.0, 1.8, i.local.z);
-  var col = body * (key.col * diff * 0.6 + geodeAmbient(N, 0.6 + 0.4 * out) * 0.5) * (0.35 + 0.65 * out);
+  // little lit on its faces (it's clear stone, not paint): most of what shows is what it reflects and what glows in it
+  var col = body * (key.col * diff * 0.12 + geodeAmbient(N, 0.6 + 0.4 * out) * 0.12) * (0.35 + 0.65 * out);
   // the satin sheen across the fibres (anisotropic: brightest where the half-way vector is across them)
   let H = normalize(L + V);
   let th = dot(T, H);
-  col += key.col * pow(sqrt(max(1.0 - th * th, 0.0)), 80.0) * 0.35 * (0.6 + 0.4 * fib) * out;
-  col += studio(R) * fres * 0.6;
-  // the cave's glow inside it, and light carried along its fibres to the tip
-  col += geode.cave.rgb * geode.cave.w * body * (0.18 + 0.25 * (1.0 - cosV)) * (0.5 + 0.5 * cloud);
+  col += key.col * pow(sqrt(max(1.0 - th * th, 0.0)), 90.0) * 0.25 * (0.5 + 0.5 * fib) * out;
+  col += studio(R) * fres * 0.9;
+  // the cave's glow inside it, brightest where it's seen edge on (a long way through it) and along its fibres to the
+  // tip, and the light from above caught in it
+  let through = 0.25 + 0.75 * pow(1.0 - cosV, 2.0);
+  col += geode.cave.rgb * geode.cave.w * mix(body, vec3f(1.0), 0.3) * through * (0.35 + 0.65 * cloud) * (0.25 + 0.75 * smoothstep(0.0, 1.0, i.local.z / 3.0)) * 0.8;
+  col += key.col * body * 0.05 * (0.5 + fib) * out;
   return vec4f(col, dot(i.wp - frame.camPos, frame.camFwd));
 }

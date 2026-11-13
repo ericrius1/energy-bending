@@ -32,7 +32,8 @@ fn waveNormal(tex: texture_2d<f32>, win: vec4f, xz: vec2f, gain: f32, wind: f32,
   let paws = vnoise2(q * 0.35 + vec2f(t * 0.05, -t * 0.03));
   let n2 = vec2f(vnoise2(q * 3.1 + vec2f(t * 0.4, 0.0)), vnoise2(q * 3.1 + vec2f(5.2, -t * 0.37))) - 0.5;
   w += n2 * 0.9 * smoothstep(0.35, 0.8, paws) * far;
-  g += w * wind * mix(far, 1.0, 0.35);
+  // (far off a pixel spans many waves: what's left of them is a calm mirror, not noise)
+  g += w * wind * far * smoothstep(120.0, 20.0, d);
   return normalize(vec3f(-g.x, 1.0, -g.y));
 }
 

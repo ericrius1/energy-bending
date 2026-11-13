@@ -26,54 +26,62 @@ fn forgeBob(slab: u32) -> f32 {
   return forge.bob[slab / 4u][slab % 4u];
 }
 
-/** the aurora along a ray going up: curtains hanging from a band high over the forge, green low, violet high */
+/** the aurora: curtains hanging round the sky, their lower hems wandering along the horizon a few tens of degrees up,
+ *  rays streaming up from the hems, green low and violet where they thin out above (in the sky's own angles, as you
+ *  see them from the stage) */
 fn forgeAurora(d: vec3f) -> vec3f {
-  if (d.y < 0.02 || forge.aurora.w <= 0.0) { return vec3f(0.0); }
+  if (d.y < 0.0 || forge.aurora.w <= 0.0) { return vec3f(0.0); }
   let t = forge.heat.y;
+  let az = atan2(d.z, d.x);
+  let el = asin(clamp(d.y, 0.0, 1.0));
   var c = vec3f(0.0);
-  let base = forge.aurora2.w;
-  for (var k = 0; k < 6; k++) {
-    let hk = f32(k) / 5.0;
-    let h = base + hk * base * 0.9;
-    let s = (h - frame.camPos.y) / d.y;
-    let q = (frame.camPos.xz + d.xz * s) * 0.012;
-    // the curtain's line wanders across the sky; its folds and rays move along it
-    let x = q.x * 1.3 + 0.9 * sin(q.y * 2.1 + t * 0.05) + 0.5 * sin(q.y * 4.7 - t * 0.08);
-    let fold = exp(-pow((fract(x * 0.5) - 0.5) * 4.0, 2.0));
-    let rays = 0.45 + 0.55 * vnoise2(vec2f(x * 22.0, hk * 0.6 - t * 0.15));
-    let fade = (1.0 - hk) * smoothstep(0.0, 0.3, hk + 0.1) * exp(-s * 0.0015);
-    c += mix(forge.aurora.rgb, forge.aurora2.rgb, hk) * fold * rays * fade;
+  for (var k = 0; k < 2; k++) {
+    let fk = f32(k);
+    // the hem: where the curtain starts, wandering slowly round the sky
+    let hem = 0.2 + 0.12 * fk + 0.06 * sin(az * 2.0 + fk * 2.3 + t * 0.03) + 0.04 * sin(az * 5.0 - t * 0.05 + fk);
+    let above = el - hem;
+    if (above < -0.03) { continue; }
+    // the folds: brighter where the sheet turns edge on to us
+    let fold = 0.35 + 0.65 * pow(abs(sin(az * (3.0 + fk * 2.0) + 1.5 * sin(az * 1.3 + t * 0.04) + fk * 4.0)), 3.0);
+    let rays = 0.4 + 0.6 * vnoise2(vec2f(az * 60.0 + fk * 17.0, el * 1.5 - t * 0.25));
+    let hemGlow = smoothstep(-0.03, 0.01, above) * exp(-max(above, 0.0) / (0.12 + 0.08 * fk));
+    let col = mix(forge.aurora.rgb, forge.aurora2.rgb, smoothstep(0.0, 0.25, above));
+    c += col * hemGlow * fold * rays * (1.0 - 0.4 * fk);
   }
-  return c * forge.aurora.w * smoothstep(0.02, 0.2, d.y) / 3.0;
+  return c * forge.aurora.w * 1.4;
 }
-
-/** the cloud sea far below, lit through from under by the fire: bright in its gaps, dark on its billows' tops */
+/** the cloud sea far below, lit through from under by the fire: bright where it's thin, dark on its billows' tops;
+ *  w: how far away it is */
 fn forgeClouds(d: vec3f) -> vec4f {
   let y = forge.cloud.w;
   let s = (y - frame.camPos.y) / min(d.y, -1e-4);
   let p = frame.camPos.xz + d.xz * s;
   let t = forge.heat.y;
-  let q = p * 0.018;
-  let billow = fbm(vec3f(q + vec2f(t * 0.004, t * 0.002), t * 0.01)) * 0.7 + fbm(vec3f(q * 3.1, 7.0 + t * 0.02)) * 0.3;
-  let gaps = smoothstep(0.55, 0.3, billow);
-  var c = forge.cloud.rgb * (0.5 + 0.8 * billow) + forge.fire.rgb * (0.12 + 1.2 * gaps * gaps + 0.25 * smoothstep(0.4, 0.75, billow) * (1.0 - billow));
-  // the far cloud sea runs into the haze at the horizon
-  let far = 1.0 - exp(-s * 0.0018);
-  c = mix(c, forge.horizon.rgb, far);
+  let q = p * 0.035;
+  let billow = fbm(vec3f(q + vec2f(t * 0.006, t * 0.003), t * 0.012)) * 0.65 + fbm(vec3f(q * 3.3, 7.0 + t * 0.03)) * 0.35;
+  let thin = smoothstep(0.62, 0.3, billow);
+  var c = forge.cloud.rgb * (0.4 + 0.9 * billow) + forge.fire.rgb * (0.08 + 0.9 * thin * thin) + vec3f(1.0, 0.8, 0.45) * pow(thin, 4.0) * 0.6;
+  // the far cloud sea runs into the band of glow at the horizon
+  let far = 1.0 - exp(-s * 0.004);
+  c = mix(c, forgeBand(), far);
   return vec4f(c, s);
 }
 
-/** the sky in direction d, everywhere (the stars and the aurora above, the haze round the horizon, the clouds below) */
+/** the glow along the horizon, where the fire's light comes through the haze */
+fn forgeBand() -> vec3f { return forge.fire.rgb * 0.32 + forge.horizon.rgb; }
+
+/** the sky in direction d, everywhere: the stars and the aurora above, the band of glow round the horizon, the clouds
+ *  below */
 fn forgeSky(d: vec3f, stars: f32) -> vec3f {
   let up = d.y;
-  if (up < -0.01) {
+  let band = forgeBand();
+  if (up < 0.0) {
     let cl = forgeClouds(d).rgb;
-    return mix(forge.horizon.rgb, cl, smoothstep(-0.01, -0.12, up));
+    return mix(band, cl, smoothstep(0.0, -0.18, up));
   }
-  let a = max(up, 0.0);
-  var c = mix(forge.horizon.rgb, forge.zenith.rgb, smoothstep(0.0, 0.5, pow(a, 0.6)));
-  // the fire's glow reaches up the sky low down
-  c += forge.fire.rgb * 0.06 * exp(-a * 12.0);
+  // up from the band: warm, then violet, then the night
+  var c = mix(band, forge.horizon.rgb * 0.8, smoothstep(0.0, 0.12, up));
+  c = mix(c, forge.zenith.rgb, smoothstep(0.08, 0.6, up));
   c += forgeAurora(d);
   if (stars > 0.0 && forge.zenith.w > 0.0 && d.y > 0.0) {
     let p = d * 240.0;
@@ -88,7 +96,6 @@ fn forgeSky(d: vec3f, stars: f32) -> vec3f {
   }
   return c;
 }
-
 /** the dancers' own light on a surface at p facing n */
 fn forgeFire(p: vec3f, n: vec3f, wrap: f32) -> vec3f {
   var c = vec3f(0.0);
@@ -107,10 +114,11 @@ fn forgeFire(p: vec3f, n: vec3f, wrap: f32) -> vec3f {
 
 fn forgeEnv(d: vec3f, p: vec3f) -> vec3f { return forgeSky(d, 0.5); }
 
-fn forgeAmbient(N: vec3f, ao: f32, p: vec3f) -> vec3f {
+/** the soft light on a surface facing N (fire: how much of the dancers' own light to add; matter takes a little) */
+fn forgeAmbient(N: vec3f, ao: f32, p: vec3f, fire: f32) -> vec3f {
   let below = forge.fire.rgb * forge.fire.w * 0.12;
-  let above = forge.zenith.rgb * 2.0 + forge.aurora.rgb * forge.aurora.w * 0.04;
-  return mix(below, above, smoothstep(-0.6, 0.6, N.y)) * (0.3 + 0.7 * ao) + forgeFire(p, N, 0.3);
+  let above = forge.zenith.rgb * 2.0 + forge.aurora.rgb * forge.aurora.w * 0.07;
+  return mix(below, above, smoothstep(-0.6, 0.6, N.y)) * (0.3 + 0.7 * ao) + forgeFire(p, N, 0.3) * fire;
 }
 
 /** the air: a warm haze thickening downward into the fire's glow, a little of the aurora high up */
@@ -118,8 +126,9 @@ fn forgeAir(s: vec4f, px: vec2i, d: vec3f) -> vec3f {
   let along = max(dot(d, frame.camFwd), 1e-3);
   let t = min(s.a / along, 1500.0);
   let through = heightFog(d, t, forge.heat.z, -20.0, 14.0);
-  let down = smoothstep(0.25, -0.5, d.y);
-  let haze = mix(forge.horizon.rgb, forge.fire.rgb * 0.5, down * 0.6);
+  // (warm and bright looking down into it, dark looking up out of it)
+  let down = smoothstep(0.05, -0.5, d.y);
+  let haze = mix(forge.horizon.rgb * 0.7, forgeBand(), down);
   return mix(haze, s.rgb, through);
 }
 

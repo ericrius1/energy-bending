@@ -64,7 +64,7 @@ fn flagAt(xz: vec2f) -> Flag {
     albedo *= 0.62;
     let shadow = templeShadow(p + vec3f(0.0, 0.02, 0.0));
     let diff = max(temple.moon.y, 0.0);
-    col = albedo * (moonL * diff * shadow + templeAmbient(up, 1.0 - groove * 0.6, p));
+    col = albedo * (moonL * diff * shadow + templeAmbient(up, 1.0 - groove * 0.6, p, 1.0));
     // the wet sheen: the moon's long path and the sky, broken up by the flags' little tilts
     let n = normalize(vec3f((hash2i(vec2i(f.id) + vec2i(1, 1)) - 0.5) * 0.04, 1.0, (hash2i(vec2i(f.id) + vec2i(2, 2)) - 0.5) * 0.04));
     let R = reflect(d, n);
@@ -78,7 +78,7 @@ fn flagAt(xz: vec2f) -> Flag {
     p = cam + d * t;
     let sand = 0.5 + 0.5 * sin(p.x * 2.3 + vnoise2(p.xz * 0.4) * 5.0);
     let albedo = temple.stone.rgb * vec3f(0.5, 0.48, 0.4) * (0.6 + 0.4 * sand) * (0.5 + 0.5 * vnoise2(p.xz * 0.21));
-    col = albedo * (moonL * max(temple.moon.y, 0.0) + templeAmbient(up, 1.0, p));
+    col = albedo * (moonL * max(temple.moon.y, 0.0) + templeAmbient(up, 1.0, p, 1.0));
     col = templeUnder(col, p, albedo * moonL * max(temple.moon.y, 0.0));
   }
   return vec4f(col, min(t * dot(d, frame.camFwd), 30000.0));

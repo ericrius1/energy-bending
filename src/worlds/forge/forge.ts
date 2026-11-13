@@ -19,7 +19,7 @@ import { JOINT } from '../../skeleton/rig';
 
 export const forgeParams = defineParams('forge', {
   zenith: '#020209',
-  horizon: '#1c0b12',
+  horizon: '#1a0c1c',
   fire: '#ff6a1c',
   fireLight: 1.6,
   cloud: '#2a0d08',
@@ -28,11 +28,11 @@ export const forgeParams = defineParams('forge', {
   auroraAmt: 0.6,
   stars: 0.9,
   stone: '#141418',
-  gloss: 0.35,
+  gloss: 0.6,
   seam: '#ff5a10',
   seamAmt: 1.6,
   heat: 1,
-  haze: 0.004,
+  haze: 0.0012,
   embers: 900,
   /** hold the bob at a beat (for stills), or follow the music (< 0) */
   bobHold: -1,
