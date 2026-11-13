@@ -23,6 +23,10 @@ export type CamMode = 'free' | 'lock' | 'rig';
 export interface CamKey {
   t: number;
   ease?: Ease;
+  /** a cut: every value jumps to this key at its time (and the lag, the lead and the orbit start again), and the
+   *  splines on either side don't see each other. A cut inside one shot is a cut within one continuous take: the
+   *  dancers, the matter and the music go straight on */
+  cut?: boolean;
   mode?: CamMode;
   /** seconds to blend into this key's mode (default 1.1, the rig's own lock ease) */
   blend?: number;
@@ -94,6 +98,8 @@ export class FilmCamera {
   private S: V3 | null = null;
   private V: V3 = [0, 0, 0];
   private orbitAngle = 0;
+  private cuts: number[] = [];
+  private lastT: number | null = null;
   private waves: { f: number; p: number }[][] = [];
   /** added to every yaw: the shot's base (the pair side-on, the stage's normal), set once by film.ts */
   yawBase = 0;
@@ -101,7 +107,8 @@ export class FilmCamera {
   constructor(keys: CamKey[], seed = 1) {
     const K = [...keys].sort((a, b) => a.t - b.t);
     for (const k of K) {
-      const e = k.ease ?? 'inOut';
+      const e = k.cut ? 'hold' : k.ease ?? 'inOut';
+      if (k.cut) this.cuts.push(k.t);
       const put = (s: Scalar, v: number | undefined) => {
         if (v === undefined) return;
         let tr = this.tracks.get(s);
@@ -115,7 +122,7 @@ export class FilmCamera {
       if (k.focus !== undefined) this.focuses.push({ t: k.t, a: k.focus, e });
       if (k.eye !== undefined) this.eyes.push({ t: k.t, a: k.eye, e });
       if (k.look !== undefined) this.looks.push({ t: k.t, a: k.look, e });
-      if (k.mode) this.modes.push({ t: k.t, m: k.mode, blend: k.blend ?? 1.1 });
+      if (k.mode) this.modes.push({ t: k.t, m: k.mode, blend: k.blend ?? (k.cut ? 0 : 1.1) });
     }
     if (!this.anchors.length) this.anchors.push({ t: 0, a: 'pair', e: 'inOut' });
     const r = rng(seed * 7919 + 13);
@@ -135,9 +142,13 @@ export class FilmCamera {
     if (t <= tr.t[0] || n === 1) return tr.v[0];
     if (t >= tr.t[n - 1]) return tr.v[n - 1];
     let i = 0;
-    while (t > tr.t[i + 1]) i++;
+    while (t >= tr.t[i + 1]) i++;
+    if (i + 1 >= n) return tr.v[n - 1];
     const u = EASES[tr.e[i + 1]]((t - tr.t[i]) / Math.max(1e-6, tr.t[i + 1] - tr.t[i]));
-    return cr(tr.v[Math.max(0, i - 1)], tr.v[i], tr.v[i + 1], tr.v[Math.min(n - 1, i + 2)], u);
+    // (a spline's neighbours stop at a cut: the move after a cut doesn't bend toward the shot before it)
+    const v0 = i > 0 && tr.e[i] !== 'hold' ? tr.v[i - 1] : tr.v[i];
+    const v3 = i + 2 < n && tr.e[i + 2] !== 'hold' ? tr.v[i + 2] : tr.v[i + 1];
+    return cr(v0, tr.v[i], tr.v[i + 1], v3, u);
   }
 
   /** a point-valued track (anchors): both ends evaluated now and mixed by the eased time */
@@ -179,6 +190,9 @@ export class FilmCamera {
     // what it looks round: the anchor, lagged like an operator's follow, led by its travel
     const raw = this.pointTrack(this.anchors, t, (a) => this.where(a, s)) ?? [0, 0, 0];
     const lag = g('lag');
+    // (a cut since the last frame: the operator starts again where the new shot is)
+    if (this.lastT !== null && this.cuts.some((c) => c > this.lastT! && c <= t)) { this.S = null; this.V = [0, 0, 0]; this.orbitAngle = 0; }
+    this.lastT = t;
     if (!this.S) this.S = [...raw] as V3;
     const k = lag > 1e-3 ? 1 - Math.exp(-dt / lag) : 1;
     const S = this.S, was: V3 = [S[0], S[1], S[2]];

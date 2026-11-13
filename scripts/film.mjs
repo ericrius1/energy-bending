@@ -79,7 +79,8 @@ function pageQuery(s) {
     const brain = (s.cast ?? []).find((c) => c?.brain);
     if (brain) { q.set('partner', brain.brain); if (brain.seed != null) q.set('seed', String(brain.seed)); }
     if (s.lock === false) q.set('free', '');
-  } else { q.set('play', ''); q.set('two', ''); }
+  } else if (s.mode === 'play') { q.set('play', ''); q.set('two', ''); }
+  // (mode 'show': the plain page, Gem Dancers' programme: its dancers in heaps until they wake)
   q.set('world', s.world ?? 'redwoods');
   const dress = (s.cast ?? []).map((c) => c?.dress ?? 'fire');
   if (dress.length) q.set('dress', dress.join(','));
@@ -110,7 +111,7 @@ const takeFrames = Number.isFinite(Q.take) ? Math.round(Q.take * Q.fps) : Infini
 for (const s of shots) {
   s.frames = Math.round(s.seconds * Q.fps);
   s.takes = Math.max(1, Math.ceil(s.frames / takeFrames));
-  s.dir = join(OUT, 'cache', Q.label, `${NAME}-${s.id}-${shotKey(s)}`);
+  s.dir = join(OUT, 'cache', Q.label, `${NAME}-${s.id}-${opts.variant ? `${opts.variant}-` : ''}${shotKey(s)}`);
   s.takePath = (k) => join(s.dir, `take-${String(k).padStart(3, '0')}.mkv`);
 }
 log(`${NAME}: ${shots.length} shots, ${shots.reduce((a, s) => a + s.seconds, 0).toFixed(1)} s, ${Q.label} ${W}x${H} @ ${Q.fps} (scale ${Q.scale}), takes of ${Number.isFinite(takeFrames) ? takeFrames : 'all'} frames, build ${buildHash}`);
@@ -193,7 +194,7 @@ function capture(path) {
 
 /** render a shot's takes [k0, k1) (and its score if `audio`) in one page */
 async function renderShot(s, k0, k1, audio) {
-  const start = k0 * takeFrames, end = Math.min(s.frames, k1 * takeFrames);
+  const start = k0 ? k0 * takeFrames : 0, end = Math.min(s.frames, k1 * takeFrames);
   const pauses = [];
   for (let k = 1; k < s.takes; k++) if (k * takeFrames < end) pauses.push(k * takeFrames);
   const plan = { fps: Q.fps, every: Q.every, start, end, total: s.frames, pauses, audio, tail: 2.5 };

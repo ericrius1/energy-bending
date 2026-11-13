@@ -29,7 +29,7 @@ export interface ShotCue {
   move?: string; press?: string | string[]; hold?: Record<string, unknown>; for?: number; goto?: number;
   place?: number | [number, number, number?]; build?: boolean; tension?: number;
   // the film's
-  form?: number; fuse?: boolean; walk?: [number, number]; speed?: number; dress?: string; wake?: boolean;
+  form?: number; fuse?: boolean; walk?: [number, number]; speed?: number; on?: number; dress?: string; wake?: boolean;
   rig?: 'lock' | 'free'; shot?: string;
   music?: { level?: number; drop?: boolean; fusion?: string; release?: boolean; key?: number; tension?: number };
   set?: Record<string, Record<string, unknown>>;
@@ -37,7 +37,7 @@ export interface ShotCue {
 }
 export interface ShotSpec {
   id: string;
-  mode: 'jogo' | 'play';
+  mode: 'jogo' | 'play' | 'show';
   bpm: number;
   seconds: number;
   /** the in-point: "start" (the page's first frames, plus `preroll`), or a place on the jogo's grid (default "1.1") */
@@ -191,7 +191,7 @@ async function run(api: FilmApi, recorder: Recorder, shot: ShotSpec, plan: ShotP
 
   // ---------------------------------------------------------------- what the film does each frame
   const releases: { t: number; seat: number; keys: string[] }[] = [];
-  const walks: ({ x: number; z: number; speed: number } | null)[] = [null, null];
+  const walks: ({ x: number; z: number; speed: number; world?: string; on?: number } | null)[] = [null, null];
   const curves = Object.entries(shot.curves ?? {}).map(([name, ks]) => {
     const [g, k] = name.split('.');
     return { g, k, keys: ks.map(([at, v, e]) => ({ t: tauOf(at), v, e: e ?? 'inOut' })).sort((a, b) => a.t - b.t) };
@@ -229,7 +229,7 @@ async function run(api: FilmApi, recorder: Recorder, shot: ShotSpec, plan: ShotP
       for (const k of c.press == null ? [] : Array.isArray(c.press) ? c.press : [c.press]) patch[k] = true;
       if (Object.keys(patch).length) B.intent(s, patch);
       if (c.hold && c.for != null) releases.push({ t: tau + c.for * spb, seat: s, keys: Object.keys(c.hold) });
-      if (c.walk) walks[s] = { x: c.walk[0], z: c.walk[1], speed: c.speed ?? 0.6 };
+      if (c.walk) walks[s] = { x: c.walk[0], z: c.walk[1], speed: c.speed ?? 0.6, on: c.on };
     }
     if (c.js) new Function('bend', c.js)(B);
   };
@@ -250,10 +250,19 @@ async function run(api: FilmApi, recorder: Recorder, shot: ShotSpec, plan: ShotP
     for (let s = 0; s < 2; s++) {
       const w = walks[s];
       if (!w) continue;
-      const ch = B.players()[s];
+      const ch = B.players()[s], dn = B.show.dancers.filter((x: { controller: { kind: string } }) => x.controller.kind === 'intent')[s];
+      const here = B.gates.worldOf(dn) as string;
+      w.world ??= here;
+      // through a gate the point is in the old world's coordinates: walk straight on (the stick as it was, in the
+      // camera's frame, which came through too) for `on` seconds, then stop
+      if (here !== w.world) {
+        w.on = (w.on ?? 1.2) - dt;
+        if (w.on <= 0) { B.intent(s, { moveX: null, moveZ: null }); walks[s] = null; }
+        continue;
+      }
       const dx = w.x - ch.x, dz = w.z - ch.z, d = Math.hypot(dx, dz);
       if (d < 0.15) { B.intent(s, { moveX: null, moveZ: null }); walks[s] = null; continue; }
-      const iy = B.show.dancers.filter((x: { controller: { kind: string } }) => x.controller.kind === 'intent')[s].controller.character.inputYaw as number;
+      const iy = dn.controller.character.inputYaw as number;
       const sp = w.speed * Math.min(1, d / 0.6), wx = (dx / d) * sp, wz = (dz / d) * sp, c = Math.cos(iy), sn = Math.sin(iy);
       B.intent(s, { moveX: wx * c - wz * sn, moveZ: -(wx * sn + wz * c) });
     }
