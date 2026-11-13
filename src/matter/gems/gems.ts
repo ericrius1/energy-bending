@@ -40,6 +40,7 @@ import { JOINT, JOINT_FLOATS } from '../../skeleton/rig';
 import { buildDome, heap, shower } from './fixtures';
 import { SoundEvents } from './events';
 import { touchParams } from '../core/touch';
+import { CAPSULES } from '../core/capsules';
 
 const MAXN = LIMITS.stones;
 const TOTAL = MAXN + LIMITS.fixtures;
@@ -183,6 +184,8 @@ export class GemPasses implements MatterPasses {
   private crystals = new Crystals();
   private motion = new GemMotion();
   private caps = new Float32Array(LIMITS.dancers * LIMITS.capsules * 4);
+  /** the capsules a clap lights, and how much: the hands whole, the forearms half */
+  private clapCaps = CAPSULES.map((c, k) => [k, c.part === 'hands' ? 1 : c.joint.endsWith('ForeArm') ? 0.5 : 0]).filter((x) => x[1] > 0);
   /** per dancer: its heart (strength 0: none) and colour */
   private heartDefs = Array.from({ length: LIMITS.dancers }, () => ({ strength: 0, radius: 0.17, glow: [1, 1, 1] as number[] }));
   private heartRows = Array.from({ length: LIMITS.dancers }, () => ({ at: [0, 0, 0, 0], glow: [0, 0, 0, 0] }));
@@ -430,7 +433,7 @@ export class GemPasses implements MatterPasses {
     const P = gemParams;
     this.look.set({
       envIntensity: P.envIntensity, glint: P.glint, dispersion: P.dispersion, ior: 1.5, emissive: P.emissive, speedGlow: P.speedGlow,
-      reflect: P.reflect, sparkle: P.sparkle, sparkSize: P.sparkSize, crystal: P.crystal, heart: P.heart, pad0: 0, streak: [P.streak, P.streakGlow, 0, 0],
+      reflect: P.reflect, sparkle: P.sparkle, sparkSize: P.sparkSize, crystal: P.crystal, heart: P.heart, clap: P.clapGlow, streak: [P.streak, P.streakGlow, 0, 0],
     });
   }
 
@@ -489,6 +492,13 @@ export class GemPasses implements MatterPasses {
         c[pk.slot * 4 + 1] = Math.max(c[pk.slot * 4 + 1], P.burst * pk.strength);
         c[pk.slot * 4 + 2] = Math.max(c[pk.slot * 4 + 2], pk.strength);
       }
+    }
+    // a clap (Dancer.clapAt, in FrameCtx.t): the hands flash at the meeting and fade (the draw reads caps' w)
+    for (let d = 0; d < f.dancers.length && d < LIMITS.dancers; d++) {
+      const since = f.t - (f.dancers[d]?.clapAt ?? -Infinity);
+      if (!(since >= 0 && since < P.clapFade * 6)) continue;
+      const k = Math.exp(-since / P.clapFade);
+      for (const [s, w] of this.clapCaps) c[(d * LIMITS.capsules + s) * 4 + 3] = k * w;
     }
     this.crystalU.set({ c: this.crystals.rows } as unknown as CrystalsU);
     this.motionU.set({ spin: this.motion.spin, accel: this.motion.accel, squash: this.motion.squash } as unknown as Motion);

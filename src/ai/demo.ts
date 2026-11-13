@@ -26,7 +26,7 @@ import type { Direction } from './direct';
 import { Scene, type SceneBody } from './scene';
 import { BrainDriver } from './driver';
 import { JogoReferee } from './jogo';
-import { ClipLibrary } from './clips';
+import { ClipLibrary, PALMAS_MEET } from './clips';
 import { PartnerBrain, PRESETS, type PresetName } from './partner';
 import { NpcBrain, rodaOf, rodaSpot } from './npc';
 import { StudentBrain, TeacherBrain } from './teacher';
@@ -110,8 +110,18 @@ class PageBrains {
   }
   travel: Motion | null = null;
 
+  /** each frame: a free dancer's clap, as its body plays it (the palmas past the meeting of the hands, whether its brain
+   *  kept time or cheered), onto its Dancer for the gems to light the hands */
+  claps(f: FrameCtx) {
+    for (const n of this.npcs) {
+      const m = n.c.character.move;
+      if (m && m.name === 'palmas' && m.t >= PALMAS_MEET * m.dur) n.d.clapAt = f.t - (m.t - PALMAS_MEET * m.dur);
+    }
+  }
+
   /** each frame, before the dancers: who is where, the clock, the jogo's state */
   see(f: FrameCtx) {
+    this.claps(f);
     const bodies: SceneBody[] = this.seats.map((c, i) => ({ id: `seat.${i}`, seat: i, character: c.character }));
     for (const n of this.npcs) bodies.push({ id: n.d.id, seat: -1, character: n.c.character });
     this.scene.bodies = bodies;
@@ -231,6 +241,7 @@ export async function rodaForJogo(ctx: BrainsCtx & { play: PlayHandle }, n: numb
     for (const x of pb.npcs) bodies.push({ id: x.d.id, seat: -1, character: x.c.character });
     pb.scene.bodies = bodies;
     pb.scene.update({ t: f.t, dt: f.danceDt, beat: f.beat.beats, bpm: f.beat.bpm, music: pb.music(), rules: rules() });
+    pb.claps(f);
   }, 'brains: the roda sees the jogo');
   exposeRoda(pb, ctx);
   return pb;
@@ -241,7 +252,7 @@ export async function rodaForJogo(ctx: BrainsCtx & { play: PlayHandle }, n: numb
  *  and directing any dancer the brains see (`direct(id, direction)`, direct.ts). Not wired into src/play */
 function exposeRoda(pb: PageBrains, ctx: BrainsCtx) {
   const api = {
-    npcs: () => pb.npcs.map((n) => ({ id: n.d.id, mode: (n.driver.brain as NpcBrain).mode, x: +n.c.character.x.toFixed(2), z: +n.c.character.z.toFixed(2), clapAt: n.driver.brain.body.clapAt })),
+    npcs: () => pb.npcs.map((n) => ({ id: n.d.id, mode: (n.driver.brain as NpcBrain).mode, x: +n.c.character.x.toFixed(2), z: +n.c.character.z.toFixed(2), clapAt: n.driver.brain.body.clapAt, clapped: n.d.clapAt })),
     /** the nearest two free dancers stand this far apart (m) */
     spacing: () => {
       let best = Infinity;
