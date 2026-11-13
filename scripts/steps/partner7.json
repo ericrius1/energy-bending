@@ -184,7 +184,7 @@
   "fps": 5,
   "seconds": 20,
   "warm": 1,
-  "setup": "bend.set('redwoods', { hour: 19.4, dayGoes: false }); await bend.jogo.start(); bend.set('camera', { followDist: 8, followFov: 40, followPitch: 0.55, followSwing: 0 }); bend.jogo.partner.scene.direct('seat.1', { cues: [{\"at\":\"1.1\",\"bars\":2,\"circle\":\"left\"},{\"at\":\"3.1\",\"offer\":\"armada\"},{\"at\":\"3.1\",\"bars\":2,\"answer\":\"low\"},{\"at\":\"5.1\",\"bars\":1,\"pause\":true},{\"at\":\"6.1\",\"move\":\"au\"},{\"at\":\"7.1\",\"bars\":2,\"circle\":\"right\"}] });",
+  "setup": "bend.set('redwoods', { hour: 19.4, dayGoes: false }); for (let i = 0; i < 100 && !bend.jogo; i++) await new Promise((r) => setTimeout(r, 50)); await bend.jogo.start(); bend.set('camera', { followDist: 8, followFov: 40, followPitch: 0.55, followSwing: 0 }); bend.jogo.partner.scene.direct('seat.1', { cues: [{\"at\":\"1.1\",\"bars\":2,\"circle\":\"left\"},{\"at\":\"3.1\",\"offer\":\"armada\"},{\"at\":\"3.1\",\"bars\":2,\"answer\":\"low\"},{\"at\":\"5.1\",\"bars\":1,\"pause\":true},{\"at\":\"6.1\",\"move\":\"au\"},{\"at\":\"7.1\",\"bars\":2,\"circle\":\"right\"}] });",
   "each": "bend.camera({ yaw: 0.6 }); if (Math.abs(t - Math.round(t)) < 0.01) { const p = bend.players(); console.warn('pair', JSON.stringify(p.slice(0, 2).map((x) => [+x.x.toFixed(2), +x.z.toFixed(2), x.move])), 'roda spacing', bend.roda ? bend.roda.spacing().toFixed(2) : 'none'); }",
   "sheet": {
    "cols": 10,

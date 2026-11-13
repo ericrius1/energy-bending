@@ -47,7 +47,7 @@ const cues = [
 ];
 takes.push({
   name: 'p7-direct', query: 'jogo=partner&world=redwoods&free&dress=fire,water', fps: 5, seconds: 20, warm: 1,
-  setup: `${dusk}await bend.jogo.start(); bend.set('camera', { followDist: 8, followFov: 40, followPitch: 0.55, followSwing: 0 }); bend.jogo.partner.scene.direct('seat.1', { cues: ${JSON.stringify(cues)} });`,
+  setup: `${dusk}for (let i = 0; i < 100 && !bend.jogo; i++) await new Promise((r) => setTimeout(r, 50)); await bend.jogo.start(); bend.set('camera', { followDist: 8, followFov: 40, followPitch: 0.55, followSwing: 0 }); bend.jogo.partner.scene.direct('seat.1', { cues: ${JSON.stringify(cues)} });`,
   each: `bend.camera({ yaw: 0.6 }); ${EVERY}`, sheet: { cols: 10, rows: 2, width: 260 }, stills: [],
 });
 writeFileSync(new URL('./partner7.json', import.meta.url), JSON.stringify(takes, null, 1));
