@@ -3,7 +3,7 @@
 // through open air, and ignore a solid the segment starts inside. And the redwoods' one lantern that hung in front of the
 // locked camera now hangs above its frame.
 import { test, assert, near, done } from '../../dancer/test/check';
-import { clearOf } from '../solids';
+import { boxOn, clearOf } from '../solids';
 import { layoutTemple, solidsOf, STAGE_Z } from './layout';
 import { layoutWoods, solidsOfWoods } from '../redwoods/layout';
 import { layoutStage, liftLanterns, solidsOfStage } from '../redwoods/stage';
@@ -74,6 +74,16 @@ test('redwoods: only the lantern that hung low in front of the lock is lifted, i
   near(L[k].anchor[1] - L[k].cord, 6.4, 1e-9);
   assert(L.every((l, i) => i === k || l.cord === before[i]), 'the others keep their cords');
   return `lantern ${k}: its bottom from ${(L[k].anchor[1] - before[k]).toFixed(2)} m to 6.40 m`;
+});
+
+test('a look point a hand over a slab of columns: a boom rising gently away is clear (the forge crown, 9-stage.md)', () => {
+  // a row of 0.43 m columns, their tops at 3.1 m, the look point 0.3 m over the middle one: inside the 40 cm margin of
+  // its neighbours too, which read as 0 clear before the margin shrank for a start that near
+  const slab = [-3, -2, -1, 0, 1, 2, 3].map((k) => boxOn([k * 0.43, 2.0, 0], [0.43, 1.1, 0.5]));
+  const t = clearOf(slab, [0, 3.4, 0], [7.6, 5.8, 0]);
+  const down = clearOf(slab, [0, 3.4, 0], [5, 1.5, 0]);
+  assert(t > 0.99 && down < 0.3, `rising ${t}, down through the slab ${down}`);
+  return `rising away ${t.toFixed(2)} clear, down through the slab ${down.toFixed(2)}`;
 });
 
 done();

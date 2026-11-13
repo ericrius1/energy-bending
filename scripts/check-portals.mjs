@@ -356,7 +356,7 @@ const stepRig = (rig, n, f, each) => { for (let i = 0; i < n; i++) { each?.(i); 
 // angle"), the lens stays the stage's, the eye never comes in faster than 5 m/s nor turns faster than 0.35 rad/s
 {
   const L = layoutTemple({ coarse: false }), S = templeSolids(L.stones);
-  const plane = stagePlane({ id: 'court', origin: [0, 0, -3.2], right: [1, 0, 0], halfWidth: 5.75, ground: 0, ledges: L.ledges, spawns: [[-2.85, 0], [2.9, 0]], lens: 19, yaw: 0.14, pitch: 0 });
+  const plane = stagePlane({ id: 'court', origin: [0, 0, -3.2], right: [1, 0, 0], halfWidth: 5.75, ground: 0, ledges: L.ledges, spawns: [[-2.0, 0], [2.05, 0]], lens: 19, yaw: 0.14, pitch: 0 });
   const rig = new CameraRig();
   rig.solids = new Solids(S);
   rig.clearance = (a, b) => clearOf(S, a, b);
