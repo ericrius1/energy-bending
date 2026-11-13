@@ -156,6 +156,15 @@ export interface WorldLight {
   pool: Pool;
   temple: Temple;
   forge: Forge;
+  sight: Sight;
+}
+export interface SightBody {
+  lo: Vec4;
+  hi: Vec4;
+}
+export interface Sight {
+  body: Partial<SightBody>[];
+  k: Vec4;
 }
 export interface KeyLight {
   dir: Vec3;
@@ -169,6 +178,7 @@ export interface AirView {
   through: number;
   bend: number;
   tint: Vec4;
+  windows: number;
 }
 export interface WaterAt {
   p: Vec3;
@@ -186,5 +196,5 @@ export interface MainOut {
   focus: Vec4;
 }
 
-declare const shader: Shader<{ Frame: Frame; FullscreenOut: FullscreenOut; Geode: Geode; Forest: Forest; Pool: Pool; Temple: Temple; Forge: Forge; FireLight: FireLight; FireLights: FireLights; WorldLight: WorldLight; KeyLight: KeyLight; AirView: AirView; WaterAt: WaterAt; Air: Air; MainOut: MainOut }, 'frame' | 'worldLight' | 'airv' | 'poolWaves' | 'templeWaves' | 'src' | 'glow' | 'focus0' | 'focus1' | 'focus2' | 'opaque' | 'surfaced' | 'bodyTex' | 'samp_linear' | 'samp_repeat' | 'samp_nearest' | 'samp_shadow'>;
+declare const shader: Shader<{ Frame: Frame; FullscreenOut: FullscreenOut; Geode: Geode; Forest: Forest; Pool: Pool; Temple: Temple; Forge: Forge; FireLight: FireLight; FireLights: FireLights; WorldLight: WorldLight; SightBody: SightBody; Sight: Sight; KeyLight: KeyLight; AirView: AirView; WaterAt: WaterAt; Air: Air; MainOut: MainOut }, 'frame' | 'worldLight' | 'airv' | 'poolWaves' | 'templeWaves' | 'src' | 'glow' | 'focus0' | 'focus1' | 'focus2' | 'opaque' | 'surfaced' | 'bodyTex' | 'samp_linear' | 'samp_repeat' | 'samp_nearest' | 'samp_shadow'>;
 export default shader;
