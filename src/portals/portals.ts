@@ -286,8 +286,9 @@ export class Portals implements SceneLayer {
   }
 
   /** every dancer as `world` sees it: its joints (carried through the gate it is nearest, for one in another world
-   *  joined to this one by an open gate), and their middle. What the camera follows and frames */
-  seen(world: string, dancers: readonly Dancer[]) {
+   *  joined to this one by an open gate), and their middle. What the camera follows and frames: it passes `reach`
+   *  (m), so a dancer in another world counts only while it is that near the gate (part way through, or just past) */
+  seen(world: string, dancers: readonly Dancer[], reach = Infinity) {
     const joints: Float32Array[] = [];
     let x = 0, z = 0;
     for (const d of dancers) {
@@ -299,7 +300,7 @@ export class Portals implements SceneLayer {
         const dd = Math.hypot(J[0] - g.at[0], J[1] - g.at[1], J[2] - g.at[2]);
         if (dd < bd) { bd = dd; best = g; }
       }
-      if (!best) continue;
+      if (!best || bd > reach) continue;
       let out = this.seenCache.get(d);
       if (!out) { out = new Float32Array(J.length); this.seenCache.set(d, out); }
       carryJoints(J, out, best.through, MAXJ);
