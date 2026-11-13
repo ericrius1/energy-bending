@@ -53,8 +53,9 @@ export const playParams = defineParams('play', {
   /** the gem suites players one and two wear */
   suiteOne: 'Violet',
   suiteTwo: 'Sky',
-  /** the gems' spring while playing (see playDemo) */
-  gemStiffness: 700,
+  /** the gems' spring while playing (see playDemo): the gems' fast-motion hold (gems/motion.ts) keeps fast limbs
+   *  together, so this needs only to be stiffer than the show's 130, not 700 as before the hold */
+  gemStiffness: 280,
 });
 
 /** ledges for a stage plane that has none (m, in the plane's own coordinates): two low ones to either side, a high one
@@ -106,7 +107,8 @@ export async function playDemo(ctx: PlayCtx): Promise<PlayHandle> {
   danceParams.speed = 1;
   danceParams.auto = false;
   // and its bodies move fast (a 9.5 m/s jump, a 4 m/s run, a spin in a third of a second): the gems' springs, tuned for
-  // a slow underwater dance (130, an 0.8 m lag at jump speed), are stiffened so the body stays a body, and shed less
+  // a slow underwater dance (130, an 0.8 m lag at jump speed), are stiffened (with the gems' hold, which stiffens a
+  // fast limb along its travel and caps the trail, 280 is enough) so the body stays a body, and shed less
   try { setParams('gems', { stiffness: playParams.gemStiffness, damping: 2 * Math.sqrt(playParams.gemStiffness) * 0.9, speedShed: 0.04 }); } catch { /* no gems */ }
   // the CMU pirouette as a flourish (spin with the stick up; bend.move(p, 'pirueta'))
   const flourish = pirouetteFlourish(ctx.motion);
