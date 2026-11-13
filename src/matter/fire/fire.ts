@@ -177,7 +177,7 @@ export class FirePasses implements MatterPasses {
     s.size = P.size; s.embers = P.embers; s.heat = P.heat; s.cling = P.cling;
     s.blast = this.blast;
     s.intensity = P.intensity; s.stretch = P.stretch; s.erode = P.erode; s.reflect = P.reflect; s.emberGlow = P.emberGlow;
-    s.smoke = P.smoke; s.plasmaGlow = P.plasmaGlow; s.flicker = P.flicker;
+    s.smoke = P.smoke; s.plasmaGlow = P.plasmaGlow; s.flicker = P.flicker; s.tongues = P.tongues;
     s.form = [[...this.form.subarray(0, 4)], [...this.form.subarray(4, 8)]] as unknown as FireSim['form'];
     this.sim.set(s);
     this.blast = [0, 0, 0, 0];

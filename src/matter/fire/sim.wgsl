@@ -85,7 +85,7 @@ fn main(@builtin(global_invocation_id) gid: vec3u) {
       f.life = mix(mix(0.7, 2.9, r3 * r3), mix(0.18, 0.58, r3), form) * (1.0 - 0.5 * wet);
       f.look = vec4f(form, 1.0, -sim.size * mix(0.12, 0.26, r2), wet);
     } else {
-      f.vel = H.vel * sim.inherit + H.out * mix(0.15, 0.45, r1) * (1.0 - 0.8 * form) + UP * 0.25 * (1.0 - form);
+      f.vel = H.vel * sim.inherit + H.out * mix(0.03, 0.15, r1) * (1.0 - 0.8 * form) + UP * 0.2 * (1.0 - form);
       f.life = sim.life * mix(0.45, 1.25, r3 * r3) * k;
       f.look = vec4f(form, T0, sim.size * mix(0.6, 1.4, r1) * (1.0 - 0.45 * cold), wet);
     }

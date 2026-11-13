@@ -14,7 +14,7 @@ export const arcParams = defineParams('plasma', {
   minPx: 0.9,
   roughness: 0.22,
   forks: 2,
-  glow: 1,
+  glow: 2.5,
 }, {
   handArcs: { label: 'arcs between the hands' },
   handReach: { min: 0.2, max: 3, label: 'hand arc reach (m)' },

@@ -37,6 +37,7 @@ struct FireSim {
   smoke: f32,            // @range(0, 1) how dark the smoke is
   plasmaGlow: f32,       // @range(0, 4)
   flicker: f32,          // @range(0, 1) plasma's electric flicker
+  tongues: f32,          // @range(0, 1) how much the climbing noise in the air splits the fire into tongues and gaps
   form: array<vec4f, 2>, // per dancer slot (MAX_DANCERS = 8): the game's form, 0 fire … 1 plasma
 }
 
@@ -54,7 +55,7 @@ fn plasmaRamp(T: f32) -> vec3f {
 /** how hot a flame is now: hot at birth, cooling fast at first (the core survives ~0.3 s), the tips fading quickly */
 fn flameT(f: Flame) -> f32 {
   let u = clamp(f.age / max(f.life, 1e-3), 0.0, 1.0);
-  return f.look.y * pow(1.0 - u, 1.6) * smoothstep(0.0, 0.04, f.age + 0.02);
+  return f.look.y * pow(1.0 - u, 2.0) * smoothstep(0.0, 0.04, f.age + 0.02);
 }
 
 fn alive(f: Flame) -> bool { return f.age >= 0.0 && f.age < f.life && f.life > 0.0; }

@@ -1,7 +1,7 @@
 // Plasma arcs drawn: every segment of every bolt (built on the CPU each frame, matter/plasma/arcs.ts) as a
 // camera-facing capsule added into the scene: a white-hot core and a violet glow round it (docs/element-looks.md,
 // "Lightning arcs"). The core is kept at least about a pixel wide whatever the distance, so a far bolt still reads as a
-// line and blooms.
+// line and blooms; its distance is min-blended into the scene's alpha, as the flames' is, so it stays in focus.
 #include "weft/frame"
 
 /** a: one end (xyz) and the core's half width (m); b: the other end and the intensity */
@@ -16,6 +16,7 @@ struct AOut {
   // along the segment (m from end a), across (m), the segment's length, the core's half width
   @location(0) at: vec4f,
   @location(1) @interpolate(flat) intensity: f32,
+  @location(2) @interpolate(flat) dist: f32,
 }
 
 const CORNERS = array<vec2f, 6>(vec2f(0.0, -1.0), vec2f(1.0, -1.0), vec2f(1.0, 1.0), vec2f(0.0, -1.0), vec2f(1.0, 1.0), vec2f(0.0, 1.0));
@@ -49,6 +50,7 @@ const REACH = 9.0;
   o.at = vec4f(along, c.y * r, len, w);
   // a thinner core than the minimum still carries its light: spread it
   o.intensity = s.b.w * min(1.0, s.a.w / w);
+  o.dist = dist;
   return o;
 }
 
@@ -58,5 +60,6 @@ const REACH = 9.0;
   let col = vec3f(1.0, 0.92, 1.0) * exp(-1.5 * d * d) * 2.6 + vec3f(0.55, 0.22, 1.0) * exp(-0.55 * d) * 0.35 * look.glow;
   // fade the quad's edge so the glow ends softly
   let edge = smoothstep(REACH, REACH * 0.6, d);
-  return vec4f(col * i.intensity * edge, 0.0);
+  // the bolt's distance into the scene's alpha (min-blended) where its core is, so the depth of field keeps it sharp
+  return vec4f(col * i.intensity * edge, select(1e5, i.dist, d < 1.5));
 }

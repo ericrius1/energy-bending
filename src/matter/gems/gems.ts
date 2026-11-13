@@ -231,7 +231,15 @@ export class GemPasses implements MatterPasses {
   /** a programme wanting more stones than the last: the new ones rain in from above; fewer: the rest become spares,
    *  fall where they are and fade into the floor */
   resize(budget: Budget) {
-    const n = Math.min(budget.count, MAXN), was = this.active;
+    this.budget = budget.count;
+    this.resizeTo(this.lastLayers.length || !this.laidOut ? budget.count : 0);
+  }
+  /** the stones the programme asked for (resize), kept while no dancer wears gems */
+  private budget = matterParams.count;
+  private laidOut = false;
+
+  private resizeTo(count: number) {
+    const n = Math.min(count, MAXN), was = this.active;
     // between dances the stones keep the last dance's looks until each rises (a stone changes as it lifts)
     if (this.settling) this.keepLooks(0, this.stoneCount);
     this.active = n;
@@ -256,6 +264,11 @@ export class GemPasses implements MatterPasses {
   /** each layer's stones tiled over its body, in its suite of three; the stones re-home and fly to their new places */
   layout(layers: MatterLayer[]) {
     this.lastLayers = layers;
+    this.laidOut = true;
+    // no dancer wears gems (all fire, say): every stone becomes a spare and fades into the floor, and comes back
+    // when a dancer wears them again (without this they stayed on their last homes, drawn inside the new matter)
+    if (!layers.length && this.active > 0) this.resizeTo(0);
+    else if (layers.length && this.active === 0 && this.budget > 0) this.resizeTo(this.budget);
     const count = this.activeCount;
     this.prevLook = this.settling ? 1 : 0;
     if (layers.length && count) {

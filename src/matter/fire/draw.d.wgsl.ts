@@ -120,6 +120,7 @@ export interface FireSim {
   smoke: number;
   plasmaGlow: number;
   flicker: number;
+  tongues: number;
   form: ArrayLike<number> | Vec4[];
 }
 export interface FOut {

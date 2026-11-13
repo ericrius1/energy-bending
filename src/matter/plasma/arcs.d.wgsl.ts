@@ -44,6 +44,7 @@ export interface AOut {
   pos: Vec4;
   at: Vec4;
   intensity: number;
+  dist: number;
 }
 
 declare const shader: Shader<{ Frame: Frame; ArcSeg: ArcSeg; ArcLook: ArcLook; AOut: AOut }, 'frame' | 'look' | 'segs' | 'samp_linear' | 'samp_repeat' | 'samp_nearest' | 'samp_shadow'>;

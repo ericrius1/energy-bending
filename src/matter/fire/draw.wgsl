@@ -30,8 +30,9 @@ struct FOut {
 const CORNERS = array<vec2f, 6>(vec2f(-1.0, -1.0), vec2f(1.0, -1.0), vec2f(1.0, 1.0), vec2f(-1.0, -1.0), vec2f(1.0, 1.0), vec2f(-1.0, 1.0));
 
 fn smokeOf(f: Flame, u: f32) -> f32 {
-  // wet flames turn to smoke as they go; dry fire lets a little dark smoke go from its dying tips
-  return clamp(f.look.w * (0.3 + 0.9 * u) + sim.smoke * 0.35 * smoothstep(0.55, 1.0, u) * (1.0 - f.look.x), 0.0, 1.0);
+  // wet flames turn to smoke as they go (dry fire makes none: its smoke would be lost against the dark, and the smoke
+  // draw's big sprites cost about a third of the fire's fill; with no wet in the field, every flame is culled here)
+  return clamp(f.look.w * (0.3 + 0.9 * u), 0.0, 1.0);
 }
 
 @vertex fn vs(@builtin(vertex_index) vi: u32, @builtin(instance_index) ii: u32) -> FOut {
@@ -58,8 +59,11 @@ fn smokeOf(f: Flame, u: f32) -> f32 {
   // a flame swells as it rises and cools; plasma stays thin; smoke billows
   var w = size * select(mix(0.55, 1.45, u) * mix(1.0, 0.4, form), 1.0, ember) * (1.0 + smoke * 1.5);
   let speed = length(v);
-  let streak = min(speed * sim.stretch * mix(1.0, 2.2, form) * select(1.0, 1.6, ember), 0.4);
-  let along = w * select(mix(1.7, 2.4, form), 1.0, ember) + streak * 0.5;
+  let streak = min(speed * sim.stretch * mix(1.0, 2.2, form) * select(1.0, 1.6, ember), 0.18);
+  // a streak gets thinner as it gets longer (the same light spread along it), so a fast limb leaves a sheet of thin
+  // licks rather than a spray of fat petals
+  w = w / (1.0 + select(streak / max(w, 1e-4) * 0.25, 0.0, ember));
+  let along = w * select(mix(2.2, 2.6, form), 1.0, ember) + streak * 0.5;
   let dir = select(vec3f(0.0, 1.0, 0.0), v / max(speed, 1e-4), speed > 1e-3);
   let toCam = normalize(frame.camPos - p);
   var ax = dir - toCam * dot(dir, toCam);
@@ -72,7 +76,20 @@ fn smokeOf(f: Flame, u: f32) -> f32 {
   let wp = centre + ax * (c.y * along) + side * (c.x * w);
   o.pos = frame.viewProj * vec4f(wp, 1.0);
   o.uv = c;
-  o.look = vec4f(flameT(f), form, u, smoke);
+  // tongues: a noise in the air, tall and thin, climbing at about a metre a second; where it is low the flames are
+  // dim, so a body of thousands of sprites splits into licking tongues with dark gaps between (the 2D original's
+  // display noise, in the world instead of on the screen). Embers and plasma don't take it.
+  let q = f.pos * vec3f(4.5, 1.25, 4.5) - vec3f(0.0, sim.time * 1.3, 0.0);
+  let tn = vnoise(q) * 0.62 + vnoise(q * 2.3 + vec3f(7.1, 3.3, 1.9)) * 0.38;
+  let tongue = mix(1.0, 0.08 + 1.6 * smoothstep(0.38, 0.75, tn), sim.tongues);
+  // plasma's filaments: ridged noise in the air, finer, stretched up and running fast (threads crawling over the
+  // body), so only the flames that sit on a thread are bright: thin white-violet lines, not a glowing ghost
+  let pq = f.pos * vec3f(15.0, 6.5, 15.0) + vec3f(sim.time * 1.2, -sim.time * 4.5, 0.0);
+  let ra = 1.0 - abs(2.0 * vnoise(pq) - 1.0);
+  let rb = 1.0 - abs(2.0 * vnoise(pq * 2.1 + vec3f(-sim.time * 1.8, -sim.time * 6.5, 3.7)) - 1.0);
+  let fil = 0.12 + 3.2 * (pow(ra, 8.0) + 0.7 * pow(rb, 10.0));
+  let shape = select(mix(tongue, fil, form), 1.0, ember);
+  o.look = vec4f(flameT(f) * shape, form, u, smoke);
   o.info = vec4f(rnd(pcg(ii * 747796405u + 1u)), select(0.0, 1.0, ember), dot(p - frame.camPos, frame.camFwd), fade);
   return o;
 }
@@ -111,9 +128,9 @@ fn flameLight(i: FOut) -> vec4f {
   // plasma: a thread of white-hot down the middle of the streak in a violet haze, flickering at ~40 Hz
   let thread = exp(-uv.x * uv.x * 26.0) * smoothstep(1.0, 0.3, abs(uv.y));
   let flick = mix(1.0, 0.6 + 0.8 * rnd(u32(t * 41.0) * 1664525u + u32(seed * 65535.0)), sim.flicker);
-  let Tp = clamp(T * (0.2 + 2.6 * thread * (0.6 + 0.8 * n.b)) * flick - 0.03, 0.0, 3.6) * smoothstep(0.0, 0.3, body);
-  let plasma = (plasmaRamp(Tp) + vec3f(0.30, 0.06, 0.55) * 0.5 * smoothstep(0.02, 0.6, T * soft)) * sim.plasmaGlow;
-  let col = mix(fire, plasma * 0.35, form);
+  let Tp = clamp(T * (0.3 + 1.2 * thread * (0.6 + 0.8 * n.b)) * flick - 0.03, 0.0, 3.6) * soft;
+  let plasma = (plasmaRamp(Tp) * 0.35 + vec3f(0.30, 0.06, 0.55) * 0.5 * smoothstep(0.02, 0.6, T * soft)) * sim.plasmaGlow;
+  let col = mix(fire, plasma, form);
   return vec4f(col, mix(eaten, thread * soft, form) * min(T, 1.0));
 }
 

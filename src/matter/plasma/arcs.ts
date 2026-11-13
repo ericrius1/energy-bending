@@ -4,7 +4,7 @@
 // each frame with new random offsets is the flicker, as in the 2D original (docs/element-looks.md, "Lightning arcs"):
 // midpoint displacement, 16 segments (8 if short), pinned at both ends, roughness a fraction of the length halving
 // each level; one or two forks on a long arc, from a random vertex, turned 0.4 … 1 rad, a fifth to two fifths of its
-// length, free at the end, thinner and dimmer.
+// length (8 segments), free at the end, thinner and dimmer.
 //
 // Deterministic when stepped: the random numbers come from the frame number.
 import type { Kit, StorageBuffer, UniformBuffer } from '@ericrius1/weft';
@@ -49,7 +49,8 @@ export class Arcs {
     if (s.phase !== 'glow') return;
     s.pass.draw(arcShader, {
       label: `plasma.arcs.${s.world.id}`, bind: { look: this.look, segs: this.segs }, count: 6, instances: () => this.count,
-      blend: 'add', depthWrite: false, cull: 'none', enabled: () => s.on() && this.count > 0,
+      blend: { color: { srcFactor: 'one', dstFactor: 'one' }, alpha: { operation: 'min', srcFactor: 'one', dstFactor: 'one' } },
+      depthWrite: false, cull: 'none', enabled: () => s.on() && this.count > 0,
     });
   }
 
@@ -83,12 +84,12 @@ export class Arcs {
       const fl = L * (0.18 + 0.25 * this.r());
       const dir = turn(d, 0.4 + 0.6 * this.r(), this.r() * Math.PI * 2);
       const e = [s[0] + dir[0] * fl, s[1] + dir[1] * fl, s[2] + dir[2] * fl];
-      const fp = this.jag(s, e, 6, 0.3 * fl, false);
+      const fp = this.jag(s, e, 8, 0.3 * fl, false);
       this.emit(fp, width * 0.6, I * 0.6, 0.4);
     }
   }
 
-  /** a jagged line by midpoint displacement: n segments (a power of two), roughness `amp` (m) halving each level;
+  /** a jagged line by midpoint displacement: n segments (a power of two: anything else leaves holes), roughness `amp` (m) halving each level;
    *  pinned at both ends, or with a free end that wanders too */
   private jag(a: number[], b: number[], n: number, amp: number, pinned: boolean): number[] {
     const p = new Array((n + 1) * 3).fill(0);
