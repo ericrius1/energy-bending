@@ -1,4 +1,0 @@
-[
-  { "name": "geode-front", "query": "gates", "wake": true, "frames": 600, "params": { "gates": { "fly": "geode.door", "flyT": -1, "flySpeed": 0, "flyLength": 4, "flyRise": 0.1 } } },
-  { "name": "orbit", "query": "gates", "frames": 60, "params": { "gates": { "fly": "" } }, "shot": "wide" }
-]

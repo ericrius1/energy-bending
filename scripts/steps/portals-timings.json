@@ -1,0 +1,6 @@
+[
+  {"name": "time-nogates", "wake": true, "frames": 600, "timings": true},
+  {"name": "time-shimmer", "query": "gates", "wake": true, "frames": 600, "params": {"gates": {"fly": "geode.door", "flyT": -1, "flySpeed": 0, "flyLength": 3.4, "flyAngle": 0, "flyRise": 0.05, "flyPitch": 4, "live": 0, "depth": 1}}, "timings": true},
+  {"name": "time-one", "query": "gates", "frames": 30, "params": {"gates": {"fly": "geode.door", "flyT": -1, "flySpeed": 0, "flyLength": 3.4, "flyAngle": 0, "flyRise": 0.05, "flyPitch": 4, "live": 1, "depth": 1}}, "timings": true},
+  {"name": "time-two", "query": "gates", "frames": 30, "params": {"gates": {"fly": "geode.door", "flyT": -1, "flySpeed": 0, "flyLength": 3.4, "flyAngle": 0, "flyRise": 0.05, "flyPitch": 4, "live": 1, "depth": 2}}, "timings": true}
+]

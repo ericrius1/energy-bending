@@ -619,9 +619,11 @@ function screenOf(g: Gate, c: CamLike, w: number, h: number) {
   if (near) {
     // some of it is beside or behind the eye: draw it over the whole screen (the shader finds the disc per pixel),
     // as long as the eye is anywhere near it
+    // (its size is how much of the screen it really covers: a gate beside the eye isn't the biggest on screen)
+    // (drawn whenever the eye is anywhere near: the shader finds the disc per pixel)
     const l = g.local(c.position), out = Math.hypot(l[0], l[1]) - g.reach;
-    const on = Math.abs(l[2]) < g.radius * 3 && out < g.radius * 3;
-    return { on, px: Math.max(w, h), rect: [-1, -1, 1, 1] };
+    const k = coverage(g, c, w / Math.max(h, 1));
+    return { on: Math.abs(l[2]) < g.radius * 3 && out < g.radius * 3, px: Math.sqrt(k) * Math.max(w, h) * 0.5, rect: [-1, -1, 1, 1] };
   }
   const on = x1 > -1 && x0 < 1 && y1 > -1 && y0 < 1;
   const px = Math.max((x1 - x0) * w, (y1 - y0) * h) * 0.25;

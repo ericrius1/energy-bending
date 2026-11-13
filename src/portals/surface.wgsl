@@ -45,6 +45,15 @@ fn farTap(slot: i32, uv: vec2f) -> vec3f {
   let c = textureSampleLevel(slot2, samp_linear, u, 0.0).rgb;
   return select(select(a, b, slot == 1), c, slot == 2);
 }
+/** how far the far view's pixel is from its eye (its alpha: the whole path, eye to gate to what it shows) */
+fn farDist(slot: i32, uv: vec2f) -> f32 {
+  let u = clamp(uv, vec2f(0.001), vec2f(0.999));
+  let a = textureSampleLevel(slot0, samp_linear, u, 0.0).a;
+  let b = textureSampleLevel(slot1, samp_linear, u, 0.0).a;
+  let c = textureSampleLevel(slot2, samp_linear, u, 0.0).a;
+  return select(select(a, b, slot == 1), c, slot == 2);
+}
+
 /** last frame's view (it was taken from another camera): soft, so the misfit doesn't show */
 fn farBlur(slot: i32, uv: vec2f) -> vec3f {
   let e = 7.0 * frame.invRes;
@@ -177,7 +186,13 @@ fn screenUv(p: vec3f) -> vec2f {
   // the plane's depth, a few millimetres toward the eye (a gate on a wall or a floor wins over it)
   let cd = frame.viewProj * vec4f(eye + d * max(t - 0.004, 1e-4), 1.0);
   o.depth = clamp(cd.z / cd.w, 0.0, 1.0);
-  o.col = vec4f(col, dot(p - eye, frame.camFwd));
+  // alpha is the distance the air and the depth of field read. Far from the gate it is the gate's own (this world's
+  // air lies over the disc as over a window); at the face it becomes the far view's whole path, so the depth of field
+  // doesn't see the whole screen as a few centimetres away as the eye passes through
+  let here = dot(p - eye, frame.camFwd);
+  var dist = here;
+  if (slot >= 0 && live > 0.75) { dist = mix(max(here, farDist(slot, suv)), here, calm); }
+  o.col = vec4f(col, dist);
   return o;
 }
 
