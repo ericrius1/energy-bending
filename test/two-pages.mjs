@@ -64,7 +64,11 @@ try {
     console.log(`[${name}] slot ${st.slot} sees slot ${st.other} (seen ${st.seen}); delay ${st.delay?.toFixed(0)} ms, transit ${st.transit?.toFixed(0)} ms, jitter ${st.jitter?.toFixed(1)} ms, rtt ${st.rtt?.toFixed(0)} ms, cuts ${st.cuts}`);
     console.log(`[${name}]   pose error at the true instants: ${e.n} samples, rms ${e.rms.toFixed(1)} mm, p95 ${e.p95.toFixed(1)} mm, max ${e.max.toFixed(1)} mm`);
     console.log(`[${name}]   landmark acceleration p99: remote ${a.remoteP99?.toFixed(1)} m/s², local ${a.localP99?.toFixed(1)} m/s² (max ${a.remoteMax?.toFixed(1)} / ${a.localMax?.toFixed(1)}) over ${a.frames} frames; phase ${st.phase}`);
+    console.log(`[${name}]   clip ${st.clip.toFixed(2)} s; worst errors ${st.worst.map((w) => `${w.mm.toFixed(0)} mm @${w.clipT.toFixed(2)}`).join(', ')}; worst accelerations ${st.worstAcc.map((w) => `${w.acc.toFixed(0)} @${w.clipT.toFixed(2)}`).join(', ')}`);
   }
+  // the same side-on view on both pages (the director's own angle can put one partner behind the other)
+  for (const { page } of pages) await page.evaluate(() => window.bend.camera({ yaw: 1.35, pitch: 0.12, dist: 4.6 }));
+  await sleep(1500);
   for (const { name, page } of pages) {
     const png = await page.evaluate(async () => { window.bend.kit.manual = true; return window.bend.grab('image/png'); });
     writeFileSync(join(OUT, `page-${name}.png`), Buffer.from(png.split(',')[1], 'base64'));

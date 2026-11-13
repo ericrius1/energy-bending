@@ -47,6 +47,9 @@ class Probe {
   private truths: { ts: number; p: Float64Array }[] = [];
   private seenTs = new Set<number>();
   errs: number[] = [];
+  /** the worst errors and remote accelerations, with the server time they happened (to tell a clip's loop from a snap) */
+  worst: { mm: number; ts: number }[] = [];
+  worstAcc: { acc: number; T: number }[] = [];
   accRemote: number[] = [];
   accLocal: number[] = [];
   private hist = { remote: [] as { t: number; p: Float64Array }[], local: [] as { t: number; p: Float64Array }[] };
@@ -62,7 +65,7 @@ class Probe {
     this.truths.push({ ts, p: worldPoints(this.tmp, new Float64Array(NLM * 3)) });
   }
 
-  private acc(which: 'remote' | 'local', t: number, p: Float64Array) {
+  private acc(which: 'remote' | 'local', t: number, p: Float64Array, T = 0) {
     const h = this.hist[which], out = which === 'remote' ? this.accRemote : this.accLocal;
     h.push({ t, p: p.slice() });
     if (h.length > 3) h.shift();
@@ -76,6 +79,7 @@ class Probe {
       worst = Math.max(worst, Math.sqrt(s));
     }
     out.push(worst);
+    if (which === 'remote') { this.worstAcc.push({ acc: worst, T }); this.worstAcc.sort((x, y) => y.acc - x.acc); this.worstAcc.length = Math.min(5, this.worstAcc.length); }
     if (out.length > 20000) out.splice(0, 10000);
   }
 
@@ -85,7 +89,7 @@ class Probe {
       const p = worldPoints(remote.pose, new Float64Array(NLM * 3));
       this.shown.push({ T, p });
       if (this.shown.length > 600) this.shown.shift();
-      this.acc('remote', wall, p);
+      this.acc('remote', wall, p, T);
       // every truth whose instant has been shown: compare with what was on screen then (linear between frames)
       this.truths.sort((a, b) => a.ts - b.ts);
       while (this.truths.length && this.truths[0].ts <= T) {
@@ -101,6 +105,7 @@ class Probe {
           e += Math.sqrt(s);
         }
         this.errs.push(e / NLM);
+        this.worst.push({ mm: (1000 * e) / NLM, ts: tr.ts }); this.worst.sort((x, y) => y.mm - x.mm); this.worst.length = Math.min(5, this.worst.length);
         if (this.errs.length > 20000) this.errs.splice(0, 10000);
       }
     }
@@ -108,7 +113,7 @@ class Probe {
     this.acc('local', wall, worldPoints(this.lm, new Float64Array(NLM * 3)));
   }
 
-  reset() { this.errs.length = 0; this.accRemote.length = 0; this.accLocal.length = 0; }
+  reset() { this.errs.length = 0; this.accRemote.length = 0; this.accLocal.length = 0; this.worst.length = 0; this.worstAcc.length = 0; }
 }
 
 const pct = (a: number[], q: number) => { if (!a.length) return NaN; const s = [...a].sort((x, y) => x - y); return s[Math.min(s.length - 1, Math.floor(q * s.length))]; };
@@ -147,6 +152,7 @@ export async function netDemo(motion: Motion, frame: FrameBuilder, query: URLSea
   frame.tick('input', (f) => { session.beat(f.beat); }, 'net: the room\'s music clock into FrameCtx.beat');
   frame.tick('camera', () => { probe.frame(remote, me.skeleton, session.net.buffer(other)?.shownAt ?? null, performance.now()); }, 'net: the pose probe');
 
+  const clipAt = (ts: number) => { const m = session.state?.music; return m ? (((ts - m.epoch) / 1000) % mine.track.duration + mine.track.duration) % mine.track.duration : NaN; };
   const w = window as unknown as { bendNet: unknown };
   w.bendNet = {
     session, probe,
@@ -158,6 +164,10 @@ export async function netDemo(motion: Motion, frame: FrameBuilder, query: URLSea
         poseErrMm: { n: probe.errs.length, rms: 1000 * Math.sqrt(probe.errs.reduce((a, e) => a + e * e, 0) / Math.max(1, probe.errs.length)), p95: 1000 * pct(probe.errs, 0.95), max: 1000 * pct(probe.errs, 1) },
         accel: { remoteP99: pct(probe.accRemote, 0.99), localP99: pct(probe.accLocal, 0.99), remoteMax: pct(probe.accRemote, 1), localMax: pct(probe.accLocal, 1), frames: probe.accRemote.length },
         phase: session.state?.phase ?? null, beats: session.beats(),
+        // where in the clip (s) the worst moments fell: near 0 (or the clip's length) is its loop, a real jump
+        clip: mine.track.duration,
+        worst: probe.worst.map((w) => ({ mm: w.mm, clipT: clipAt(w.ts) })),
+        worstAcc: probe.worstAcc.map((w) => ({ acc: w.acc, clipT: clipAt(w.T) })),
       };
     },
   };
