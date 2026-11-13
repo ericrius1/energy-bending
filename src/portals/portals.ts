@@ -416,6 +416,9 @@ export class Portals implements SceneLayer {
       if (Math.hypot(l[0], l[1]) > g.reach + 0.4) continue;
       best = Math.min(best, Math.max(0, (Math.abs(sa) - m) / d));
     }
+    // and the world's own solid things, where it knows them (World.clear: the redwoods' trunks)
+    const w = this.ctx.worlds.find((x) => x.id === this.rigWorld);
+    if (w?.clear) best = Math.min(best, w.clear(a, b));
     return best;
   }
 
@@ -439,7 +442,10 @@ export class Portals implements SceneLayer {
     this.homes.set(d, b.world);
     const r = this.roots.get(d);
     if (r) G.pt(r, r);
-    for (const m of this.kinds) m.carry?.([{ dancer: k, move: M }]);
+    // the particles near the door go with the dancer (a sphere round the disc, as wide as a body reaching through it);
+    // stones and spray it shed earlier, further off, stay in the world they fell in
+    const within: [number, number, number, number] = [g.at[0], g.at[1], g.at[2], g.radius + P.carryReach];
+    for (const m of this.kinds) m.carry?.([{ dancer: k, move: M, within }]);
     const suite = String(d.loadout.layers[0]?.params?.suite ?? '');
     const rim = SUITE_RIM[suite] ?? [0.9, 0.8, 1.0];
     for (const x of [g, b]) { x.rim = [...rim] as V3; x.flash = 1; }

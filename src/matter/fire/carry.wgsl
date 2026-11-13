@@ -6,6 +6,7 @@
 struct Carry {
   m: array<mat4x4f, MAX_DANCERS>,
   q: array<vec4f, MAX_DANCERS>,
+  w: array<vec4f, MAX_DANCERS>,     // only within this sphere (xyz, radius; 0: every flame): shed ones stay behind
   mask: u32,
   count: u32,
   pad0: u32, pad1: u32,
@@ -22,6 +23,8 @@ fn main(@builtin(global_invocation_id) gid: vec3u) {
   let d = min(dancerOf(homes[i]), MAX_DANCERS - 1u);
   if ((carry.mask & (1u << d)) == 0u) { return; }
   var f = flames[i];
+  let s = carry.w[d];
+  if (s.w > 0.0 && distance(f.pos, s.xyz) > s.w) { return; }
   let m = carry.m[d];
   f.pos = (m * vec4f(f.pos, 1.0)).xyz;
   f.vel = (m * vec4f(f.vel, 0.0)).xyz;

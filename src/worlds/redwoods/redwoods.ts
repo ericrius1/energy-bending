@@ -228,6 +228,24 @@ export class Redwoods implements World {
   private pieces() { return (this.piecesBuf ??= this.ctx.kit.storage({ label: 'redwoods.stage', data: packPieces(this.stage.pieces), usage: ['storage'] })); }
 
   /** the meadow, or the fallen log's top where it lies */
+  /** the camera's clearance (World.clear): the segment against the nearest trunks as upright cylinders (a 40 cm margin) */
+  clear(a: [number, number, number], b: [number, number, number]) {
+    const T = this.woods.layout.trunks, dx = b[0] - a[0], dz = b[2] - a[2], L2 = dx * dx + dz * dz;
+    let best = 1;
+    if (L2 < 1e-6) return best;
+    for (let i = 0; i + 3 < T.length && i < 4 * 24; i += 4) {
+      const x = T[i], z = T[i + 1], R = T[i + 2] + 0.4;
+      if (R <= 0.4) continue;
+      // where the segment first comes within R of the trunk's axis (a quadratic in t along it)
+      const fx = a[0] - x, fz = a[2] - z, B = fx * dx + fz * dz, C = fx * fx + fz * fz - R * R;
+      if (C <= 0) return 0;
+      const disc = B * B - L2 * C;
+      if (disc < 0) continue;
+      const t = (-B - Math.sqrt(disc)) / L2;
+      if (t >= 0 && t < best) best = t;
+    }
+    return best;
+  }
   groundAt(x: number, z: number) {
     const [px, , across] = toPlane(this.stages[0], [x, 0, z]);
     const log = this.stage.ledges[0], R = this.stage.plate[0], cy = log.y - R;

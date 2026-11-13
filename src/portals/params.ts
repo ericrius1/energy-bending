@@ -9,6 +9,8 @@ export const portalParams = defineParams('gates', {
   depth: 2,
   /** a gate smaller than this on screen (pixels of radius) isn't drawn live */
   minPx: 6,
+  /** how far past a disc's rim a crossing dancer's particles go with it (m): further off, what it shed stays behind */
+  carryReach: 1.6,
   /** each gate view's size, as a fraction of the render size (set before start: the targets are made once) */
   scale: 0.5,
   /** the share of each body's matter drawn in a gate's view, and how the rest grow to make up for it */

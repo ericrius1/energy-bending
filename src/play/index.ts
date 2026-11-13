@@ -46,6 +46,7 @@ import { Hud } from './hud';
 import { Flow } from './flow';
 import { AiPartner, BrainSource, StandIn, type Brain, type PartnerView } from './partner';
 import { ClipLibrary } from '../ai/clips';
+import { budget } from '../engine/perf';
 import { PRESETS, type PresetName } from '../ai/partner';
 import { ScriptRunner, type JogoScript } from './script';
 import { Lobby, Waiting, showFront, escapeToFront, hrefOf } from './menu';
@@ -184,6 +185,18 @@ export async function startJogo(app: PlayApp, mode: string) {
     for (let s = 0; s < 2; s++) { seatCtl[s] = play.controllers[s]; seatDancer[s] = play.dancers[s]; }
     if (scripted) seatCtl[0]!.source = new BotSource(null, 'script');
     for (const d of play.dancers) music.players.add(d.id);
+    // the roda: free dancers (src/ai) ringing the stage behind its plane, as many as the device's budget allows
+    // (desktop 4, laptop 2, phone none; &roda=N to ask for another number, &roda=0 for none)
+    const n = q.has('roda') ? Number(q.get('roda') || 0) : budget().roda;
+    if (!scripted && n > 0) {
+      const { rodaForJogo } = await import('../ai/demo');
+      await rodaForJogo({
+        query: q, frame, show, music, world, worldOf: app.worldOf, motion: app.motion, travel: app.travel, lock: () => {}, wake: app.wake, play,
+      }, n, () => [seatCtl[0]?.character ?? null, seatCtl[1]?.character ?? null], () => {
+        const st = room.state;
+        return st ? { phase: st.phase, tension: st.tension, mergeReady: st.mergeReady, flow: [st.flow[0], st.flow[1]], form: [st.form[0], st.form[1]], fusion: !!st.fusion, events: frameEvents as never } : null;
+      });
+    }
   }
 
   // ---------------------------------------------------------------- what the room needs to know first

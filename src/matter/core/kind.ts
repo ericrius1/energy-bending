@@ -104,8 +104,9 @@ export interface MatterPasses {
   focus?(view: ViewCtx): Texture | null;
 }
 
-/** one dancer's particles carried by a rigid move (a column-major 4×4) */
-export interface Carry { dancer: number; move: Float32Array }
+/** one dancer's particles carried by a rigid move (a column-major 4×4); with `within` (a sphere: x, y, z, radius, in
+ *  the world it leaves) only the particles inside it go, so stones and spray the dancer shed earlier stay behind */
+export interface Carry { dancer: number; move: Float32Array; within?: [number, number, number, number] }
 
 export interface MatterKind {
   readonly id: string;

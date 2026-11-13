@@ -121,6 +121,7 @@ export interface Spark {
 export interface Carry {
   m: ArrayLike<number> | Mat4[];
   q: ArrayLike<number> | Vec4[];
+  w: ArrayLike<number> | Vec4[];
   mask: number;
   count: number;
   pad0: number;

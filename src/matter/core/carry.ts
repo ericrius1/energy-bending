@@ -9,12 +9,12 @@ import { LIMITS } from '../../engine/limits';
 import type { Carry } from './kind';
 
 /** the shader's `Carry` struct, filled from the moves */
-interface CarryData { m: Float32Array[]; q: number[][]; mask: number; count: number }
+interface CarryData { m: Float32Array[]; q: number[][]; w: number[][]; mask: number; count: number }
 
 export class CarryStep {
   private u: UniformBuffer<any>;
   private on = false;
-  private data: CarryData = { m: Array.from({ length: LIMITS.dancers }, () => new Float32Array(16)), q: Array.from({ length: LIMITS.dancers }, () => [0, 0, 0, 1]), mask: 0, count: 0 };
+  private data: CarryData = { m: Array.from({ length: LIMITS.dancers }, () => new Float32Array(16)), q: Array.from({ length: LIMITS.dancers }, () => [0, 0, 0, 1]), w: Array.from({ length: LIMITS.dancers }, () => [0, 0, 0, 0]), mask: 0, count: 0 };
 
   constructor(kit: Kit, frame: FrameBuilder, o: { label: string; owner: string; shader: any; homes: StorageBuffer; bind: Record<string, StorageBuffer>; count: () => number }) {
     this.u = kit.uniforms(o.shader.structs.Carry, `${o.label}.u`);
@@ -32,10 +32,11 @@ export class CarryStep {
   carry(moves: readonly Carry[]) {
     const c = this.data;
     if (!this.on) c.mask = 0;
-    for (const { dancer, move } of moves) {
+    for (const { dancer, move, within } of moves) {
       if (dancer < 0 || dancer >= LIMITS.dancers) continue;
       c.m[dancer].set(move);
       c.q[dancer] = quatOf(move);
+      c.w[dancer] = within ? [...within] : [0, 0, 0, 0];
       c.mask |= 1 << dancer;
     }
     c.count = this.count();

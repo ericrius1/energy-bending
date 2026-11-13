@@ -21,7 +21,7 @@ import { gemsLoadout } from '../matter/core/kind';
 import type { Character } from '../dancer/character';
 import { LIMITS } from '../engine/limits';
 import { BotSource } from '../input/touch';
-import type { Brain, MusicView, StageView } from './brain';
+import type { Brain, MusicView, RulesView, StageView } from './brain';
 import { Scene, type SceneBody } from './scene';
 import { BrainDriver } from './driver';
 import { JogoReferee } from './jogo';
@@ -52,6 +52,8 @@ class PageBrains {
   readonly drivers: BrainDriver[] = [];
   readonly npcs: { c: IntentController; d: Dancer; driver: BrainDriver }[] = [];
   referee: JogoReferee | null = null;
+  /** the jogo's rules as another referee publishes them (src/play's), in place of this file's own */
+  rules: (() => RulesView | null) | null = null;
   seats: IntentController[] = [];
   private grooved = false;
   private level: number;
@@ -89,15 +91,20 @@ class PageBrains {
   npc(brain: Brain, k: number, at: [number, number]) {
     const ctx = this.ctx;
     const moves = movesOf(ctx.motion, this.travel);
-    const terrain = { groundAt: (x: number, z: number) => ctx.world().groundAt(x, z) };
+    // the floor of the world the dancer is in (Dancer.world, from the portals' worldOf), not the main view's: a free
+    // dancer who walked through a gate walks on the far world's ground
+    let dancer: Dancer | null = null;
+    const here = () => (dancer?.world ? ctx.worldOf(dancer.world) : ctx.world());
+    const terrain = { groundAt: (x: number, z: number) => here().groundAt(x, z) };
     const c = new IntentController(ctx.motion.skeletons[0], { seat: 2 + k, terrain, moves, at: [at[0], terrain.groundAt(at[0], at[1]), at[1]] });
-    const dancer = new Dancer(`npc.${k}`, c, gemsLoadout(SUITES[k % SUITES.length]));
+    dancer = new Dancer(`npc.${k}`, c, gemsLoadout(SUITES[k % SUITES.length]));
     const body = { id: dancer.id, seat: -1, character: c.character };
-    const driver = new BrainDriver(brain, body, this.scene, () => this.stageFor(c.character, dancer));
+    const d = dancer;
+    const driver = new BrainDriver(brain, body, this.scene, () => this.stageFor(c.character, d));
     c.source = driver.source();
     this.drivers.push(driver);
-    this.npcs.push({ c, d: dancer, driver });
-    return dancer;
+    this.npcs.push({ c, d, driver });
+    return d;
   }
   travel: Motion | null = null;
 
@@ -106,7 +113,7 @@ class PageBrains {
     const bodies: SceneBody[] = this.seats.map((c, i) => ({ id: `seat.${i}`, seat: i, character: c.character }));
     for (const n of this.npcs) bodies.push({ id: n.d.id, seat: -1, character: n.c.character });
     this.scene.bodies = bodies;
-    this.scene.update({ t: f.t, dt: f.danceDt, beat: f.beat.beats, bpm: f.beat.bpm, music: this.music(), rules: this.referee?.view() ?? null });
+    this.scene.update({ t: f.t, dt: f.danceDt, beat: f.beat.beats, bpm: f.beat.bpm, music: this.music(), rules: this.rules?.() ?? this.referee?.view() ?? null });
   }
 
   /** each frame, after the dancers: the referee, and the players' power forms */
@@ -189,6 +196,31 @@ export async function npcsDemo(ctx: BrainsCtx, n: number) {
   ctx.show.castOverride = () => cast;
   ctx.show.stage(ctx.show.program);
   installTicks(pb, ctx, () => cast);
+  return pb;
+}
+
+/** the roda round a jogo the game plays (src/play, ?jogo=partner|same): `n` free dancers ringing the stage behind its
+ *  plane, watching, clapping, answering a unison or a fusion; they see the jogo's two seats and the room's rules */
+export async function rodaForJogo(ctx: BrainsCtx & { play: PlayHandle }, n: number, seats: () => readonly (Character | null)[], rules: () => RulesView | null) {
+  const travel = await ctx.travel;
+  const pb = new PageBrains(ctx, new ClipLibrary(ctx.motion, travel));
+  pb.travel = travel;
+  pb.rules = rules;
+  const count = Math.max(0, Math.min(n, LIMITS.dancers - 2));
+  const ring = rodaOf(count), w = ctx.world(), p = w.stages[0];
+  for (let k = 0; k < count; k++) {
+    const spot = p ? rodaSpot(p, ring[k], 0, w.room) : [Math.cos(k) * 5, Math.sin(k) * 3] as [number, number];
+    ctx.play.addDancer(pb.npc(new NpcBrain({ seed: 100 + k, clips: pb.clips, roda: ring[k], params: { energy: 0.3 + 0.6 * ((k * 0.37) % 1) } }), k, [spot[0] * 1.08, spot[1] * 1.15]));
+  }
+  // the scene: the jogo's seats (simulated here or not) and the ring
+  ctx.frame.tick('input', (f) => {
+    const s = seats();
+    const bodies: SceneBody[] = [];
+    for (let i = 0; i < 2; i++) { const c = s[i]; if (c) bodies.push({ id: `seat.${i}`, seat: i, character: c }); }
+    for (const x of pb.npcs) bodies.push({ id: x.d.id, seat: -1, character: x.c.character });
+    pb.scene.bodies = bodies;
+    pb.scene.update({ t: f.t, dt: f.danceDt, beat: f.beat.beats, bpm: f.beat.bpm, music: pb.music(), rules: rules() });
+  }, 'brains: the roda sees the jogo');
   return pb;
 }
 

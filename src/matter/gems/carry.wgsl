@@ -7,6 +7,7 @@
 struct Carry {
   m: array<mat4x4f, MAX_DANCERS>,   // each dancer's move (column-major), where `mask` has its bit
   q: array<vec4f, MAX_DANCERS>,     // the same moves' rotations
+  w: array<vec4f, MAX_DANCERS>,     // only within this sphere (xyz, radius; 0: every particle): shed ones stay behind
   mask: u32,
   count: u32,                       // stones simulated
   pad0: u32, pad1: u32,
@@ -23,6 +24,8 @@ fn main(@builtin(global_invocation_id) gid: vec3u) {
   let d = min(dancerOf(homes[i]), MAX_DANCERS - 1u);
   if ((carry.mask & (1u << d)) == 0u) { return; }
   var p = state[i];
+  let s = carry.w[d];
+  if (s.w > 0.0 && distance(p.pos, s.xyz) > s.w) { return; }
   let m = carry.m[d];
   p.pos = (m * vec4f(p.pos, 1.0)).xyz;
   p.vel = (m * vec4f(p.vel, 0.0)).xyz;

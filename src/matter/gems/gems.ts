@@ -188,16 +188,17 @@ export class GemPasses implements MatterPasses {
   private heartRows = Array.from({ length: LIMITS.dancers }, () => ({ at: [0, 0, 0, 0], glow: [0, 0, 0, 0] }));
   private carryU: UniformBuffer<CarryU>;
   private carrying = false;
-  private carryData = { m: Array.from({ length: LIMITS.dancers }, () => new Float32Array(16)), q: Array.from({ length: LIMITS.dancers }, () => [0, 0, 0, 1]), mask: 0, count: 0 };
+  private carryData = { m: Array.from({ length: LIMITS.dancers }, () => new Float32Array(16)), q: Array.from({ length: LIMITS.dancers }, () => [0, 0, 0, 1]), w: Array.from({ length: LIMITS.dancers }, () => [0, 0, 0, 0]), mask: 0, count: 0 };
 
   /** dancers carried through a gate this frame (src/portals): their stones go with them before the step */
   carry(moves: readonly Carry[]) {
     const c = this.carryData;
     if (!this.carrying) c.mask = 0;
-    for (const { dancer, move } of moves) {
+    for (const { dancer, move, within } of moves) {
       if (dancer < 0 || dancer >= LIMITS.dancers) continue;
       c.m[dancer].set(move);
       c.q[dancer] = quatOf(move);
+      c.w[dancer] = within ? [...within] : [0, 0, 0, 0];
       c.mask |= 1 << dancer;
     }
     c.count = this.stoneCount;

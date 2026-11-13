@@ -86,6 +86,9 @@ export interface World {
   /** the height of water that mirrors the world (the Pool, the temple's tide), if any. The world's own reflection
    *  marches only the opaque scene; translucent matter that draws its own mirror copy (fire) reflects about this */
   waterY?(): number;
+  /** how much of the segment a → b (0 … 1, from a) is clear of the world's big solid things (trunks, pillars), for a
+   *  camera that must not stand inside one; left out, the world says nothing (the camera only avoids gates' discs) */
+  clear?(a: [number, number, number], b: [number, number, number]): number;
   /** how far from the middle the camera may stand, and the furthest it may dolly out */
   readonly room: number;
   readonly maxDist: number;
