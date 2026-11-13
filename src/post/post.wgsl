@@ -41,6 +41,11 @@ struct Post {
   highs: vec4f,     // rgb: the highlights' tint; w: where shadows turn to highlights (luma)
   look: vec4f,      // x saturation, y contrast (about the pivot z), w unused
   warm: vec4f,      // rgb: the tint the wide bloom levels take (w unused)
+  shoulder: vec4f,  // the highlight shoulder: x how much (0: the plain tone map), y the peak where it starts, z where it
+                    // is whole, w the peak past which a colour may go white (and is all white at 4 × w)
+  bloomCurve: vec4f, // x the most a pixel gives the bloom (its brightness rolls off toward this), y the knee (× threshold)
+  stage: vec4f,     // the locked view's stage dim: x how much (0 off), y the stage's focus plane (m from the eye), z how
+                    // much darker what lies beyond gets, w how much softer (px of blur at full dim)
 }
 @group(1) @binding(0) var<uniform> post: Post;
 @group(1) @binding(1) var src: texture_2d<f32>;
@@ -54,7 +59,15 @@ fn hash2(p: vec2f) -> f32 { return fract(sin(dot(p, vec2f(127.1, 311.7))) * 4375
 // ---------------------------------------------------------------- the lens
 // The blur (in full-resolution pixels, at most 16) of something at view distance `depth`
 fn coc(depth: f32) -> f32 {
-  return min(post.blur * abs(1.0 - post.focus / max(depth, 0.05)), 16.0);
+  return min(post.blur * abs(1.0 - post.focus / max(depth, 0.05)) + post.stage.w * beyondStage(depth), 16.0);
+}
+
+/** the locked view's stage dim at view distance `depth`: 0 on the stage and in front of it, rising to post.stage.x a
+ *  few metres beyond its focus plane */
+fn beyondStage(depth: f32) -> f32 {
+  if (post.stage.x <= 0.0) { return 0.0; }
+  let at = post.stage.y;
+  return post.stage.x * smoothstep(at + 0.4, at + 0.4 + max(at * 0.6, 2.0), depth);
 }
 
 /** half resolution: the image (a 2×2 box) and, in alpha, the nearest of the four's distance (so a thin near thing
@@ -106,11 +119,14 @@ fn coc(depth: f32) -> f32 {
 @fragment fn fs_dof(i: FullscreenOut) -> @location(0) vec4f {
   let px = vec2i(i.uv * vec2f(textureDimensions(src)));
   let centre = textureLoad(src, px, 0);
-  if (post.blur <= 0.0) { return centre; }
-  let c0 = coc(textureLoad(focusTex, px, 0).r);
+  let depth = textureLoad(focusTex, px, 0).r;
+  // the stage dim: what lies beyond the locked stage a little darker (and, through coc, softer)
+  let dim = 1.0 - post.stage.z * beyondStage(depth);
+  if (post.blur <= 0.0 && post.stage.w * post.stage.x <= 0.0) { return vec4f(centre.rgb * dim, centre.a); }
+  let c0 = coc(depth);
   let b = textureSampleLevel(blurTex, samp_linear, i.uv, 0.0);
   let k = smoothstep(0.6, 2.5, max(c0, b.a));
-  return vec4f(mix(centre.rgb, b.rgb, k), centre.a);
+  return vec4f(mix(centre.rgb, b.rgb, k) * dim, centre.a);
 }
 
 /** postParams.focusStub: a stand-in focus texture, a disc of that distance in the middle third of the frame (what a
@@ -160,10 +176,14 @@ fn karis(c: vec3f) -> f32 { return 1.0 / (1.0 + luma(c)); }
     let w0 = karis(g0) * 0.5; let w1 = karis(g1) * 0.125; let w2 = karis(g2) * 0.125; let w3 = karis(g3) * 0.125; let w4 = karis(g4) * 0.125;
     o = (g0 * w0 + g1 * w1 + g2 * w2 + g3 * w3 + g4 * w4) / (w0 + w1 + w2 + w3 + w4);
     let br = max(o.r, max(o.g, o.b));
-    let knee = post.threshold * 0.5;
+    let knee = post.threshold * post.bloomCurve.y;
     let soft = clamp(br - post.threshold + knee, 0.0, 2.0 * knee);
-    let contrib = max(soft * soft / (4.0 * knee + 1e-4), br - post.threshold) / max(br, 1e-4);
-    o *= max(contrib, 0.0);
+    let over = max(soft * soft / (4.0 * knee + 1e-4), br - post.threshold);
+    // what passes the threshold rolls off toward bloomCurve.x: a hot core lights the air round it as a lamp does,
+    // instead of stamping a disc as bright as itself (a core ten times brighter gives a halo only a little brighter)
+    let cap = max(post.bloomCurve.x, 1e-3);
+    let given = over * cap / (cap + over);
+    o *= max(given, 0.0) / max(br, 1e-4);
     let lo = luma(o);
     o = max(vec3f(lo) + (o - vec3f(lo)) * post.bloomSat, vec3f(0.0));
   } else {
@@ -206,6 +226,25 @@ fn aces(x: vec3f) -> vec3f {
   return clamp((x * (2.51 * x + 0.03)) / (x * (2.43 * x + 0.59) + 0.14), vec3f(0.0), vec3f(1.0));
 }
 
+/** the tone map with the frame's highlight shoulder. ACES (or AgX) maps each channel alone, so a hot colour whose
+ *  channels all pass about 1 (a fire core at (6, 3, 1)) comes out flat white: the critic's white discs. The shoulder
+ *  maps the colour's peak instead and scales the others with it, which keeps the hue and the structure inside a core
+ *  (its brighter and dimmer parts stay apart, and orange stays orange), and only lets a colour go white far past
+ *  that (shoulder.w … 4 × shoulder.w), so peak whites stay bright and small. Below shoulder.y nothing changes: the
+ *  worlds and their grades look as they did. Fire's own ramp has a shoulder of its own (matter/fire); this one only
+ *  keeps the peak where the plain map puts it and moves only the other channels, so the two
+ *  don't add up to grey */
+fn toneMap(c: vec3f) -> vec3f {
+  let base = select(aces(c), agx(c), post.tonemap > 0.5);
+  let peak = max(c.r, max(c.g, c.b));
+  if (post.shoulder.x <= 0.0 || peak <= 1e-4) { return base; }
+  let mapped = select(aces(vec3f(peak)).r, agx(vec3f(peak)).r, post.tonemap > 0.5);
+  let hue = c * (mapped / peak);
+  let k = post.shoulder.x * smoothstep(post.shoulder.y, post.shoulder.z, peak)
+    * (1.0 - smoothstep(post.shoulder.w, post.shoulder.w * 4.0, peak));
+  return mix(base, hue, k);
+}
+
 /** the world's grade on a tone-mapped colour (linear, 0 … 1): lift, gamma, gain; the shadows and highlights tinted
  *  apart; saturation and contrast. A saturated colour (an element's: fire's orange, water's cyan, plasma's violet) is
  *  left mostly alone (`protect`), so the elements look like themselves in every world */
@@ -228,7 +267,7 @@ fn grade(c: vec3f) -> vec3f {
   var c = vec3f(tap(i.uv - ca).r, tap(i.uv).g, tap(i.uv + ca).b);
   c += textureSampleLevel(bloomTex, samp_linear, i.uv, 0.0).rgb * post.bloom;
   c *= post.exposure;
-  c = select(aces(c), agx(c), post.tonemap > 0.5);
+  c = toneMap(c);
   if (post.gradeOn > 0.5) { c = grade(c); }
   let l = luma(c);
   c = max(mix(vec3f(l), c, post.saturation), vec3f(0.0));
@@ -245,7 +284,7 @@ fn grade(c: vec3f) -> vec3f {
 // viewport puts it there; src is that view's air texture)
 @fragment fn fs_inset(i: FullscreenOut) -> @location(0) vec4f {
   var c = textureSampleLevel(src, samp_linear, i.uv, 0.0).rgb * post.exposure;
-  c = select(aces(c), agx(c), post.tonemap > 0.5);
+  c = toneMap(c);
   // a thin frame round it
   let e = min(min(i.uv.x, 1.0 - i.uv.x), min(i.uv.y, 1.0 - i.uv.y));
   c = mix(vec3f(0.85), pow(clamp(c, vec3f(0.0), vec3f(1.0)), vec3f(1.0 / 2.2)), smoothstep(0.004, 0.008, e));

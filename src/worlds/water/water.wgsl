@@ -49,28 +49,31 @@ fn waterToPixel(p: vec3f, dims: vec2f) -> vec4f {
   return vec4f(uv * dims, 1.0, smoothstep(1.0, 0.82, edge));
 }
 
-/** march the reflected ray r from the surface point p through the scene on screen: rgb what it meets, a how sure (0:
- *  nothing; fades at the frame's edge and with distance). The scene's alpha is each pixel's distance along the view,
- *  so the ray meets something where it passes just behind what a pixel shows. A pixel that shows the water itself (or
- *  what's under it, below wy) is never a meeting: far off, its half-float distance is too coarse to tell */
-fn waterReflect(src: texture_2d<f32>, p: vec3f, r: vec3f, steps: i32, far: f32, jit: f32, wy: f32) -> vec4f {
+/** march a ray r from the surface point p through the scene on screen: x how far along it something stands (m), y
+ *  how sure (fades at the frame's edge and with distance), z 1 if it met something. The scene's alpha is each pixel's
+ *  distance along the view, so the ray meets something where it passes just behind what a pixel shows. A pixel that
+ *  shows the water itself (or what's under it, below wy) is never a meeting: far off, its half-float distance is too
+ *  coarse to tell. Close to the surface (a column's foot, a dancer's feet) a thinner gap counts, so what stands in the
+ *  water meets its reflection without a seam of sky between (the temple's glittering waterline row) */
+fn waterMarch(src: texture_2d<f32>, p: vec3f, r: vec3f, steps: i32, far: f32, jit: f32, wy: f32) -> vec3f {
   let dims = vec2f(textureDimensions(src));
   var t0 = 0.0;
   for (var k = 0; k < steps; k++) {
-    let t = far * pow((f32(k) + jit) / f32(steps), 1.8) + 0.015;
+    let t = far * pow((f32(k) + jit) / f32(steps), 1.8) + 0.01;
     let x = p + r * t;
     let q = waterToPixel(x, dims);
-    if (q.z < 0.5) { return vec4f(0.0); }
+    if (q.z < 0.5) { return vec3f(0.0); }
     let sd = textureLoad(src, vec2i(q.xy), 0);
     let along = dot(x - frame.camPos, frame.camFwd);
     let gap = along - sd.a;
     // the height of what that pixel shows (along the same line of sight as x)
     let shown = frame.camPos.y + (x.y - frame.camPos.y) * (sd.a / max(along, 1e-3));
-    if (gap > 0.02 + along * 0.002 && gap < 0.25 + t * 0.12 && shown > wy + 0.015 && !waterBroken(sd)) {
+    let thin = mix(0.006, 0.02, smoothstep(0.05, 0.6, t)) + along * 0.002;
+    if (gap > thin && gap < 0.25 + t * 0.12 && shown > wy + 0.005 && !waterBroken(sd)) {
       // between the last step and this one: a few halvings to where it crosses
       var lo = t0;
       var hi = t;
-      for (var b = 0; b < 4; b++) {
+      for (var b = 0; b < 5; b++) {
         let m = 0.5 * (lo + hi);
         let xm = p + r * m;
         let qm = waterToPixel(xm, dims);
@@ -78,13 +81,69 @@ fn waterReflect(src: texture_2d<f32>, p: vec3f, r: vec3f, steps: i32, far: f32, 
         if (dot(xm - frame.camPos, frame.camFwd) - sm.a > 0.0) { hi = m; } else { lo = m; }
       }
       let qh = waterToPixel(p + r * hi, dims);
-      let hit = textureLoad(src, vec2i(qh.xy), 0);
-      if (waterBroken(hit)) { return vec4f(0.0); }
-      return vec4f(hit.rgb, qh.w * smoothstep(far, far * 0.6, hi));
+      return vec3f(hi, qh.w * smoothstep(far, far * 0.6, hi), 1.0);
     }
     t0 = t;
   }
-  return vec4f(0.0);
+  return vec3f(0.0);
+}
+
+/** what the surface at p mirrors along its rippled reflected ray r: rgb what it meets, a how sure (0: nothing; fades
+ *  at the frame's edge and with distance). Smooth, never torn into columns:
+ *  - the march follows the flat mirror's ray, which neighbouring pixels share almost exactly, so the distance it finds
+ *    is continuous across the surface (marching each pixel's own rippled ray let neighbours land on different rows:
+ *    the critic's pixel columns);
+ *  - the ripples then bend it: what is seen is what lies that far along the rippled ray (a wave tilts the dancers'
+ *    reflection as it does the columns');
+ *  - and spread it: five filtered taps up and down the reflected ray, as wide as the surface tilts there (the
+ *    ripples' and the wind's slope, which the caller's r carries) and a little wider with distance, so a calm surface
+ *    mirrors sharp and a stirred one smears what it mirrors into a soft vertical streak, as rough water does. A tap
+ *    that lands on something in front of what was met, or on the water, is left out. */
+fn waterReflect(src: texture_2d<f32>, p: vec3f, r: vec3f, steps: i32, far: f32, jit: f32, wy: f32) -> vec4f {
+  let dims = vec2f(textureDimensions(src));
+  let d = normalize(p - frame.camPos);
+  let rf = normalize(vec3f(d.x, max(-d.y, 0.003), d.z));
+  let m = waterMarch(src, p, rf, steps, far, jit, wy);
+  if (m.z < 0.5) { return vec4f(0.0); }
+  let t = m.x;
+  let spread = clamp(length(r - rf) * 0.6 + t * 0.006, 0.002, 0.3);
+  var acc = vec3f(0.0);
+  var wsum = 0.0;
+  for (var k = 0; k < 5; k++) {
+    let o = (f32(k) - 2.0) * 0.5;
+    let w = exp(-o * o * 1.6);
+    let rk = normalize(vec3f(r.x, max(r.y + o * spread, 0.002), r.z));
+    let x = p + rk * t;
+    let q = waterToPixel(x, dims);
+    if (q.z < 0.5) { continue; }
+    let s = textureSampleLevel(src, samp_linear, q.xy / dims, 0.0);
+    let along = dot(x - frame.camPos, frame.camFwd);
+    let shown = frame.camPos.y + (x.y - frame.camPos.y) * (s.a / max(along, 1e-3));
+    if (waterBroken(s) || s.a < along - 0.3 - t * 0.2 || shown < wy - 0.002) { continue; }
+    acc += s.rgb * w;
+    wsum += w;
+  }
+  if (wsum <= 1e-3) {
+    // every tap fell off what was met: the flat mirror's own
+    let q = waterToPixel(p + rf * t, dims);
+    let s = textureSampleLevel(src, samp_linear, q.xy / dims, 0.0);
+    if (waterBroken(s)) { return vec4f(0.0); }
+    return vec4f(s.rgb, m.y * 0.6);
+  }
+  return vec4f(acc / wsum, m.y * smoothstep(0.0, 1.2, wsum));
+}
+
+/** a screen offset (uv) that bends what a still mirror shows at a surface point p into what the rippled surface
+ *  shows: the image of the point t metres along the rippled reflected ray r, mirrored about the surface (wy), less
+ *  the pixel's own place. For light that is already a mirror copy (fire's, splatted below the floor): sample it at
+ *  uv + this and it ripples with the reflections the march finds */
+fn waterMirrorBend(p: vec3f, r: vec3f, t: f32, wy: f32, uv: vec2f) -> vec2f {
+  var x = p + r * t;
+  x.y = 2.0 * wy - x.y;
+  let c = frame.viewProj * vec4f(x, 1.0);
+  if (c.w <= 1e-3) { return vec2f(0.0); }
+  let q = vec2f(c.x / c.w * 0.5 + 0.5, 0.5 - c.y / c.w * 0.5);
+  return clamp(q - uv, vec2f(-0.08), vec2f(0.08));
 }
 
 /** how much a water surface reflects looking at it at cosI to its normal (Schlick, n = 1.33) */
