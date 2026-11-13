@@ -145,6 +145,8 @@ export function installHooks(app: HookApp) {
     show,
     rig,
     music: app.music,
+    /** the worlds (a take may push their water: `bend.worlds.find((w) => w.id === "pool").ripple(x, z, s, r)`) */
+    worlds: app.worlds,
   };
   Object.assign(window, { bend });
   return bend;
