@@ -107,11 +107,20 @@ export class SetIce {
     if (changed) this.rebuild();
   }
 
+  /** where pieces shattered since the last time it was read (x, y, z, how long the piece was in m): its voice drains
+   *  it (water/pool.ts) */
+  readonly broke: [number, number, number, number][] = [];
+  private noteBroke(p: SetPiece) {
+    const a = p.points[0], b = p.points[p.points.length - 1];
+    this.broke.push([(a[0] + b[0]) / 2, (a[1] + b[1]) / 2, (a[2] + b[2]) / 2, len(sub(b, a))]);
+    if (this.broke.length > 16) this.broke.shift();
+  }
+
   /** a hit at (x, y, z) shatters every piece it reaches (within r); returns their ids */
   hit(x: number, y: number, z: number, r: number): number[] {
     const out: number[] = [];
     for (const p of this.pieces) {
-      if (!p.shatteredAt && this.distTo(p, [x, y, z]) <= r + p.width / 2) { p.shatteredAt = this.now || 1e-3; out.push(p.id); }
+      if (!p.shatteredAt && this.distTo(p, [x, y, z]) <= r + p.width / 2) { p.shatteredAt = this.now || 1e-3; out.push(p.id); this.noteBroke(p); }
     }
     if (out.length) this.rebuild();
     return out;
@@ -120,7 +129,7 @@ export class SetIce {
   /** shatter one piece */
   shatter(id: number) {
     const p = this.pieces.find((q) => q.id === id);
-    if (p && !p.shatteredAt) { p.shatteredAt = this.now || 1e-3; this.rebuild(); }
+    if (p && !p.shatteredAt) { p.shatteredAt = this.now || 1e-3; this.noteBroke(p); this.rebuild(); }
   }
 
   /** each frame: the clock moves on; pieces past their life, melted, or fallen apart go */

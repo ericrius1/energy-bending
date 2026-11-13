@@ -3,7 +3,10 @@
 // (input/hub.ts). Free by default, with a third-person camera behind player one (right stick, right-drag or a drag
 // to look); Tab, V or the gamepad's View button (or `l`, or bend.lock) locks the view onto the world's first stage
 // plane: both dancers ease onto it, its ledges become solid to them, and the camera swings round side-on with a long
-// lens. A plane with no ledges gets a few test ledges here, so there is something to jump onto. The dancers wear gems.
+// lens. The plane is the world's own stage (src/worlds: its ledges bob with ledgeY, the forge's has no ground); a world
+// with no stage at all gets a test plane with a few ledges. Set ice on the plane (the water kind's setIce) adds ledges
+// you can stand on. Free, the dancers walk on the world's groundAt; in a world you can fall out of (the forge's fallY)
+// they re-form at their spawn. The dancers wear gems unless ?dress says otherwise.
 // ?play&two adds a second dancer on a bot from the start (for scripts). main.ts wires it with one line, like the other
 // demos; it runs on the frame's input and camera phases.
 import type { Kit } from '@ericrius1/weft';
@@ -25,6 +28,8 @@ import { CameraSource } from '../input/camera';
 import { TouchPad } from '../input/touch-pad';
 import { BotSource, type TouchSource } from '../input/touch';
 import { defineParams, setParams } from '../engine/params';
+import type { WaterPasses } from '../matter/water/pool';
+import type { IceLedge } from '../matter/ice/setice';
 
 export interface PlayCtx {
   show: Show;
@@ -59,6 +64,22 @@ export function testLedges(halfWidth: number): Ledge[] {
   ];
 }
 
+const TEST_PLANE: StagePlane = { id: 'test', origin: [0, 0, 0], right: [1, 0, 0], halfWidth: 4, ground: 0, ledges: testLedges(4), spawns: [[-1.5, 0], [1.5, 0]] };
+
+/** set ice's stretches (sloped from y0 to y1) as flat one-way ledges a body can stand on: a sloped one in steps of at
+ *  most 0.3 m, each at the stretch's height at its middle */
+export function flatSteps(stretches: readonly IceLedge[]): Ledge[] {
+  const out: Ledge[] = [];
+  for (const L of stretches) {
+    const n = Math.max(1, Math.ceil((L.x1 - L.x0) / 0.3) * (Math.abs(L.y1 - L.y0) > 0.02 ? 1 : 0) || 1);
+    for (let k = 0; k < n; k++) {
+      const a = L.x0 + ((L.x1 - L.x0) * k) / n, b = L.x0 + ((L.x1 - L.x0) * (k + 1)) / n, u = (k + 0.5) / n;
+      out.push({ id: `ice.${L.piece}.${k}`, x0: a, x1: b, y: L.y0 + (L.y1 - L.y0) * u });
+    }
+  }
+  return out;
+}
+
 export interface PlayHandle {
   readonly hub: InputHub;
   readonly controllers: IntentController[];
@@ -81,13 +102,17 @@ export async function playDemo(ctx: PlayCtx): Promise<PlayHandle> {
   const flourish = pirouetteFlourish(ctx.motion);
   if (flourish && !MOVES[flourish.name]) registerMove(flourish);
 
-  const terrain = { groundAt: (x: number, z: number) => ctx.world().groundAt(x, z) };
+  const terrain = { groundAt: (x: number, z: number) => ctx.world().groundAt(x, z), get fallY() { return ctx.world().fallY; } };
+  // set ice on the locked plane: its stretches as one-way ledges (sloped ones in flat steps)
+  const ice = show.kinds.find((k) => k.id === 'ice' || k.id === 'water') as WaterPasses | undefined;
+  const iceLedges = (plane: StagePlane | null): Ledge[] => (ice && plane ? flatSteps(ice.setIce.ledgesIn(plane)) : []);
   const controllers: IntentController[] = [];
   const dancers: Dancer[] = [];
   const addDancer = (seat: number) => {
     const sp = ctx.world().spawns[seat] ?? [seat ? 1.2 : -1.2, 0, 0];
     const c = new IntentController(skel, { seat, terrain, moves, at: [sp[0], sp[1], sp[2]] });
     c.character.flourish = flourish?.name ?? null;
+    c.character.extraLedges = () => iceLedges(c.character.plane);
     c.character.yaw = seat ? -Math.PI / 2 : Math.PI / 2;
     if (lockedPlane) c.setPlane(lockedPlane);
     controllers.push(c);
@@ -144,11 +169,10 @@ export async function playDemo(ctx: PlayCtx): Promise<PlayHandle> {
 
   // ---------------------------------------------------------------- the lock
   const planeOf = (): StagePlane | null => {
-    const p = ctx.world().stages[0];
-    if (!p) return { id: 'test', origin: [0, 0, 0], right: [1, 0, 0], halfWidth: 4, ground: 0, ledges: testLedges(4), spawns: [[-1.5, 0], [1.5, 0]] };
-    return p.ledges.length ? p : (testPlanes.get(p) ?? testPlanes.set(p, { ...p, id: `${p.id}.test`, ledges: testLedges(p.halfWidth) }).get(p)!);
+    // the world's own stage, as it is (the pool's has no ledges on purpose: the pure stage); a test plane only where a
+    // world has none
+    return ctx.world().stages[0] ?? TEST_PLANE;
   };
-  const testPlanes = new Map<StagePlane, StagePlane>();
   const setLock = (plane: StagePlane | null) => {
     lockedPlane = plane;
     for (const c of controllers) c.setPlane(plane);
@@ -162,7 +186,7 @@ export async function playDemo(ctx: PlayCtx): Promise<PlayHandle> {
     if (controllers.some((c) => c.intent.lock)) rig.lock(rig.mode === 'locked' ? null : planeOf());
     if (rig.mode === 'locked' && rig.plane) {
       const want = planeOf();
-      if (want && rig.plane !== want && (rig.plane === ctx.world().stages[0] || !rig.plane.ledges.length)) rig.lock(want);
+      if (want && rig.plane !== want) rig.lock(want);   // (the world changed under a lock: its own stage)
     }
     const want = rig.mode === 'locked' ? rig.plane : null;
     if (want !== lockedPlane) setLock(want);

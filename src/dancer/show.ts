@@ -42,7 +42,7 @@ export class Show implements Stagehand {
   private pieces: Map<string, Motion['pieces'][number]>;
   private baseCount: number;
 
-  constructor(readonly motion: Motion, private kinds: readonly MatterPasses[], private bodies: BodyBuffers, private rig: CameraRig,
+  constructor(readonly motion: Motion, readonly kinds: readonly MatterPasses[], private bodies: BodyBuffers, private rig: CameraRig,
     private sound: ShowSound, private coarse: boolean) {
     this.pieces = new Map(motion.pieces.map((p) => [p.id, p]));
     if (coarse) showParams.count = 9000;

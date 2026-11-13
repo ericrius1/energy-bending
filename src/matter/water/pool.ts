@@ -24,6 +24,9 @@ import { waterParams, WATER_MAX } from './params';
 import { WaterSurface } from './surface';
 import { IceDraws } from '../ice/ice';
 import { iceParams } from '../ice/params';
+import type { MatterEars } from '../../audio/matter';
+import { fastestLimb, jointAt, middleOf, seeded } from '../core/sounding';
+import { JOINT } from '../../skeleton/rig';
 
 const PARTICLE_FLOATS = 12;
 /** gem count a programme asks for when it doesn't say (matter/core/params.ts): the budget is read relative to it */
@@ -239,8 +242,59 @@ export class WaterPool {
     b.wake = this.wake; b.wakeSpread = this.wakeSpread; b.shatter = 0.7; b.scatter = P.scatter;
     b.noiseAmp = P.noiseAmp; b.noiseFreq = P.noiseFreq; b.noiseSpeed = P.noiseSpeed; b.spin = 0; b.order = 1;
     this.sim.set(s);
+    const shattered = this.shatterNow;
     this.shatterNow = false;
     this.ice.update(f, dt, floorY);
+    this.voice(f, floorY, shattered);
+  }
+
+  // ---------------------------------------------------------------- its voices (audio/matter/water.ts, ice.ts)
+  private ears: MatterEars | null = null;
+  private lastForm = new Float32Array(LIMITS.dancers);
+  private feetY: number[] = [];
+  /** both faces forward here; the first call wins (docs/extending/sound.md) */
+  hear(ears: MatterEars) { this.ears ??= ears; }
+  /** water pours while a body is liquid (faster with its limbs), drips now and then, and splashes when a foot comes
+   *  down; ice ticks while a body freezes or melts, cracks as the front passes the waist, and shatters with a blast
+   *  (and when set ice breaks). Worked out on the CPU from the skeletons, the forms and set ice */
+  private voice(f: FrameCtx, floorY: number, shattered: boolean) {
+    const E = this.ears;
+    if (!E) return;
+    const share = (kind: WaterKindId, d: number) => this.layers[kind].reduce((a, l) => a + (l.dancer === d ? l.weight : 0), 0);
+    const at: [number, number, number] = [0, 0, 0];
+    f.dancers.forEach((dn, d) => {
+      if (d >= LIMITS.dancers) return;
+      const wet = share('water', d), born = share('ice', d), form = this.formNow[d];
+      const liquid = wet * (1 - form) * dn.presence, frozen = Math.min(1, born + wet * form) * dn.presence;
+      const was = this.lastForm[d];
+      this.lastForm[d] = form;
+      if (liquid < 0.02 && frozen < 0.02) return;
+      middleOf(dn, at);
+      const limb = fastestLimb(dn);
+      if (liquid >= 0.02) {
+        E.hold({ kind: 'water', type: 'pour', key: `dancer${d}`, x: at[0], y: at[1], z: at[2], amount: liquid, speed: limb.speed });
+        if (seeded(f.frame, d, 11) < liquid * 1.5 * f.dt) E.event({ kind: 'water', type: 'drip', x: at[0], y: at[1] - 0.4, z: at[2], strength: 0.3 + 0.4 * seeded(f.frame, d, 12) });
+        // a foot coming down onto the floor: it was well above it last frame, now it's on it
+        [JOINT.LeftFoot, JOINT.RightFoot].forEach((j, k) => {
+          const p = jointAt(dn, j), key = d * 2 + k, prev = this.feetY[key] ?? p[1];
+          this.feetY[key] = p[1];
+          if (prev > floorY + 0.16 && p[1] <= floorY + 0.12) {
+            E.event({ kind: 'water', type: 'splash', x: p[0], y: floorY, z: p[2], strength: Math.min(1.2, liquid * (0.4 + (prev - p[1]) * 8)) });
+          }
+        });
+      }
+      if (frozen >= 0.02) {
+        // freezing or melting: ticks as the front climbs (a few a second at full speed), one crack as it passes 0.5
+        const rate = Math.abs(form - was) / Math.max(f.dt, 1e-3);
+        if (seeded(f.frame, d, 13) < (rate * 25 + frozen * 0.2) * f.dt) E.event({ kind: 'ice', type: 'tick', x: at[0], y: at[1], z: at[2], strength: 0.3 + 0.5 * seeded(f.frame, d, 14) });
+        if ((was < 0.5) !== (form < 0.5) && wet > 0) E.event({ kind: 'ice', type: 'crack', x: at[0], y: at[1], z: at[2], strength: 0.8 });
+        if (shattered) E.event({ kind: 'ice', type: 'shatter', x: at[0], y: at[1], z: at[2], strength: frozen });
+      }
+    });
+    // set ice that broke since the last frame
+    const broke = this.ice.setIce.broke;
+    for (const [x, y, z, l] of broke) E.event({ kind: 'ice', type: 'shatter', x, y, z, strength: Math.min(1.2, 0.5 + l * 0.2) });
+    broke.length = 0;
   }
 
   stats(): Record<string, number | string> {
@@ -270,6 +324,7 @@ export class WaterPasses implements MatterPasses {
   declareView(s: ScenePass) { this.pool.declareView(s); }
   layout(layers: MatterLayer[]) { this.pool.setLayers(this.id, layers); }
   update(f: FrameCtx) { if (this.pool.primary === this.id) this.pool.update(f); }
+  hear(ears: MatterEars) { this.pool.hear(ears); }
   resize(budget: Budget) { this.pool.resize(budget); }
   stats() { return this.pool.primary === this.id ? this.pool.stats() : { sharedWith: this.pool.primary ?? '' }; }
 }

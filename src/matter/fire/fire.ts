@@ -18,6 +18,8 @@ import simShader, { type FireSim } from './sim.wgsl';
 import drawShader from './draw.wgsl';
 import type { MatterCtx, MatterLayer, MatterPasses, Budget, MatterActs } from '../core/kind';
 import type { ScenePass } from '../../engine/scene';
+import type { MatterEars } from '../../audio/matter';
+import { fastestLimb, middleOf, seeded, Trigger } from '../core/sounding';
 import type { FrameCtx } from '../../engine/frame';
 import { LIMITS } from '../../engine/limits';
 import { layoutHomes } from '../core/layout';
@@ -133,6 +135,8 @@ export class FirePasses implements MatterPasses {
   }
 
   /** whether dancer d wears flame at all, and how much of it */
+  /** dancer d's flame's form now (its layers' and the dancer's, 0 fire … 1 plasma; 0 if it wears no flame) */
+  flameForm(d: number) { const fd = this.dancers.find((x) => x.dancer === d); return fd ? Math.min(1, fd.form + this.form[d]) : 0; }
   weightOf(d: number) { return this.dancers.find((x) => x.dancer === d)?.weight ?? 0; }
 
   /** lay every flame layer out (once a frame at most: fire and plasma both hand layers in when a loadout changes) */
@@ -184,6 +188,7 @@ export class FirePasses implements MatterPasses {
     this.sim.set(s);
     this.blast = [0, 0, 0, 0];
     this.updateLights(f);
+    this.voice(f);
   }
 
   /** one light per flame dancer, in its middle, flickering with its flame */
@@ -207,6 +212,39 @@ export class FirePasses implements MatterPasses {
       });
     }
     writeFireLights(this.lights, L);
+  }
+
+  // ---------------------------------------------------------------- its voice (audio/matter/fire.ts)
+  private ears: MatterEars | null = null;
+  private flares: Trigger[] = [];
+  /** the music hands the ears once (docs/extending/sound.md) */
+  hear(ears: MatterEars) { this.ears = ears; }
+  /** each flame dancer roars while it burns (louder as a limb sweeps through it), crackles now and then, and flares
+   *  when a limb whips fast (a kick throwing a sheet of flame). The fire's own share only: its plasma end is the
+   *  plasma kind's buzz */
+  private voice(f: FrameCtx) {
+    const E = this.ears;
+    if (!E) return;
+    const at: [number, number, number] = [0, 0, 0];
+    for (const fd of this.dancers) {
+      const d = f.dancers[fd.dancer];
+      if (!d) continue;
+      const form = Math.min(1, fd.form + this.form[fd.dancer]);
+      const amount = fd.weight * this.burn * (1 - form) * d.presence;
+      if (amount < 0.02) continue;
+      middleOf(d, at);
+      const limb = fastestLimb(d);
+      E.hold({ kind: 'fire', type: 'roar', key: `dancer${fd.dancer}`, x: at[0], y: at[1], z: at[2], amount, speed: limb.speed });
+      // crackles: about three a second at full flame, seeded by the frame
+      if (seeded(f.frame, fd.dancer, 1) < amount * 3 * f.dt) {
+        E.event({ kind: 'fire', type: 'crackle', x: at[0], y: at[1] + 0.3, z: at[2], strength: 0.3 + 0.5 * seeded(f.frame, fd.dancer, 2) });
+      }
+      const flare = (this.flares[fd.dancer] ??= new Trigger(6, 3.5, 0.25));
+      if (flare.test(limb.speed, f.t)) {
+        const w = d.skeleton.world, o = limb.joint * 12;
+        E.event({ kind: 'fire', type: 'flare', x: w[o], y: w[o + 1], z: w[o + 2], strength: Math.min(1.2, amount * limb.speed / 8) });
+      }
+    }
   }
 
   /** the lights as last written (CPU copy, for a world's own CPU work or a probe) */

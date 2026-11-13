@@ -12,6 +12,8 @@ import type { FrameCtx } from '../../engine/frame';
 import { CAPSULES } from '../core/capsules';
 import { LIMITS } from '../../engine/limits';
 import { steamParams } from './params';
+import type { MatterEars } from '../../audio/matter';
+import { Trigger } from '../core/sounding';
 
 /** premultiplied "over" for the colour; the scene's alpha (its view distance) is kept */
 const OVER: GPUBlendState = { color: { srcFactor: 'one', dstFactor: 'one-minus-src-alpha' }, alpha: { srcFactor: 'zero', dstFactor: 'one' } };
@@ -54,6 +56,7 @@ export class SteamPasses implements MatterPasses {
 
   update(f: FrameCtx) {
     this.mainWorld = f.views[0]?.world ?? '';
+    this.voice(f);
     const P = steamParams, near = this.near;
     const deps = this.ctx.field.recentDeposits();
     deps.forEach((d, k) => near.set([d.p[0], d.p[1], d.p[2], d.r * 1.5], k * 4));
@@ -63,6 +66,22 @@ export class SteamPasses implements MatterPasses {
       sizeBirth: P.sizeBirth, sizeEnd: P.sizeEnd, density: P.density, glow: P.glow, warmth: P.warmth, floorY: 0,
       capsules: CAPSULES.length, deposits: deps.length, near,
     });
+  }
+
+  // ---------------------------------------------------------------- its voice (audio/matter/steam.ts)
+  private ears: MatterEars | null = null;
+  private puff = new Trigger(0.35, 0.15, 0.4);
+  hear(ears: MatterEars) { this.ears = ears; }
+  /** steam hisses as much as the field is making where the dancers are (a probe a little above their middle, read
+   *  back one to three frames late), and puffs when a burst of it starts */
+  private voice(f: FrameCtx) {
+    if (!this.ears) return;
+    const c = this.ctx.field.centre, p: [number, number, number] = [c[0], c[1] + 0.4, c[2]];
+    const r = this.ctx.field.probe('steam.voice', p);
+    if (!r) return;
+    const amount = Math.min(1.2, r.steam * 1.5);
+    if (amount > 0.03) this.ears.hold({ kind: 'steam', type: 'hiss', key: 'field', x: p[0], y: p[1], z: p[2], amount, speed: r.up });
+    if (this.puff.test(r.steam, f.t)) this.ears.event({ kind: 'steam', type: 'puff', x: p[0], y: p[1] + 0.3, z: p[2], strength: Math.min(1, r.steam) });
   }
 
   stats() { return { puffs: this.count }; }

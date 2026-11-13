@@ -61,6 +61,8 @@ export class Forge implements World {
   readonly mood = 0.8;
   readonly shared;
   readonly stages: StagePlane[];
+  /** off the slabs a body falls; below this it has fallen out and re-forms at a spawn (before the catch floor) */
+  readonly fallY = -4;
   readonly portals: PortalDef[];
   readonly spawns: [number, number, number][];
   readonly fixtures = [];

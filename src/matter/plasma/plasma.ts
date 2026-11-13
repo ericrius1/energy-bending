@@ -9,6 +9,8 @@ import type { FirePasses } from '../fire/fire';
 import { JOINT, JOINT_FLOATS } from '../../skeleton/rig';
 import { Arcs } from './arcs';
 import { arcParams } from './params';
+import type { MatterEars } from '../../audio/matter';
+import { middleOf } from '../core/sounding';
 
 export class PlasmaPasses implements MatterPasses {
   readonly id = 'plasma';
@@ -30,17 +32,44 @@ export class PlasmaPasses implements MatterPasses {
       // a stroke is on for a few frames, then off for one or two: decided per dancer on the frame number
       f.dancers.forEach((d, k) => {
         const form = this.flame.handForm(k);
-        if (form < 0.4) return;
+        if (form < 0.4) { this.buzz(f, k, null); return; }
         const on = hash(f.frame * 31 + k * 977) < arcParams.handDuty;
-        if (!on) return;
+        if (!on) { this.buzz(f, k, null); return; }
         const w = d.skeleton.world, l = JOINT.LeftHandIndex1 * JOINT_FLOATS, r = JOINT.RightHandIndex1 * JOINT_FLOATS;
         const a = [w[l], w[l + 1], w[l + 2]], b = [w[r], w[r + 1], w[r + 2]];
         const dist = Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
         const reach = 1 - smooth(arcParams.handReach * 0.7, arcParams.handReach, dist);
         this.arcs.add(a, b, smooth(0.4, 1, form) * reach * (0.8 + 0.4 * hash(f.frame * 7 + k)));
+        this.buzz(f, k, reach > 0.05 ? [...a, ...b] : null);
       });
+    } else {
+      f.dancers.forEach((_, k) => this.buzz(f, k, null));
     }
     this.arcs.update(f.frame);
+  }
+
+  // ---------------------------------------------------------------- its voice (audio/matter/plasma.ts)
+  private ears: MatterEars | null = null;
+  /** whether each dancer's hands arced last frame (a zap is a stroke starting) */
+  private arcing: boolean[] = [];
+  hear(ears: MatterEars) { this.ears = ears; }
+  /** a plasma body buzzes on the chord's root while it is charged (its form, how much of it is flame); each stroke of
+   *  a hand arc zaps as it starts (its length read by the voice) */
+  private buzz(f: FrameCtx, d: number, zap: number[] | null) {
+    const E = this.ears;
+    if (!E) return;
+    const dn = f.dancers[d];
+    const charge = Math.min(1, this.flame.weightOf(d) * this.flame.flameForm(d)) * dn.presence;
+    if (charge > 0.02) {
+      const m = middleOf(dn);
+      E.hold({ kind: 'plasma', type: 'buzz', key: `dancer${d}`, x: m[0], y: m[1], z: m[2], amount: charge, speed: 0 });
+    }
+    const now = !!zap;
+    if (now && !this.arcing[d] && zap) {
+      E.event({ kind: 'plasma', type: 'zap', x: (zap[0] + zap[3]) / 2, y: (zap[1] + zap[4]) / 2, z: (zap[2] + zap[5]) / 2, strength: 0.4 + 0.5 * charge,
+        extra: Math.hypot(zap[0] - zap[3], zap[1] - zap[4], zap[2] - zap[5]) });
+    }
+    this.arcing[d] = now;
   }
 
   stats() { return { arcs: this.arcs.arcs, arcSegments: this.arcs.count }; }

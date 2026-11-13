@@ -98,7 +98,9 @@ export const PHYS = defineParams('dancer', {
 export const COMBAT = defineParams('combat', { PARRY_MS: 150, PERFECT_MS: 90, NEAR: 0.14 });
 
 /** where a free dancer stands: the floor's height under (x, z) (a World's groundAt) */
-export interface Terrain { groundAt(x: number, z: number): number }
+/** the ground for free movement: its height under (x, z), and (where it can be fallen off: the forge) the height below
+ *  which a body has fallen out and re-forms at its spawn */
+export interface Terrain { groundAt(x: number, z: number): number; fallY?: number }
 export const FLAT: Terrain = { groundAt: () => 0 };
 
 export interface Capsule { ax: number; ay: number; az: number; bx: number; by: number; bz: number; r: number; move?: string; id?: number; part?: string }
@@ -490,6 +492,8 @@ export class Character {
     // ----- fallen out
     const floor = this.plane ? this.plane.origin[1] + Math.min(this.plane.ground ?? Infinity, ...this._surfaces(beat).map((S) => S.y), 0) : this.groundY;
     if (this.root[1] < floor - PHYS.blast || this.root[1] > floor + 60) this._reform();
+    // (free, off the edge of a world with no ground: re-form at the spawn before landing on the catch floor far below)
+    else if (!this.plane && this.terrain.fallY !== undefined && this.root[1] < this.terrain.fallY) this._reform();
   }
 
   private _tryActions(it: Intent, beat: number) {
