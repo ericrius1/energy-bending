@@ -28,7 +28,7 @@ export const forgeParams = defineParams('forge', {
   auroraAmt: 0.6,
   stars: 0.9,
   stone: '#141418',
-  gloss: 0.6,
+  gloss: 0.3,
   seam: '#ff5a10',
   seamAmt: 1.6,
   heat: 1,

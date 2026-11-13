@@ -233,8 +233,9 @@ fn carving(kind: f32, u: f32, v: f32, height: f32, seed: f32) -> f32 {
   let diff = max(dot(N, Ld), 0.0);
   var col = albedo * (moon * diff + templeAmbient(N, ao, wp, 1.0) * ao);
   // the moon behind it lights its edges (the light grazing round the sides toward us)
-  let edgeOn = pow(1.0 - max(dot(N, V), 0.0), 3.0) * max(dot(-V, Ld), 0.0);
-  col += moon * albedo * edgeOn * 1.5;
+  // (round the sides only: a top seen at a glance isn't lit from behind)
+  let edgeOn = pow(1.0 - max(dot(N, V), 0.0), 3.0) * max(dot(-V, Ld), 0.0) * (1.0 - abs(N.y));
+  col += moon * albedo * edgeOn * 0.8;
   // wet stone shines: the moon's highlight and the sky in it
   let R = reflect(-V, N);
   let gloss = mix(0.06, 1.0, wet) * temple.stone.w;

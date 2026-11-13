@@ -43,12 +43,12 @@ fn forgeAurora(d: vec3f) -> vec3f {
     if (above < -0.03) { continue; }
     // the folds: brighter where the sheet turns edge on to us
     let fold = 0.35 + 0.65 * pow(abs(sin(az * (3.0 + fk * 2.0) + 1.5 * sin(az * 1.3 + t * 0.04) + fk * 4.0)), 3.0);
-    let rays = 0.4 + 0.6 * vnoise2(vec2f(az * 60.0 + fk * 17.0, el * 1.5 - t * 0.25));
+    let rays = 0.2 + 0.8 * pow(vnoise2(vec2f(az * 60.0 + fk * 17.0, el * 1.5 - t * 0.25)), 1.5);
     let hemGlow = smoothstep(-0.03, 0.01, above) * exp(-max(above, 0.0) / (0.12 + 0.08 * fk));
     let col = mix(forge.aurora.rgb, forge.aurora2.rgb, smoothstep(0.0, 0.25, above));
     c += col * hemGlow * fold * rays * (1.0 - 0.4 * fk);
   }
-  return c * forge.aurora.w * 1.4;
+  return c * forge.aurora.w * 0.7;
 }
 /** the cloud sea far below, lit through from under by the fire: bright where it's thin, dark on its billows' tops;
  *  w: how far away it is */
@@ -59,8 +59,8 @@ fn forgeClouds(d: vec3f) -> vec4f {
   let t = forge.heat.y;
   let q = p * 0.035;
   let billow = fbm(vec3f(q + vec2f(t * 0.006, t * 0.003), t * 0.012)) * 0.65 + fbm(vec3f(q * 3.3, 7.0 + t * 0.03)) * 0.35;
-  let thin = smoothstep(0.62, 0.3, billow);
-  var c = forge.cloud.rgb * (0.4 + 0.9 * billow) + forge.fire.rgb * (0.08 + 0.9 * thin * thin) + vec3f(1.0, 0.8, 0.45) * pow(thin, 4.0) * 0.6;
+  let thin = smoothstep(0.5, 0.25, billow);
+  var c = forge.cloud.rgb * (0.3 + 1.1 * billow) + forge.fire.rgb * (0.025 + 1.1 * thin * thin) + vec3f(1.0, 0.8, 0.45) * pow(thin, 4.0) * 0.7;
   // the far cloud sea runs into the band of glow at the horizon
   let far = 1.0 - exp(-s * 0.004);
   c = mix(c, forgeBand(), far);
@@ -68,7 +68,7 @@ fn forgeClouds(d: vec3f) -> vec4f {
 }
 
 /** the glow along the horizon, where the fire's light comes through the haze */
-fn forgeBand() -> vec3f { return forge.fire.rgb * 0.32 + forge.horizon.rgb; }
+fn forgeBand() -> vec3f { return forge.fire.rgb * 0.2 + forge.horizon.rgb; }
 
 /** the sky in direction d, everywhere: the stars and the aurora above, the band of glow round the horizon, the clouds
  *  below */
@@ -129,7 +129,10 @@ fn forgeAir(s: vec4f, px: vec2i, d: vec3f) -> vec3f {
   // (warm and bright looking down into it, dark looking up out of it)
   let down = smoothstep(0.05, -0.5, d.y);
   let haze = mix(forge.horizon.rgb * 0.7, forgeBand(), down);
-  return mix(haze, s.rgb, through);
+  // and with distance alone the far islands sink into the glow
+  // (things only: the sky and the clouds carry their own distance in their colour)
+  let far = select(exp(-max(t - 12.0, 0.0) * 0.006), 1.0, s.a > 200.0);
+  return mix(haze, s.rgb, through * far);
 }
 
 /** the scene seen through the heat rising from below: far things (the sky, the clouds, the islands) waver; what's near

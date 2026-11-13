@@ -101,8 +101,10 @@ fn waterHit(s: vec4f, d: vec3f, y: f32) -> vec4f {
   if (cam.y <= y + 0.01 || d.y > -1e-4) { return vec4f(0.0, 0.0, 0.0, -1.0); }
   let tw = (y - cam.y) / d.y;
   let ts = s.a / max(dot(d, frame.camFwd), 1e-4);
-  // (the scene's distances are half floats: a part in a thousand of slack)
-  if (tw > ts * 1.002 + 0.004) { return vec4f(0.0, 0.0, 0.0, -1.0); }
+  // what the pixel shows is under the water if it lies below the surface: tested in height, where the half floats'
+  // part in a thousand of the distance is only a fraction of a millimetre (looking down, a fraction of that)
+  let below = y - (cam.y + d.y * ts);
+  if (below < -0.0015 - ts * 0.001 * abs(d.y)) { return vec4f(0.0, 0.0, 0.0, -1.0); }
   return vec4f(cam + d * tw, tw);
 }
 

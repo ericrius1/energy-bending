@@ -125,7 +125,7 @@ fn corner(k: u32, r: f32) -> vec2f {
   let R = reflect(-V, N);
   let fres = 0.04 + 0.96 * pow(1.0 - max(dot(N, V), 0.0), 5.0);
   // (the worn tops shine a little with the aurora, the sides less)
-  col += forgeSky(R, 0.0) * mix(fres, 0.08 + fres, select(0.0, 1.0, part < 1.5)) * forge.stone.w * select(0.4, 1.0, part < 1.5);
+  col += forgeSky(R, 0.0) * mix(fres, 0.03 + fres, select(0.0, 1.0, part < 1.5)) * forge.stone.w * select(0.4, 1.0, part < 1.5);
   // molten light: in the seams and joints, the deeper the hotter, and at the tips; on the anvil's top, its seams
   let t = forge.heat.y;
   let flick = 0.75 + 0.25 * sin(t * 2.3 + seed * 40.0 + wp.y * 3.0);
