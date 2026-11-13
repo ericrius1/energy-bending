@@ -51,5 +51,5 @@ export interface Probes {
   pad2: number;
 }
 
-declare const shader: Shader<{ Frame: Frame; FieldBox: FieldBox; FieldSample: FieldSample; Probes: Probes }, 'frame' | 'fieldBox' | 'probes' | 'readings' | 'fieldA' | 'fieldB' | 'samp_linear' | 'samp_repeat' | 'samp_nearest' | 'samp_shadow'>;
+declare const shader: Shader<{ Frame: Frame; FieldBox: FieldBox; FieldSample: FieldSample; Probes: Probes }, 'frame' | 'fieldBox' | 'probes' | 'readings' | 'fieldA' | 'fieldB' | 'fieldC' | 'samp_linear' | 'samp_repeat' | 'samp_nearest' | 'samp_shadow'>;
 export default shader;

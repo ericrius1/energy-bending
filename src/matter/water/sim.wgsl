@@ -69,13 +69,13 @@ fn main(@builtin(global_invocation_id) gid: vec3u) {
   let front = formOf(sim, d) * 1.16 - 0.08;
   let wave = smoothstep(up - 0.05, up + 0.05, front);
   var goalIce = max(home.look.x, wave);
-  let heat = fieldHeat(p.pos);
+  // the heat of anyone else's matter (field.wgsl fieldHeatFrom): this dancer's own flame, own ice and own form's cold
+  // are left out, so a body wearing fire and water doesn't boil its own legs, tide's ice hands don't freeze its water,
+  // and its own form freezes it only as the wave above climbs
+  let heat = fieldHeatFrom(p.pos, d);
   if (heat > sim.meltHeat) { goalIce = 0.0; }
-  // the field's cold freezes it all at once (a water dancer beside an ice one). A dancer's own form is cold too (its
-  // aura, matter/field/auras.ts, at the form it was set to), so its own cold counts for less: its freeze climbs from
-  // the feet (the wave above) instead of setting the whole body at once
-  // (and a dancer wearing ice hands or feet, tide's, is cold by its own ice: that alone doesn't freeze its water)
-  if (heat < -sim.freezeCold * (1.0 + 4.0 * formOf(sim, d) + 12.0 * coldOf(sim, d))) { goalIce = 1.0; }
+  // the field's cold freezes it all at once (a water dancer beside an ice one)
+  if (heat < -sim.freezeCold) { goalIce = 1.0; }
   a.was = a.ice;
   let rate = sim.freezeRate * dt * (0.7 + 0.6 * rnd(seed ^ 0x1ceu));
   a.ice = clamp(a.ice + clamp(goalIce - a.ice, -rate, rate), 0.0, 1.0);

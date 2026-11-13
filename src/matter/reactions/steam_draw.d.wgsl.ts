@@ -227,5 +227,5 @@ export interface SOut {
   warm: Vec4;
 }
 
-declare const shader: Shader<{ Frame: Frame; FieldBox: FieldBox; FieldSample: FieldSample; Geode: Geode; Forest: Forest; Pool: Pool; Temple: Temple; Forge: Forge; FireLight: FireLight; FireLights: FireLights; WorldLight: WorldLight; KeyLight: KeyLight; Puff: Puff; Steam: Steam; SOut: SOut }, 'frame' | 'fieldBox' | 'worldLight' | 'steam' | 'puffs' | 'fieldA' | 'fieldB' | 'poolWaves' | 'templeWaves' | 'sceneTex' | 'samp_linear' | 'samp_repeat' | 'samp_nearest' | 'samp_shadow'>;
+declare const shader: Shader<{ Frame: Frame; FieldBox: FieldBox; FieldSample: FieldSample; Geode: Geode; Forest: Forest; Pool: Pool; Temple: Temple; Forge: Forge; FireLight: FireLight; FireLights: FireLights; WorldLight: WorldLight; KeyLight: KeyLight; Puff: Puff; Steam: Steam; SOut: SOut }, 'frame' | 'fieldBox' | 'worldLight' | 'steam' | 'puffs' | 'fieldA' | 'fieldB' | 'fieldC' | 'poolWaves' | 'templeWaves' | 'sceneTex' | 'samp_linear' | 'samp_repeat' | 'samp_nearest' | 'samp_shadow'>;
 export default shader;
