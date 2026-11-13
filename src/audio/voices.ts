@@ -1,6 +1,7 @@
 // The instrument's raw sounds, rendered once into buffers (Gem Dancers' audio.ts, first half): four struck voices
 // pitched by playback rate ("glass" a singing bowl, "crystal" a bright bell, "stone" a lithophone bar for footsteps,
-// "metal" pyrite), a stereo hall, noise, a fire's crackle, birdsong and crickets for the redwoods. sound.ts plays them.
+// "metal" pyrite), a stereo hall, noise, a fire's crackle, birdsong and crickets for the redwoods. The synth
+// (synth/stones.ts, synth/ambience.ts, synth/mix.ts) plays them. All seeded: the same buffers every time.
 import { mulberry32 } from 'math/random';
 
 export type Timbre = 'glass' | 'crystal' | 'stone' | 'metal';
@@ -60,8 +61,9 @@ export function renderVoice(rate: number, v: Voice, base: number, seed: number) 
   return out;
 }
 
-/** a stereo hall: decorrelated noise under an exponential decay that darkens as it goes, after `pre` seconds */
-export function renderRoom(ctx: BaseAudioContext, seconds: number, rt60: number, preDelay: number) {
+/** a stereo hall: decorrelated noise under an exponential decay that darkens as it goes, after `pre` seconds;
+ *  `bright` is how open the tail starts (0.85 is Gem Dancers' cave: it closes to 0.1 by the end) */
+export function renderRoom(ctx: BaseAudioContext, seconds: number, rt60: number, preDelay: number, bright = 0.85) {
   const rate = ctx.sampleRate, n = Math.ceil(seconds * rate);
   const ir = ctx.createBuffer(2, n, rate);
   const rng = mulberry32.create(7);
@@ -71,7 +73,7 @@ export function renderRoom(ctx: BaseAudioContext, seconds: number, rt60: number,
     let lp = 0;
     for (let i = pre; i < n; i++) {
       const t = (i - pre) / rate;
-      const k = 0.85 - 0.75 * Math.min(1, t / seconds); // the tail loses its highs
+      const k = bright - (bright - 0.1) * Math.min(1, t / seconds); // the tail loses its highs
       lp += (mulberry32.sample(rng) * 2 - 1 - lp) * k;
       d[i] = lp * Math.pow(10, (-3 * t) / rt60) * (t < 0.08 ? 0.6 + 5 * t : 1);
     }

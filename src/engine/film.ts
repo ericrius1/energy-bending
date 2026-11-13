@@ -4,7 +4,8 @@
 // recorder (scripts/film.mjs), which pipes it to ffmpeg. The score is written down as it plays and rendered offline at
 // the end (an OfflineAudioContext, so it is exactly what the frames show) into a WAV posted after the last frame.
 // No titles and no text: the film is the dance. Gem Dancers' film.ts on the bend hooks.
-import { wav, type Recorder } from '../audio/sound';
+import { wav, type Recorder } from '../audio/instrument';
+import { renderOffline } from '../audio/synth/synth';
 import type { Programme } from '../dancer/programme';
 import type { Shot } from './shots';
 import type { Kit } from '@ericrius1/weft';
@@ -216,7 +217,7 @@ export async function film(api: FilmApi, recorder: Recorder, sink: string, secon
     await fetch(`${sink}/frame?i=${i}`, { method: 'POST', body: px, mode: 'cors' });
     if (i % 60 === 0) console.log(`film: ${i}/${frames}`);
   }
-  const audio = await recorder.render(seconds + 1);
+  const audio = await renderOffline(recorder, seconds + 1);
   await fetch(`${sink}/audio`, { method: 'POST', body: wav(audio), mode: 'cors' });
   await fetch(`${sink}/done`, { method: 'POST', body: JSON.stringify({ frames, fps, width: k.size.render[0], height: k.size.render[1] }), mode: 'cors' });
 }
