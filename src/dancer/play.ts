@@ -209,7 +209,7 @@ export async function playDemo(ctx: PlayCtx): Promise<PlayHandle> {
       const c = controllers[i], other = controllers[1 - i] ? dancers[1 - i] : null;
       c.character.lookAt = other ? controllers[1 - i].character.root : null;
       c.lookAtHead = other ? other.skeleton.pos[JOINT.Head] : null;
-      c.inputYaw = rig.yaw;
+      c.inputYaw = rig.stickYaw(i, c.intent.moveX, c.intent.moveZ);   // (held steady while the stick is: CameraRig.stickYaw)
     }
     // the follow camera: behind player one (and, with two, the middle of them, standing back as they part)
     const at = (d: Dancer) => { const J = ctx.seen?.(d) ?? d.skeleton.world, o = JOINT.Spine1 * JOINT_FLOATS; return [J[o], J[o + 1], J[o + 2]]; };
