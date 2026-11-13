@@ -54,6 +54,9 @@ export interface FilmScene {
   anchor(a: AnchorName, joint: string): V3 | null;
   /** the rig's own pose this frame (it runs underneath, locked or following) */
   rig: { eye: V3; look: V3; fov: number; focus: number };
+  /** how much of the segment from the point looked at to the eye is clear (0 … 1): the gates' discs, a world's trunks
+   *  (the rig's own `clearance`); the boom shortens to it, quickly in and slowly out */
+  clear?(from: V3, to: V3): number;
   aspect: number;
 }
 
@@ -103,9 +106,19 @@ export class FilmCamera {
   private waves: { f: number; p: number }[][] = [];
   /** added to every yaw: the shot's base (the pair side-on, the stage's normal), set once by film.ts */
   yawBase = 0;
+  /** the first key's time: before it the anchor isn't lagged (the shot starts with its subject where it is) */
+  private firstT = 0;
+  private pull = 1;
+  /** carry on from another camera's state (the same shot, its keys timed again: a jogo's grid became known) */
+  adopt(o: FilmCamera) {
+    this.S = o.S ? [...o.S] as V3 : null; this.V = [...o.V] as V3; this.orbitAngle = o.orbitAngle; this.lastT = o.lastT;
+    this.yawBase = o.yawBase; this.pull = o.pull;
+    return this;
+  }
 
   constructor(keys: CamKey[], seed = 1) {
     const K = [...keys].sort((a, b) => a.t - b.t);
+    this.firstT = K[0]?.t ?? 0;
     for (const k of K) {
       const e = k.cut ? 'hold' : k.ease ?? 'inOut';
       if (k.cut) this.cuts.push(k.t);
@@ -193,7 +206,7 @@ export class FilmCamera {
     // (a cut since the last frame: the operator starts again where the new shot is)
     if (this.lastT !== null && this.cuts.some((c) => c > this.lastT! && c <= t)) { this.S = null; this.V = [0, 0, 0]; this.orbitAngle = 0; }
     this.lastT = t;
-    if (!this.S) this.S = [...raw] as V3;
+    if (!this.S || t <= this.firstT) { this.S = [...raw] as V3; this.V = [0, 0, 0]; }
     const k = lag > 1e-3 ? 1 - Math.exp(-dt / lag) : 1;
     const S = this.S, was: V3 = [S[0], S[1], S[2]];
     for (let i = 0; i < 3; i++) S[i] += (raw[i] - S[i]) * k;
@@ -248,6 +261,13 @@ export class FilmCamera {
         const B = focusOf(this.focuses[i + 1].a) ?? A;
         focus = A + (B - A) * EASES[this.focuses[i + 1].e]((t - this.focuses[i].t) / Math.max(1e-6, this.focuses[i + 1].t - this.focuses[i].t));
       } else focus = A;
+    }
+    // the boom shortened to what is clear (never closer than a body's width)
+    if (s.clear) {
+      const D = Math.hypot(eye[0] - look[0], eye[1] - look[1], eye[2] - look[2]) || 1;
+      const want = Math.max(Math.min(1, s.clear(look, eye)), Math.min(1, 0.9 / D));
+      this.pull += (want - this.pull) * (1 - Math.exp(-dt * (want < this.pull ? 16 : 1.6)));
+      for (let a = 0; a < 3; a++) eye[a] = look[a] + (eye[a] - look[a]) * this.pull;
     }
     // over the rig: its pose (locked, following) weighed in by the mode
     const rw = this.rigWeight(t);

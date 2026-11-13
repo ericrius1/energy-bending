@@ -89,12 +89,14 @@ async function run(api: FilmApi, recorder: Recorder, shot: ShotSpec, plan: ShotP
   const fromStart = shot.from === 'start' || !jogo;
   const B0 = fromStart ? 0 : gridBeat(shot.from ?? '1.1') ?? 0;
   const prerollFrames = fromStart ? Math.max(1, Math.round((shot.preroll ?? 0.5) / dt)) : 0;
+  /** where the jogo's grid starts on the shot's clock: known at once for a shot that starts on it; for one that starts
+   *  before play (the intro's rise), once play begins (until then a time on the grid is somewhere far ahead) */
+  let gridT0: number | null = jogo && fromStart ? null : -B0 * spb;
   /** a time on the shot's clock (seconds from the in-point) */
   const tauOf = (at: At) => {
     const b = gridBeat(at);
     if (b == null) return at as number;
-    if (jogo && fromStart) throw new Error(`film: shot ${shot.id} starts before the jogo's grid: give its camera keys and curves in seconds`);
-    return (b - B0) * spb;
+    return gridT0 == null ? 1e6 + b * spb : gridT0 + b * spb;
   };
 
   // ---------------------------------------------------------------- set-up
@@ -124,8 +126,9 @@ async function run(api: FilmApi, recorder: Recorder, shot: ShotSpec, plan: ShotP
   const seats = () => (B.show.dancers as { framed: boolean }[]).filter((d) => d.framed).slice(0, 2);
 
   // ---------------------------------------------------------------- the camera, laid over the rig's
-  const keys: CamKey[] = (shot.camera ?? []).map(({ at, ...k }) => ({ ...k, t: tauOf(at) }));
-  const cam = keys.length ? new FilmCamera(keys, shot.seed ?? 1) : null;
+  const timedKeys = (): CamKey[] => (shot.camera ?? []).map(({ at, ...k }) => ({ ...k, t: tauOf(at) }));
+  let keys = timedKeys();
+  let cam = keys.length ? new FilmCamera(keys, shot.seed ?? 1) : null;
   const rig = B.rig;
   const world = () => B.worldOf();
   const jointAt = (W: Float32Array, j: number): V3 => [W[j * JOINT_FLOATS], W[j * JOINT_FLOATS + 1], W[j * JOINT_FLOATS + 2]];
@@ -144,6 +147,7 @@ async function run(api: FilmApi, recorder: Recorder, shot: ShotSpec, plan: ShotP
   const scene: FilmScene = {
     rig: { eye: [0, 0, 0], look: [0, 0, 0], fov: 38, focus: 5 },
     aspect: 16 / 9,
+    clear: (a, b) => (rig.clearance ? rig.clearance(a, b) : 1),
     anchor(name, joint) {
       if (name === 'stage') {
         const W = world(), st = W?.stages?.[0];
@@ -174,13 +178,14 @@ async function run(api: FilmApi, recorder: Recorder, shot: ShotSpec, plan: ShotP
     return Math.atan2(nx, nz);
   };
   if (cam) {
+    const C = () => cam!;
     const apply0 = rig.apply.bind(rig);
     rig.apply = (c: unknown, w: number, h: number) => {
       const E = rig.eye as V3, L = rig.look as V3;
       Object.assign(scene.rig, { eye: [...E], look: [...L], fov: rig.fovNow, focus: Math.hypot(L[0] - E[0], L[1] - E[1], L[2] - E[2]) });
       scene.aspect = w / Math.max(1, h);
-      if (inPoint < 0) cam.yawBase = baseYaw();
-      pose = cam.update(Number.isFinite(tau) ? tau : keys[0]?.t ?? 0, dt, scene);
+      if (inPoint < 0) C().yawBase = baseYaw();
+      pose = C().update(Number.isFinite(tau) ? tau : keys[0]?.t ?? 0, dt, scene);
       for (let a = 0; a < 3; a++) { E[a] = pose.eye[a]; L[a] = pose.look[a]; }
       rig.fovNow = pose.fov;
       return apply0(c, w, h);
@@ -192,10 +197,11 @@ async function run(api: FilmApi, recorder: Recorder, shot: ShotSpec, plan: ShotP
   // ---------------------------------------------------------------- what the film does each frame
   const releases: { t: number; seat: number; keys: string[] }[] = [];
   const walks: ({ x: number; z: number; speed: number; world?: string; on?: number } | null)[] = [null, null];
-  const curves = Object.entries(shot.curves ?? {}).map(([name, ks]) => {
+  const timedCurves = () => Object.entries(shot.curves ?? {}).map(([name, ks]) => {
     const [g, k] = name.split('.');
     return { g, k, keys: ks.map(([at, v, e]) => ({ t: tauOf(at), v, e: e ?? 'inOut' })).sort((a, b) => a.t - b.t) };
   });
+  let curves = timedCurves();
   const seatsOf = (c: ShotCue) => (c.seat === 'both' ? [0, 1] : c.seat != null ? [c.seat] : []);
   const fire = (c: ShotCue) => {
     for (const [g, patch] of Object.entries(c.set ?? {})) B.set(g, patch);
@@ -304,6 +310,16 @@ async function run(api: FilmApi, recorder: Recorder, shot: ShotSpec, plan: ShotP
     }
     each();
     await B.step(1, dt);
+    // (a shot that began before the jogo's play: its grid is known from play's first frame; time the keys again)
+    if (gridT0 == null) {
+      const b = J.beat() as number | null;
+      if (b != null) {
+        gridT0 = tau - b * spb;
+        keys = timedKeys();
+        if (cam) cam = new FilmCamera(keys, shot.seed ?? 1).adopt(cam);
+        curves = timedCurves();
+      }
+    }
     if (inPoint < 0) {
       const reached = fromStart ? i >= prerollFrames : (() => { const b = J.beat() as number | null; return b != null && b >= B0 - 1e-6; })();
       if (reached) { inPoint = i; tau = 0; }

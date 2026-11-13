@@ -28,7 +28,7 @@ import { CHROME, gpuFlags, takeLock } from './lib/browser.mjs';
 const argv = process.argv.slice(2);
 if (!argv[0] || !/\.(json|mjs)$/.test(argv[0])) { await import('./film-cut.mjs'); process.exit(0); }
 
-const VALUED = new Set(['url', 'port', 'take', 'shot', 'out', 'only-take', 'cdp', 'variant']);
+const VALUED = new Set(['url', 'port', 'take', 'shot', 'out', 'only-take', 'cdp', 'variant', 'sheet-n']);
 const opts = {}, pos = [];
 for (let i = 0; i < argv.length; i++) {
   const a = argv[i];
@@ -337,9 +337,9 @@ else {
 // ---------------------------------------------------------------- contact sheets
 if (opts.sheet) {
   for (const s of pick) {
-    const n = 12, every = Math.max(1, Math.floor(s.frames / n));
+    const n = Number(opts['sheet-n'] ?? 12), cols = n > 12 ? 6 : 4, every = Math.max(1, Math.floor(s.frames / n));
     const file = join(MEDIA, `6-film-${NAME}-${s.id}${PREVIEW ? '' : '-master'}-sheet.jpg`);
-    await ff(['-i', s.joined, '-vf', `select='not(mod(n\\,${every}))',scale=480:-1,tile=4x3:padding=4:color=white`, '-frames:v', '1', '-q:v', '3', file]);
+    await ff(['-i', s.joined, '-vf', `select='not(mod(n\\,${every}))',scale=${n > 12 ? 320 : 480}:-1,tile=${cols}x${Math.ceil(n / cols)}:padding=4:color=white`, '-frames:v', '1', '-q:v', '3', file]);
     log(`sheet ${relative(ROOT, file)}`);
   }
 }
