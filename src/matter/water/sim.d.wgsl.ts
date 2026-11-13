@@ -76,7 +76,9 @@ export interface WaterSim {
   wobble: number;
   wobbleFreq: number;
   forms: ArrayLike<number> | Vec4[];
+  colds: ArrayLike<number> | Vec4[];
   flow: Vec4;
+  edge: Vec4;
 }
 export interface Aux {
   ice: number;

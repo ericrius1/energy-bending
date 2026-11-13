@@ -12,9 +12,11 @@ export const iceParams = defineParams('ice', {
   /** one shard on every n-th particle; on the body only those at the silhouette are drawn (the body itself is the
    *  water's surface, faceted: water/surface.wgsl); every one is drawn once it has broken off and flies */
   shardEvery: 10,
-  /** the surface's facets: voronoi cells per metre (in each bone's own frame), the frosted rim's strength */
+  /** the surface's facets: voronoi cells per metre (in each bone's own frame); the frost (only where it forms: edges
+   *  facing up, the hands, feet and head); how much ice hides what is behind it */
   facets: 11,
   rim: 1,
+  opacity: 0.8,
   size: 1.5,
   frost: 0.6,
   edges: 1,

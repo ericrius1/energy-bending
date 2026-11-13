@@ -1,12 +1,16 @@
-# matter/water (wave 1: water + ice; wave 3: water that runs and glows)
+# matter/water (wave 1: water + ice; wave 3: water that runs; wave 6: water lit by its world, an edge that breaks)
 
 Fluid bodies: particles sprung loosely to homes that slide down their capsules under travelling swells, peel off fast
-limbs and splash, drawn as a screen-space surface (spheres splatted, smoothed by a narrow-range filter, shaded with
-the reference's luminous model: docs/element-looks.md section 2). Ice is the same particles frozen and the same
+limbs and splash, drawn as a screen-space surface (spheres splatted, smoothed by a narrow-range filter, shaded as clear
+water lit by the world it is in: absorption toward blue-green, the world refracted through it and reflected in it,
+highlights and a rim from the world's key and the dancers' fire; its edge broken by a curl noise, streamers and drips:
+docs/reports/7-water.md). Ice is the same particles frozen and the same
 surface, shaded with facets (section 3); its shards, mist and set ice are matter/ice. Spray and foam are sprites
 (drops.wgsl). It implements `MatterKind` (src/matter/core/kind.ts) and registers from an `index.ts` here, offers the
-lens a focus texture (`MatterPasses.focus`), and reads the field (water thins in heat, freezes in cold, ice melts in
-heat). See `docs/extending/matter-kind.md`, `docs/element-looks.md` and `docs/reports/4-water-ice.md`.
+lens a focus texture (`MatterPasses.focus`) and the post chain a veil (`WaterPasses.veil`: how it bends and dims
+light behind it), and reads the field (water thins in heat, freezes in cold, ice melts in
+heat). See `docs/extending/matter-kind.md`, `docs/element-looks.md`, `docs/reports/4-water-ice.md` and
+`docs/reports/7-water.md`.
 
 | file | what |
 |---|---|

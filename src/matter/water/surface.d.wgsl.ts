@@ -282,12 +282,14 @@ export interface Hearts {
   h: Partial<Heart>[];
 }
 export interface Surf {
-  thin: Vec4;
-  deep: Vec4;
+  absorb: Vec4;
+  tint: Vec4;
+  glow: Vec4;
   rim: Vec4;
   iceThin: Vec4;
   iceThick: Vec4;
   cover: Vec4;
+  wisp: Vec4;
   refract: number;
   dispersion: number;
   glint: number;
@@ -301,18 +303,25 @@ export interface Surf {
   edges: number;
   mirror: number;
   distAlpha: number;
+  iceOpacity: number;
+  climb: number;
   pad0: number;
-  pad1: number;
-  pad2: number;
+  ripple: Vec4;
 }
 export interface Bone {
   p: Vec3;
   up: Vec3;
   n: Vec3;
+  cap: number;
+  vel: Vec3;
+}
+export interface Edge {
+  q: Vec2;
+  keep: number;
 }
 export interface Shade {
   col: Vec3;
-  opac: number;
+  trans: Vec3;
   cover: number;
   dist: number;
   wp: Vec3;
@@ -323,6 +332,10 @@ export interface SceneOut {
   c: Vec4;
   depth: number;
 }
+export interface FocusOut {
+  focus: Vec4;
+  veil: Vec4;
+}
 
-declare const shader: Shader<{ Frame: Frame; FullscreenOut: FullscreenOut; Geode: Geode; Forest: Forest; Pool: Pool; Temple: Temple; Forge: Forge; FireLight: FireLight; FireLights: FireLights; WorldLight: WorldLight; KeyLight: KeyLight; Joint: Joint; Seg: Seg; Particle: Particle; Home: Home; BodyStep: BodyStep; Bodies: Bodies; Touch: Touch; Goal: Goal; Touched: Touched; Stepped: Stepped; Seen: Seen; ViewSeen: ViewSeen; Heart: Heart; Hearts: Hearts; Surf: Surf; Bone: Bone; Shade: Shade; SceneOut: SceneOut }, 'frame' | 'worldLight' | 'bodies' | 'touch' | 'surf' | 'seen' | 'hearts' | 'joints' | 'segs' | 'poolWaves' | 'templeWaves' | 'scene' | 'water' | 'raw' | 'samp_linear' | 'samp_repeat' | 'samp_nearest' | 'samp_shadow'>;
+declare const shader: Shader<{ Frame: Frame; FullscreenOut: FullscreenOut; Geode: Geode; Forest: Forest; Pool: Pool; Temple: Temple; Forge: Forge; FireLight: FireLight; FireLights: FireLights; WorldLight: WorldLight; KeyLight: KeyLight; Joint: Joint; Seg: Seg; Particle: Particle; Home: Home; BodyStep: BodyStep; Bodies: Bodies; Touch: Touch; Goal: Goal; Touched: Touched; Stepped: Stepped; Seen: Seen; ViewSeen: ViewSeen; Heart: Heart; Hearts: Hearts; Surf: Surf; Bone: Bone; Edge: Edge; Shade: Shade; SceneOut: SceneOut; FocusOut: FocusOut }, 'frame' | 'worldLight' | 'bodies' | 'touch' | 'surf' | 'seen' | 'hearts' | 'joints' | 'segs' | 'poolWaves' | 'templeWaves' | 'scene' | 'water' | 'raw' | 'samp_linear' | 'samp_repeat' | 'samp_nearest' | 'samp_shadow'>;
 export default shader;
