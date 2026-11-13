@@ -176,8 +176,8 @@ export class Redwoods implements World {
       });
       // what grows on them: ferns and shelf fungus down the log's flanks, ferns along the boughs
       pass.draw(fernShader, {
-        label: 'redwoods.epiphytes.log', vertex: 'vs_epi', bind: { stage: this.pieces() }, count: 60, instances: 2 * (q.ferns > 30 ? 44 : 24),
-        constants: { EFIRST: 0, PER: q.ferns > 30 ? 44 : 24 }, cull: 'none', enabled: on,
+        label: 'redwoods.epiphytes.log', vertex: 'vs_epi', bind: { stage: this.pieces() }, count: 60, instances: 2 * (q.ferns > 30 ? 18 : 10),
+        constants: { EFIRST: 0, PER: q.ferns > 30 ? 18 : 10 }, cull: 'none', enabled: on,
       });
       pass.draw(fernShader, {
         label: 'redwoods.epiphytes.boughs', vertex: 'vs_epi', bind: { stage: this.pieces() }, count: 60, instances: boughs * 2,

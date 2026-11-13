@@ -247,7 +247,7 @@ override PER: u32 = 4u;      // how many on each piece
   if (!onScreen(base, 0.5) || base.y < 0.03) { return o; }
   let t = worldLight.forest.clock.x;
   let wind = windAt(base.xz, t + h.x * 3.0) * 0.5;
-  let fungus = big && h2.x < 0.45 && abs(phi) > 1.1;
+  let fungus = big && h2.x < 0.6 && abs(phi) > 1.1;
   if (fungus) {
     // a bracket: a half-disc out from the bark, level, its top domed a little, its rim rolled under
     let out = normalize(vec3f(nS.x, 0.0, nS.z) + vec3f(1e-4, 0.0, 0.0));
