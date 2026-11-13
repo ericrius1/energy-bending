@@ -156,6 +156,10 @@ export class Character {
   events: CharEvent[] = [];
   /** what the retargeter should know about this frame's pose (fists, pointed feet), from the move */
   style: MoveStyle = {};
+  /** the move spin-with-the-stick-up means (a flourish, e.g. a clip: dancer/clip-move.ts), or null: the plain spin */
+  flourish: string | null = null;
+  /** the idle, instead of the procedural ginga (a sampled clip, say): pose `out` (39 floats, metres) at a beat */
+  idle: ((out: Float32Array, beat: number) => void) | null = null;
   serial = 0;
   time = 0;
 
@@ -552,6 +556,7 @@ export class Character {
         if (air) return { name: 'spin' };
         if (bb.auDir || horiz > 0.5) return { name: 'au', ...dirOpts(), dir: this.plane ? sgn(bb.auDir || it.moveX) : undefined };
         if (down) return { name: 'macaco' };
+        if (upw && this.flourish && MOVES[this.flourish]) return { name: this.flourish };
         return { name: 'spin' };
       case 'dodge':
         if (this.env.blink && (air || horiz > 0.5)) return { name: air ? 'esquiva' : 'role', blink: true, ...dirOpts() };
@@ -839,7 +844,7 @@ export class Character {
       if (m.def.style) this.style = m.def.style(u, ctx);
       yaw = m.yaw; src = 'move' + m.serial;
     } else {
-      LOCO.ginga(L, beat, 1);
+      if (this.idle) this.idle(L, beat); else LOCO.ginga(L, beat, 1);
       if (this.runW > 0.01) { LOCO.run(T, this.runPhase, runK); for (let i = 0; i < NP; i++) L[i] += (T[i] - L[i]) * this.runW; }
       if (this.crouchW > 0.01) { LOCO.crouch(T, beat); for (let i = 0; i < NP; i++) L[i] += (T[i] - L[i]) * this.crouchW; }
       if (this.landK > 0 && this.grounded) { LOCO.land(T, this.landK); for (let i = 0; i < NP; i++) L[i] += (T[i] - L[i]) * this.landK * 0.8; }

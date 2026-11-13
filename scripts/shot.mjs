@@ -7,7 +7,7 @@
 // the page are printed, and counted at the end.
 //
 // A step: { name, query?, world?, wake?, goto?, next?, shot?, params?: { group: { key: value } }, frames?, yaw?, dist?,
-//   pitch?, lock?, swipe?: y, hold?: [x, y, seconds], after?, frames2? }. A step with its own `query` opens the page
+//   pitch?, lock?, js?: 'async body, B = bend', swipe?: y, hold?: [x, y, seconds], after?, frames2? }. A step with its own `query` opens the page
 //   again with it. --api lapidary drives the original Gem Dancers (window.lapidary) with the same steps, for comparison.
 import { writeFileSync, mkdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -90,6 +90,8 @@ for (const s of steps) {
     if (s.next) B.next();
     if (s.shot) B.shoot(s.shot);
     if (s.lock !== undefined) B.lock(s.lock);
+    // a step may script the page first (an async function body with B = window.bend): bend.intent, bend.move…
+    if (s.js) await new Function('B', `return (async () => { ${s.js} })()`)(B);
     const cam = {};
     for (const k of ['yaw', 'dist', 'pitch', 'height', 'idle']) if (s[k] !== undefined) cam[k] = s[k];
     if (Object.keys(cam).length) B.camera(cam);

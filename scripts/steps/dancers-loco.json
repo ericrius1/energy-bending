@@ -1,0 +1,120 @@
+[
+ {
+  "name": "boot",
+  "query": "play",
+  "wake": true,
+  "frames": 520,
+  "js": "B.set('camera', { followDist: 3.3, followFov: 42, followPitch: 0.1 }); B.place(0, 0, 0, Math.PI / 2);"
+ },
+ {
+  "name": "ginga.front.0",
+  "frames": 60,
+  "js": "B.intent(0, null); B.place(0, 0, 0, Math.PI / 2); B.camera({ yaw: 1.5708, pitch: 0.1, idle: 0 });",
+  "query": "play"
+ },
+ {
+  "name": "ginga.front.1",
+  "frames": 31,
+  "query": "play"
+ },
+ {
+  "name": "ginga.front.2",
+  "frames": 31,
+  "query": "play"
+ },
+ {
+  "name": "ginga.front.3",
+  "frames": 31,
+  "query": "play"
+ },
+ {
+  "name": "ginga.side.0",
+  "frames": 60,
+  "js": "B.intent(0, null); B.place(0, 0, 0, Math.PI / 2); B.camera({ yaw: 0.0000, pitch: 0.1, idle: 0 });",
+  "query": "play"
+ },
+ {
+  "name": "ginga.side.1",
+  "frames": 31,
+  "query": "play"
+ },
+ {
+  "name": "ginga.side.2",
+  "frames": 31,
+  "query": "play"
+ },
+ {
+  "name": "ginga.side.3",
+  "frames": 31,
+  "query": "play"
+ },
+ {
+  "name": "run.side",
+  "frames": 50,
+  "js": "B.intent(0, null); B.place(0, -4, 0, Math.PI / 2); B.camera({ yaw: 0.0000, pitch: 0.1, idle: 0 }); B.intent(0, { moveX: 0, moveZ: 0 }); B.camera({ yaw: 0.0, pitch: 0.1 }); B.intent(0, { moveX: 1 });",
+  "query": "play"
+ },
+ {
+  "name": "run.front",
+  "frames": 12,
+  "js": "B.camera({ yaw: Math.PI / 2 - 0.5 });",
+  "query": "play"
+ },
+ {
+  "name": "walk.side",
+  "frames": 120,
+  "js": "B.intent(0, null); B.place(0, -3, 0, Math.PI / 2); B.camera({ yaw: 0.0000, pitch: 0.1, idle: 0 }); B.intent(0, { moveX: 1, walk: true });",
+  "query": "play"
+ },
+ {
+  "name": "walk.front",
+  "frames": 30,
+  "js": "B.camera({ yaw: Math.PI / 2 - 0.5 });",
+  "query": "play"
+ },
+ {
+  "name": "walk.turn",
+  "frames": 50,
+  "js": "B.intent(0, { moveX: 0, moveZ: 1, walk: true }); B.camera({ yaw: 0.6 });",
+  "query": "play"
+ },
+ {
+  "name": "jump.ready",
+  "frames": 40,
+  "js": "B.intent(0, null); B.place(0, 0, 0, Math.PI / 2); B.camera({ yaw: 0.3000, pitch: 0.1, idle: 0 });",
+  "query": "play"
+ },
+ {
+  "name": "jump.rise",
+  "frames": 12,
+  "js": "B.intent(0, { jump: true, jumpHeld: true });",
+  "query": "play"
+ },
+ {
+  "name": "jump.apex",
+  "frames": 13,
+  "query": "play"
+ },
+ {
+  "name": "jump.fall",
+  "frames": 18,
+  "query": "play"
+ },
+ {
+  "name": "jump.land",
+  "frames": 6,
+  "query": "play"
+ },
+ {
+  "name": "jump.after",
+  "frames": 20,
+  "js": "B.intent(0, { jumpHeld: false });",
+  "query": "play"
+ },
+ {
+  "name": "crouch",
+  "frames": 30,
+  "js": "B.intent(0, null); B.place(0, 0, 0, Math.PI / 2); B.camera({ yaw: 0.3000, pitch: 0.1, idle: 0 }); B.intent(0, { moveY: -1 });",
+  "query": "play"
+ }
+]

@@ -588,10 +588,14 @@ const MOVE_DEFS: Record<string, Omit<MoveInput, 'name'>> = {
       delete P.lh; delete P.rh;
       P.lfB = [-0.06, -mix(0.29, 0.2, w * (1 - e)) + 0.08 * arch, 0.0]; P.rfB = [0.06, -mix(0.29, 0.2, w * (1 - e)) + 0.08 * arch, 0.03];
       delete P.lf; delete P.rf;
+      // the hips fly in an arc (the prototype glued the lowest point to the floor all the way round, so it lay down
+      // flat at the quarter turns): over the top it is in the air, the floor caught by the feet, then the hands at
+      // the handstand, then the feet again
+      P.hip = [0, P.hip[1] + 0.24 * Math.sin(Math.PI * r), 0];
       rig(P, out);
       const m = lowest(out, [J.LW, J.RW, J.LA, J.RA]);
-      const hop = 0.1 * FU * Math.sin(Math.PI * clamp((r - 0.35) / 0.5, 0, 1));
-      shiftPose(out, 0, -m + hop, 0);
+      const snap = Math.max(1 - smooth(r / 0.15), smooth(1 - Math.abs(r - 0.5) / 0.1), smooth((r - 0.82) / 0.13));
+      shiftPose(out, 0, m < 0 ? -m : -m * snap, 0);
       return out;
     },
   },

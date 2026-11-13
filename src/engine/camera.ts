@@ -299,7 +299,8 @@ export class CameraRig {
     }
     const k = 1 - Math.exp(-dt * 6);
     this.target[0] += (F.x - this.target[0]) * k;
-    this.target[1] += (F.y - this.target[1]) * (1 - Math.exp(-dt * 3));
+    // (quick enough upward to keep a 2 m jump in frame)
+    this.target[1] += (F.y - this.target[1]) * (1 - Math.exp(-dt * (F.y > this.target[1] ? 7 : 4)));
     this.target[2] += (F.z - this.target[2]) * k;
     if (this.lookIdle > P.followWait) {
       // left alone: the pitch settles, and while they run the eye swings round behind them
