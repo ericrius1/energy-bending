@@ -3,6 +3,10 @@
 // the trees, the lanterns. What it draws: the forest floor and the sky (the backdrop), the trunks and limbs, the
 // limbs' sprays, ferns, grass (pushed aside by the dancers' feet), flowers and spires, the lanterns and their cords;
 // pollen in the light and, after dark, fireflies (its glows).
+//
+// Stage: a plane through the clearing aimed at the biggest tree of the ring, with a fallen giant lying along it on the
+// left and two boughs from that tree reaching in along it, low and high (stage.ts: the ledges and the logs that make
+// them, from one description, in the trunks' bark).
 import type { Kit, Texture, UniformBuffer } from '@ericrius1/weft';
 import lightShader, { type Forest } from '../light.wgsl';
 import woodsShader from './woods.wgsl';
@@ -12,13 +16,15 @@ import flowerShader from './flowers.wgsl';
 import fernShader from './ferns.wgsl';
 import lanternShader from './lanterns.wgsl';
 import pollenShader from './pollen.wgsl';
-import type { World, WorldCtx } from '../world';
+import type { PortalDef, World, WorldCtx } from '../world';
 import type { ScenePass } from '../../engine/scene';
 import type { FrameCtx } from '../../engine/frame';
 import type { StagePlane } from '../../engine/camera';
 import { Woods } from './day';
 import { fillTexture } from './textures';
 import { defineParams } from '../../engine/params';
+import { layoutStage, packPieces, type RedwoodsStage } from './stage';
+import { stagePlane, spawnsOf, toPlane } from '../stage';
 
 export const redwoodsParams = defineParams('redwoods', {
   /** the time of day (hours), and whether it goes by on its own (a whole day and night in dayMinutes) */
@@ -54,11 +60,10 @@ export class Redwoods implements World {
   readonly light = 1;
   readonly mood = 0.3;
   readonly shared: Record<string, UniformBuffer<any>>;
-  readonly stages: StagePlane[] = [{
-    id: 'clearing', origin: [0, 0, 0], right: [1, 0, 0], halfWidth: 5, ground: 0, ledges: [], spawns: [[-1.2, 0], [1.2, 0]],
-  }];
-  readonly portals = [];
-  readonly spawns: [number, number, number][] = [[-1.2, 0, 0], [1.2, 0, 0]];
+  readonly stages: StagePlane[];
+  readonly portals: PortalDef[];
+  readonly spawns: [number, number, number][];
+  readonly stage: RedwoodsStage;
   readonly fixtures = [];
   readonly mirrorFloor = false;
   readonly room = ROOM;
@@ -79,6 +84,17 @@ export class Redwoods implements World {
       : { grass: 210, blades: 10, flowers: 150, spires: 44, ferns: 34, fronds: 14, trunks: film ? 24 : 13, steps: film ? 26 : 15, flies: 320 };
     this.woods = new Woods(this.q.trunks);
     this.woods.values.march[0] = this.q.steps;
+    // the stage: the log and the boughs, and the plane they're ledges on (the camera stands on the clearing's side)
+    this.stage = layoutStage(this.woods.layout.trunks);
+    this.woods.values.stageLog = [...this.stage.log];
+    this.woods.values.stagePlate = [...this.stage.plate];
+    this.stages = [stagePlane({
+      id: 'clearing', origin: [0, 0, 0], right: this.stage.right, halfWidth: 5.75, ground: 0, ledges: this.stage.ledges,
+      spawns: [[-1.2, 0], [1.2, 0]], lens: 22,
+    })];
+    this.spawns = spawnsOf(this.stages[0]);
+    // one gate, back to the geode: in the open meadow behind the stage's left end, clear of the log and the trees' feet
+    this.portals = [{ id: 'redwoods.geode', at: [-6.5, 1.35, -5.5], normal: [0.76, 0, 0.65], radius: 1.3, to: { world: 'geode', portal: 'geode.redwoods' } }];
     this.forest = kit.uniforms(lightShader.structs.Forest, 'redwoods.light');
     this.forest.set(this.woods.values);
     this.shared = { forest: this.forest };
@@ -112,6 +128,10 @@ export class Redwoods implements World {
         constants: { SIDES: 44, RINGS: 48, FIRST: 0 }, enabled: on,
       });
       pass.draw(trunkShader, {
+        label: 'redwoods.stage', vertex: 'vs_stage', fragment: 'fs_stage', bind: { stage: this.pieces(), barkTex: this.tex.bark, barkH: this.tex.barkH }, count: 28 * (14 + 4 * 2 - 1) * 6,
+        instances: this.stage.pieces.length, constants: { SIDES: 28, RINGS: 14, CAPR: 4 }, cull: 'none', enabled: on,
+      });
+      pass.draw(trunkShader, {
         label: 'redwoods.trunks.far', bind: { logs, barkTex: this.tex.bark, barkH: this.tex.barkH }, count: 19 * 16 * 6, instances: L.far + L.limbs,
         constants: { SIDES: 16, RINGS: 20, FIRST: L.near }, enabled: on,
       });
@@ -143,8 +163,16 @@ export class Redwoods implements World {
 
   private logsBuf: ReturnType<Kit['storage']> | null = null;
   private logs() { return (this.logsBuf ??= this.ctx.kit.storage({ label: 'redwoods.logs', data: this.woods.layout.logs, usage: ['storage'] })); }
+  private piecesBuf: ReturnType<Kit['storage']> | null = null;
+  private pieces() { return (this.piecesBuf ??= this.ctx.kit.storage({ label: 'redwoods.stage', data: packPieces(this.stage.pieces), usage: ['storage'] })); }
 
-  groundAt() { return 0; }
+  /** the meadow, or the fallen log's top where it lies */
+  groundAt(x: number, z: number) {
+    const [px, , across] = toPlane(this.stages[0], [x, 0, z]);
+    const log = this.stage.ledges[0], R = this.stage.plate[0], cy = log.y - R;
+    if (px >= log.x0 && px <= log.x1 && Math.abs(across) < R) return Math.max(0, cy + Math.sqrt(R * R - across * across));
+    return 0;
+  }
   exposure() { return this.woods.expo; }
   tone() { return { water: 16000, cave: 0.1, hearth: 0, depth: 0.45, forest: 1 }; }
   ambience(): [number, number, number, number] | null {

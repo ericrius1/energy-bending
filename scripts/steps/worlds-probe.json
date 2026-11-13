@@ -1,0 +1,10 @@
+[
+  { "name": "pool-empty", "query": "world=pool", "params": { "gems": { "scale": 0.0001 }, "camera": { "shots": false, "autoOrbit": false } }, "yaw": 0.3, "pitch": 0.12, "dist": 9, "height": 1.2, "frames": 60 },
+  { "name": "temple-empty", "query": "world=temple", "params": { "gems": { "scale": 0.0001 }, "temple": { "tideHold": 0 }, "camera": { "shots": false, "autoOrbit": false } }, "yaw": 0.25, "pitch": 0.18, "dist": 15, "height": 1.5, "frames": 60 },
+  { "name": "temple-lock", "query": "world=temple", "params": { "gems": { "scale": 1 }, "temple": { "firelight": 1.5, "tideHold": 0.35 } }, "wake": true, "lock": true, "frames": 600 },
+  { "name": "forge-empty", "query": "world=forge", "params": { "gems": { "scale": 0.0001 }, "camera": { "shots": false, "autoOrbit": false } }, "yaw": 0.5, "pitch": 0.1, "dist": 16, "height": 1.5, "frames": 60 },
+  { "name": "forge-lock", "query": "world=forge", "params": { "gems": { "scale": 1 } }, "wake": true, "lock": true, "frames": 600 },
+  { "name": "redwoods-stage", "query": "world=redwoods", "params": { "gems": { "scale": 0.0001 }, "redwoods": { "hour": 16, "dayGoes": false }, "camera": { "shots": false, "autoOrbit": false } }, "yaw": -0.087, "pitch": 0.03, "dist": 17, "height": 1.7, "frames": 200 },
+  { "name": "geode-stage", "query": "world=geode", "params": { "gems": { "scale": 0.0001 }, "camera": { "shots": false, "autoOrbit": false } }, "yaw": 0.0, "pitch": 0.05, "dist": 7.0, "height": 1.7, "frames": 200 },
+  { "name": "geode-wide", "query": "world=geode", "params": { "gems": { "scale": 1 }, "camera": { "shots": false, "autoOrbit": false } }, "wake": true, "yaw": 0.4, "pitch": 0.25, "dist": 6.5, "height": 1.4, "frames": 300 }
+]

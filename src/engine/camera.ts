@@ -23,7 +23,8 @@ type V3 = [number, number, number];
 
 /** a span of a stage plane a dancer can stand on: s from x0 to x1, its top at y (plane coordinates, m). One-way (jump
  *  up through it, drop down with crouch) unless `solid` (a box `thick` deep you can't pass); `bob` is how far it rises
- *  and falls with the music (m) */
+ *  and falls with the music (m), once a bar: `ledgeY` (here, re-exported by worlds/stage.ts) gives its
+ *  height at a beat, for physics and drawing alike */
 export interface Ledge { id: string; x0: number; x1: number; y: number; solid?: boolean; thick?: number; bob?: number }
 
 /** a vertical plane in a world that the view can lock to (see the file's opening note) */
@@ -42,6 +43,10 @@ export interface StagePlane {
   spawns: [number, number][];
   /** the height of a ledge at a beat, when the stage moves its ledges its own way (default: `ledgeY`) */
   ledgeY?: (ledge: Ledge, beat: number) => number;
+  /** how much of the plane above its floor to frame when nobody is on it (m; default 3) */
+  height?: number;
+  /** the lens the locked camera prefers on this stage (degrees, top to bottom; default `camera.lockLens`) */
+  lens?: number;
 }
 
 /** a ledge's height at a beat: a bobbing ledge rides a sine over four beats (shared by physics and drawing) */
@@ -368,13 +373,13 @@ export class CameraRig {
       const u = x * P.right[0] + z * P.right[2];
       u0 = Math.min(u0, u); u1 = Math.max(u1, u); v0 = Math.min(v0, y); v1 = Math.max(v1, y);
     }
-    if (!(u1 >= u0)) { u0 = -P.halfWidth; u1 = P.halfWidth; v0 = 0; v1 = 3; }
+    if (!(u1 >= u0)) { u0 = -P.halfWidth; u1 = P.halfWidth; v0 = 0; v1 = P.height ?? 3; }
     // a margin round them, and never less than a body's height of stage
     const mu = 0.6, mv = 0.35;
     u0 -= mu; u1 += mu; v0 = Math.min(v0, 0) - mv; v1 = Math.max(v1, v0 + 2.2) + mv;
     const uc = (u0 + u1) / 2, vc = (v0 + v1) / 2, hu = (u1 - u0) / 2, hv = (v1 - v0) / 2;
     // far enough back with the plane's lens to hold that; past the plane's limit, the lens widens instead
-    const lens = cameraParams.lockLens, tanP = Math.tan((lens * Math.PI) / 360);
+    const lens = P.lens ?? cameraParams.lockLens, tanP = Math.tan((lens * Math.PI) / 360);
     let D = Math.max(hv / tanP, hu / (tanP * Math.max(f.aspect, 0.2)));
     let fov = lens;
     // the furthest it may stand: inside the world's room (from the middle of what it frames, along the normal)
