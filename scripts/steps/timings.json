@@ -1,0 +1,6 @@
+[
+  { "name": "t-geode", "wake": true, "frames": 900, "timings": true },
+  { "name": "t-geode-2", "frames": 300, "timings": true },
+  { "name": "t-redwoods", "query": "world=redwoods", "queryLapidary": "scene=forest", "params": { "redwoods": { "hour": 13, "dayGoes": false } }, "wake": true, "frames": 900, "timings": true },
+  { "name": "t-redwoods-2", "frames": 300, "timings": true }
+]

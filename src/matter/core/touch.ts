@@ -79,7 +79,10 @@ export class Hand {
     else { if (this.finger.charge > 0.15) this.burstAtPointer(burst * (1 + touchParams.blast * this.finger.charge), cam); this.finger.on = false; }
   }
 
+  private canvas: HTMLCanvasElement | null = null;
+
   attach(canvas: HTMLCanvasElement, cam: Camera) {
+    this.canvas = canvas;
     const { pointer, finger, touches, spin, rig } = this;
     const P = touchParams;
     const pinch = () => { const [a, b] = touches.values(); return [(a.x + b.x) / 2, (a.y + b.y) / 2, Math.hypot(a.x - b.x, a.y - b.y)]; };
@@ -161,7 +164,7 @@ export class Hand {
 
   /** the pointer's ray through the scene, unprojected with the camera's inverse view-projection (reversed-Z) */
   private ray(cam: Camera) {
-    const c = document.querySelector('canvas')!.getBoundingClientRect();
+    const c = (this.canvas ?? document.querySelector('canvas')!).getBoundingClientRect();
     const x = ((this.pointer.x - c.left) / c.width) * 2 - 1, y = 1 - ((this.pointer.y - c.top) / c.height) * 2;
     for (let i = 0; i < 16; i++) this.ivp[i] = cam.invViewProj[i];
     const o = this.u.rayOrigin, d = this.u.rayDir;

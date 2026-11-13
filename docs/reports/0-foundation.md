@@ -205,23 +205,30 @@ script and the phone/lead check scripts. The Mover keeps its carry-and-throw phy
 
 ## Timings (GPU, RTX 5090, 1280×800, render scale 1, 15,000 stones, same steps)
 
-weft's profiler (timestamp queries), smoothed, over 150 frames stepped at 60 fps after the stated warm-up, both apps
-served as builds of their own weft (Gem Dancers pins weft 0.2.1; this repo 0.2.8). Gem Dancers is the original,
-built and served read-only from a copy on port 5392.
+weft's profiler (timestamp queries), smoothed, over 150 frames stepped at 60 fps after the stated warm-up, each on its own weft
+(Gem Dancers pins weft 0.2.1; this repo 0.2.8). Gem Dancers is the original, built and served read-only (vite preview)
+from a copy on port 5392; Energy Bending ran from its dev server on 5391 (the GPU work is the same either way: the
+same shaders, sent lean in both).
 
-| scene | Gem Dancers | Energy Bending | difference |
-|---|---|---|---|
-| geode, salsa, 900 frames in | 0.594 ms (0.545 ms first run) | 0.552 ms (0.560 ms first run) | within ±3 %, run to run noise is larger |
-| geode, scene pass | 0.219 ms | 0.211 ms | |
-| geode, air | 0.190 ms | 0.190 ms | |
-| geode, gem sim + cull | 0.015 ms | 0.015 ms | |
-| redwoods 13:00, 900 frames in | 1.417 ms (20.0 ms first run, a compile stall) | 1.418 ms | equal |
-| redwoods, scene pass | 0.908 ms | 0.929 ms | +2 % |
-| ?pip (geode + redwoods inset at a third) | n/a | 1.318 ms | the inset's scene 0.65 ms, its air 0.08 ms |
+Two sessions each (the second a fresh browser, same steps). Per pass in ms; "frame" is first pass start to last pass end.
 
-The restructure costs nothing measurable. The numbers are tiny because a 5090 has little to do at 1280×800 with 15k
+| scene | Gem Dancers, run 1 / run 2 | Energy Bending, run 1 / run 2 |
+|---|---|---|
+| geode, salsa, 900 frames in: frame | 0.545 / 0.594 | 0.560 / 0.640 |
+| geode, 300 frames later: frame | n/a / 0.602 | n/a / 0.597 |
+| geode: scene pass | 0.225 / 0.219 | 0.214 / 0.216 |
+| geode: air | 0.191 / 0.190 | 0.190 / 0.191 |
+| geode: gem sim + cull + sparks | 0.017 / 0.018 | 0.017 / 0.017 |
+| redwoods 13:00, 900 frames in: frame | 20.04 (a compile stall) / 1.417 | 1.418 / 1.487 |
+| redwoods: scene pass | 16.36 (stall) / 0.908 | 0.929 / 0.971 |
+| redwoods: air | 0.360 / 0.357 | 0.357 / 0.359 |
+| ?pip (geode + the redwoods inset at a third): frame | n/a | 1.318 / 1.300 (inset scene 0.65 to 0.75, its air 0.07) |
+
+The geode is the same within run-to-run noise (which is itself up to 10 % of the frame here). The redwoods' scene
+pass reads 2 to 7 % higher; with a run-to-run spread of the same size I can't call that a regression, but if it is one
+the likely causes are the gem pipelines now binding both worlds' light uniforms (group 2) and weft 0.2.1 against
+0.2.8. The numbers are tiny because a 5090 has little to do at 1280×800 with 15k
 stones; the redwoods scene is the expensive part (the meadow's instancing and the per-pixel trunk tests), as before.
-The first original redwoods run caught a compile stall after the switch (20 ms), so the table uses the second runs.
 Timings files: `shots/*/timings-*.json` (not committed).
 
 ## Stills (docs/reports/media/, 1280×800, read back from the canvas with bend.grab)
@@ -230,10 +237,11 @@ Timings files: `shots/*/timings-*.json` (not committed).
 |---|---|---|
 | `geode-dance.jpg` vs `original-geode-dance.jpg` | the salsa couple 15 s after waking, amethyst and celestite, wall crystals out of focus, caustics on the floor | none seen; PSNR 26.9 dB against the original, the difference being film grain (it moves with time) and the sparkles' positions |
 | `redwoods-day.jpg` vs `original-redwoods-day.jpg` | the couple in the meadow at 13:00, trunks, grass, flowers, mist, sun and shade | none seen; PSNR 25.0 dB, same causes |
-| `redwoods-night.jpg` vs `original-redwoods-night.jpg` | 21:36: fireflies, moonlight, dark trunks | lanterns hang above this framing (see below); PSNR 21.3 dB (fireflies and sparks move) |
+| `redwoods-night.jpg` vs `original-redwoods-night.jpg` | 21:36: fireflies, moonlight, dark trunks | the lanterns hang above this framing (redwoods-lanterns.jpg shows them); PSNR 21.3 dB (fireflies and sparks move) |
 | `pip.jpg` | the geode, and top right the redwoods from an orbiting camera with the same dancers lit by the woods | the inset has no bloom or depth of field (by design: air and tone map only) |
 | `landmarks.jpg` | left: the mocap dancer (Violet suite); right: the same dance through 13 landmarks and back onto the rig (Sky) | measured: the copy's joints are within 2 cm of the source's (hands), under 1 cm elsewhere; hands and feet lose their own turn (no index or toe landmarks) |
-| `wander.jpg` | two dancers dancing toward random points (shots/extra) | the first capture framed them badly (a close shot, 4 m apart); the demo now keeps them within 2 m and the step asks for a wide shot |
+| `wander.jpg` | two dancers on motion matching, each dancing toward its own random point on the floor | a first capture framed them badly (4 m apart in a close shot); the demo now keeps them within 2 m of the middle |
+| `redwoods-lanterns.jpg` | 21:36, looking up the trunks: the paper lanterns lit on their cords, the limbs, a starry sky through the canopy | |
 | `lock.jpg` | the camera locked to the geode's centre plane, face on, long lens, framing the couple | the salsa couple dance along the view, so in side view they overlap; that is the plane's choice, not a bug |
 | `film-contact.jpg` | three frames of the 10 s film: rising, the swirl, the blast | |
 
@@ -276,8 +284,6 @@ NVIDIA GeForce RTX 5090` (the real GPU; `--enable-webgpu-developer-features` mak
 
 - Not tested on a phone, nor with a real webcam (headless has no camera); the webcam path is a port that typechecks.
 - No Node tests of the retargeter or the layout (the round trip was measured in the page instead).
-- The redwoods' lanterns at night are not in a still (they hang above the meadow framings); the `redwoods-lanterns`
-  step in `scripts/steps/extra.json` frames them from below (see shots/extra if run).
 - The field is a stub; reactions, portals, input, net, brains and play are READMEs.
 - The panel shows a chosen subset of parameters; everything is reachable through `bend.params` / `bend.set`.
 

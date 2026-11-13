@@ -39,7 +39,7 @@ export async function launch({ width = 1280, height = 800, extra = [] } = {}) {
 /** the WebGPU adapter the page sees: "vendor architecture description" (SwiftShader says so in its name) */
 export async function adapterName(page) {
   return page.evaluate(async () => {
-    const a = await navigator.gpu?.requestAdapter({ powerPreference: 'high-performance' });
+    const a = await navigator.gpu?.requestAdapter();
     if (!a) return 'no WebGPU adapter';
     const i = a.info ?? {};
     return [i.vendor, i.architecture, i.device, i.description].filter(Boolean).join(' ') || 'unnamed adapter';

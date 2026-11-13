@@ -1,0 +1,5 @@
+[
+  { "name": "wander", "query": "wander", "wake": true, "frames": 1200, "shot": "wide" },
+  { "name": "redwoods-lanterns", "query": "world=redwoods", "params": { "redwoods": { "hour": 21.6, "dayGoes": false } }, "wake": true, "frames": 600, "shot": "canopy" },
+  { "name": "pip-timings", "query": "pip", "wake": true, "frames": 600, "timings": true }
+]
