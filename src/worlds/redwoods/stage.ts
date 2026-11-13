@@ -69,6 +69,21 @@ export function smoothPath(pts: Pt[], step = 0.3): [number, number, number, numb
   return out;
 }
 
+/** the lanterns hung low between the stage and the locked camera (on its side of the plane, 3 to 8 m out, within 4 m
+ *  of the middle along it) hang higher, their bottoms at `clear` m or more: from the lock's distance one hung large and
+ *  blurred across the top of the frame. They keep their limbs and their light; only their cords are shorter */
+export function liftLanterns(lanterns: { anchor: V3; cord: number }[], right: V3, clear = 6.4) {
+  const lifted: number[] = [];
+  lanterns.forEach((L, k) => {
+    const along = L.anchor[0] * right[0] + L.anchor[2] * right[2], across = -L.anchor[0] * right[2] + L.anchor[2] * right[0];
+    if (across > 3 && across < 8 && Math.abs(along) < 4 && L.anchor[1] - L.cord < clear) {
+      L.cord = Math.max(0.6, L.anchor[1] - clear);
+      lifted.push(k);
+    }
+  });
+  return lifted;
+}
+
 /** trunks: the light's trunk list (x, z, radius, height per trunk, nearest first) */
 export function layoutStage(trunks: Float32Array): RedwoodsStage {
   // the anchor tree: the biggest of the ring nearest the bearing the plane was drawn for (east, a little south)

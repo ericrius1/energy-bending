@@ -20,10 +20,10 @@ takes.push({
 // the orange side at 1080p, full size: the colonnade and the lintel's columns against the afterglow, then the moon close
 // (its halo and the thin cloud: banding, a hard edge)
 takes.push({
-  name: 'tm-orange', query: 'world=temple', size: '1920x1080', fps: 1, seconds: 5, warm: 120,
+  name: 'tm-orange', query: 'world=temple', size: '1920x1080', fps: 30, seconds: 5, warm: 120,
   setup: `${moonrise}bend.set('camera',{ shots:false, autoOrbit:false });`,
-  each: "const V=[[1.3,8,0.18,1.6,44,[0,1,0]],[1.7,8,0.18,1.6,44,[0,1,0]],[2.4,7,0.12,1.6,44,[0,1,0]],[0.02,30,-0.12,0,16,[0.5,5.6,-30]],[0.02,30,-0.135,0,5,[1.5,5.6,-30]]]; const v=V[Math.min(V.length-1,Math.round(t))]; bend.camera({ idle:0, target:v[5], yaw:v[0], dist:v[1], pitch:v[2], height:v[3], fov:v[4] });",
-  sheet: { cols: 5, rows: 1, width: 384 }, stills: [0, 1, 2, 3, 4],
+  each: "const V=[[1.3,8,0.18,1.6,44,[0,1,0]],[1.7,8,0.18,1.6,44,[0,1,0]],[2.4,7,0.12,1.6,44,[0,1,0]],[0.02,30,-0.12,0,16,[0.5,5.6,-30]],[0.02,30,-0.135,0,5,[1.5,5.6,-30]]]; const v=V[Math.min(V.length-1,Math.floor(t))]; bend.camera({ idle:0, target:v[5], yaw:v[0], dist:v[1], pitch:v[2], height:v[3], fov:v[4] });",
+  sheet: { cols: 5, rows: 1, width: 384 }, stills: [0.9, 1.9, 2.9, 3.9, 4.9],
 });
 // film 2's dolly as the critic staged it (6-film2-dolly), the tide held: the lead shot is its frame at 3.6 s
 takes.push({
@@ -62,10 +62,10 @@ takes.push({
 });
 // the log's broken end, close, from the front and from its side, and the log in the dusk light from the lock's side
 takes.push({
-  name: 'rw-logend', query: 'world=redwoods', size: '1920x1080', fps: 1, seconds: 4, warm: 120,
+  name: 'rw-logend', query: 'world=redwoods', size: '1920x1080', fps: 30, seconds: 4, warm: 120,
   setup: `${dusk}bend.set('camera',{ shots:false, autoOrbit:false });`,
-  each: "const V=[[1.2,3.2,0.12,0.6,40],[0.5,3.6,0.18,0.6,40],[2.0,3.0,0.1,0.6,40],[0.1,7,0.08,1.0,40]]; const v=V[Math.min(V.length-1,Math.round(t))]; bend.camera({ idle:0, target:[-2.2,0,-0.25], yaw:v[0], dist:v[1], pitch:v[2], height:v[3], fov:v[4] });",
-  sheet: { cols: 4, rows: 1, width: 480 }, stills: [0, 1, 2, 3],
+  each: "const V=[[1.2,3.2,0.12,0.6,40],[0.5,3.6,0.18,0.6,40],[2.0,3.0,0.1,0.6,40],[0.1,7,0.08,1.0,40]]; const v=V[Math.min(V.length-1,Math.floor(t))]; bend.camera({ idle:0, target:[-2.2,0,-0.25], yaw:v[0], dist:v[1], pitch:v[2], height:v[3], fov:v[4] });",
+  sheet: { cols: 4, rows: 1, width: 480 }, stills: [0.9, 1.9, 2.9, 3.9],
 });
 
 // ---------------------------------------------------------------- cost and the baseline

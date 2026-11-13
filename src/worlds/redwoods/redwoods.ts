@@ -26,7 +26,7 @@ import type { StagePlane } from '../../engine/camera';
 import { Woods } from './day';
 import { fillTexture } from './textures';
 import { defineParams } from '../../engine/params';
-import { layoutStage, packPieces, solidsOfStage, type RedwoodsStage } from './stage';
+import { layoutStage, liftLanterns, packPieces, solidsOfStage, type RedwoodsStage } from './stage';
 import { solidsOfWoods } from './layout';
 import { clearOf, type Solid } from '../solids';
 import { stagePlane, spawnsOf, toPlane } from '../stage';
@@ -97,6 +97,8 @@ export class Redwoods implements World {
     this.woods.values.march[0] = this.q.steps;
     // the stage: the log and the boughs, and the plane they're ledges on (the camera stands on the clearing's side)
     this.stage = layoutStage(this.woods.layout.trunks);
+    // (none hangs low between the stage and the locked camera)
+    liftLanterns(this.woods.layout.lanterns, this.stage.right);
     this.woods.values.stageLog = [...this.stage.log];
     this.woods.values.stagePlate = [...this.stage.plate];
     this.solids = [...solidsOfStage(this.stage.pieces), ...solidsOfWoods(this.woods.layout)];
@@ -175,8 +177,8 @@ export class Redwoods implements World {
       // boughs' many short pieces in less
       const st = this.stage, big = st.big, boughs = st.pieces.length - big;
       pass.draw(trunkShader, {
-        label: 'redwoods.stage', vertex: 'vs_stage', fragment: 'fs_stage', bind: { stage: this.pieces(), barkTex: this.tex.bark, barkH: this.tex.barkH }, count: 28 * (14 + 6 * 2 - 1) * 6,
-        instances: big, constants: { SIDES: 28, RINGS: 14, CAPR: 6, SFIRST: 0 }, cull: 'none', enabled: on,
+        label: 'redwoods.stage', vertex: 'vs_stage', fragment: 'fs_stage', bind: { stage: this.pieces(), barkTex: this.tex.bark, barkH: this.tex.barkH }, count: 48 * (14 + 14 * 2 - 1) * 6,
+        instances: big, constants: { SIDES: 48, RINGS: 14, CAPR: 14, SFIRST: 0 }, cull: 'none', enabled: on,
       });
       pass.draw(trunkShader, {
         label: 'redwoods.boughs', vertex: 'vs_stage', fragment: 'fs_stage', bind: { stage: this.pieces(), barkTex: this.tex.bark, barkH: this.tex.barkH }, count: 20 * (2 + 2 * 2 - 1) * 6,
