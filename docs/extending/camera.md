@@ -38,7 +38,14 @@ What the rig does with them (`camera.*` params):
 - **Locked:** the stage's angle is kept unless a solid crosses the sight lines from the eye to the two seats (hips,
   knees, chest, head). Then, at most twice a second, it tries turns within `lockDodge` (0.4 rad) of the stage's own
   angle and eases (about a second) to the one that sees most, the smallest turn on a tie; when the stage's angle is
-  clear again it eases back. `rig.dodge` is the turn now.
+  clear again it eases back. `rig.dodge` is the turn now. A turn whose eye would have to stand closer than the
+  framing wants (behind a solid or a gate, so with a wider lens) scores worse, and the turn moves no faster than
+  0.35 rad/s.
+- **Locked, how far back:** as far as the framing wants with the stage's lens, inside the world's room and short of
+  anything `clearance` finds, measured from 1.6 m in front of the stage (`LOCK_STAGE_DEPTH`): the ledges the dancers
+  stand beside (the temple's altar and broken pillars, a log, a slab's columns) never pull the lock in. Only when
+  something further out does is the lens widened. The distance comes in no faster than 5 m/s and the lens widens no
+  faster than 30°/s, so the lock moves, never cuts (9-stage.md; checked in `check-portals.mjs`, the temple's court).
 - **Paths:** only when the path says `avoid: true` (below).
 
 ### The near fade (asked of the worlds and the post chain; not built)
