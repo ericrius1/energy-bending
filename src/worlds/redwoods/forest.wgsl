@@ -257,7 +257,6 @@ fn windAt(xz: vec2f, t: f32) -> vec2f {
   return (dir * (0.2 + gust * 0.8) + flutter) * worldLight.forest.wind * 0.16;
 }
 
-fn woodsHash(p: vec2f) -> f32 { return fract(sin(dot(p, vec2f(127.1, 311.7))) * 43758.5453); }
 
 /** the air in the woods: the mist along the view (thickest low down), lit by the soft light under the trees and, where
  *  the key light gets through the leaves and past the trunks, by that (the rays, brightest looking towards the light),
@@ -266,7 +265,7 @@ fn woodsAir(s: vec4f, px: vec2i, d: vec3f) -> vec3f {
   let along = max(dot(d, frame.camFwd), 1e-3);
   let tMax = min(s.a / along, 110.0);
   let steps = max(i32(worldLight.forest.march.x), 4);
-  let j = woodsHash(vec2f(px) + fract(frame.time * 7.31) * 97.0);
+  let j = pixelRnd(px, frame.frame * 3u);
   let g = worldLight.forest.air.z;
   let cosT = dot(d, worldLight.forest.key.xyz);
   let hg = (1.0 - g * g) / pow(max(1.0 + g * g - 2.0 * g * cosT, 1e-4), 1.5);
