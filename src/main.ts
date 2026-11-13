@@ -121,7 +121,7 @@ const show = new Show(motion, kinds, bodies, rig, {
 if (query.has('landmarks')) show.castOverride = landmarksDemo();
 if (query.has('wander')) { const t = await travelling; show.castOverride = wanderDemo(motion, t); }
 if (query.has('play') || query.has('roda') || query.has('teach')) {
-  const play = await import('./dancer/play').then((m) => m.playDemo({ show, rig, frame, kit, canvas, world: () => worldOf(main.world), motion, travel: travelling, coarse, wake, seen: (d) => gates.seen(gates.rigWorld, [d]).joints[0] ?? null }));
+  const play = await import('./dancer/play').then((m) => m.playDemo({ show, rig, frame, kit, canvas, world: () => worldOf(main.world), motion, travel: travelling, coarse, wake, seen: (d) => gates.seen(gates.rigWorld, [d]).joints[0] ?? null, worldOf: (d) => worldOf(gates.worldOf(d)) }));
   // ?play&net=ROOM: the played dancer online, the other seat through the network
   if (query.has('net')) await (await import('./net/play')).netPlay({ show, play, frame, world: () => worldOf(main.world), query, gates });
   // ?play&partner, ?roda, ?teach: brains on the seats (src/ai/demo.ts)
@@ -267,7 +267,7 @@ const bend = installHooks({
   pending: () => gems?.pending ?? null,
   grabYuv: () => post.grabYuv(),
 });
-Object.assign(bend, { gates, device, fade });
+Object.assign(bend, { gates, device, fade, post });
 if (query.has('perfgroup')) void import('./engine/perfrun').then((m) => m.perfRun({ bend, kit, frame, views, choice: device, ready }));
 if (FILM) {
   kit.manual = true;

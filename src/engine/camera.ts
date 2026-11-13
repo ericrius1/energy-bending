@@ -304,6 +304,11 @@ const LOCK_JOINTS = [0, 3, 4, 6, 9, 10, 12, 18, 19, 22, 23, 26, 31, 32, 35];
 /** the fastest the boom comes in for a solid (m/s), and the times ahead (s, at clearAhead 0.35) it looks along its turn */
 const PULL_SPEED = 5;
 const AHEAD = [0.12, 0.25, 0.4, 0.6, 0.8];
+/** the locked view: how deep (m, along its boom from the look point) the stage's own ledges stand, which never pull it
+ *  in; how fast its lens may widen (degrees/s) and its dodge turn (rad/s) */
+const LOCK_STAGE_DEPTH = 1.6;
+const LOCK_WIDEN = 30;
+const DODGE_RATE = 0.35;
 /** how far the free boom may tilt (rad) to see over something low (or under a bough) */
 const LIFTS = [0.15, 0.3, 0.45, 0.6, -0.12, -0.24];
 /** what the locked view must see past solids: hips, knees, chest, head */
@@ -849,14 +854,17 @@ export class CameraRig {
     this.dodgeFor(dt, f, c, base);
     const { back, D, fov } = this.lockPose(f, c, base + this.dodge);
     // a light ease on top (the extent already eases), so nothing jitters
-    const k = this.lockFresh ? 1 : 1 - Math.exp(-dt * 6);
+    const fresh = this.lockFresh, k = fresh ? 1 : 1 - Math.exp(-dt * 6);
     this.lockFresh = false;
     for (let a = 0; a < 3; a++) {
       this.lockC[a] += (c[a] - this.lockC[a]) * k;
       this.lockBack[a] += (back[a] - this.lockBack[a]) * k;
     }
-    this.lockD += (D - this.lockD) * k;
-    this.lockFov += (fov - this.lockFov) * k;
+    // (bounded: in no faster than the free boom comes in for a solid, the lens no wider by more than 30°/s, so whatever
+    // the framing asks for in one frame, the shot moves, never cuts)
+    const dD = (D - this.lockD) * k, dF = (fov - this.lockFov) * k;
+    this.lockD += fresh ? dD : Math.max(dD, -PULL_SPEED * dt);
+    this.lockFov += fresh ? dF : Math.min(dF, LOCK_WIDEN * dt);
     for (let a = 0; a < 3; a++) this.lockEye[a] = this.lockC[a] + this.lockBack[a] * this.lockD;
     // (kept from drifting when unlocked: the free yaw takes over from wherever the lock left it facing)
     if (this.mode === 'locked' && this.lockW > 0.98) this.yaw += wrap(Math.atan2(N[0], N[2]) - this.yaw) * Math.min(1, dt * 2);
@@ -891,9 +899,14 @@ export class CameraRig {
     const hb2 = back[0] * back[0] + back[2] * back[2] || 1, b = c[0] * back[0] + c[2] * back[2], room = Math.max(1, f.room - 0.3);
     const cc = c[0] * c[0] + c[2] * c[2] - room * room;
     let maxD = Math.max(2, (-b + Math.sqrt(Math.max(0, b * b - hb2 * cc))) / hb2);
-    if (this.clearance) {
+    const want = D;
+    if (this.clearance && maxD > LOCK_STAGE_DEPTH) {
+      // measured from in front of the stage's own depth: the ledges the dancers stand beside (the temple's altar and
+      // broken pillars, a log, a slab's columns) stand on the plane with the look point among them, and must never pull
+      // the lock in (from the look point a turn past the altar's end read as 0 clear: a 2 m eye with a 90° lens)
+      const a: V3 = [c[0] + back[0] * LOCK_STAGE_DEPTH, c[1] + back[1] * LOCK_STAGE_DEPTH, c[2] + back[2] * LOCK_STAGE_DEPTH];
       const far: V3 = [c[0] + back[0] * maxD, c[1] + back[1] * maxD, c[2] + back[2] * maxD];
-      maxD = Math.max(2, maxD * this.clearance(c, far));
+      maxD = Math.max(2, LOCK_STAGE_DEPTH + (maxD - LOCK_STAGE_DEPTH) * this.clearance(a, far));
     }
     if (D > maxD) {
       D = maxD;
@@ -901,7 +914,7 @@ export class CameraRig {
       for (const [x, y, z] of corners) t = Math.max(t, Math.abs(x) / (SX * asp * Math.max(0.5, D - z)), Math.abs(y) / (SY * Math.max(0.5, D - z)));
       fov = Math.min(WIDEST, (Math.atan(t) * 360) / Math.PI);
     }
-    return { back, D, fov, eye: [c[0] + back[0] * D, c[1] + back[1] * D, c[2] + back[2] * D] as V3 };
+    return { back, D, want, fov, eye: [c[0] + back[0] * D, c[1] + back[1] * D, c[2] + back[2] * D] as V3 };
   }
 
   /** the lock's dodge: while a solid (a column, a trunk, a shelf) stands across the sight lines from the eye to the
@@ -914,8 +927,11 @@ export class CameraRig {
     if (!S || !f.dancers.length || C.lockDodge <= 0) { this.dodge += (0 - this.dodge) * (1 - Math.exp(-dt * 2)); return; }
     this.dodgeWait -= dt;
     const score = (off: number, hits?: number[]) => {
-      const eye = this.lockPose(f, c, base + off).eye;
-      return this.blocked(eye, f, hits) + (S.inside(eye, 0.4) ? 2 : 0) + (Math.abs(off) / Math.max(1e-3, C.lockDodge)) * 0.15;
+      const p = this.lockPose(f, c, base + off);
+      // (a turn that has to stand closer than the framing wants, behind a solid or a gate, comes with a wider lens:
+      // a different, lower shot, never worth a sight line)
+      const short = Math.max(0, 1 - p.D / Math.max(1e-3, p.want));
+      return this.blocked(p.eye, f, hits) + (S.inside(p.eye, 0.4) ? 2 : 0) + short * 3 + (Math.abs(off) / Math.max(1e-3, C.lockDodge)) * 0.15;
     };
     const now = score(this.dodgeWant);
     if (this.dodgeWait <= 0 && (now > 0.15 || this.dodgeWant !== 0) || this.lockFresh) {
@@ -928,7 +944,10 @@ export class CameraRig {
       }
       this.dodgeWant = best;
     }
-    this.dodge += (this.dodgeWant - this.dodge) * (this.lockFresh ? 1 : 1 - Math.exp(-dt * 2.2));
+    // eased, and no faster than DODGE_RATE: at the lock's 9 to 15 m a turn of 0.4 rad moves the eye 4 to 6 m sideways,
+    // which the plain ease did in about half a second (the swing the integration saw)
+    const step = (this.dodgeWant - this.dodge) * (this.lockFresh ? 1 : 1 - Math.exp(-dt * 2.2));
+    this.dodge += this.lockFresh ? step : Math.max(-DODGE_RATE * dt, Math.min(DODGE_RATE * dt, step));
     this.blocked(this.lockPose(f, c, base + this.dodge).eye, f, B);
   }
 

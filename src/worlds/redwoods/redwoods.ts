@@ -65,6 +65,9 @@ export class Redwoods implements World {
   readonly id = 'redwoods';
   readonly light = 1;
   readonly mood = 0.3;
+  /** the locked view's dim beyond the stage (World.stageDim; 9-stage.md): the most of any world, for the contrast a
+   *  water dancer's pale head and shoulders lack against the bright fog behind */
+  readonly stageDim = 0.75;
   readonly shared: Record<string, Texture>;
   readonly stages: StagePlane[];
   readonly portals: PortalDef[];

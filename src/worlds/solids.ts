@@ -85,10 +85,31 @@ function hitBox(o: V3, d: V3, s: Extract<Solid, { kind: 'box' }>, m: number) {
   return t0;
 }
 
-/** how much of the segment a → b (0 … 1, from a) is clear of the solids, each grown by `margin` (m) */
+/** how far p is from a solid's surface (negative inside) */
+function distOf(s: Solid, p: V3) {
+  if (s.kind === 'capsule') {
+    const bx = s.b[0] - s.a[0], by = s.b[1] - s.a[1], bz = s.b[2] - s.a[2], L2 = bx * bx + by * by + bz * bz;
+    const px = p[0] - s.a[0], py = p[1] - s.a[1], pz = p[2] - s.a[2];
+    const t = L2 > 1e-12 ? Math.max(0, Math.min(1, (px * bx + py * by + pz * bz) / L2)) : 0;
+    return Math.hypot(px - bx * t, py - by * t, pz - bz * t) - s.r;
+  }
+  const px = p[0] - s.c[0], py = p[1] - s.c[1], pz = p[2] - s.c[2];
+  const q = [s.x, s.y, s.z].map((ax, k) => Math.abs(px * ax[0] + py * ax[1] + pz * ax[2]) - s.h[k]);
+  return Math.hypot(Math.max(q[0], 0), Math.max(q[1], 0), Math.max(q[2], 0)) + Math.min(Math.max(q[0], q[1], q[2]), 0);
+}
+
+/** how much of the segment a → b (0 … 1, from a) is clear of the solids, each grown by `margin` (m). A start nearer a
+ *  solid than the margin (a dancer standing on a slab of columns, the look point a hand's breadth over the crown)
+ *  shrinks the margin to start clear of all of them, as the camera's own sweep does: otherwise the grown slab next to
+ *  the one underfoot read as 0 clear for any boom not rising steeply, and pinned the eye at its 0.9 m (9-stage.md: the
+ *  forge's orbit with the pair on the crown) */
 export function clearOf(solids: readonly Solid[], a: V3, b: V3, margin = 0.4) {
   const d: V3 = [b[0] - a[0], b[1] - a[1], b[2] - a[2]];
   if (d[0] * d[0] + d[1] * d[1] + d[2] * d[2] < 1e-12) return 1;
+  for (const s of solids) {
+    const e = distOf(s, a);
+    if (e > 0 && e < margin) margin = e * 0.95;
+  }
   let best = 1;
   for (const s of solids) {
     const t = s.kind === 'capsule' ? hitCapsule(a, d, s.a, s.b, s.r + margin) : hitBox(a, d, s, margin);

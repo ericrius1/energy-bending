@@ -47,6 +47,11 @@ export interface PlayCtx {
   /** a dancer's joints (the GPU layout) as the main view sees it: through a gate when it is in another world (the
    *  portals' seen), so the follow camera keeps aiming at a player who has walked through a gate. Default: its own */
   seen?: (d: Dancer) => Float32Array | null;
+  /** the world a dancer is in (the portals' worldOf): the ground it walks on and the height it falls out at. Default:
+   *  the main view's. (The main view changes world only once the camera's eye has come through the gate, a second
+   *  after its player, so a player walking back from the forge into the hub stood on the forge's floor at hub
+   *  coordinates for that second: no column there, and they fell through the hub and re-formed: 9-stage.md) */
+  worldOf?: (d: Dancer) => World;
 }
 
 export const playParams = defineParams('play', {
@@ -114,7 +119,6 @@ export async function playDemo(ctx: PlayCtx): Promise<PlayHandle> {
   const flourish = pirouetteFlourish(ctx.motion);
   if (flourish && !MOVES[flourish.name]) registerMove(flourish);
 
-  const terrain = { groundAt: (x: number, z: number) => ctx.world().groundAt(x, z), get fallY() { return ctx.world().fallY; } };
   // set ice on the locked plane: its stretches as one-way ledges (sloped ones in flat steps)
   const ice = show.kinds.find((k) => k.id === 'ice' || k.id === 'water') as WaterPasses | undefined;
   const iceLedges = (plane: StagePlane | null): Ledge[] => (ice && plane && (!ice.setIce.world || ice.setIce.world === ctx.world().id) ? flatSteps(ice.setIce.ledgesIn(plane)) : []);
@@ -122,13 +126,18 @@ export async function playDemo(ctx: PlayCtx): Promise<PlayHandle> {
   const dancers: Dancer[] = [];
   const addDancer = (seat: number) => {
     const sp = ctx.world().spawns[seat] ?? [seat ? 1.2 : -1.2, 0, 0];
+    // (each dancer on its own world's ground: see PlayCtx.worldOf)
+    let dancer: Dancer | null = null;
+    const home = () => (dancer && ctx.worldOf ? ctx.worldOf(dancer) : ctx.world());
+    const terrain = { groundAt: (x: number, z: number) => home().groundAt(x, z), get fallY() { return home().fallY; } };
     const c = new IntentController(skel, { seat, terrain, moves, at: [sp[0], sp[1], sp[2]] });
     c.character.flourish = flourish?.name ?? null;
     c.character.extraLedges = () => iceLedges(c.character.plane);
     c.character.yaw = seat ? -Math.PI / 2 : Math.PI / 2;
     if (lockedPlane) c.setPlane(lockedPlane);
     controllers.push(c);
-    dancers.push(new Dancer(`player.${seat}`, c, gemsLoadout(seat ? playParams.suiteTwo : playParams.suiteOne)));
+    dancer = new Dancer(`player.${seat}`, c, gemsLoadout(seat ? playParams.suiteTwo : playParams.suiteOne));
+    dancers.push(dancer);
     return c;
   };
   let lockedPlane: StagePlane | null = null;

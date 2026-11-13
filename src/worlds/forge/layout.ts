@@ -100,6 +100,23 @@ export function layoutForge(o: { coarse: boolean; seed?: number }): ForgeLayout 
   return { slabs: [...stage, ...islands], ledges, columns: new Float32Array(cols), stageColumns, count: cols.length / COLUMN_FLOATS };
 }
 
+/** the top of the stage's floor under (x, z) (World.groundAt): the highest stage column whose hexagon holds the point
+ *  (`lift(slab)`: how far a bobbing slab's top stands now; the anvil's is its top), or `below` where no column does.
+ *  A cell is a hexagon of corner radius R, flat sides facing ±x, and the cells of a slab tile it with no gap; the test
+ *  was a circle of 0.9 R, which left the corners between cells open (a free dancer walking in from the gate met them as
+ *  holes in the floor: 9-stage.md). A centimetre of margin so the shared edge is floor from either side */
+export function floorAt(L: ForgeLayout, x: number, z: number, top: (slab: Slab, column: number) => number, below: number) {
+  let best = below;
+  const k = Math.sqrt(3) / 2;
+  for (let i = 0; i < L.stageColumns; i++) {
+    const o = i * COLUMN_FLOATS, R = L.columns[o + 3] + 0.01;
+    const dx = Math.abs(x - L.columns[o]), dz = Math.abs(z - L.columns[o + 1]);
+    if (dx > k * R || 0.5 * dx + k * dz > k * R) continue;
+    best = Math.max(best, top(L.slabs[L.columns[o + 5]], L.columns[o + 2]));
+  }
+  return best;
+}
+
 /** the stage's columns as the camera's solids (World.solids): each a box from its flat top down `hang`, the bobbing ones
  *  (the floats and the crown) as high as they rise. The far islands are out of the camera's reach (the cameras agent's
  *  reading, moved here so the forge says its own) */
