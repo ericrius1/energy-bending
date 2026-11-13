@@ -50,4 +50,18 @@ test('a camera orbiting through a dancer never comes within near, and never jump
   assert(jump < 0.12, `the eye jumped ${jump.toFixed(3)} m in a frame`);
 });
 
+test('a solid across the boom shortens it only as far as the bodies allow', () => {
+  // a fusion's column round what the camera looks at, and a solid two thirds of the way out: the boom would come in to
+  // a third of its length, inside the column; it stops at the column's clearance instead
+  const column: Capsule = { a: [0, 0, 0], b: [0, 4, 0], r: 1.0 };
+  const cam = new FilmCamera([{ t: 0, around: [0, 0, 0], yaw: 0, pitch: 0, dist: 6, height: 1, lag: 0 }]);
+  const scene: FilmScene = {
+    anchor: () => [0, 0, 0], rig: { eye: [0, 0, 0], look: [0, 0, 0], fov: 38, focus: 5 }, aspect: 16 / 9,
+    bodies: () => [column], clear: () => 0.33,
+  };
+  let p = cam.update(0, 1 / 60, scene);
+  for (let i = 1; i < 120; i++) p = cam.update(i / 60, 1 / 60, scene);
+  assert(dist(p.eye, column) >= 1.2 - 0.05, `the eye ${dist(p.eye, column).toFixed(2)} m from the column`);
+});
+
 done();

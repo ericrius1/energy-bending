@@ -327,8 +327,8 @@ async function run(api: FilmApi, recorder: Recorder, shot: ShotSpec, plan: ShotP
    *  it stands from the nearest body (a bone or a fusion's column, its own radius taken off) */
   const where = () => {
     const f = (v: number[]) => v.map((x) => x.toFixed(2)).join(',');
-    const b = J ? (J.beat() as number | null) : null;
-    const roots = J ? (J.stats().seats as { root: number[] }[]).map((x) => f(x.root)).join(' | ') : '';
+    const b = J ? (J.beat() as number | null) : Number.isFinite(tau) ? tau / spb : null;
+    const roots = J ? (J.stats().seats as { root: number[] }[]).map((x) => f(x.root)).join(' | ') : (B.players() as { x: number; y: number; z: number }[]).slice(0, 2).map((p) => f([p.x, p.y, p.z])).join(' | ');
     if (!pose) return ` beat ${b?.toFixed(1)} seats ${roots}`;
     const E = (pose as CamPose).eye;
     let near = Infinity;

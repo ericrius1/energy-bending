@@ -327,10 +327,19 @@ export class FilmCamera {
         focus = A + (B - A) * EASES[this.focuses[i + 1].e]((t - this.focuses[i].t) / Math.max(1e-6, this.focuses[i + 1].t - this.focuses[i].t));
       } else focus = A;
     }
-    // the boom shortened to what is clear (never closer than a body's width)
+    // the boom shortened to what is clear (never closer than a body's width), but never into the bodies: a solid across
+    // the boom with a fusion's column or a dancer between it and the eye would pull the eye into them (film 1's
+    // fusion orbit, a log behind it: a full-frame aurora); the solid wins only as far as the bodies' clearance
     if (s.clear) {
       const D = Math.hypot(eye[0] - look[0], eye[1] - look[1], eye[2] - look[2]) || 1;
-      const want = Math.max(Math.min(1, s.clear(look, eye)), Math.min(1, 0.9 / D));
+      let floor = Math.min(1, 0.9 / D);
+      const caps = s.bodies?.(), near = g('near');
+      if (caps?.length && near > 0) {
+        const at = (p: number): V3 => [look[0] + (eye[0] - look[0]) * p, look[1] + (eye[1] - look[1]) * p, look[2] + (eye[2] - look[2]) * p];
+        const inside = (p: number) => caps.some((c) => { const X = at(p), q = nearestOn(X, c.a, c.b); return Math.hypot(X[0] - q[0], X[1] - q[1], X[2] - q[2]) < c.r + near; });
+        if (!inside(1)) { let p = 1; while (p > floor && !inside(p - 0.02)) p -= 0.02; floor = Math.max(floor, p); }
+      }
+      const want = Math.max(Math.min(1, s.clear(look, eye)), floor);
       this.pull += (want - this.pull) * (1 - Math.exp(-dt * (want < this.pull ? 16 : 1.6)));
       for (let a = 0; a < 3; a++) eye[a] = look[a] + (eye[a] - look[a]) * this.pull;
     }

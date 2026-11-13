@@ -174,7 +174,7 @@ await new Promise((ok) => server.listen(PORT, '127.0.0.1', ok));
 // ---------------------------------------------------------------- the lock
 let release = null, heldAt = 0;
 const holds = [];
-async function lock() { release = await takeLock({ say: log }); heldAt = Date.now(); }
+async function lock() { release = await takeLock({ say: log, waitMs: 1000 }); heldAt = Date.now(); }
 function unlock(what) {
   if (!release) return;
   const s = (Date.now() - heldAt) / 1000;
@@ -239,7 +239,9 @@ async function renderShot(s, k0, k1, audio) {
           res.end('go');
           return;
         }
-        if (path === '/end') { await finishTake(); info = JSON.parse(body.toString()); unlock(`${s.id} done`); res.end('ok'); if (!audio) resolve(); return; }
+        // (the page always posts /done after /end, its score or not: the shot ends there, or the next shot's sink
+        // would take this page's /done for its own and end before it began)
+        if (path === '/end') { await finishTake(); info = JSON.parse(body.toString()); unlock(`${s.id} done`); res.end('ok'); return; }
         if (path === '/audio') { writeFileSync(join(s.dir, 'score.wav'), body); res.end('ok'); return; }
         if (path === '/done') { info = JSON.parse(body.toString()); res.end('ok'); resolve(); return; }
         if (path === '/error') { res.end(); reject(new Error(`the page: ${body.toString()}`)); return; }
