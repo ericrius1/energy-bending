@@ -146,7 +146,7 @@ export interface FireField {
   time: number;
   embers: number;
   mirrorY: number;
-  pad1: number;
+  mirrorFall: number;
   pad2: number;
 }
 

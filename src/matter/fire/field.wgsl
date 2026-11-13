@@ -35,7 +35,9 @@ struct FireField {
   embers: f32,         // ember glow (embers are drawn as points in the scene, draw.wgsl)
   mirrorY: f32,        // the height of the floor the mirror copy is reflected about (the geode's agate, the Pool's
                        // water, the temple's tide: World.waterY)
-  pad1: f32, pad2: f32,
+  mirrorFall: f32,     // 1/m: how fast the copy fades with the flame's height over the floor (polished agate fades
+                       // fast; still water mirrors the whole body)
+  pad2: f32,
 }
 
 /** the in-between of fire and plasma (form 0.5): a blue torch, deep blue at its skin, cyan-white inside, a white cone

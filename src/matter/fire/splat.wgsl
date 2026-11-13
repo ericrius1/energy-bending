@@ -60,7 +60,7 @@ const CORNERS = array<vec2f, 6>(vec2f(-1.0, -1.0), vec2f(1.0, -1.0), vec2f(1.0, 
     let below = p.y - field.mirrorY;
     p.y = field.mirrorY - below;
     v.y = -v.y;
-    fade = field.reflect * exp(-below * 1.6);
+    fade = field.reflect * exp(-below * field.mirrorFall);
   }
   let T = flameT(f);
   // wet flames turn to smoke as they go; dry fire makes a little at the end of its life
