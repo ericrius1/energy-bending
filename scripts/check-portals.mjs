@@ -18,7 +18,7 @@ import { dirname, join } from 'node:path';
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const weftSrc = join(root, 'node_modules/@ericrius1/weft/src').replace(/\\/g, '/');
 const out = await build({
-  stdin: { contents: "export * from './src/portals/gate'; export * from './src/portals/camera'; export * from './src/portals/rigid'; export { CameraRig, Solids, boxOn, distTo, cameraParams } from './src/engine/camera'; export { samplePath } from './src/engine/shots';", resolveDir: root, loader: 'ts' },
+  stdin: { contents: "export * from './src/portals/gate'; export * from './src/portals/camera'; export * from './src/portals/rigid'; export { CameraRig, Solids, boxOn, distTo, cameraParams } from './src/engine/camera';", resolveDir: root, loader: 'ts' },
   bundle: true, format: 'esm', write: false, platform: 'node',
   plugins: [{
     name: 'weft-cpu', setup(b) {
@@ -28,7 +28,7 @@ const out = await build({
   }],
 });
 const mod = await import(`data:text/javascript;base64,${Buffer.from(out.outputFiles[0].text).toString('base64')}`);
-const { Gate, GateCamera, setPose, CameraRig, Solids, boxOn, distTo, cameraParams, samplePath } = mod;
+const { Gate, GateCamera, setPose, CameraRig, Solids, boxOn, distTo, cameraParams } = mod;
 
 let bad = 0, n = 0;
 const ok = (cond, what) => { n++; if (!cond) { bad++; console.error('FAIL', what); } };
@@ -350,33 +350,6 @@ const stepRig = (rig, n, f, each) => { for (let i = 0; i < n; i++) { each?.(i); 
   okc(steady.behind > 0.95, `and the follow camera ends behind the player (cos ${steady.behind.toFixed(2)})`);
 }
 
-// a camera path: keys in the pair's space, blended in from the follow camera, held, released back to it, no jumps
-{
-  const rig = new CameraRig();
-  const dancers = [body(-1, 1, 0), body(1, 1, 0)];
-  const f = () => input(dancers, 40);
-  rig.follow = { x: 0, y: 1, z: 0, yaw: 0, speed: 0, spread: 2 };
-  stepRig(rig, 60, f);
-  const path = { space: { pair: true }, blendIn: 1, blendOut: 1, lag: 0, keys: [
-    { t: 0, orbit: [0.2, 0.15, 5], at: [0, 1, 0], fov: 40 },
-    { t: 2, orbit: [1.2, 0.3, 4], at: [0, 1.1, 0] },
-    { t: 4, orbit: [2.0, 0.1, 6], at: [0, 1, 0], fov: 30, roll: 0.05, focus: 5.5 },
-  ] };
-  rig.play(path);
-  let jump = 0, prev = [...rig.eye];
-  const step = (n) => { for (let i = 0; i < n; i++) { rig.update(1 / 60, f()); jump = Math.max(jump, Math.hypot(rig.eye[0] - prev[0], rig.eye[1] - prev[1], rig.eye[2] - prev[2])); prev = [...rig.eye]; } };
-  step(Math.round(60 * 2));   // t = 2: the second key (the pair's space is the world's here: +x toward dancer 1)
-  const want = [Math.sin(1.2) * Math.cos(0.3) * 4, 1.1 + Math.sin(0.3) * 4, Math.cos(1.2) * Math.cos(0.3) * 4];
-  okc(near(rig.eye, want, 0.02), `path: at its second key the eye is where the key says (${rig.eye.map((x) => x.toFixed(2))})`);
-  step(Math.round(60 * 2.5));
-  okc(rig.path?.done && Math.abs(rig.fovNow - 30) < 1e-3 && Math.abs(rig.focus - 5.5) < 1e-3, `path: held at its last key (lens ${rig.fovNow.toFixed(1)}, focus ${rig.focus.toFixed(2)})`);
-  rig.release();
-  step(90);
-  okc(rig.path === null && Math.abs(rig.fovNow - cameraParams.followFov) < 1e-3, 'path: released, the rig is its own again');
-  okc(jump < 0.25, `path: in, along and out without a jump (largest step ${jump.toFixed(3)} m a frame)`);
-  // samplePath alone: a stop key is passed at rest, the ends are held
-  const s = (t) => samplePath({ keys: [{ t: 0, eye: [0, 1, 0] }, { t: 1, eye: [1, 1, 0], stop: true }, { t: 2, eye: [3, 1, 0] }] }, t).eye[0];
-  okc(Math.abs(s(1.001) - s(0.999)) < 1e-4 && s(-1) === 0 && s(9) === 3, 'path: a stop key is passed at rest; before and after the keys it holds');
-}
+// (the camera path API, CameraRig.play, is gone at the integration: the films' camera is engine/filmcam.ts)
 console.log(bad ? `${bad} of ${n} gate checks failed` : `gates check (${n} checks)`);
 process.exit(bad ? 1 : 0);

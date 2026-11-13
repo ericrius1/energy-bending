@@ -1,13 +1,14 @@
-# The camera: keeping out of the world, the lock, the stick, camera paths
+# The camera: keeping out of the world, the lock, the stick
 
 The rig (`src/engine/camera.ts`, `CameraRig`) has three ways to look (free, follow, locked; see the file's opening
-note) and, over all of them, an optional **camera path** (`src/engine/shots.ts`, `CameraPath`). This guide is for
-whoever writes a world (what the camera needs from it), a film or a cut scene (paths), or a player's input (the
-stick's turn).
+note). A film's camera (keyframes, blending into and out of the rig's follow and lock) is `src/engine/filmcam.ts`
+(docs/extending/film.md). This guide is for whoever writes a world (what the camera needs from it) or a player's input
+(the stick's turn).
 
 ## Solids: what the eye keeps out of
 
-A world's big solid things, as rough shapes in its own coordinates (`Solid` in camera.ts):
+A world's big solid things, as rough shapes in its own coordinates (`Solid` in `src/worlds/solids.ts`, re-exported by
+camera.ts; the same list answers `World.clear` and keeps the brains' free pair off them):
 
 ```ts
 type Solid =
@@ -17,13 +18,14 @@ boxOn(foot, [w, h, d], yaw = 0, pitch = 0)                       // a box standi
 ```
 
 Each frame the portals give the rig the solids of the world it works in (`rig.solids`, a `Solids` with a bounding
-sphere per shape) and its water (`rig.waterY`). **A world says its own with an optional `solids(): Solid[]`** (static;
-something that moves a little, a bobbing slab, a swinging lantern, given as where it can be; a few centimetres fat
-rather than thin; columns as capsules, blocks and slabs as boxes, nothing smaller than about 30 cm). Until a world
-does, `src/portals/solids.ts` reads them from what the world already lays out (the temple's stones, the geode's
-blades and crystal points, the redwoods' trunks, limbs, lanterns and stage logs, the forge's stage columns); if that
-reading fails it warns once and the camera avoids only the gates there. `World.clear(a, b)` (the redwoods' trunks) is
-still asked, through the portals' `clearance`.
+sphere per shape) and its water (`rig.waterY`). **A world says its own with `World.solids: readonly Solid[]`** (static,
+built once from the layout it draws from; something that moves a little, a bobbing slab, a swinging lantern, given as
+where it can be; a few centimetres fat rather than thin; columns as capsules, blocks and slabs as boxes, nothing
+smaller than about 30 cm). Every world but the Pool has them: the temple's stones (`temple/layout.ts solidsOf`), the
+redwoods' trunks, limbs, lanterns and stage logs (`redwoods/layout.ts`, `stage.ts`), the geode's blades and big crystal
+points (`geode/shelves.ts solidsOfShelves`), the forge's stage columns (`forge/layout.ts solidsOfForge`).
+`src/portals/solids.ts` only wraps them. `World.clear(a, b)` answers from the same list (`clearOf`, a 40 cm margin) and
+is still asked through the portals' `clearance` (the film camera's boom reads it too).
 
 What the rig does with them (`camera.*` params):
 
@@ -63,55 +65,9 @@ look input (`lookBy`) and a gate's carry turn it too. `src/dancer/play.ts` sets 
 For scripts: `bend.intent(0, { moveZ: 1 })` walks "into the screen" (away from the camera) and holds that line;
 `moveY` is up (a jump, or a crouch below -0.5), not a walk. Add `walk: true` for a walk rather than a run.
 
-## Camera paths
+## Camera paths (removed)
 
-A path is a shot as keyframes in the rig's own terms. `bend.rig.play(path)` plays it over whatever the rig is doing,
-blending in over `blendIn` seconds; `bend.rig.release(seconds?)` blends back out; `bend.rig.path` says
-`{ t, w, done, path }` (null when none). Another `play` replaces the path, blending from where the camera is. The
-path's clock is the rig's (it steps with `bend.step`, so films are deterministic).
-
-```ts
-interface CameraPath {
-  keys: PathKey[];
-  space?: 'world' | { dancer: number; turn?: boolean } | { pair: true } | { stage: true | StagePlane };
-  blendIn?: number;   // s (default 1; 0 cuts)
-  blendOut?: number;  // s (default 1), on release
-  avoid?: boolean;    // keep the eye out of the solids, above the ground and the water (as the free camera does)
-  end?: 'hold' | 'release' | 'loop';   // after the last key (default hold)
-  lag?: number;       // s the space's origin lags what it follows (default 0.25; 0 exact)
-}
-interface PathKey {
-  t: number;                           // s from the path's start
-  eye?: V3;                            // the eye in the path's space, or
-  orbit?: [yaw, pitch, dist];          // the eye about `at` (the rig's convention: yaw 0 puts the eye at +z)
-  at?: V3;                             // looked at (default [0, 1, 0])
-  fov?: number; roll?: number;         // degrees top to bottom; rad
-  focus?: number;                      // the distance in focus (default: to `at`)
-  stop?: boolean;                      // arrive and leave at rest (the first and last keys do by default)
-}
-```
-
-Spaces, resolved every frame: `'world'` (carried with the rig through a gate); `{ dancer: i }` the ground under seat
-i's hips (with `turn`, +z ahead of them, +x to their left); `{ pair: true }` the ground under the middle of seats 0
-and 1, +x toward seat 1; `{ stage }` a stage plane (+x along its right, +z toward the locked camera's side; `true` is
-the plane locked to). A key that leaves a channel out holds its neighbours'. Every channel runs on a cubic through the
-keys (Catmull-Rom tangents over the keys' own times); a path whose keys all give `orbit` interpolates the orbit (it
-circles, the short way between two keys), otherwise the eye's position. The lens, roll and focus go to weft's camera
-and the post chain's focus (`rig.focus`) as they blend.
-
-Example: a slow push and half orbit round the pair, rising, a little roll at the end, avoiding the columns, then back
-to the follow camera.
-
-```js
-bend.rig.play({
-  space: { pair: true }, avoid: true, blendIn: 1.5, end: 'release', blendOut: 2,
-  keys: [
-    { t: 0, orbit: [0.3, 0.12, 6.5], at: [0, 1.1, 0], fov: 38 },
-    { t: 4, orbit: [1.4, 0.25, 4.2], at: [0, 1.2, 0] },
-    { t: 8, orbit: [2.6, 0.4, 3.6], at: [0, 1.3, 0], fov: 32, roll: 0.04, focus: 3.4 },
-  ],
-});
-```
-
-`samplePath(path, t)` (shots.ts) gives a path's pose in its own space without a rig, for drawing a path or checking
-one. `scripts/check-portals.mjs` checks a path's keys, its hold, its release and that it never jumps.
+The cameras agent's `bend.rig.play(path)` / `samplePath` were removed at the third integration (8-integration.md): the
+films' timelines drive `src/engine/filmcam.ts`, which lays its pose over the rig's (its `mode: "rig"` and `"lock"`
+blend into the rig's follow and lock) and shortens its boom by the rig's `clearance`, which now covers every world's
+solids. One keyframed camera, one format: docs/extending/film.md.

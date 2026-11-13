@@ -27,7 +27,7 @@
 import { boxOn, type Solid } from '../worlds/solids';
 import { spring } from 'math/time';
 import type { Camera } from '@ericrius1/weft';
-import { SHOTS, fitSetOf, samplePath, type Shot, type CameraPath, type PathSpace } from './shots';
+import { SHOTS, fitSetOf, type Shot } from './shots';
 import { defineParams } from './params';
 
 type V3 = [number, number, number];
@@ -386,16 +386,9 @@ export class CameraRig {
   private boomRate = 0;
   /** per player: the turn their camera-relative stick is read in, while held (see `stickYaw`) */
   private sticks: { yaw: number; held: boolean }[] = [];
-  /** a camera path playing (see `play`): its pose this frame, its weight, its own boom */
-  private run: PathRun | null = null;
-  private roll = 0;
-  private focusAt: number | null = null;
-
-  /** the distance in focus: from the eye to what it looks at (the stage plane, locked), or a path's own */
-  get focus() {
-    const d = Math.hypot(this.look[0] - this.eye[0], this.look[1] - this.eye[1], this.look[2] - this.eye[2]);
-    return this.focusAt === null ? d : this.focusAt;
-  }
+  /** the distance in focus: from the eye to what it looks at (the stage plane, locked). (A film's camera, engine/
+   *  filmcam.ts, lays its own focus over this one) */
+  get focus() { return Math.hypot(this.look[0] - this.eye[0], this.look[1] - this.eye[1], this.look[2] - this.eye[2]); }
 
   /** the turn player `p`'s camera-relative stick (moveX, moveZ) is read in. While the stick is held it keeps the turn
    *  it had when the push began: the camera's own swings (behind a runner, onto a gate, the director's drift) don't
@@ -433,7 +426,6 @@ export class CameraRig {
     this.yaw += turn;
     this.boomYaw += turn;
     for (const s of this.sticks) if (s) s.yaw += turn;
-    if (this.run) this.run.carry(m);
     this.approach = null;
   }
 
@@ -484,13 +476,9 @@ export class CameraRig {
       this.look[a] = this.freeLook[a] + (this.lockC[a] - this.freeLook[a]) * e;
     }
     this.fovNow = this.freeFov + (this.lockFov - this.freeFov) * e;
-    this.roll = 0;
-    this.focusAt = null;
-    // a camera path over all that, by its weight (blending in and out of whatever the rig was doing)
-    if (this.run) this.playPath(dt, f);
     this.sight.eye[0] = this.eye[0]; this.sight.eye[1] = this.eye[1]; this.sight.eye[2] = this.eye[2];
     this.sight.at[0] = this.look[0]; this.sight.at[1] = this.look[1]; this.sight.at[2] = this.look[2];
-    if (e <= 0 && !this.run) this.sight.blocking.length = 0;
+    if (e <= 0) this.sight.blocking.length = 0;
   }
 
   /** the pose into weft's camera (and its matrices for this render size) */
@@ -500,57 +488,8 @@ export class CameraRig {
     // weft: yaw 0 looks down -z, positive yaw turns left; pitch up is positive
     c.yaw = Math.atan2(-dx, -dz);
     c.pitch = Math.atan2(dy, Math.hypot(dx, dz));
-    c.roll = this.roll;
     c.fovY = (this.fovNow * Math.PI) / 180;
     c.update(width, height);
-  }
-
-  // ---------------------------------------------------------------- camera paths (engine/shots.ts: CameraPath)
-  /** play a camera path (docs/extending/camera.md): from `at` seconds into it, blending in over its `blendIn` from
-   *  whatever the rig is doing (free, follow, locked). Its keys are in its `space` (the world, a dancer, the pair, a
-   *  stage), resolved every frame, so a path relative to a dancer goes where they go. Another play replaces it,
-   *  blending from where the camera is */
-  play(path: CameraPath, at = 0) {
-    if (!path.keys.length) throw new Error('camera path: no keys');
-    const was = this.run && this.run.w > 0 ? { eye: [...this.eye] as V3, look: [...this.look] as V3, fov: this.fovNow, roll: this.roll } : null;
-    this.run = new PathRun(path, at, was);
-  }
-  /** let go of the path: blend back to the rig over `blend` seconds (default: the path's `blendOut`) */
-  release(blend?: number) { if (this.run) this.run.release(blend ?? this.run.path.blendOut ?? 1); }
-  /** the path playing: its time (s), its weight (0 … 1), whether it has reached its last key; null when none */
-  get path() { const r = this.run; return r ? { t: r.t, w: r.w, done: r.t >= r.end, path: r.path } : null; }
-
-  private playPath(dt: number, f: RigInput) {
-    const r = this.run!;
-    r.step(dt);
-    if (r.gone) { this.run = null; return; }
-    const pose = r.pose(dt, f, this.plane, this.fovNow);
-    // its own boom kept off the solids, when it asks
-    if (r.path.avoid && this.solids) {
-      const C = cameraParams, S = this.solids, T = pose.look, E = pose.eye;
-      const want = Math.max(Math.min(1, 0.6 / Math.max(1e-3, Math.hypot(E[0] - T[0], E[1] - T[1], E[2] - T[2]))), S.sweep(T, E, C.clearSoft));
-      r.pull += (want - r.pull) * (r.fresh ? 1 : 1 - Math.exp(-dt * (want < r.pull ? 8 : 1.6)));
-      for (let a = 0; a < 3; a++) E[a] = T[a] + (E[a] - T[a]) * r.pull;
-      const h = S.sweep(T, E, C.clearHard);
-      if (h < 1) { for (let a = 0; a < 3; a++) E[a] = T[a] + (E[a] - T[a]) * h; r.pull *= h; }
-      this.keepAbove(E, f);
-    }
-    r.fresh = false;
-    const w = smooth01(r.w), from = r.from;
-    for (let a = 0; a < 3; a++) {
-      const e0 = from ? from.eye[a] : this.eye[a], l0 = from ? from.look[a] : this.look[a];
-      this.eye[a] = e0 + (pose.eye[a] - e0) * w;
-      this.look[a] = l0 + (pose.look[a] - l0) * w;
-    }
-    const f0 = from ? from.fov : this.fovNow, r0 = from ? from.roll : 0;
-    this.fovNow = f0 + (pose.fov - f0) * w;
-    this.roll = r0 + (pose.roll - r0) * w;
-    if (pose.focus !== null) {
-      const d = Math.hypot(this.look[0] - this.eye[0], this.look[1] - this.eye[1], this.look[2] - this.eye[2]);
-      this.focusAt = d + (pose.focus - d) * w;
-    }
-    // (blending in from another path: once it is all this one, the rig's own pose is what it leaves to)
-    if (r.w >= 1) r.from = null;
   }
 
   /** the eye above the ground and the water (25 cm) */
@@ -1007,91 +946,5 @@ export class CameraRig {
       }
     }
     return m ? n / m : 0;
-  }
-}
-
-/** a camera path being played: its clock and weight, its space resolved and eased, the gates it was carried through */
-class PathRun {
-  t: number;
-  readonly end: number;
-  /** the weight before easing (0 … 1), rising over blendIn, falling over a release */
-  w: number;
-  gone = false;
-  /** its own boom (when it avoids solids), and whether this is its first frame */
-  pull = 1;
-  fresh = true;
-  private out = 0;
-  private M: Float32Array | null = null;
-  private O: V3 = [0, 0, 0];
-  private th = 0;
-  private placed = false;
-
-  constructor(readonly path: CameraPath, at: number, public from: { eye: V3; look: V3; fov: number; roll: number } | null) {
-    this.t = at;
-    this.end = path.keys[path.keys.length - 1].t;
-    this.w = (path.blendIn ?? 1) > 0 ? 0 : 1;
-  }
-
-  release(blend: number) { this.out = Math.max(1e-3, blend); if (blend <= 0) this.gone = true; }
-
-  step(dt: number) {
-    this.t += dt;
-    const P = this.path;
-    if (P.end === 'loop' && this.end > 0 && this.t > this.end) this.t -= this.end;
-    if (this.out > 0) { this.w -= dt / this.out; if (this.w <= 0) this.gone = true; return; }
-    const bi = P.blendIn ?? 1;
-    this.w = bi > 0 ? Math.min(1, this.w + dt / bi) : 1;
-    if (P.end === 'release' && this.t >= this.end) this.release(P.blendOut ?? 1);
-  }
-
-  /** a gate carried the rig: a path in world space goes with it (one in a dancer's space goes with the dancer) */
-  carry(m: Float32Array) {
-    if (this.path.space && this.path.space !== 'world') return;
-    if (!this.M) { this.M = new Float32Array(m); return; }
-    const a = this.M, o = new Float32Array(16);
-    for (let c = 0; c < 4; c++) for (let r = 0; r < 4; r++) o[c * 4 + r] = m[r] * a[c * 4] + m[4 + r] * a[c * 4 + 1] + m[8 + r] * a[c * 4 + 2] + m[12 + r] * a[c * 4 + 3];
-    this.M = o;
-  }
-
-  /** the pose now in the rig's coordinates */
-  pose(dt: number, f: RigInput, plane: StagePlane | null, fov: number) {
-    const P = this.path, local = samplePath(P, this.t);
-    // the space: an origin and a turn about up (local x → (cos, 0, −sin), local z → (sin, 0, cos))
-    let O: V3 | null = [0, 0, 0], th = 0;
-    const S: PathSpace = P.space ?? 'world';
-    // (a dancer's place: under their hips, on the ground there, so a jump doesn't lift the shot)
-    const hips = (i: number) => { const w = f.dancers[i]; return w ? ([w[0], f.groundAt ? f.groundAt(w[0], w[2]) : 0, w[2]] as V3) : null; };
-    if (S === 'world') { /* the origin */ }
-    else if ('dancer' in S) {
-      O = hips(S.dancer);
-      const w = f.dancers[S.dancer];
-      if (w && S.turn) {
-        // the hips' forward (+z turned by their rotation, x y z w at 4 … 7)
-        const x = w[4], y = w[5], z = w[6], q = w[7];
-        th = Math.atan2(2 * (x * z + q * y), 1 - 2 * (x * x + y * y));
-      }
-    } else if ('pair' in S) {
-      const a = hips(0), b = hips(1) ?? a;
-      O = a && b ? [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2, (a[2] + b[2]) / 2] : null;
-      if (a && b && Math.hypot(b[0] - a[0], b[2] - a[2]) > 0.05) th = Math.atan2(-(b[2] - a[2]), b[0] - a[0]);
-      else th = this.th;
-    } else {
-      const pl = S.stage === true ? plane : S.stage;
-      if (pl) { O = [...pl.origin] as V3; th = Math.atan2(-pl.right[2], pl.right[0]); }
-    }
-    // (a dancer that isn't there: the space stays where it was)
-    if (O) {
-      const lag = P.lag ?? 0.25, k = !this.placed || lag <= 0 || S === 'world' ? 1 : 1 - Math.exp(-dt / lag);
-      for (let a = 0; a < 3; a++) this.O[a] += (O[a] - this.O[a]) * k;
-      this.th += wrap(th - this.th) * k;
-      this.placed = true;
-    }
-    const c = Math.cos(this.th), s = Math.sin(this.th), Og = this.O, M = this.M;
-    const put = (p: V3): V3 => {
-      const x = Og[0] + p[0] * c + p[2] * s, y = Og[1] + p[1], z = Og[2] - p[0] * s + p[2] * c;
-      if (!M) return [x, y, z];
-      return [M[0] * x + M[4] * y + M[8] * z + M[12], M[1] * x + M[5] * y + M[9] * z + M[13], M[2] * x + M[6] * y + M[10] * z + M[14]];
-    };
-    return { eye: put(local.eye), look: put(local.look), fov: local.fov ?? fov, roll: local.roll, focus: local.focus };
   }
 }
