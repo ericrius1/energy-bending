@@ -52,9 +52,11 @@ fn helixOnScreen(uv: vec2f) -> f32 {
   // storm: lit from inside by flickers that come and go in patches
   let storm = fusionIs(F, 2.0);
   if (storm > 0.0) {
-    let cell = floor(i.uv * vec2f(5.0, 3.0));
+    // (soft patches of a smooth noise, moved each flicker: a screen cell lit whole was a hard-edged pale rectangle
+    // behind the pair, a fifth of the screen wide and a third high)
     let beat = floor(steam.time * 9.0);
-    let flash = step(0.86, hash2i(vec2i(cell) + vec2i(i32(beat) * 7, i32(beat) * 13)));
+    let jump = vec2f(hash2i(vec2i(i32(beat), 5)), hash2i(vec2i(i32(beat), 17))) * 41.0;
+    let flash = smoothstep(0.68, 0.88, vnoise2(i.uv * vec2f(6.0, 4.0) + jump));
     col += vec3f(0.6, 0.55, 0.95) * flash * smoothstep(0.2, 1.2, tau) * storm;
     A = mix(A, steam.cap * 1.15 * (1.0 - exp(-tau * 1.5)), storm);
   }

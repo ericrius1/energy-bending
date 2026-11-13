@@ -352,8 +352,9 @@ export class Field {
       for (const part of BODY_PARTS) {
         let total = 0;
         const acc: [number, number, number, number] = [0, 0, 0, 0];
-        // (a fusion's flame is a whole body's whatever its token share: play/fusion.ts, matter/fire)
-        const shareOf = (l: LoadoutLayer) => (l.params?.fusion ? 1 : l.share);
+        // (a fusion's flame is a whole body's whatever its token share, and outweighs the matter resting on the feet four
+        // to one, so the water there boils thin under the flame: play/fusion.ts, matter/fire)
+        const shareOf = (l: LoadoutLayer) => (l.params?.fusion ? 4 : l.share);
         for (const l of layers) if (l.share > 0 && (!l.parts || l.parts.includes(part))) total += shareOf(l);
         for (const l of layers) {
           if (!(l.share > 0) || (l.parts && !l.parts.includes(part))) continue;

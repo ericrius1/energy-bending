@@ -10,7 +10,8 @@ src/play/
   room.ts      Room: a Session over the room server (Net) or the rules in the page (SteppedLocalNet: on a stepped clock)
   jogo.ts      Jogo: moves to the rules (perfect judged), exchanges replayed and reported, merge, form, build, ready
   feel.ts      Feel: each exchange felt (breath, trails, bursts, arcs, knock, sound, rumble); the elements' perks
-  fusion.ts    Fusion: the gathering, the landing, eight bars of streams and the kind's own matter, the release
+  fusion.ts    Fusion: the gathering, the landing (both bodies in the fusion's flame), eight bars of the field's
+               fusion by the bar count, the release
   build.ts     JogoBuilder (when a move sets a piece, and its shape) and Pieces (set ice, crystal ledges, rings of flame)
   hud.ts       Hud: the meters in the world (the thread, its beads, the feet's arcs, the beat's pulse)
   flow.ts      Flow: waiting, the intro's re-form and count-in, the finale, the results' gems
@@ -62,10 +63,16 @@ slow-motion breath). Numbers worth tuning are in `jogoParams`.
 
 ## Add a fusion kind
 
-The kind comes from the two seats' forms (`RULES.fusionKinds`). Its look is the field's (`field.fuse({ dancers, kind,
-amount, strength, tightness })`, matter/field: the helix of both auras round a vortex and the steam's kind look, in
-`FUSION_KINDS` and the steam shaders); the jogo's streams use `FUSION_COLOURS`, and anything the jogo adds on top is a
-case in `Fusion.kindFrame` (storm's arcs and drops); the music's texture is `music.fusion(kind)` (src/audio).
+The kind comes from the two seats' forms (`RULES.fusionKinds`). At the landing `Fusion` dresses both seats with
+`fusionLoadout` (a `fire` layer with `params: { fusion: 1, side }`, and the seat's own other matter kept on its feet),
+so both bodies are drawn through fire's temperature field and sum into one shape; the release lets that body go
+outward for `RELEASE_MS` and then gives each seat back what it wore. Each frame it stages the field
+(`field.fuse({ dancers, kind, amount, bar, pulse, floorY, at, radius, tightness, height, speed, strength })`), which
+everything else reads through `field.fusionFront` and `field.helix`. A new kind needs: its name in `FUSION_KINDS`
+(matter/field) and the rules; its motion in fire's `fusionMotion` and `fusionRole` (sim.wgsl), its ramp in fire's
+`fusionLook` (composite.wgsl) and its light in `FUSION_LIGHT` (fire.ts); its vapour's tint in the steam shaders; its
+motes' colours in `FUSION_COLOURS`; anything the jogo adds on top in `Fusion.kindFrame` (storm's arcs); the music's
+texture in `music.fusion(kind)` (src/audio). The jogo's glows are light only: they never write a focus distance.
 
 ## A partner brain
 
