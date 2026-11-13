@@ -123,6 +123,16 @@ fn main(@builtin(global_invocation_id) gid: vec3u) {
   T.force += fieldWind(p.pos) * (sim.wind / 60.0) * (1.0 - 0.8 * ice);
   let r = splatRadius(home, a, p, sim.radius);
   let rest = b.floorY + max(r, 0.004) * 0.7;
+  // a particle that came into the world while the show was awake (pool.ts spawn: life < 0) is a film on the floor
+  // under its own home, and slides with it until it lifts (the front's dancers cross the stage in their first fifth
+  // of a second), so the body rises out of a puddle at its feet, soft-edged, not out of the air
+  if (modeIs(p.mode, RESTING) && p.life < 0.0) {
+    let ang = rnd(seed ^ 0x5b1u) * 6.2831853;
+    let jr = sqrt(rnd(seed ^ 0x5b2u)) * 0.14;
+    p.pos = vec3f(H.pos.x + cos(ang) * jr, rest, H.pos.z + sin(ang) * jr);
+    p.vel = H.vel * vec3f(1.0, 0.0, 1.0);
+    p.life = -0.25;
+  }
   let hips = joints[d * MAXJ].pos.xyz;
   let wasOn = modeIs(p.mode, ON_BODY);
   let s = bodyStep(&p, H, goal, T, rest, 2.0 * ice, false, hips, rn, seed, bb);

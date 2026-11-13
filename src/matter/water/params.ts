@@ -115,13 +115,17 @@ export const waterParams = defineParams('water', {
   caustic: 9,
   rise: 0.22,
   refract: 0.12,
+  /** a thick body as a lens (surface.wgsl lensOf): 1 bends what is behind it as water would, drawn in and upside down,
+   *  so it reads against a bright, even background; 0 only the small bend above */
+  lens: 1,
+  /** how soft what is seen through it is, × the screen's height (it stands behind the water, out of focus beside it):
+   *  everywhere, and more where the water is thick */
+  soft: 0.003,
+  softThick: 0.006,
   dispersion: 0.05,
   reflect: 0.6,
   glint: 1,
   foam: 1,
-  /** also write the surface's distance into the scene's alpha (off: the frame's depth contract keeps alpha for opaque
-   *  things; the lens reads MatterPasses.focus). On only for captures made before the lens and the air read focus */
-  distAlpha: false,
   /** a mirroring floor's copy */
   mirror: 0.6,
   /** spray: stretched drops, their size (m), how many glint (share), foam's white */
@@ -143,6 +147,7 @@ export const waterParams = defineParams('water', {
   smoothPasses: { min: 0, max: 3, step: 1 },
   thickness: { min: 0.05, max: 2 },
   refract: { min: 0, max: 0.3 },
+  lens: { min: 0, max: 1.5, label: 'thick water as a lens' },
   deep: { color: true, label: 'what thick water lets through' },
   tint: { color: true, label: 'light inside' },
   glowColor: { color: true, label: 'own light' },

@@ -302,11 +302,12 @@ export interface Surf {
   iceGlint: number;
   edges: number;
   mirror: number;
-  distAlpha: number;
+  pad0: number;
   iceOpacity: number;
   climb: number;
-  pad0: number;
+  lens: number;
   ripple: Vec4;
+  soft: Vec4;
 }
 export interface Bone {
   p: Vec3;

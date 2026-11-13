@@ -61,15 +61,20 @@ fn blur(px: vec2i, dims: vec2i, first: bool) -> vec4f {
     rest += s.yzw * ws;
     rw += ws;
     if (s.x <= 0.0) { continue; }
+    var wd = ws;
     if (d0 > 0.0) {
       // the narrow range: behind it, another surface; in front, clamped to its near edge (and far in front, an arm
       // across the body: left out too, or the body would ridge along the arm's outline)
       if (s.x > hi || s.x < lo - sm.falloff) { continue; }
-      dsum += max(s.x, lo) * ws;
+      // (each way out of the range fades instead of ending: a neighbour that falls in or out of it between one pixel
+      // and the next moved the mean by a step, and those steps, run along x and then y, were the flat rectangular
+      // terraces where an arm crosses the body)
+      wd *= (1.0 - smoothstep(0.0, sm.falloff, lo - s.x)) * (1.0 - smoothstep(d0 + sm.falloff * 0.5, hi, s.x));
+      dsum += max(s.x, lo) * wd;
     } else {
-      dsum += s.x * ws;
+      dsum += s.x * wd;
     }
-    dw += ws;
+    dw += wd;
   }
   var o = vec4f(0.0, rest / max(rw, 1e-6));
   if (dw > 0.0) { o.x = dsum / dw; }
