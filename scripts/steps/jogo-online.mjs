@@ -61,7 +61,8 @@ try {
   const look = async (p) => p.evaluate(() => {
     const J = window.bend.jogo, s = J.room.session;
     return { seat: s.seat, delay: Math.round(J.room.delay()), rtt: Math.round(s.net.rtt), now: Math.round(J.room.now()), tension: J.state?.tension, streak: J.state?.streak,
-      seats: J.stats().seats, history: J.history.filter((h) => h.e.k === 'xch').map((h) => ({ t: h.t, res: h.e.res, by: h.e.by, target: h.e.target, mine: h.e.mine, id: h.e.id })) };
+      seats: J.stats().seats, history: J.history.filter((h) => h.e.k === 'xch').map((h) => ({ t: h.t, res: h.e.res, by: h.e.by, target: h.e.target, mine: h.e.mine, id: h.e.id })),
+      other: J.history.filter((h) => h.e.k !== 'xch').map((h) => `${h.e.k}:${h.e.move ?? h.e.reason ?? h.e.phase ?? ''}`).join(' '), travelling: J.stats().travelling, world: window.bend.world ? null : null };
   });
   const grab = async (p, file) => {
     const url = await p.evaluate(async () => window.bend.grab('image/jpeg', 0.9));
@@ -84,7 +85,8 @@ try {
     const A = await look(a), B = await look(b);
     report.exchanges.push({ n, move, dodge, a: A, b: B });
     console.log(`exchange ${n} (${move}${dodge ? ', dodged' : ''}):`);
-    for (const [k, v] of [['a', A], ['b', B]]) console.log(`  page ${k} (seat ${v.seat}): delay ${v.delay} ms, rtt ${v.rtt} ms, tension ${v.tension}, streak ${v.streak}, seats ${JSON.stringify(v.seats)}\n    xch: ${JSON.stringify(v.history)}`);
+    for (const [k, v] of [['a', A], ['b', B]]) console.log(`  page ${k} (seat ${v.seat}): delay ${v.delay} ms, rtt ${v.rtt} ms, tension ${v.tension}, streak ${v.streak}, seats ${JSON.stringify(v.seats)}\n    xch: ${JSON.stringify(v.history)}
+    other: ${v.other} travelling ${v.travelling}`);
   };
   await exchange(1, a, b, 'martelo', false);
   await a.evaluate(() => window.bend.place(0, -0.5, 0));

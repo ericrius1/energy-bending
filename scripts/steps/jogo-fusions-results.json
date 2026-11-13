@@ -1,0 +1,6 @@
+[
+ { "name": "pool-fusion-mid", "query": "jogo=script&script=pool-fire-water&world=pool", "frames": 1700 },
+ { "name": "results-gems", "query": "jogo=script&script=pool-fire-water&world=pool", "frames": 795, "eval2": "bend.jogo.endIn(0)", "frames2": 900 },
+ { "name": "results-settled", "query": "jogo=script&script=pool-fire-water&world=pool", "frames": 200 },
+ { "name": "geode-fusion-prism", "query": "jogo=script&script=geode-fire-water&world=geode", "frames": 1700, "eval2": "console.warn('jogo prism', JSON.stringify(bend.jogo.stats().fusion))" }
+]

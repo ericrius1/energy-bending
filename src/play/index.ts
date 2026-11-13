@@ -146,11 +146,11 @@ export async function startJogo(app: PlayApp, mode: string) {
     root: () => {
       const c = seatCtl[seat]?.character;
       if (c) return [c.root[0], c.root[1], c.root[2]];
-      // a remote dancer: under its hips, a hip's height down
+      // a remote dancer: under its hips, at its lower foot
       const d = seatDancer[seat];
       if (!d) return [0, 0, 0];
-      const h = jointOf(d, JOINT.Hips);
-      return [h[0], h[1] - 0.95, h[2]];
+      const h = jointOf(d, JOINT.Hips), l = jointOf(d, JOINT.LeftToeBase), r = jointOf(d, JOINT.RightToeBase);
+      return [h[0], Math.min(l[1], r[1]) - 0.03, h[2]];
     },
     chest: () => { const d = seatDancer[seat]; return d ? jointOf(d, JOINT.Spine1) : [0, 1.2, 0]; },
     intent: () => seatCtl[seat]?.intent ?? null,
@@ -341,6 +341,12 @@ export async function startJogo(app: PlayApp, mode: string) {
     f.tension = tension;
     music.tension = tension;
     runner?.update();
+    // online the other dancer is a NetController, which dancer/play.ts doesn't pair with: this page's dancer faces it
+    // (set before the dancers move; play.ts's own pairing only knows its controllers)
+    if (online) for (const s of room.seats) {
+      const c = seatCtl[s], o = seatDancer[1 - s];
+      if (c && o) { const r = bodies[1 - s].root(); c.character.lookAt = r; c.lookAtHead = o.skeleton.pos[JOINT.Head]; }
+    }
     if (waiting) waiting.visible = !st || st.phase === 'waiting';
   }, 'jogo: the room\'s clock, the beat, the tension, the script');
 
@@ -352,7 +358,7 @@ export async function startJogo(app: PlayApp, mode: string) {
     jogo.update();
     const ev = jogo.events.splice(0, jogo.events.length);
     frameEvents = ev;
-    for (const e of ev) if (e.k !== 'move' || e.local) { history.push({ t: Math.round(room.now()), frame: kit.frameIndex, e: e.k === 'xch' ? { ...e, move: null } : e }); }
+    for (const e of ev) { history.push({ t: Math.round(room.now()), frame: kit.frameIndex, e: e.k === 'xch' ? { ...e, move: null } : e }); }
     if (history.length > 400) history.splice(0, history.length - 300);
     for (const e of ev) {
       fusion.event(e);
