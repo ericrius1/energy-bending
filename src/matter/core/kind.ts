@@ -96,6 +96,7 @@ export interface MatterPasses {
   declarePost?(post: PostChain): void;
   /** numbers for bend.stats() */
   stats?(): Record<string, number | string>;
+  focus?(view: import('../../engine/views').ViewCtx): import('@ericrius1/weft').Texture | null;
 }
 
 /** one dancer's particles carried by a rigid move (a column-major 4×4) */

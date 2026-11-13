@@ -83,15 +83,10 @@ export interface FireSim {
   heat: number;
   cling: number;
   blast: Vec4;
-  intensity: number;
   stretch: number;
-  erode: number;
-  reflect: number;
   emberGlow: number;
-  smoke: number;
-  plasmaGlow: number;
-  flicker: number;
-  tongues: number;
+  pad0: number;
+  pad1: number;
   form: ArrayLike<number> | Vec4[];
 }
 

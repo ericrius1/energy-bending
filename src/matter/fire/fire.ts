@@ -1,7 +1,9 @@
 // Fire (and plasma, its power form): bodies of flame. One pool of GPU particles is shared by every dancer wearing
 // fire or plasma; each particle has a home on a capsule (laid out by matter/core/layout.ts, like the gems') and lives
 // a fraction of a second at a time: born at its home with the limb's velocity, rising, stirred, cooling, then born
-// again (sim.wgsl). Drawn as stretched soft sprites added into the scene (draw.wgsl).
+// again (sim.wgsl). Drawn as a field: per view the flames splat temperature, form, smoke, velocity and distance into a
+// half-resolution target and one composite applies the colour ramp to the sum (field.ts, splat.wgsl, composite.wgsl);
+// the embers are points added into the scene (draw.wgsl).
 //
 // Fire and plasma are one kind with a form per particle (0 fire … 1 plasma): a `plasma` loadout layer is form 1, a
 // `fire` layer is its `params.form` (default 0), and the dancer's own form (`Dancer.form`, copied into `form[d]` each
@@ -13,11 +15,17 @@
 //   fireLights(kit)    the world light (lights.ts): the `fire` slot of the worlds' light uniform, a light per dancer
 //   handForm(d)        the form of the flame on dancer d's hands (the plasma kind arcs between hands past 0.4)
 //   resize(budget)     the show's stone count scales the flames (budget.count / 15000 × fireParams.perDancer)
+//   focus(view)        the depth contract: the flames' view distance where they are dense (r16float), for the lens
 import type { Kit, StorageBuffer, Texture, UniformBuffer } from '@ericrius1/weft';
 import simShader, { type FireSim } from './sim.wgsl';
 import carryShader from './carry.wgsl';
 import { CarryStep } from '../core/carry';
 import drawShader from './draw.wgsl';
+import compositeShader, { type FireField } from './composite.wgsl';
+import { FlameField } from './field';
+import { CurlGrids } from './curl';
+import type { ViewCtx } from '../../engine/views';
+import type { PostChain } from '../../post/post';
 import type { MatterCtx, MatterLayer, MatterPasses, Budget, MatterActs, Carry } from '../core/kind';
 import type { ScenePass } from '../../engine/scene';
 import type { MatterEars } from '../../audio/matter';
@@ -56,6 +64,7 @@ export class FirePasses implements MatterPasses {
    *  each frame in update (set the form on the dancer: bend.form(d, v)) */
   readonly form = new Float32Array(LIMITS.dancers);
   readonly sim: UniformBuffer<FireSim>;
+  readonly field: UniformBuffer<FireField>;
   readonly flames: StorageBuffer;
   readonly lights: LightSlot<FireLights>;
   private homes: StorageBuffer;
@@ -74,20 +83,28 @@ export class FirePasses implements MatterPasses {
   private wakeSpread = 2.2;
   private blast: [number, number, number, number] = [0, 0, 0, 0];
   private s = { body: {} } as FireSim;
+  /** each view's field (field.ts), by view id */
+  private fields = new Map<string, FlameField>();
+  /** flames a whole fire dancer has now (the splats are weighted by it) */
+  private perNow = fireParams.perDancer;
   private lightList: FlameLight[] = [];
+  private curl: CurlGrids;
 
   constructor(private ctx: MatterCtx) {
     const kit = ctx.kit;
     this.flames = kit.storage({ label: 'fire.flames', size: MAXN * 48, usage: ['storage', 'copy-dst'] });
     this.homes = kit.storage({ label: 'fire.homes', size: MAXN * HOME_FLOATS * 4, usage: ['storage', 'copy-dst'] });
     this.sim = kit.uniforms(simShader.structs.FireSim, 'fire.sim');
+    this.field = kit.uniforms(compositeShader.structs.FireField, 'fire.field');
     this.lights = fireLights(kit);
     this.noise = noiseTexture(kit);
     // a dancer carried through a gate takes its flames in the air with it (before the step: src/portals)
     this.carrier = new CarryStep(kit, ctx.frame, { label: 'fire.carry', owner: 'fire', shader: carryShader, homes: this.homes, bind: { flames: this.flames }, count: () => this.count });
+    // the tongues' curl: a velocity grid round each fire dancer (curl.ts), before the step that reads it
+    this.curl = new CurlGrids(kit, ctx.frame, ctx.coarse, { flames: this.flames, homes: this.homes, count: () => this.count, on: () => fireParams.curl > 0 });
     const step = kit.compute(simShader, {
       label: 'fire.sim', threads: () => [Math.max(1, this.count)], enabled: () => this.count > 0,
-      bind: { sim: this.sim, homes: this.homes, flames: this.flames },
+      bind: { sim: this.sim, homes: this.homes, flames: this.flames, curl: this.curl.curl, curlForce: this.curl.force },
     });
     ctx.frame.add('sim', step, 'fire');
     this.acts = {
@@ -101,26 +118,27 @@ export class FirePasses implements MatterPasses {
   // ---------------------------------------------------------------- draws
   declareView(s: ScenePass) {
     if (s.phase !== 'glow') return;
-    // (seen: what this view sees of each dancer, src/portals; homes: whose each flame is)
-    const bind = { sim: this.sim, flames: this.flames, noiseTex: this.noise, homes: this.homes, seen: s.view.seen };
-    const on = () => s.on() && this.count > 0;
-    const common = { count: 6, instances: () => this.count, depthWrite: false, cull: 'none' as const };
-    if (s.world.mirrorFloor) {
-      s.pass.draw(drawShader, { ...common, label: `fire.reflection.${s.world.id}`, bind, constants: { MIRROR: 1, SMOKE: 0 }, blend: 'add', enabled: () => on() && fireParams.reflect > 0 });
+    // the embers: points added into the scene (seen: what this view sees of each dancer, src/portals; homes: whose
+    // each flame is); light only, the scene's alpha (the opaque view distance) left alone
+    s.pass.draw(drawShader, {
+      label: `fire.embers.${s.world.id}`, bind: { sim: this.sim, flames: this.flames, homes: this.homes, seen: s.view.seen },
+      count: 6, instances: () => this.count, depthWrite: false, cull: 'none', blend: 'add', writeMask: 0x7,
+      enabled: () => s.on() && this.count > 0 && fireParams.embers > 0,
+    });
+    // the body: the view's field (once per view, whichever world it shows)
+    if (!this.fields.has(s.view.id)) {
+      const pool = { sim: this.sim, field: this.field, flames: this.flames, homes: this.homes, noise: this.noise, count: () => this.count };
+      this.fields.set(s.view.id, new FlameField(this.ctx.kit, this.ctx.frame, s.view, pool, this.ctx.worlds, s.view.id.startsWith('gate')));
     }
-    // smoke darkens what is behind (premultiplied over), and leaves the scene's alpha (the view distance) alone
-    s.pass.draw(drawShader, {
-      ...common, label: `fire.smoke.${s.world.id}`, bind, fragment: 'fs_smoke', constants: { MIRROR: 0, SMOKE: 1 },
-      blend: { color: { srcFactor: 'one', dstFactor: 'one-minus-src-alpha' }, alpha: { srcFactor: 'zero', dstFactor: 'one' } },
-      enabled: () => on() && fireParams.smoke > 0,
-    });
-    // the flames add light, and min their distance into the alpha (where they're solid) for the depth of field
-    s.pass.draw(drawShader, {
-      ...common, label: `fire.flames.${s.world.id}`, bind, constants: { MIRROR: 0, SMOKE: 0 },
-      blend: { color: { srcFactor: 'one', dstFactor: 'one' }, alpha: { operation: 'min', srcFactor: 'one', dstFactor: 'one' } },
-      enabled: on,
-    });
   }
+
+  /** (not for the lens: the hook that runs once everything is declared) a gate's view runs its scene and air in the
+   *  'gates' stage with nowhere between them, so its field goes in after them (field.ts) */
+  declarePost(_post: PostChain) { for (const f of this.fields.values()) f.declare(); }
+
+  /** the depth contract: an r16float the size of the view's field, holding the flames' view distance (m) where they
+   *  are dense enough to focus on and 6e4 elsewhere (1e5 does not fit a half float) */
+  focus(view: ViewCtx): Texture | null { return this.fields.get(view.id)?.focus ?? null; }
 
   // ---------------------------------------------------------------- where the flames live
   layout(layers: MatterLayer[]) { this.setLayers('fire', layers); }
@@ -150,6 +168,7 @@ export class FirePasses implements MatterPasses {
     this.dirty = false;
     const layers = [...this.layers.fire, ...this.layers.plasma].sort((a, b) => a.dancer - b.dancer);
     const per = (this.ctx.coarse ? fireParams.perDancerCoarse : fireParams.perDancer) * this.scale;
+    this.perNow = per;
     const total = layers.reduce((a, l) => a + l.weight, 0);
     const count = Math.min(MAXN, Math.round(per * total / 256) * 256);
     const formOf = (l: MatterLayer) => (l.layer.kind === 'plasma' ? 1 : Math.min(1, Math.max(0, Number(l.layer.params?.form ?? 0))));
@@ -188,11 +207,20 @@ export class FirePasses implements MatterPasses {
     s.life = P.life; s.buoyancy = P.buoyancy; s.turbulence = P.turbulence; s.drag = P.drag; s.inherit = P.inherit;
     s.size = P.size; s.embers = P.embers; s.heat = P.heat; s.cling = P.cling;
     s.blast = this.blast;
-    s.intensity = P.intensity; s.stretch = P.stretch; s.erode = P.erode; s.reflect = P.reflect; s.emberGlow = P.emberGlow;
-    s.smoke = P.smoke; s.plasmaGlow = P.plasmaGlow; s.flicker = P.flicker; s.tongues = P.tongues;
+    s.stretch = P.stretch; s.emberGlow = P.emberGlow;
     s.form = [[...this.form.subarray(0, 4)], [...this.form.subarray(4, 8)]] as unknown as FireSim['form'];
     this.sim.set(s);
     this.blast = [0, 0, 0, 0];
+    // a curl grid for each fire dancer (plasma barely takes it: past form 0.7 it has none)
+    const curling = this.dancers.filter((d) => Math.min(1, d.form + this.form[d.dancer]) < 0.7).map((d) => d.dancer);
+    this.curl.update(f, curling, this.count, P.curl, P.curlMax);
+    // the field: each splat weighted by how many flames a dancer has, so the sum doesn't change with the count
+    this.field.set({
+      gain: P.density * 60_000 / Math.max(1000, this.perNow), spread: P.spread, soft: P.soft, smokeGain: P.smoke, drySmoke: P.drySmoke,
+      reflect: P.reflect, stretch: P.stretch, tongues: P.tongues, intensity: P.intensity, gaps: P.gaps, scale: P.noiseScale,
+      climb: P.climb, advect: P.advect, period: P.period, smokeDark: 2.5, plasmaGlow: P.plasmaGlow, flicker: P.flicker, cut: P.cut,
+      focusT: P.focusT, time: f.t, embers: P.emberGlow,
+    });
     this.updateLights(f);
     this.voice(f);
   }

@@ -1,0 +1,11 @@
+[
+ { "name": "t-a", "query": "play&dress=fire&world=pool",
+   "eval": "bend.set('post',{dof:false}); bend.set('fire',{embers:0.6, drySmoke:0.08}); bend.set('camera', { followDist: 2.3, followFov: 40, followPitch: 0.1, followSwing: 0 }); bend.wake(); bend.place(0, 0, 0, Math.PI/2); bend.camera({ yaw: 0.25 }); bend.set('fire',{spread:1.6, density:0.016});",
+   "frames": 240 },
+ { "name": "t-b", "query": "play&dress=fire&world=pool", "eval": "bend.set('fire',{spread:1.1, density:0.03});", "frames": 1 },
+ { "name": "t-c", "query": "play&dress=fire&world=pool", "eval": "bend.set('fire',{spread:1.1, density:0.03, gaps:0.7, noiseScale:7});", "frames": 1 },
+ { "name": "t-d", "query": "play&dress=fire&world=pool", "eval": "bend.set('fire',{spread:1.1, density:0.03, gaps:0.5, noiseScale:4.6, cut:0.25});", "frames": 1 },
+ { "name": "t-curl0", "query": "play&dress=fire&world=pool", "eval": "bend.set('fire',{cut:0.12, curl:0});", "frames": 90 },
+ { "name": "t-curl8", "query": "play&dress=fire&world=pool", "eval": "bend.set('fire',{curl:8, curlMax:30});", "frames": 90 },
+ { "name": "t-wide", "query": "play&dress=fire&world=pool", "eval": "bend.set('camera', { followDist: 6.2, followFov: 44, followPitch: 0.1, followSwing: 0 }); bend.camera({ yaw: 0.3 });", "frames": 60 }
+]

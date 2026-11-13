@@ -1,0 +1,12 @@
+[
+ { "name": "pool-close-still", "query": "play&dress=fire&world=pool",
+   "eval": "bend.set('post',{dof:false}); bend.set('camera', { followDist: 2.3, followFov: 40, followPitch: 0.1, followSwing: 0 }); bend.wake(); bend.place(0, 0, 0, Math.PI/2); bend.camera({ yaw: 0.25 });",
+   "frames": 240 },
+ { "name": "pool-close-kick", "query": "play&dress=fire&world=pool", "eval": "bend.move(0,'armada'); bend.camera({ yaw: 0.27 });", "frames": 22 },
+ { "name": "pool-close-spin", "query": "play&dress=fire&world=pool", "eval": "bend.move(0,'spin'); bend.camera({ yaw: 0.29 });", "frames": 40 },
+ { "name": "pool-wide", "query": "play&dress=fire&world=pool", "eval": "bend.set('camera', { followDist: 6.2, followFov: 44, followPitch: 0.1, followSwing: 0 }); bend.camera({ yaw: 0.3 });", "frames": 90 },
+ { "name": "plasma-close-still", "query": "play&dress=plasma&world=pool",
+   "eval": "bend.set('post',{dof:false}); bend.set('camera', { followDist: 2.3, followFov: 40, followPitch: 0.1, followSwing: 0 }); bend.wake(); bend.place(0, 0, 0, Math.PI/2); bend.camera({ yaw: 0.25 });",
+   "frames": 200 },
+ { "name": "plasma-close-kick", "query": "play&dress=plasma&world=pool", "eval": "bend.move(0,'armada'); bend.camera({ yaw: 0.27 });", "frames": 22 }
+]

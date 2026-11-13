@@ -1,0 +1,17 @@
+[
+ { "name": "geode-mirror", "query": "play&dress=fire&world=geode",
+   "eval": "bend.set('post',{dof:false}); bend.set('camera', { followDist: 3.0, followFov: 42, followPitch: 0.06, followSwing: 0 }); bend.wake(); bend.place(0,0,0,Math.PI/2); bend.camera({yaw:0});",
+   "frames": 240 },
+ { "name": "gate-through-1", "query": "play&dress=fire&world=geode",
+   "eval": "bend.set('redwoods', { hour: 19.4, dayGoes: false }); bend.set('camera', { followDist: 3.6, followFov: 46, followPitch: 0.12, followSwing: 0 }); bend.wake(); bend.place(0,1.77,3.66,0.45); bend.camera({yaw:-2.69}); await bend.step(48); bend.intent(0,{ moveZ: 0.6 });",
+   "frames": 84 },
+ { "name": "gate-through-2", "query": "play&dress=fire&world=geode", "frames": 30 },
+ { "name": "ember-heart", "query": "play&dress=ember&world=pool",
+   "eval": "bend.set('post',{dof:false}); bend.set('camera', { followDist: 2.3, followFov: 40, followPitch: 0.1, followSwing: 0 }); bend.wake(); bend.place(0, 0, 0, Math.PI/2); bend.camera({ yaw: 0.25 });",
+   "frames": 240 },
+ { "name": "morph-0", "query": "play&dress=fire&world=pool",
+   "eval": "bend.set('post',{dof:false}); bend.set('camera', { followDist: 2.6, followFov: 40, followPitch: 0.1, followSwing: 0 }); bend.wake(); bend.place(0, 0, 0, Math.PI/2); bend.camera({ yaw: 0.25 }); bend.form(0, 0);",
+   "frames": 240 },
+ { "name": "morph-05", "query": "play&dress=fire&world=pool", "eval": "bend.form(0, 0.5);", "frames": 60 },
+ { "name": "morph-1", "query": "play&dress=fire&world=pool", "eval": "bend.form(0, 1);", "frames": 60 }
+]

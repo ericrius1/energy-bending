@@ -49,7 +49,8 @@ export class Arcs {
     if (s.phase !== 'glow') return;
     s.pass.draw(arcShader, {
       label: `plasma.arcs.${s.world.id}`, bind: { look: this.look, segs: this.segs }, count: 6, instances: () => this.count,
-      blend: { color: { srcFactor: 'one', dstFactor: 'one' }, alpha: { operation: 'min', srcFactor: 'one', dstFactor: 'one' } },
+      // light only: the scene's alpha (the opaque view distance) is left alone (translucent matter doesn't write it)
+      blend: 'add', writeMask: 0x7,
       // the main view only: arcs are world points built on the CPU for the main view's world (a gate's view would show
       // them in whatever world it looks into; plasma.ts skips dancers that are elsewhere)
       depthWrite: false, cull: 'none', enabled: () => s.on() && s.view.id === 'main' && this.count > 0,

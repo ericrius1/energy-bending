@@ -8,13 +8,19 @@
 //
 // The field: wet makes a flame die young, darker and smokier; cold (negative heat, near ice) makes it smaller and
 // shorter-lived; the wind bends it. Nothing is written to the field (the field derives heat from where fire is).
+//
+// The curl: a fire dancer's flames are pushed round the eddies of their own flow (curl.wgsl: a grid round the body,
+// vorticity confinement), so the tongues curl and lick instead of only rising.
 #include "./flame"
 #include "../core/body"
 #include "../field/field"
+#include "./curlgrid"
 
 @group(1) @binding(0) var<uniform> sim: FireSim;
 @group(1) @binding(1) var<storage, read> homes: array<Home>;
 @group(1) @binding(2) var<storage, read_write> flames: array<Flame>;
+@group(1) @binding(3) var<uniform> curl: Curl;
+@group(1) @binding(4) var<storage, read> curlForce: array<vec4f>;
 
 const UP = vec3f(0.0, 1.0, 0.0);
 
@@ -23,6 +29,27 @@ fn stir(p: vec3f, t: f32, fast: f32) -> vec3f {
   let a = flow(p * 2.3 + vec3f(0.31 * t, -1.7 * t, 0.0) * fast, t * 0.9 * fast);
   let b = flow(p * 6.1 + vec3f(-0.7 * t, -2.9 * t, 0.4 * t) * fast, t * 1.7 * fast);
   return a + 0.55 * b;
+}
+
+/** the curl grid's push at p for dancer d's flames (trilinear; nothing outside its box, or without a grid) */
+fn curlAt(d: u32, p: vec3f) -> vec3f {
+  let g = gridOf(d);
+  if (g < 0 || u32(g) >= curl.grids) { return vec3f(0.0); }
+  let b = curl.boxes[g];
+  let dims = vec3i(curl.dims.xyz);
+  let x = (p - b.xyz) / b.w - 0.5;
+  if (any(x < vec3f(0.0)) || any(x > vec3f(dims - 1))) { return vec3f(0.0); }
+  let c0 = vec3i(floor(x));
+  let t = x - floor(x);
+  let base = u32(g) * cellsOf();
+  var s = vec3f(0.0);
+  for (var k = 0u; k < 8u; k++) {
+    let o = vec3i(i32(k & 1u), i32((k >> 1u) & 1u), i32((k >> 2u) & 1u));
+    let q = min(c0 + o, dims - 1);
+    let wv = select(1.0 - t, t, o == vec3i(1));
+    s += curlForce[base + u32(q.x + dims.x * (q.y + dims.y * q.z))].xyz * (wv.x * wv.y * wv.z);
+  }
+  return s;
 }
 
 /** whether this part of the body is alight: the burn (a fixed share of the flames goes out as it falls), and during a
@@ -103,6 +130,8 @@ fn main(@builtin(global_invocation_id) gid: vec3u) {
     let T = flameT(f);
     var acc = UP * sim.buoyancy * (0.3 + min(T, 2.5)) * (1.0 - 0.75 * form);
     acc += stir(f.pos, sim.time, mix(1.0, 4.0, form)) * sim.turbulence * (0.35 + min(T, 1.6)) * (1.0 + 0.8 * form);
+    // plasma clings to its home, so it takes little of the curl
+    acc += curlAt(d, f.pos) * (1.0 - 0.8 * form);
     f.vel = wind + (f.vel - wind) * exp(-sim.drag * dt);
     // plasma clings: an implicit spring to where its home is now (stable for any stiffness and step)
     let kc = sim.cling * form * form;
