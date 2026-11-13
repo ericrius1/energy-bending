@@ -212,7 +212,17 @@ fn bodyStep(p: ptr<function, Particle>, H: Goal, goal: vec3f, T: Touched, rest: 
     let rxz = (*p).pos.xz - hips.xz;
     let far = clamp(length(goal - (*p).pos), 0.0, 1.5);
     let turn = vec3f(-rxz.y, 0.0, rxz.x) / max(length(rxz), 0.2) * far * 3.5 * calm * exp(-(*p).life * 0.8);
-    spring(p, goal, H.vel, k, sqrt(k) * 1.4, force * 60.0 + T.bdir * (T.bw * 300.0) + turn * k * 0.05, dt);
+    if (b.hold > 0.0) {
+      // (hold) flying home in the body's moving frame: matched to its velocity and acceleration quickly, so a jump or
+      // a roll doesn't leave a comet of returning matter behind, and never further than a body's length from home
+      let fast = smoothstep(1.2, 6.0, length(H.vel)) * b.hold;
+      spring(p, goal, H.vel, k, max(sqrt(k) * 1.4, 9.0 * fast), force * 60.0 + T.bdir * (T.bw * 300.0) + turn * k * 0.05 + H.acc * fast, dt);
+      let off = (*p).pos - goal;
+      let reach = mix(3.0, 0.5, fast);
+      if (length(off) > reach) { (*p).pos = goal + normalize(off) * reach; }
+    } else {
+      spring(p, goal, H.vel, k, sqrt(k) * 1.4, force * 60.0 + T.bdir * (T.bw * 300.0) + turn * k * 0.05, dt);
+    }
     if (length(goal - (*p).pos) < 0.02 || (*p).life > 3.5) {
       (*p).mode = ON_BODY;
       (*p).life = 10.0;

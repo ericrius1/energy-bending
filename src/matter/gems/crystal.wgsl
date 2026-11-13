@@ -42,6 +42,8 @@ struct VOut {
   o.pos = vec4f(2.0, 2.0, 2.0, 1.0);
   let c = crystals.c[ii];
   if (c.pos.w <= 0.0) { return o; }
+  // the floor mirrors only what's near it (decided for the whole crystal: a triangle cut part way would streak)
+  if (MIRROR > 0.5 && c.pos.y - max(c.size.x, max(c.size.y, c.size.z)) > 0.9) { return o; }
   let a = verts[vi * 2u];
   let b = verts[vi * 2u + 1u];
   let sd = seen.d[min(u32(c.size.w), MAX_DANCERS - 1u)];
@@ -52,7 +54,6 @@ struct VOut {
   o.clip = seenClip(sd, wp);
   let floorY = 0.0;
   if (MIRROR > 0.5) {
-    if (wp.y > 1.2) { return o; }
     wp.y = 2.0 * floorY - wp.y; n.y = -n.y;
   }
   o.pos = frame.viewProj * vec4f(wp, 1.0);
