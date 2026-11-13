@@ -1,7 +1,7 @@
 // The film tool: a timeline (films/<name>.json) rendered shot by shot in short takes, the score muxed in, no text.
 //   node scripts/film.mjs films/<name>.json [--preview] [--shot 3 | --shot s03,s04] [--sheet] [--force]
 //        [--url http://127.0.0.1:5435/energybending/] [--port 5436] [--take 10] [--only-take 2] [--hevc] [--av1]
-//        [--no-encode] [--out docs/reports/media/film]
+//        [--no-encode] [--out docs/reports/media/film] [--prefix 6 (the contact sheets' name: <prefix>-film-…)]
 //   (anything else as the first argument is the older path, a cut of src/engine/film.ts: scripts/film-cut.mjs)
 // Each shot is one page (?film&cut=timeline, src/engine/film-shot.ts) that plays the shot from its first frame; the
 // frames from its in-point are read back as YUV 4:2:0 and posted here. A shot is cut into takes (`--take` seconds,
@@ -28,7 +28,7 @@ import { CHROME, gpuFlags, takeLock } from './lib/browser.mjs';
 const argv = process.argv.slice(2);
 if (!argv[0] || !/\.(json|mjs)$/.test(argv[0])) { await import('./film-cut.mjs'); process.exit(0); }
 
-const VALUED = new Set(['url', 'port', 'take', 'shot', 'out', 'only-take', 'cdp', 'variant', 'sheet-n']);
+const VALUED = new Set(['url', 'port', 'take', 'shot', 'out', 'only-take', 'cdp', 'variant', 'sheet-n', 'prefix']);
 const opts = {}, pos = [];
 for (let i = 0; i < argv.length; i++) {
   const a = argv[i];
@@ -79,6 +79,8 @@ function pageQuery(s) {
     const brain = (s.cast ?? []).find((c) => c?.brain);
     if (brain) { q.set('partner', brain.brain); if (brain.seed != null) q.set('seed', String(brain.seed)); }
     if (s.lock === false) q.set('free', '');
+    // the film's tempo: the jogo's local room plays at it (src/play/index.ts &bpm; the rules' 112 otherwise)
+    if (s.bpm && s.bpm !== 112) q.set('bpm', String(s.bpm));
   } else if (s.mode === 'play') { q.set('play', ''); q.set('two', ''); }
   // (mode 'show': the plain page, Gem Dancers' programme: its dancers in heaps until they wake)
   q.set('world', s.world ?? 'redwoods');
@@ -338,7 +340,7 @@ else {
 if (opts.sheet) {
   for (const s of pick) {
     const n = Number(opts['sheet-n'] ?? 12), cols = n > 12 ? 6 : 4, every = Math.max(1, Math.floor(s.frames / n));
-    const file = join(MEDIA, `6-film-${NAME}-${s.id}${PREVIEW ? '' : '-master'}-sheet.jpg`);
+    const file = join(MEDIA, `${opts.prefix ?? '6'}-film-${NAME}-${s.id}${PREVIEW ? '' : '-master'}-sheet.jpg`);
     await ff(['-i', s.joined, '-vf', `select='not(mod(n\\,${every}))',scale=${n > 12 ? 320 : 480}:-1,tile=${cols}x${Math.ceil(n / cols)}:padding=4:color=white`, '-frames:v', '1', '-q:v', '3', file]);
     log(`sheet ${relative(ROOT, file)}`);
   }

@@ -20,6 +20,7 @@ import { JOINT, JOINT_FLOATS } from '../skeleton/rig';
 import { planeNormal } from './camera';
 import { FilmCamera, type CamKey, type FilmScene, type V3, type Ease, type CamPose } from './filmcam';
 import type { FilmApi } from './film';
+import { moodIndex } from '../audio/harmony';
 
 type At = number | string;
 export interface ShotCue {
@@ -31,7 +32,7 @@ export interface ShotCue {
   // the film's
   form?: number; fuse?: boolean; walk?: [number, number]; speed?: number; on?: number; dress?: string; wake?: boolean;
   rig?: 'lock' | 'free'; shot?: string;
-  music?: { level?: number; drop?: boolean; fusion?: string; release?: boolean; key?: number; tension?: number };
+  music?: { level?: number; drop?: boolean; fusion?: string; release?: boolean; key?: number; tension?: number; mood?: string };
   set?: Record<string, Record<string, unknown>>;
   js?: string;
 }
@@ -51,7 +52,8 @@ export interface ShotSpec {
   cues?: ShotCue[];
   camera?: (Omit<CamKey, 't'> & { at: At })[];
   yawBase?: 'side' | 'stage' | number;
-  music?: { level?: number; key?: number };
+  /** the music's level held, its key (midi) and its mood by name (Ember, Midnight, Sunrise, Neon, Roda: audio/harmony.ts) */
+  music?: { level?: number; key?: number; mood?: string };
   wake?: boolean;
 }
 export interface ShotPlan { fps: number; every: number; start: number; end: number; total: number; pauses: number[]; audio: boolean; tail: number }
@@ -104,6 +106,7 @@ async function run(api: FilmApi, recorder: Recorder, shot: ShotSpec, plan: ShotP
   if (!shot.hud) B.set('jogo', { hudLocked: 0, hudFree: 0 });
   if (shot.music?.level != null) B.music.holdLevel(shot.music.level);
   if (shot.music?.key != null) B.music.engine.setKey(shot.music.key);
+  if (shot.music?.mood) B.music.engine.setMood(moodIndex(shot.music.mood));
   // the first frame: the jogo's room starts on it (a script waits for the first stepped frame) and bend.jogo appears
   await B.step(1, dt);
   let i = 1;
@@ -213,6 +216,7 @@ async function run(api: FilmApi, recorder: Recorder, shot: ShotSpec, plan: ShotP
       if (m.release) M.release();
       if (m.key != null) M.engine.setKey(m.key);
       if (m.tension != null) M.tension = m.tension;
+      if (m.mood) M.engine.setMood(moodIndex(m.mood));
     }
     if (c.rig) B.lock(c.rig === 'lock');
     if (c.shot) B.shoot(c.shot);
