@@ -144,7 +144,7 @@ test('the clip table: every stretch bakes, grooves loop on the spot, flourishes 
 });
 
 test('free dancers wander, dance and keep off the stage plane; a roda rings the jogo', () => {
-  let inside = 0, far = 0, danced = 0, frames = 0, where = "";
+  let inside = 0, far = 0, danced = 0, frames = 0, crowd = 0, where = "";
   const trail: string[] = [];
   const walked = [0, 0, 0, 0, 0], at: number[][] = [];
   const npcs = [
@@ -165,17 +165,20 @@ test('free dancers wander, dance and keep off the stage plane; a roda rings the 
         at[k] = [c.x, c.z];
       });
       if (npcs.some((x) => x.brain.body.clipW > 0.5)) danced++;
+      const B = f.bodies.slice(2);
+      if (B.some((a, i) => B.some((b, j) => j > i && Math.hypot(a.x - b.x, a.z - b.z) < 0.4))) crowd++;
       if (frames % 300 === 0) trail.push(`${f.bodies[5].x.toFixed(1)},${f.bodies[5].z.toFixed(1)}`);
     },
   });
   const ring = [0, 1, 2].map((k) => { const c = r.bodies[4 + k], p = rodaSpot(plane, rodaOf(3)[k], 0, 7.4); return Math.hypot(c.x - p[0], c.z - p[1]); });
   const moves = r.drivers.slice(2).map((d) => (d!.brain as NpcBrain).mind.mine.length);
   assert(inside === 0, `in the strip for ${inside} frames (first: ${where})`);
+  assert(crowd < frames * 0.03, `two free dancers within 0.4 m for ${crowd} frames`);
   assert(far === 0, `outside the room for ${far} frames`);
   assert(walked[0] > 4 && walked[1] > 4, `wandered ${walked.map((w) => w.toFixed(1))}`);
   assert(danced > frames * 0.2, `a groove clip showed ${((danced / frames) * 100).toFixed(0)}% of the time`);
   assert(ring.every((d) => d < 1.6), `the ring: ${ring.map((d) => d.toFixed(2))} m from its places (${trail.join(" ")})`);
-  return `walked ${walked.map((w) => w.toFixed(0)).join(', ')} m; a clip grooving ${((danced / frames) * 100).toFixed(0)}% of frames; ring places within ${Math.max(...ring).toFixed(2)} m (the jogo's middle moves, so do they); moves ${moves.join(', ')}`;
+  return `two within 0.4 m ${((crowd / frames) * 100).toFixed(1)}% of frames; walked ${walked.map((w) => w.toFixed(0)).join(', ')} m; a clip grooving ${((danced / frames) * 100).toFixed(0)}% of frames; ring places within ${Math.max(...ring).toFixed(2)} m (the jogo's middle moves, so do they); moves ${moves.join(', ')}`;
 });
 
 test('the teacher climbs with a student who answers, and waits for one who does not', () => {

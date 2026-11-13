@@ -104,6 +104,11 @@ export class NpcBrain implements Brain {
         }
       }
     }
+    // standing on top of someone (two dancing on one spot): a step aside, whatever the mood
+    for (const o of s.others) {
+      const dx = c.x - o.root[0], dz = c.z - o.root[2], d = Math.hypot(dx, dz);
+      if (d < 0.7) { const l = d > 1e-3 ? d : 1; m.claim({ x: d > 1e-3 ? dx / l : 1, z: d > 1e-3 ? dz / l : 0, k: 0.45, walk: true, prio: 3, why: 'make room' }); break; }
+    }
     // inside the world's room
     if (Math.hypot(c.x, c.z) > s.stage.room - 0.15) m.claim({ x: -c.x, z: -c.z, k: 0.6, walk: true, prio: 8, why: 'back inside' });
     // the floor is shared: round the stage's strip and round other bodies

@@ -125,8 +125,16 @@ function installTicks(pb: PageBrains, ctx: BrainsCtx, dancers: () => readonly Da
   ctx.frame.tick('input', (f) => pb.see(f), 'brains: what they see');
   ctx.frame.tick('travel', (f) => pb.judge(f, dancers()), 'brains: the jogo\'s referee');
   Object.assign(window, { brains: pb });
-  const bend = (window as unknown as { bend?: Record<string, unknown> }).bend;
-  if (bend) bend.brains = () => ({ stats: pb.referee?.stats, state: pb.referee?.view(), npcs: pb.npcs.map((n) => ({ id: n.d.id, mode: (n.driver.brain as NpcBrain).mode, x: n.c.character.x, z: n.c.character.z })) });
+  // (window.bend is made after the demos: hang the report on it on the first frame)
+  const report = () => ({
+    stats: pb.referee ? { ...pb.referee.stats, distinct: pb.referee.stats.distinct.map((x) => [...x]) } : null, state: pb.referee?.view() ?? null,
+    npcs: pb.npcs.map((n) => ({ id: n.d.id, mode: (n.driver.brain as NpcBrain).mode, x: +n.c.character.x.toFixed(2), z: +n.c.character.z.toFixed(2) })),
+  });
+  let hung = false;
+  ctx.frame.tick('input', () => {
+    const bend = (window as unknown as { bend?: Record<string, unknown> }).bend;
+    if (!hung && bend) { bend.brains = report; hung = true; }
+  }, 'brains: bend.brains()');
 }
 
 /** ?play&partner, ?roda, ?teach: brains on the play demo's seats (and free dancers round them) */
