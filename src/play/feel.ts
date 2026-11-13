@@ -301,9 +301,15 @@ export class Feel {
           else if (ev.type === 'land') this.ctx.ripple?.(p[0], p[2], 0.35, 0.3);
           this.stepCount++;
         } else if (ev.type === 'blink') {
+          // the way it went, as plasma's own lightning (jagged, forked again each frame, flickering out): this was three
+          // straight capsules of glow at fixed heights, which drew as hard horizontal violet bars across whoever stood
+          // in the blink's path (film 1, the forms' shift: 8-integration.md, what is left, item 6)
           const a = ev.from as number[], bb = ev.to as number[];
-          this.add(0.45, (u) => {
-            for (let k = 0; k < 3; k++) G.seg([a[0], a[1] + 0.4 + k * 0.45, a[2]], [bb[0], bb[1] + 0.4 + k * 0.45, bb[2]], 0.03, COLOURS.plasma, 1.6 * (1 - u), 'soft');
+          this.add(0.3, (u) => {
+            for (const h of [0.55, 1.1]) {
+              if (hash(this.ctx.frame() * 7 + Math.round(h * 10)) < 0.25 + 0.6 * u) continue;
+              this.ctx.arcs?.add([a[0], a[1] + h, a[2]], [bb[0], bb[1] + h, bb[2]], 1.1 * (1 - u));
+            }
           });
         }
       }
