@@ -262,7 +262,7 @@ const bend = installHooks({
   pending: () => gems?.pending ?? null,
   grabYuv: () => post.grabYuv(),
 });
-Object.assign(bend, { gates, device });
+Object.assign(bend, { gates, device, post });
 if (query.has('perfgroup')) void import('./engine/perfrun').then((m) => m.perfRun({ bend, kit, frame, views, choice: device, ready }));
 if (FILM) {
   kit.manual = true;

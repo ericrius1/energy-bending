@@ -61,6 +61,9 @@ export class Forge implements World {
   readonly id = 'forge';
   readonly light = 4;
   readonly mood = 0.8;
+  /** the locked view's dim beyond the stage (World.stageDim; 9-stage.md): the frame is mostly dark, and the red-lit
+   *  rock hanging behind is all that gives it depth: dimmed little */
+  readonly stageDim = 0.3;
   readonly shared;
   readonly stages: StagePlane[];
   /** off the slabs a body falls; below this it has fallen out and re-forms at a spawn (before the catch floor) */
