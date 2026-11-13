@@ -10,7 +10,7 @@ import { makeView, type ViewCtx } from './engine/views';
 import { declareScene } from './engine/scene';
 import { CameraRig } from './engine/camera';
 import { Panel } from './engine/panel';
-import { applyPerf } from './engine/perf';
+import { applyPerf, chooseClass } from './engine/perf';
 import { makePip } from './engine/pip';
 import { installHooks } from './engine/hooks';
 import { BodyBuffers } from './matter/core/bodies';
@@ -37,7 +37,8 @@ import.meta.glob(['./matter/*/index.ts', './worlds/*/index.ts'], { eager: true }
 const query = new URLSearchParams(location.search);
 const FILM = query.has('film');
 const base = import.meta.env.BASE_URL;
-const coarse = matchMedia('(pointer: coarse)').matches;
+// ?perf: the self-measuring suite (engine/perfrun.ts); its first load only plans the page loads and moves on
+if (query.has('perf') && !query.has('perfgroup')) await (await import('./engine/perfrun')).perfStart(query);
 const canvas = document.getElementById('stage') as HTMLCanvasElement;
 const status = document.getElementById('status')!;
 // a film is exactly its own size, whatever the window: the canvas is pinned to it (its frames are read back)
@@ -53,6 +54,10 @@ try {
   status.textContent = e instanceof WebGPUUnavailable ? `${e.message} Try a recent Chrome, Edge or Safari.` : String(e);
   throw e;
 }
+// the device's class (desktop, laptop, phone: engine/perf.ts BUDGETS), from the browser and a probe of up to 2 s, or
+// ?class=; `coarse` is what kinds and worlds read of it today
+const device = await chooseClass(kit, query, { film: FILM, fresh: query.get('perfgroup') === '0' });
+const coarse = device.coarse;
 const motion: Motion = await loadMotion(base);
 motion.skeletons.forEach(checkRig);
 // the travelling dances (for locomotion), fetched behind the rest
@@ -202,7 +207,7 @@ const ready = await kit.ready();
 if (ready.failed) console.warn(`energybending: ${ready.failed} pipeline(s) failed to build`);
 status.remove();
 document.body.classList.add('ready');
-applyPerf(kit, FILM || query.has('noautores'));
+applyPerf(kit, FILM || query.has('noautores'), device);
 const panel = new Panel(query.has('panel'));
 panel.build();
 
@@ -249,7 +254,8 @@ const bend = installHooks({
   pending: () => gems?.pending ?? null,
   grabYuv: () => post.grabYuv(),
 });
-Object.assign(bend, { gates });
+Object.assign(bend, { gates, device });
+if (query.has('perfgroup')) void import('./engine/perfrun').then((m) => m.perfRun({ bend, kit, frame, views, choice: device, ready }));
 if (FILM) {
   kit.manual = true;
   kit.renderScale = Number(query.get('scale') ?? 1);
