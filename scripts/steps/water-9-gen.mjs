@@ -13,6 +13,16 @@ const cam = (dist, pitch = 0.08, fov = 40) => `bend.set('camera', { followDist: 
 const pair = (gap) => `bend.wake(); bend.place(0,${-gap / 2},0.3,Math.PI/2); bend.place(1,${gap / 2},0.3,-Math.PI/2);`;
 const worlds = [['geode', ''], ['redwoods', dusk], ['pool', ''], ['temple', ''], ['forge', '']];
 
+// the locked game view at 1080p (the jogo's lock, a script that only places the pair apart): water at game distance
+// against the far air, the scene the critic judged in 8-ba-t-redwoods-jogo, without the brain's play; and its timings
+// (the temple's take threw on this branch after master's merge: bend.jogo was not there yet; the base ran it)
+for (const [w, extra] of [['redwoods', dusk]]) {
+  const run = { name: 'w9', world: w, lock: true, dress: ['fire', 'water'], cues: [{ at: 0, seat: 0, place: -0.6 }, { at: 0, seat: 1, place: 0.6 }] };
+  takes.push({
+    name: `lock-${w}`, query: `jogo=script&script=none&world=${w}&dress=fire,water`, size: '1920x1080', fps: 2, seconds: 1, warm: 400,
+    setup: `${extra}bend.jogo.run(${JSON.stringify(run)});`, timings: true, sheet: { cols: 2, rows: 1, width: 640 }, stills: [0.5],
+  });
+}
 // fire and water at game distance (about the locked jogo's), the camera low so the heads stand against the far air;
 // an armada (water) half way
 for (const [w, extra] of worlds) {
@@ -54,7 +64,7 @@ takes.push({
 // a body changed on the front: the fire dancer made water (its new matter rises from the floor at its feet, no rain)
 takes.push({
   name: 'redress', query: '', fps: 10, seconds: 1.6, warm: 120, sheet: { cols: 4, rows: 4, width: 320 },
-  setup: "const i = bend.show.dress.indexOf('fire'); bend.show.redress(i < 0 ? 1 : i, 'water');", stills: [0.2, 0.5, 1.0],
+  cues: { '0': "const i = bend.show.dress.indexOf('fire'); bend.show.redress(i < 0 ? 1 : i, 'water');" }, stills: [0.2, 0.5, 1.0],
 });
 
 writeFileSync(new URL('./water-9.json', import.meta.url), JSON.stringify(takes, null, 1) + '\n');

@@ -1,5 +1,23 @@
 [
  {
+  "name": "lock-redwoods",
+  "query": "jogo=script&script=none&world=redwoods&dress=fire,water",
+  "size": "1920x1080",
+  "fps": 2,
+  "seconds": 1,
+  "warm": 400,
+  "setup": "bend.set('redwoods', { hour: 19.4, dayGoes: false }); bend.jogo.run({\"name\":\"w9\",\"world\":\"redwoods\",\"lock\":true,\"dress\":[\"fire\",\"water\"],\"cues\":[{\"at\":0,\"seat\":0,\"place\":-0.6},{\"at\":0,\"seat\":1,\"place\":0.6}]});",
+  "timings": true,
+  "sheet": {
+   "cols": 2,
+   "rows": 1,
+   "width": 640
+  },
+  "stills": [
+   0.5
+  ]
+ },
+ {
   "name": "g-geode",
   "query": "play&two&dress=fire,water&world=geode",
   "fps": 5,
@@ -332,7 +350,9 @@
    "rows": 4,
    "width": 320
   },
-  "setup": "const i = bend.show.dress.indexOf('fire'); bend.show.redress(i < 0 ? 1 : i, 'water');",
+  "cues": {
+   "0": "const i = bend.show.dress.indexOf('fire'); bend.show.redress(i < 0 ? 1 : i, 'water');"
+  },
   "stills": [
    0.2,
    0.5,

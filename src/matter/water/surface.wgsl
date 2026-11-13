@@ -70,6 +70,9 @@ struct Surf {
 @group(1) @binding(4) var<uniform> seen: ViewSeen;
 /** a gem heart inside the water (tide, gemwater): the surface thins in front of it and takes its light */
 @group(1) @binding(5) var<uniform> hearts: Hearts;
+/** fs: the air at what is behind the water, in a world that fogs after the water (fs_fog's: rgb the light it adds, a
+ *  what it lets through; (0, 0, 0, 1) where there was no water to ask for). Elsewhere any rgba16float stand-in */
+@group(1) @binding(6) var fog: texture_2d<f32>;
 
 /** the eye-to-point vector of a pixel of the water texture (uv of its centre) at view distance d */
 fn atDist(uv: vec2f, d: f32) -> vec3f {
@@ -554,23 +557,45 @@ fn lensOf(sh: Shade, uv: vec2f, od: f32, d: f32) -> vec2f {
     // A world with no scene step (the geode, the redwoods) fogs its scene once, after the water, at the distance in
     // the scene's alpha: the opaque distance (the depth contract; fire's splat, which runs next, tests it). So a body
     // in front of far fog was fogged as if it stood out there too, and dissolved into it above the horizon (the
-    // redwoods' pale heads, a hard line at the horizon, the march's grain over them). Here the water works out what
-    // that pixel should finally be: the far scene as the air shows it through the water, the air in front of the
-    // water, and the water's own light seen through that air; and writes what the air will turn into it. The air's
-    // light and what it lets through come from two calls (it is affine in the colour; the same pixel and ray, so the
-    // same grain, which the air's own call then cancels); the stretch in front of the water is taken as the same air,
-    // thinner by its length
-    let ray = viewRay(i.uv);
-    let A = worldAir(vec4f(0.0, 0.0, 0.0, s.a), px, ray);
-    let Tb = clamp(worldAir(vec4f(1.0, 1.0, 1.0, s.a), px, ray) - A, vec3f(1e-3), vec3f(1.0));
+    // redwoods' pale heads, a hard line at the horizon, the march's grain over them). Here the water writes what the
+    // air will turn into the right pixel: what is behind as the air shows it, through the water; the air between the
+    // water and what is behind dimmed by the water like anything else behind it; and the water's own light through
+    // the air in front of it only. The air's light and what it lets through, at what is behind, come from fs_fog (a
+    // sixteenth of the pixels, where there is water: the march is the air's own); the stretch in front of the water is
+    // taken as the same air, thinner by its length
+    let f = textureSampleLevel(fog, samp_linear, i.uv, 0.0);
+    let A = f.rgb;
+    let Tb = vec3f(clamp(f.a, 1e-3, 1.0));
     let r = clamp(W.x / max(s.a, 1e-3), 0.0, 1.0);
     let Tw = pow(Tb, vec3f(r));
     let Aw = select(A * (1.0 - Tw) / max(1.0 - Tb, vec3f(1e-4)), A * r, (1.0 - Tb) < vec3f(1e-3));
-    let seen = (behind * Tb + A) * trans + Aw * (1.0 - trans) + own * Tw;
-    col = (seen - A) / Tb;
+    col = behind * trans + (own * Tw - (A - Aw) * (1.0 - trans)) / Tb;
   }
   // colour only: the scene's alpha is its opaque view distance (the focus is fs_focus's; the merge finds the bodies)
   return vec4f(mix(s.rgb, col, sh.cover), s.a);
+}
+
+/** the air at what stands behind the water, for fs in a world that fogs after the water (!surfaced()): at a quarter of
+ *  the resolution each way, and only in blocks with water in them (two calls of the world's air march each: at full
+ *  resolution they cost 0.15 to 0.35 ms at 1080p in the redwoods). rgb the light the air adds as far as the opaque
+ *  scene, a what it lets through (the air is affine in the colour: two calls give both) */
+@fragment fn fs_fog(i: FullscreenOut) -> @location(0) vec4f {
+  let wdims = vec2i(textureDimensions(water));
+  let q = vec2i(i.uv * vec2f(wdims));
+  let b = max(1, i32(round(f32(wdims.x) / f32(textureDimensions(fog).x))));
+  var any = false;
+  for (var k = 0; k < 5; k++) {
+    let o = select(vec2i(0), vec2i(select(-1, 1, (k & 1) == 0), select(-1, 1, (k & 2) == 0)) * b, k > 0);
+    if (textureLoad(water, clamp(q + o, vec2i(0), wdims - 1), 0).x > 0.0) { any = true; }
+  }
+  if (!any) { return vec4f(0.0, 0.0, 0.0, 1.0); }
+  let sdims = vec2i(textureDimensions(scene));
+  let px = clamp(vec2i(i.uv * vec2f(sdims)), vec2i(0), sdims - 1);
+  let s = textureLoad(scene, px, 0);
+  let ray = viewRay(i.uv);
+  let A = worldAir(vec4f(0.0, 0.0, 0.0, s.a), px, ray);
+  let T = worldAir(vec4f(1.0, 1.0, 1.0, s.a), px, ray) - A;
+  return vec4f(A, clamp(dot(T, vec3f(1.0 / 3.0)), 0.0, 1.0));
 }
 
 /** whether this world surfaces its scene (its scene step and air) before the water composites (src/post/post.ts
@@ -629,7 +654,9 @@ struct FocusOut { @location(0) focus: vec4f, @location(1) body: vec4f }
   let W = textureLoad(water, q, 0);
   let s = textureLoad(scene, clamp(vec2i(i.uv * vec2f(sdims)), vec2i(0), sdims - 1), 0);
   let amount = W.y * surf.cover.z;
-  let there = W.x > 0.0 && amount > surf.cover.x * 0.6 && s.a >= W.x - 0.03;
+  // (where the composite shows it half or more: the smoothed thickness reaches a little past the outline, and there the
+  // lens focused on the water's distance would show the far air's march grain sharp in a halo round the body)
+  let there = W.x > 0.0 && amount > (surf.cover.x + surf.cover.y) * 0.5 && s.a >= W.x - 0.03;
   var o: FocusOut;
   o.focus = vec4f(select(1e5, W.x, there), 0.0, 0.0, 1.0);
   o.body = vec4f(1e4, 1.0, 0.0, 0.0);

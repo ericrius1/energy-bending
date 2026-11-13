@@ -102,8 +102,10 @@ export const waterParams = defineParams('water', {
   /** the water's small waves on its surface: how much they tilt it, their scale (1/m) */
   ripples: 0.12,
   rippleScale: 11,
-  /** how much the surface's normal comes from its depth (1) rather than from its thickness (0) where it is thick */
-  depthNormal: 0.5,
+  /** how much the surface's normal comes from its depth (1) rather than from its thickness (0) where it is thick (the
+   *  depth's normal shows the narrow-range filter's terraces as flat patches with hard edges: 0.5 left them visible
+   *  close up, docs/reports/9-water.md) */
+  depthNormal: 0.15,
   /** the edge that breaks: how far its tongues reach (m), how far its curl pushes (m), how much thin water tears, the
    *  noise's scale (1/m) and how fast it climbs (m/s) */
   wisp: 0.035,
