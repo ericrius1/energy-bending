@@ -23,6 +23,8 @@ export const portalParams = defineParams('gates', {
    *  that much of the disc (0: none, as it should be), and the depth of field reads it (0: the whole screen as
    *  centimetres away, the whole frame blurred as the eye comes through behind its player) */
   faceDist: 2.5,
+  /** take the gates' stills (a spare slot draws one gate view now and then; off: a gate with no live view shimmers) */
+  stills: true,
   /** the glow round a gate, the halo and the light on the floor (0 off) */
   glow: 1,
   /** ?fly: the gate to fly through ('' off), where along the path (−1 … 1, the disc at 0), how fast (path lengths a

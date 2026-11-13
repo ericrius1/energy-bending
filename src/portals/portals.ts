@@ -603,11 +603,14 @@ export class Portals implements SceneLayer {
       return got;
     };
     const level1 = take(main, this.kit.camera, main.world, null, W, H, Math.min(P.live, this.slots.length));
+    // a still that is due takes the last slot before gates seen through gates do (at most four times a second, so
+    // those are live three frames in four or more; without this they would starve the stills)
+    const last = this.slots[this.slots.length - 1];
+    const still = P.stills && next < this.slots.length && this.refreshStill(last, main.world);
     if (P.depth >= 2) for (const s of level1) {
       const vw = s.view.view.width, vh = s.view.view.height;
-      take(s.view, s.cam, s.view.world, s.gate!.partner, vw / P.scale, vh / P.scale, this.slots.length);
+      take(s.view, s.cam, s.view.world, s.gate!.partner, vw / P.scale, vh / P.scale, this.slots.length - (still ? 1 : 0));
     }
-    if (next < this.slots.length) this.refreshStill(this.slots[next], main.world);
   }
 
   /** whether a dancer in the gate's partner world would be seen through it from `eye`: carried back through the pair it
@@ -631,10 +634,10 @@ export class Portals implements SceneLayer {
    *  before the others), else the oldest past eight seconds; at most one every quarter of a second. The camera stands
    *  square on in front of the disc, the disc filling the middle square of the slot's view, which is copied into the
    *  gate's layer of the stills (portals/surface.wgsl shows it, soft and dim, on a disc with no live view) */
-  private refreshStill(s: Slot, world: string) {
-    if (this.t - this.lastTake < 0.25) return;
+  private refreshStill(s: Slot, world: string): boolean {
+    if (this.t - this.lastTake < 0.25) return false;
     const v = s.view.view;
-    if (v.width < this.stillSize || v.height < this.stillSize) return;
+    if (v.width < this.stillSize || v.height < this.stillSize) return false;
     let best: Gate | null = null, bestScore = -Infinity;
     for (const g of this.gates.values()) {
       if (!g.partner || g.open < 0.99 || this.slots.some((x) => x.active && x.gate === g)) continue;
@@ -643,7 +646,7 @@ export class Portals implements SceneLayer {
       const score = age + (g.world === world ? 1e4 : 0);
       if (score > bestScore) { bestScore = score; best = g; }
     }
-    if (!best) return;
+    if (!best) return false;
     let st = this.stills.get(best);
     if (!st) {
       const used = new Set([...this.stills.values()].map((x) => x.layer));
@@ -653,7 +656,7 @@ export class Portals implements SceneLayer {
         // (more gates than layers: the oldest still of a gate in another world gives its layer up)
         let old: Gate | null = null;
         for (const [g, x] of this.stills) if (g.world !== world && (!old || x.at < this.stills.get(old)!.at)) old = g;
-        if (!old) return;
+        if (!old) return false;
         layer = this.stills.get(old)!.layer;
         this.stills.delete(old);
       }
@@ -671,6 +674,7 @@ export class Portals implements SceneLayer {
     s.view.world = best.partner!.world;
     this.aim(s, c);
     this.taking = { slot: s, layer: st.layer };
+    return true;
   }
 
   /** a slot's camera: its parent's carried through the gate, its near plane on the far disc */

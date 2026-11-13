@@ -90,6 +90,28 @@
   ]
  },
  {
+  "name": "cam-other-fire",
+  "query": "play&two&dress=water,fire&world=geode",
+  "fps": 10,
+  "seconds": 4,
+  "warm": 200,
+  "setup": "bend.set('redwoods', { hour: 19.4, dayGoes: false }); bend.set('camera', { followDist: 4.2, followFov: 44, followPitch: 0.1, followSwing: 0 }); bend.wake(); bend.place(0,0.6,2.6,0.45); bend.gates.place(bend.show.dancers[1],'redwoods'); bend.place(1,-4.6,-3.9,-2.29); bend.camera({yaw:-2.69});",
+  "cues": {
+   "1.0": "bend.move(1,'armada')",
+   "2.5": "bend.move(1,'au')"
+  },
+  "each": "bend.camera({yaw:-2.69});",
+  "sheet": {
+   "cols": 4,
+   "rows": 3,
+   "width": 400
+  },
+  "stills": [
+   1.5,
+   3
+  ]
+ },
+ {
   "name": "cam-hub",
   "query": "world=geode&dress=fire",
   "fps": 4,

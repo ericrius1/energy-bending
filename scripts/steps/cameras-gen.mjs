@@ -27,6 +27,11 @@ out('gates', [
     setup: `${dusk} ${follow(4.2, 44, 0.1)} bend.wake(); bend.place(0,1.5,3.0,0.45); bend.gates.place(bend.show.dancers[1],'redwoods'); bend.place(1,-4.6,-3.9,-2.29); bend.camera({yaw:-2.69});`,
     cues: { '1.0': "bend.move(1,'armada')", '2.5': "bend.move(1,'au')" }, each: 'bend.camera({yaw:-2.69});',
     sheet: { cols: 4, rows: 3, width: 400 }, stills: [1.5, 3.0] },
+  // the same with the other dancer on fire (a water body has no surface in a gate's view yet: task 2), the player aside
+  { name: 'cam-other-fire', query: 'play&two&dress=water,fire&world=geode', fps: 10, seconds: 4, warm: 200,
+    setup: `${dusk} ${follow(4.2, 44, 0.1)} bend.wake(); bend.place(0,0.6,2.6,0.45); bend.gates.place(bend.show.dancers[1],'redwoods'); bend.place(1,-4.6,-3.9,-2.29); bend.camera({yaw:-2.69});`,
+    cues: { '1.0': "bend.move(1,'armada')", '2.5': "bend.move(1,'au')" }, each: 'bend.camera({yaw:-2.69});',
+    sheet: { cols: 4, rows: 3, width: 400 }, stills: [1.5, 3.0] },
   { name: 'cam-hub', query: 'world=geode&dress=fire', fps: 4, seconds: 8, warm: 400,
     setup: "bend.set('camera',{ shots:false, autoOrbit:false });", each: 'bend.camera({ idle:0, yaw: 2.6 + t*0.25, dist: 5.5, pitch: 0.05, height: 1.4, fov: 60 });',
     sheet: { cols: 8, rows: 4, width: 300 }, stills: [0, 4, 7] },
