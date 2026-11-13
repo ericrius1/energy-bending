@@ -145,6 +145,8 @@ export class CameraRig {
   /** points (x, y, z triples) to frame on the plane; when empty, the plane's stage is framed */
   framing: Float32Array = new Float32Array(0);
   framingCount = 0;
+  /** more margin (m) round what a locked view frames: the jogo stands back for a fusion */
+  framePad = 0;
   /** the pose this frame (world): eye, the point looked at, field of view (degrees) */
   readonly eye: V3 = [0, 0, 0];
   readonly look: V3 = [0, 0, 0];
@@ -390,7 +392,7 @@ export class CameraRig {
     }
     if (!(u1 >= u0)) { u0 = -P.halfWidth; u1 = P.halfWidth; v0 = 0; v1 = P.height ?? 3; }
     // a margin round them, and never less than a body's height of stage
-    const mu = 0.6, mv = 0.35;
+    const mu = 0.6 + this.framePad, mv = 0.35 + this.framePad * 0.6;
     u0 -= mu; u1 += mu; v0 = Math.min(v0, 0) - mv; v1 = Math.max(v1, v0 + 2.2) + mv;
     const uc = (u0 + u1) / 2, vc = (v0 + v1) / 2, hu = (u1 - u0) / 2, hv = (v1 - v0) / 2;
     // far enough back with the plane's lens to hold that; past the plane's limit, the lens widens instead

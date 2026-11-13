@@ -110,6 +110,8 @@ export const RULES = {
     kinds: {
       ice:  { cost: 1,    life: 90000,  melts: true,  shatters: true },
       gems: { cost: 1.25, life: 180000, melts: false, shatters: true },
+      /** a ring of flame that stands and lifts (water's 'melt' douses it) */
+      fire: { cost: 1, life: 30000, melts: true, shatters: true },
     } as Record<string, { cost: number; life: number; melts: boolean; shatters: boolean }>,
   },
 };

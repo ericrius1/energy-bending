@@ -27,6 +27,8 @@ export interface SessionOptions extends NetOptions {
   stage?: string;
   world?: string | null;
   role?: Role;
+  /** a transport made elsewhere (a LocalNet on a stepped clock, say); the options above that make one are then unused */
+  net?: Net | LocalNet;
 }
 
 export class Session {
@@ -39,7 +41,7 @@ export class Session {
 
   constructor(opts: SessionOptions = {}) {
     this.opts = opts;
-    this.net = opts.local ? new LocalNet({ ...opts, stage: opts.stage, world: opts.world ?? null, partner: opts.partner ?? null }) : new Net(opts.url, opts);
+    this.net = opts.net ?? (opts.local ? new LocalNet({ ...opts, stage: opts.stage, world: opts.world ?? null, partner: opts.partner ?? null }) : new Net(opts.url, opts));
     this.net.on('pieces', (m) => { this.pieces.clear(); for (const p of m.list) this.pieces.set(p.id, p); });
     this.net.on('ev', (e) => {
       if (e.k === 'set') this.pieces.set(e.piece.id, e.piece);

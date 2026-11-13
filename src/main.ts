@@ -115,6 +115,8 @@ if (query.has('play')) {
   if (query.has('net')) await (await import('./net/play')).netPlay({ show, play, frame, world: () => worldOf(main.world), query, gates });
 } else if (query.has('net')) show.castOverride = await (await import('./net/demo')).netDemo(motion, frame, query);
 gatesDebug(gates, frame, query, () => show.dancers);
+// the jogo, its modes and menus (src/play): ?jogo=…, or the front of the game on a plain page
+await (await import('./play')).registerPlay({ kit, frame, show, rig, gates, music, field, kinds, main, query, canvas, motion, travel: travelling, coarse, film: FILM, wake, worldOf });
 // the music owns time: FrameCtx.beat is its clock, live and filming
 const beat = music.clock;
 
@@ -136,7 +138,7 @@ async function setWorld(id: string) {
 function lock(on: boolean) { rig.lock(on ? worldOf(main.world).stages[0] ?? null : null); }
 
 // ---------------------------------------------------------------- the frame's CPU work, phase by phase
-const f: FrameCtx = { kit, dt: 0, danceDt: 0, t: 0, frame: 0, now: 0, beat: beat.info, dancers: [], views };
+const f: FrameCtx = { kit, dt: 0, danceDt: 0, t: 0, frame: 0, now: 0, beat: beat.info, tension: 0, dancers: [], views };
 const framing = new Float32Array(8 * 3 * 7);
 const FRAMED = [JOINT.Hips, JOINT.Head, JOINT.HeadEnd, JOINT.LeftHand, JOINT.RightHand, JOINT.LeftToeBase, JOINT.RightToeBase];
 const centre = { x: 0, z: 0, ring: false, dancers: 0 };

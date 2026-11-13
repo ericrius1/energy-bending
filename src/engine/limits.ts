@@ -49,6 +49,9 @@ export const LIMITS = {
   /** Line segments of plasma arcs drawn in one frame (matter/plasma/arcs.ts): an arc with its forks is ~30, so this
    *  holds well over a hundred arcs. 32 bytes each. */
   arcSegments: 4096,
+  /** Glows the jogo draws in one frame (src/play/glow.ts: the meters in the world, trails, threads, the results' gems).
+   *  48 bytes each, written from the CPU every frame, so 8k is 384 KB a frame at most. */
+  glows: 8192,
   /** Gates open in all the worlds at once (src/portals). Each is a row of a small uniform per view (208 bytes), and a
    *  ray test in the pixels its disc covers; eight is a few doors per world. */
   gates: 8,
