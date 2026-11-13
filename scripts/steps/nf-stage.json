@@ -1,0 +1,212 @@
+[
+ {
+  "name": "nf-temple-stub",
+  "query": "play&two&dress=fire,water&world=temple",
+  "fps": 2,
+  "seconds": 1,
+  "warm": 40,
+  "ab": {
+   "a": "bend.set('fade',{on:false})",
+   "b": "bend.set('fade',{on:true})"
+  },
+  "setup": " bend.set('fade',{easeIn:0,easeOut:0}); bend.wake(); await bend.step(3);\nconst W=bend.worldOf(), J=bend.show.dancers[0].skeleton.world, g0=W.groundAt(J[0],J[2]), list=bend.rig.solids.list;\n// (idx < 0: the nearest box 2 to 7 m from the player that stands above its floor, as the forge's raised slabs do)\nconst top=(s)=>s.kind==='box'?s.c[1]+Math.abs(s.h[1]*s.y[1]):Math.max(s.a[1],s.b[1])+s.r, bot=(s)=>s.kind==='box'?s.c[1]-Math.abs(s.h[1]*s.y[1]):Math.min(s.a[1],s.b[1])-s.r;\nconst mid=(s)=>s.kind==='box'?[s.c[0],s.c[2]]:[(s.a[0]+s.b[0])/2,(s.a[2]+s.b[2])/2];\nconst pick=11>=0?11:list.map((s,i)=>[i,Math.hypot(mid(s)[0]-J[0],mid(s)[1]-J[2])]).filter(([i,d])=>d>2&&d<7&&top(list[i])>g0+0.6&&bot(list[i])<g0+1.4).sort((a,b)=>a[1]-b[1])[0]?.[0];\nconsole.warn('stage solid', pick, 'ground', g0.toFixed(2));\nconst S=list[pick]; let c,R; if(S.kind==='capsule'){c=[(S.a[0]+S.b[0])/2,(S.a[2]+S.b[2])/2];R=S.r}else{c=[S.c[0],S.c[2]];R=Math.max(S.h[0],S.h[2])}\nlet dx=-c[0],dz=-c[1]; const L=Math.hypot(dx,dz)||1; dx/=L; dz/=L; const px=-dz,pz=dx, D=R+2.2, E=R+1.6;\nconst y0=Math.atan2(px,pz);\nbend.place(0,c[0]+dx*D-px*0.6,c[1]+dz*D-pz*0.6,y0); bend.place(1,c[0]+dx*D+px*0.6,c[1]+dz*D+pz*0.6,y0+Math.PI);\nconst g=W.groundAt(c[0]+dx*D,c[1]+dz*D), eye=[c[0]-dx*E,g+1.3,c[1]-dz*E], at=[c[0]+dx*D,g+1.0,c[1]+dz*D];\nconst ap=bend.rig.apply.bind(bend.rig); bend.rig.apply=(cam,w,h)=>{ap(cam,w,h); cam.lookAt(eye,at); cam.update(w,h);};",
+  "each": "const s=bend.fade.seen; console.warn('fade', t, JSON.stringify(s))",
+  "sheet": {
+   "cols": 2,
+   "rows": 1,
+   "width": 640
+  },
+  "stills": [
+   0.5
+  ]
+ },
+ {
+  "name": "nf-temple-near",
+  "query": "play&two&dress=fire,water&world=temple",
+  "fps": 2,
+  "seconds": 1,
+  "warm": 40,
+  "ab": {
+   "a": "bend.set('fade',{on:false})",
+   "b": "bend.set('fade',{on:true})"
+  },
+  "setup": " bend.set('fade',{easeIn:0,easeOut:0}); bend.wake(); await bend.step(3);\nconst W=bend.worldOf(), J=bend.show.dancers[0].skeleton.world, g0=W.groundAt(J[0],J[2]), list=bend.rig.solids.list;\n// (idx < 0: the nearest box 2 to 7 m from the player that stands above its floor, as the forge's raised slabs do)\nconst top=(s)=>s.kind==='box'?s.c[1]+Math.abs(s.h[1]*s.y[1]):Math.max(s.a[1],s.b[1])+s.r, bot=(s)=>s.kind==='box'?s.c[1]-Math.abs(s.h[1]*s.y[1]):Math.min(s.a[1],s.b[1])-s.r;\nconst mid=(s)=>s.kind==='box'?[s.c[0],s.c[2]]:[(s.a[0]+s.b[0])/2,(s.a[2]+s.b[2])/2];\nconst pick=11>=0?11:list.map((s,i)=>[i,Math.hypot(mid(s)[0]-J[0],mid(s)[1]-J[2])]).filter(([i,d])=>d>2&&d<7&&top(list[i])>g0+0.6&&bot(list[i])<g0+1.4).sort((a,b)=>a[1]-b[1])[0]?.[0];\nconsole.warn('stage solid', pick, 'ground', g0.toFixed(2));\nconst S=list[pick]; let c,R; if(S.kind==='capsule'){c=[(S.a[0]+S.b[0])/2,(S.a[2]+S.b[2])/2];R=S.r}else{c=[S.c[0],S.c[2]];R=Math.max(S.h[0],S.h[2])}\nlet dx=-c[0],dz=-c[1]; const L=Math.hypot(dx,dz)||1; dx/=L; dz/=L; const px=-dz,pz=dx, D=R+2.2, E=R+0.3;\nconst y0=Math.atan2(px,pz);\nbend.place(0,c[0]+dx*D-px*0.6,c[1]+dz*D-pz*0.6,y0); bend.place(1,c[0]+dx*D+px*0.6,c[1]+dz*D+pz*0.6,y0+Math.PI);\nconst g=W.groundAt(c[0]+dx*D,c[1]+dz*D), eye=[c[0]-dx*E,g+1.3,c[1]-dz*E], at=[c[0]+dx*D,g+1.0,c[1]+dz*D];\nconst ap=bend.rig.apply.bind(bend.rig); bend.rig.apply=(cam,w,h)=>{ap(cam,w,h); cam.lookAt(eye,at); cam.update(w,h);};",
+  "each": "const s=bend.fade.seen; console.warn('fade', t, JSON.stringify(s))",
+  "sheet": {
+   "cols": 2,
+   "rows": 1,
+   "width": 640
+  },
+  "stills": [
+   0.5
+  ]
+ },
+ {
+  "name": "nf-redwoods-trunk",
+  "query": "play&two&dress=fire,water&world=redwoods",
+  "fps": 2,
+  "seconds": 1,
+  "warm": 40,
+  "ab": {
+   "a": "bend.set('fade',{on:false})",
+   "b": "bend.set('fade',{on:true})"
+  },
+  "setup": "bend.set('redwoods', { hour: 19.4, dayGoes: false }); bend.set('fade',{easeIn:0,easeOut:0}); bend.wake(); await bend.step(3);\nconst W=bend.worldOf(), J=bend.show.dancers[0].skeleton.world, g0=W.groundAt(J[0],J[2]), list=bend.rig.solids.list;\n// (idx < 0: the nearest box 2 to 7 m from the player that stands above its floor, as the forge's raised slabs do)\nconst top=(s)=>s.kind==='box'?s.c[1]+Math.abs(s.h[1]*s.y[1]):Math.max(s.a[1],s.b[1])+s.r, bot=(s)=>s.kind==='box'?s.c[1]-Math.abs(s.h[1]*s.y[1]):Math.min(s.a[1],s.b[1])-s.r;\nconst mid=(s)=>s.kind==='box'?[s.c[0],s.c[2]]:[(s.a[0]+s.b[0])/2,(s.a[2]+s.b[2])/2];\nconst pick=111>=0?111:list.map((s,i)=>[i,Math.hypot(mid(s)[0]-J[0],mid(s)[1]-J[2])]).filter(([i,d])=>d>2&&d<7&&top(list[i])>g0+0.6&&bot(list[i])<g0+1.4).sort((a,b)=>a[1]-b[1])[0]?.[0];\nconsole.warn('stage solid', pick, 'ground', g0.toFixed(2));\nconst S=list[pick]; let c,R; if(S.kind==='capsule'){c=[(S.a[0]+S.b[0])/2,(S.a[2]+S.b[2])/2];R=S.r}else{c=[S.c[0],S.c[2]];R=Math.max(S.h[0],S.h[2])}\nlet dx=-c[0],dz=-c[1]; const L=Math.hypot(dx,dz)||1; dx/=L; dz/=L; const px=-dz,pz=dx, D=R+2.2, E=R+1.6;\nconst y0=Math.atan2(px,pz);\nbend.place(0,c[0]+dx*D-px*0.6,c[1]+dz*D-pz*0.6,y0); bend.place(1,c[0]+dx*D+px*0.6,c[1]+dz*D+pz*0.6,y0+Math.PI);\nconst g=W.groundAt(c[0]+dx*D,c[1]+dz*D), eye=[c[0]-dx*E,g+1.3,c[1]-dz*E], at=[c[0]+dx*D,g+1.0,c[1]+dz*D];\nconst ap=bend.rig.apply.bind(bend.rig); bend.rig.apply=(cam,w,h)=>{ap(cam,w,h); cam.lookAt(eye,at); cam.update(w,h);};",
+  "each": "const s=bend.fade.seen; console.warn('fade', t, JSON.stringify(s))",
+  "sheet": {
+   "cols": 2,
+   "rows": 1,
+   "width": 640
+  },
+  "stills": [
+   0.5
+  ]
+ },
+ {
+  "name": "nf-redwoods-near",
+  "query": "play&two&dress=fire,water&world=redwoods",
+  "fps": 2,
+  "seconds": 1,
+  "warm": 40,
+  "ab": {
+   "a": "bend.set('fade',{on:false})",
+   "b": "bend.set('fade',{on:true})"
+  },
+  "setup": "bend.set('redwoods', { hour: 19.4, dayGoes: false }); bend.set('fade',{easeIn:0,easeOut:0}); bend.wake(); await bend.step(3);\nconst W=bend.worldOf(), J=bend.show.dancers[0].skeleton.world, g0=W.groundAt(J[0],J[2]), list=bend.rig.solids.list;\n// (idx < 0: the nearest box 2 to 7 m from the player that stands above its floor, as the forge's raised slabs do)\nconst top=(s)=>s.kind==='box'?s.c[1]+Math.abs(s.h[1]*s.y[1]):Math.max(s.a[1],s.b[1])+s.r, bot=(s)=>s.kind==='box'?s.c[1]-Math.abs(s.h[1]*s.y[1]):Math.min(s.a[1],s.b[1])-s.r;\nconst mid=(s)=>s.kind==='box'?[s.c[0],s.c[2]]:[(s.a[0]+s.b[0])/2,(s.a[2]+s.b[2])/2];\nconst pick=111>=0?111:list.map((s,i)=>[i,Math.hypot(mid(s)[0]-J[0],mid(s)[1]-J[2])]).filter(([i,d])=>d>2&&d<7&&top(list[i])>g0+0.6&&bot(list[i])<g0+1.4).sort((a,b)=>a[1]-b[1])[0]?.[0];\nconsole.warn('stage solid', pick, 'ground', g0.toFixed(2));\nconst S=list[pick]; let c,R; if(S.kind==='capsule'){c=[(S.a[0]+S.b[0])/2,(S.a[2]+S.b[2])/2];R=S.r}else{c=[S.c[0],S.c[2]];R=Math.max(S.h[0],S.h[2])}\nlet dx=-c[0],dz=-c[1]; const L=Math.hypot(dx,dz)||1; dx/=L; dz/=L; const px=-dz,pz=dx, D=R+2.2, E=R+0.3;\nconst y0=Math.atan2(px,pz);\nbend.place(0,c[0]+dx*D-px*0.6,c[1]+dz*D-pz*0.6,y0); bend.place(1,c[0]+dx*D+px*0.6,c[1]+dz*D+pz*0.6,y0+Math.PI);\nconst g=W.groundAt(c[0]+dx*D,c[1]+dz*D), eye=[c[0]-dx*E,g+1.3,c[1]-dz*E], at=[c[0]+dx*D,g+1.0,c[1]+dz*D];\nconst ap=bend.rig.apply.bind(bend.rig); bend.rig.apply=(cam,w,h)=>{ap(cam,w,h); cam.lookAt(eye,at); cam.update(w,h);};",
+  "each": "const s=bend.fade.seen; console.warn('fade', t, JSON.stringify(s))",
+  "sheet": {
+   "cols": 2,
+   "rows": 1,
+   "width": 640
+  },
+  "stills": [
+   0.5
+  ]
+ },
+ {
+  "name": "nf-geode-blade",
+  "query": "play&two&dress=fire,water&world=geode",
+  "fps": 2,
+  "seconds": 1,
+  "warm": 40,
+  "ab": {
+   "a": "bend.set('fade',{on:false})",
+   "b": "bend.set('fade',{on:true})"
+  },
+  "setup": " bend.set('fade',{easeIn:0,easeOut:0}); bend.wake(); await bend.step(3);\nconst W=bend.worldOf(), J=bend.show.dancers[0].skeleton.world, g0=W.groundAt(J[0],J[2]), list=bend.rig.solids.list;\n// (idx < 0: the nearest box 2 to 7 m from the player that stands above its floor, as the forge's raised slabs do)\nconst top=(s)=>s.kind==='box'?s.c[1]+Math.abs(s.h[1]*s.y[1]):Math.max(s.a[1],s.b[1])+s.r, bot=(s)=>s.kind==='box'?s.c[1]-Math.abs(s.h[1]*s.y[1]):Math.min(s.a[1],s.b[1])-s.r;\nconst mid=(s)=>s.kind==='box'?[s.c[0],s.c[2]]:[(s.a[0]+s.b[0])/2,(s.a[2]+s.b[2])/2];\nconst pick=34>=0?34:list.map((s,i)=>[i,Math.hypot(mid(s)[0]-J[0],mid(s)[1]-J[2])]).filter(([i,d])=>d>2&&d<7&&top(list[i])>g0+0.6&&bot(list[i])<g0+1.4).sort((a,b)=>a[1]-b[1])[0]?.[0];\nconsole.warn('stage solid', pick, 'ground', g0.toFixed(2));\nconst S=list[pick]; let c,R; if(S.kind==='capsule'){c=[(S.a[0]+S.b[0])/2,(S.a[2]+S.b[2])/2];R=S.r}else{c=[S.c[0],S.c[2]];R=Math.max(S.h[0],S.h[2])}\nlet dx=-c[0],dz=-c[1]; const L=Math.hypot(dx,dz)||1; dx/=L; dz/=L; const px=-dz,pz=dx, D=R+2.2, E=R+1.6;\nconst y0=Math.atan2(px,pz);\nbend.place(0,c[0]+dx*D-px*0.6,c[1]+dz*D-pz*0.6,y0); bend.place(1,c[0]+dx*D+px*0.6,c[1]+dz*D+pz*0.6,y0+Math.PI);\nconst g=W.groundAt(c[0]+dx*D,c[1]+dz*D), eye=[c[0]-dx*E,g+1.3,c[1]-dz*E], at=[c[0]+dx*D,g+1.0,c[1]+dz*D];\nconst ap=bend.rig.apply.bind(bend.rig); bend.rig.apply=(cam,w,h)=>{ap(cam,w,h); cam.lookAt(eye,at); cam.update(w,h);};",
+  "each": "const s=bend.fade.seen; console.warn('fade', t, JSON.stringify(s))",
+  "sheet": {
+   "cols": 2,
+   "rows": 1,
+   "width": 640
+  },
+  "stills": [
+   0.5
+  ]
+ },
+ {
+  "name": "nf-geode-near",
+  "query": "play&two&dress=fire,water&world=geode",
+  "fps": 2,
+  "seconds": 1,
+  "warm": 40,
+  "ab": {
+   "a": "bend.set('fade',{on:false})",
+   "b": "bend.set('fade',{on:true})"
+  },
+  "setup": " bend.set('fade',{easeIn:0,easeOut:0}); bend.wake(); await bend.step(3);\nconst W=bend.worldOf(), J=bend.show.dancers[0].skeleton.world, g0=W.groundAt(J[0],J[2]), list=bend.rig.solids.list;\n// (idx < 0: the nearest box 2 to 7 m from the player that stands above its floor, as the forge's raised slabs do)\nconst top=(s)=>s.kind==='box'?s.c[1]+Math.abs(s.h[1]*s.y[1]):Math.max(s.a[1],s.b[1])+s.r, bot=(s)=>s.kind==='box'?s.c[1]-Math.abs(s.h[1]*s.y[1]):Math.min(s.a[1],s.b[1])-s.r;\nconst mid=(s)=>s.kind==='box'?[s.c[0],s.c[2]]:[(s.a[0]+s.b[0])/2,(s.a[2]+s.b[2])/2];\nconst pick=34>=0?34:list.map((s,i)=>[i,Math.hypot(mid(s)[0]-J[0],mid(s)[1]-J[2])]).filter(([i,d])=>d>2&&d<7&&top(list[i])>g0+0.6&&bot(list[i])<g0+1.4).sort((a,b)=>a[1]-b[1])[0]?.[0];\nconsole.warn('stage solid', pick, 'ground', g0.toFixed(2));\nconst S=list[pick]; let c,R; if(S.kind==='capsule'){c=[(S.a[0]+S.b[0])/2,(S.a[2]+S.b[2])/2];R=S.r}else{c=[S.c[0],S.c[2]];R=Math.max(S.h[0],S.h[2])}\nlet dx=-c[0],dz=-c[1]; const L=Math.hypot(dx,dz)||1; dx/=L; dz/=L; const px=-dz,pz=dx, D=R+2.2, E=R+0.3;\nconst y0=Math.atan2(px,pz);\nbend.place(0,c[0]+dx*D-px*0.6,c[1]+dz*D-pz*0.6,y0); bend.place(1,c[0]+dx*D+px*0.6,c[1]+dz*D+pz*0.6,y0+Math.PI);\nconst g=W.groundAt(c[0]+dx*D,c[1]+dz*D), eye=[c[0]-dx*E,g+1.3,c[1]-dz*E], at=[c[0]+dx*D,g+1.0,c[1]+dz*D];\nconst ap=bend.rig.apply.bind(bend.rig); bend.rig.apply=(cam,w,h)=>{ap(cam,w,h); cam.lookAt(eye,at); cam.update(w,h);};",
+  "each": "const s=bend.fade.seen; console.warn('fade', t, JSON.stringify(s))",
+  "sheet": {
+   "cols": 2,
+   "rows": 1,
+   "width": 640
+  },
+  "stills": [
+   0.5
+  ]
+ },
+ {
+  "name": "nf-forge-slab",
+  "query": "play&two&dress=fire,water&world=forge",
+  "fps": 2,
+  "seconds": 1,
+  "warm": 40,
+  "ab": {
+   "a": "bend.set('fade',{on:false})",
+   "b": "bend.set('fade',{on:true})"
+  },
+  "setup": " bend.set('fade',{easeIn:0,easeOut:0}); bend.wake(); await bend.step(3);\nconst W=bend.worldOf(), J=bend.show.dancers[0].skeleton.world, g0=W.groundAt(J[0],J[2]), list=bend.rig.solids.list;\n// (idx < 0: the nearest box 2 to 7 m from the player that stands above its floor, as the forge's raised slabs do)\nconst top=(s)=>s.kind==='box'?s.c[1]+Math.abs(s.h[1]*s.y[1]):Math.max(s.a[1],s.b[1])+s.r, bot=(s)=>s.kind==='box'?s.c[1]-Math.abs(s.h[1]*s.y[1]):Math.min(s.a[1],s.b[1])-s.r;\nconst mid=(s)=>s.kind==='box'?[s.c[0],s.c[2]]:[(s.a[0]+s.b[0])/2,(s.a[2]+s.b[2])/2];\nconst pick=-1>=0?-1:list.map((s,i)=>[i,Math.hypot(mid(s)[0]-J[0],mid(s)[1]-J[2])]).filter(([i,d])=>d>2&&d<7&&top(list[i])>g0+0.6&&bot(list[i])<g0+1.4).sort((a,b)=>a[1]-b[1])[0]?.[0];\nconsole.warn('stage solid', pick, 'ground', g0.toFixed(2));\nconst S=list[pick]; let c,R; if(S.kind==='capsule'){c=[(S.a[0]+S.b[0])/2,(S.a[2]+S.b[2])/2];R=S.r}else{c=[S.c[0],S.c[2]];R=Math.max(S.h[0],S.h[2])}\nlet dx=-c[0],dz=-c[1]; const L=Math.hypot(dx,dz)||1; dx/=L; dz/=L; const px=-dz,pz=dx, D=R+2.2, E=R+1.6;\nconst y0=Math.atan2(px,pz);\nbend.place(0,c[0]+dx*D-px*0.6,c[1]+dz*D-pz*0.6,y0); bend.place(1,c[0]+dx*D+px*0.6,c[1]+dz*D+pz*0.6,y0+Math.PI);\nconst g=W.groundAt(c[0]+dx*D,c[1]+dz*D), eye=[c[0]-dx*E,g+1.3,c[1]-dz*E], at=[c[0]+dx*D,g+1.0,c[1]+dz*D];\nconst ap=bend.rig.apply.bind(bend.rig); bend.rig.apply=(cam,w,h)=>{ap(cam,w,h); cam.lookAt(eye,at); cam.update(w,h);};",
+  "each": "const s=bend.fade.seen; console.warn('fade', t, JSON.stringify(s))",
+  "sheet": {
+   "cols": 2,
+   "rows": 1,
+   "width": 640
+  },
+  "stills": [
+   0.5
+  ]
+ },
+ {
+  "name": "nf-forge-near",
+  "query": "play&two&dress=fire,water&world=forge",
+  "fps": 2,
+  "seconds": 1,
+  "warm": 40,
+  "ab": {
+   "a": "bend.set('fade',{on:false})",
+   "b": "bend.set('fade',{on:true})"
+  },
+  "setup": " bend.set('fade',{easeIn:0,easeOut:0}); bend.wake(); await bend.step(3);\nconst W=bend.worldOf(), J=bend.show.dancers[0].skeleton.world, g0=W.groundAt(J[0],J[2]), list=bend.rig.solids.list;\n// (idx < 0: the nearest box 2 to 7 m from the player that stands above its floor, as the forge's raised slabs do)\nconst top=(s)=>s.kind==='box'?s.c[1]+Math.abs(s.h[1]*s.y[1]):Math.max(s.a[1],s.b[1])+s.r, bot=(s)=>s.kind==='box'?s.c[1]-Math.abs(s.h[1]*s.y[1]):Math.min(s.a[1],s.b[1])-s.r;\nconst mid=(s)=>s.kind==='box'?[s.c[0],s.c[2]]:[(s.a[0]+s.b[0])/2,(s.a[2]+s.b[2])/2];\nconst pick=-1>=0?-1:list.map((s,i)=>[i,Math.hypot(mid(s)[0]-J[0],mid(s)[1]-J[2])]).filter(([i,d])=>d>2&&d<7&&top(list[i])>g0+0.6&&bot(list[i])<g0+1.4).sort((a,b)=>a[1]-b[1])[0]?.[0];\nconsole.warn('stage solid', pick, 'ground', g0.toFixed(2));\nconst S=list[pick]; let c,R; if(S.kind==='capsule'){c=[(S.a[0]+S.b[0])/2,(S.a[2]+S.b[2])/2];R=S.r}else{c=[S.c[0],S.c[2]];R=Math.max(S.h[0],S.h[2])}\nlet dx=-c[0],dz=-c[1]; const L=Math.hypot(dx,dz)||1; dx/=L; dz/=L; const px=-dz,pz=dx, D=R+2.2, E=R+0.3;\nconst y0=Math.atan2(px,pz);\nbend.place(0,c[0]+dx*D-px*0.6,c[1]+dz*D-pz*0.6,y0); bend.place(1,c[0]+dx*D+px*0.6,c[1]+dz*D+pz*0.6,y0+Math.PI);\nconst g=W.groundAt(c[0]+dx*D,c[1]+dz*D), eye=[c[0]-dx*E,g+1.3,c[1]-dz*E], at=[c[0]+dx*D,g+1.0,c[1]+dz*D];\nconst ap=bend.rig.apply.bind(bend.rig); bend.rig.apply=(cam,w,h)=>{ap(cam,w,h); cam.lookAt(eye,at); cam.update(w,h);};",
+  "each": "const s=bend.fade.seen; console.warn('fade', t, JSON.stringify(s))",
+  "sheet": {
+   "cols": 2,
+   "rows": 1,
+   "width": 640
+  },
+  "stills": [
+   0.5
+  ]
+ },
+ {
+  "name": "nf-gate-dof",
+  "query": "play&two&dress=fire,water&world=geode",
+  "size": "1920x1080",
+  "fps": 2,
+  "seconds": 1,
+  "warm": 20,
+  "ab": {
+   "a": "bend.set('gates',{focus:false})",
+   "b": "bend.set('gates',{focus:true})"
+  },
+  "setup": "bend.set('redwoods', { hour: 19.4, dayGoes: false }); bend.set('post', { focusEase: 0 }); bend.wake(); await bend.step(200);\nconst G=bend.worlds.find((w)=>w.id==='geode').portals.find((p)=>p.to.world==='redwoods'), a=G.at, n=G.normal, r=[n[2],0,-n[0]];\nbend.place(0,a[0]+n[0]*2.6+r[0]*1.1,a[2]+n[2]*2.6+r[2]*1.1,Math.atan2(-n[0],-n[2]));\nconst d=bend.show.dancers[1]; bend.gates.place(d,'redwoods'); const f=bend.gates.pt(G.id,[a[0]-n[0]*3,a[1],a[2]-n[2]*3]);\nconst fz=bend.gates.dir(G.id,[n[0],0,n[2]]); bend.place(1,f[0],f[2],Math.atan2(fz[0],fz[2]));\nconst eye=[a[0]+n[0]*5.5,a[1]+0.3,a[2]+n[2]*5.5], at=[a[0],a[1]-0.2,a[2]];\nconst ap=bend.rig.apply.bind(bend.rig); bend.rig.apply=(cam,w,h)=>{ap(cam,w,h); cam.lookAt(eye,at); cam.update(w,h);}; ",
+  "sheet": {
+   "cols": 2,
+   "rows": 1,
+   "width": 640
+  },
+  "stills": [
+   0.5
+  ]
+ },
+ {
+  "name": "nf-gate-window",
+  "query": "play&two&dress=fire,water&world=geode",
+  "size": "1920x1080",
+  "fps": 2,
+  "seconds": 1,
+  "warm": 20,
+  "ab": {
+   "a": "bend.set('gates',{focus:false})",
+   "b": "bend.set('gates',{focus:true})"
+  },
+  "setup": "bend.set('redwoods', { hour: 19.4, dayGoes: false }); bend.set('post', { focusEase: 0 }); bend.wake(); await bend.step(200);\nconst G=bend.worlds.find((w)=>w.id==='geode').portals.find((p)=>p.to.world==='redwoods'), a=G.at, n=G.normal, r=[n[2],0,-n[0]];\nbend.place(0,a[0]+n[0]*7.5+r[0]*1.1,a[2]+n[2]*7.5+r[2]*1.1,Math.atan2(-n[0],-n[2]));\nconst d=bend.show.dancers[1]; bend.gates.place(d,'redwoods'); const f=bend.gates.pt(G.id,[a[0]-n[0]*3,a[1],a[2]-n[2]*3]);\nconst fz=bend.gates.dir(G.id,[n[0],0,n[2]]); bend.place(1,f[0],f[2],Math.atan2(fz[0],fz[2]));\nconst eye=[a[0]+n[0]*5.5,a[1]+0.3,a[2]+n[2]*5.5], at=[a[0],a[1]-0.2,a[2]];\nconst ap=bend.rig.apply.bind(bend.rig); bend.rig.apply=(cam,w,h)=>{ap(cam,w,h); cam.lookAt(eye,at); cam.update(w,h);}; ",
+  "sheet": {
+   "cols": 2,
+   "rows": 1,
+   "width": 640
+  },
+  "stills": [
+   0.5
+  ]
+ }
+]
