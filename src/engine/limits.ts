@@ -33,6 +33,12 @@ export const LIMITS = {
   /** Extra views drawn in a frame besides the main one (a portal's destination, the ?pip inset). Each has its own
    *  scene targets, its own LOD cull and its own draw lists (about 5 MB at 300k stones). */
   views: 3,
+  /** Flame particles across every fire and plasma dancer (matter/fire). 48 bytes of state and 32 of home each, so
+   *  262k is about 21 MB. One fire dancer on a desktop runs ~150k; a mandala of fire dancers shares the cap. */
+  flames: 262_144,
+  /** Line segments of plasma arcs drawn in one frame (matter/plasma/arcs.ts): an arc with its forks is ~30, so this
+   *  holds well over a hundred arcs. 32 bytes each. */
+  arcSegments: 4096,
 } as const;
 
 export type Limits = typeof LIMITS;
