@@ -29,7 +29,8 @@ export class IceDraws {
   /** the set ice the game builds with */
   readonly setIce = new SetIce();
   readonly look: UniformBuffer<IceLook>;
-  private sets: StorageBuffer;
+  /** set ice's shards on the GPU (the water's surface splats them too) */
+  readonly sets: StorageBuffer;
   private mist: UniformBuffer<Mist>;
   private motes: StorageBuffer;
   private _look = {} as IceLook;
@@ -80,7 +81,7 @@ export class IceDraws {
       pass.draw(mistDrawShader, {
         label: `ice.mist.${world.id}`, bind: { mist: this.mist, motes: this.motes }, count: 6, instances: MOTES,
         // (the motes belong to no dancer: drawn in the main view only, like steam)
-        blend: 'add', depthWrite: false, cull: 'none', enabled: () => on() && s.view.id === 'main' && P.count() > 0 && P.maybeIce(),
+        blend: 'add', depthWrite: false, cull: 'none', enabled: () => on() && s.view.id === 'main' && P.count() > 0 && P.maybeIce() && (iceParams.mist > 0 || iceParams.dust > 0),
       });
     }
   }

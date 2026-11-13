@@ -199,12 +199,16 @@ export class PostChain {
     const main = view === this.main, own = stage === 'air', id = main ? '' : `.${view.id}`;
     const vw = main ? undefined : view.view, kit = this.kit;
     const sources = focusSources(view);
-    if (sources.length + (main ? 1 : 0) > FOCUS_SLOTS) console.warn(`post: ${sources.length} kinds hand over focus textures, more than FOCUS_SLOTS (${FOCUS_SLOTS}); the rest are left out`);
-    const slot = (k: number) => new Ref<Texture>(() => {
-      // the stub takes the last slot while it's on (main view only)
-      if (main && k === FOCUS_SLOTS - 1 && this.stub && postParams.focusStub > 0) return this.stub.tex;
-      return sources[k]?.focus?.(view) ?? this.emptyFocus;
-    }, `focus${k}${id}`);
+    // the slots are filled each frame from the kinds that hand over a texture now (water and ice share one pool and
+    // one surface: only the pool's primary kind returns it), so a kind that returns null takes no slot
+    let warned = false;
+    const textures = () => {
+      const t = sources.map((m) => m.focus?.(view) ?? null).filter((x): x is Texture => !!x);
+      if (main && this.stub && postParams.focusStub > 0) t.splice(FOCUS_SLOTS - 1, 0, this.stub.tex);
+      if (t.length > FOCUS_SLOTS && !warned) { warned = true; console.warn(`post: ${t.length} focus textures in view ${view.id}, more than FOCUS_SLOTS (${FOCUS_SLOTS}); the rest are left out`); }
+      return t;
+    };
+    const slot = (k: number) => new Ref<Texture>(() => textures()[k] ?? this.emptyFocus, `focus${k}${id}`);
     const perWorld = (pass: RenderPass, label: string, fragment: string, bind: Record<string, unknown>) => {
       for (const w of worlds) {
         pass.fullscreen(airShader, { label: `${label}.${w.id}${id}`, fragment, bind, constants: { WORLD: w.light }, enabled: () => view.world === w.id });

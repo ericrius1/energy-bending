@@ -106,6 +106,7 @@ export interface WaterSim {
   wobble: number;
   wobbleFreq: number;
   forms: ArrayLike<number> | Vec4[];
+  flow: Vec4;
 }
 export interface Aux {
   ice: number;
@@ -127,6 +128,32 @@ export interface ViewSeen {
   pad0: number;
   pad1: number;
 }
+export interface IceLook {
+  size: number;
+  frost: number;
+  glint: number;
+  edges: number;
+  tint: Vec4;
+  deep: Vec4;
+  time: number;
+  setTime: number;
+  inside: number;
+  pad0: number;
+}
+export interface SetShard {
+  pos: Vec4;
+  rot: Vec4;
+  info: Vec4;
+  more: Vec4;
+}
+export interface SetNow {
+  centre: Vec3;
+  size: number;
+  rot: Vec4;
+  fresh: number;
+  wet: number;
+  broken: unknown;
+}
 export interface SOut {
   pos: Vec4;
   uv: Vec2;
@@ -134,11 +161,14 @@ export interface SOut {
   r: number;
   foam: number;
   ice: number;
+  slot: number;
+  film: number;
+  wp: Vec3;
 }
 export interface DepthOut {
-  dist: number;
+  dist: Vec2;
   depth: number;
 }
 
-declare const shader: Shader<{ Frame: Frame; Joint: Joint; Seg: Seg; Particle: Particle; Home: Home; BodyStep: BodyStep; WaterSim: WaterSim; Aux: Aux; Seen: Seen; ViewSeen: ViewSeen; SOut: SOut; DepthOut: DepthOut }, 'frame' | 'sim' | 'seen' | 'state' | 'aux' | 'homes' | 'samp_linear' | 'samp_repeat' | 'samp_nearest' | 'samp_shadow'>;
+declare const shader: Shader<{ Frame: Frame; Joint: Joint; Seg: Seg; Particle: Particle; Home: Home; BodyStep: BodyStep; WaterSim: WaterSim; Aux: Aux; Seen: Seen; ViewSeen: ViewSeen; IceLook: IceLook; SetShard: SetShard; SetNow: SetNow; SOut: SOut; DepthOut: DepthOut }, 'frame' | 'sim' | 'seen' | 'look' | 'state' | 'aux' | 'homes' | 'sets' | 'samp_linear' | 'samp_repeat' | 'samp_nearest' | 'samp_shadow'>;
 export default shader;
