@@ -267,7 +267,7 @@ export async function startJogo(app: PlayApp, mode: string) {
         seatDancer[s] = d;
       }
     }
-    waiting = new Waiting(room.session.room ?? '', `${location.origin}${hrefOf({ mode: 'online', world: world().id, dress: [dress[1] ?? 'water', dress[0] ?? 'fire'], lock: !q.has('free'), room: room.session.room ?? '' }, location.pathname, q)}`);
+    waiting = new Waiting(room.session.room ?? '', `${location.origin}${hrefOf({ mode: 'online', world: world().id, dress: [dress[0] ?? 'fire', dress[1] ?? 'water'], lock: !q.has('free'), room: room.session.room ?? '' }, location.pathname, q)}`);
     app.wake();
   }
 
@@ -298,7 +298,10 @@ export async function startJogo(app: PlayApp, mode: string) {
   if (scripted) {
     if (script) runScript(script);
     else console.warn(`jogo: no script '${q.get('script')}' (src/play/scripts)`);
-    await start();
+    // a script starts its room on the first frame stepped by hand (a capture or a film: kit.manual), so frame 0 of the
+    // capture is the room's first frame whatever the page did before; watched live, after a second
+    let waited = 0;
+    frame.tick('input', () => { if (!started && (kit.manual || ++waited > 60)) void start(); }, 'jogo: a script waits for the first stepped frame');
   } else if (!online) {
     lobby = new Lobby(mode === 'partner');
     lobby.seat(1, 'bot');
@@ -316,6 +319,8 @@ export async function startJogo(app: PlayApp, mode: string) {
   let travelling = false;
   let lastSync = '';
   let frameEvents: JogoEvent[] = [];
+  /** what happened lately, with the room's time and the frame (for probes and the films' logs) */
+  const history: { t: number; frame: number; e: JogoEvent }[] = [];
   frame.tick('input', (f: FrameCtx) => {
     if (!started) return;
     jogo.clock(f.dt);
@@ -346,6 +351,8 @@ export async function startJogo(app: PlayApp, mode: string) {
     jogo.update();
     const ev = jogo.events.splice(0, jogo.events.length);
     frameEvents = ev;
+    for (const e of ev) if (e.k !== 'move' || e.local) { history.push({ t: Math.round(room.now()), frame: kit.frameIndex, e: e.k === 'xch' ? { ...e, move: null } : e }); }
+    if (history.length > 400) history.splice(0, history.length - 300);
     for (const e of ev) {
       fusion.event(e);
       if (e.k === 'set') pieces.lay(e.piece);
@@ -402,6 +409,7 @@ export async function startJogo(app: PlayApp, mode: string) {
     /** the partner brain (src/ai's, when it lands): anything with think(view) */
     setPartner: (b: Brain | null) => { partner = b ?? standIn; },
     events: () => frameEvents,
+    history,
     stats: () => ({
       phase: room.state?.phase, tension: room.state?.tension, streak: room.state?.streak, flow: room.state?.flow, form: room.state?.form,
       axe: room.state?.axe, fusion: fusion.stats(), feel: feel.stats(), pieces: pieces.stats(), glows: glows.count, travelling,
@@ -410,6 +418,13 @@ export async function startJogo(app: PlayApp, mode: string) {
     }),
     start,
     makeIntent,
+    /** (a local room) the play ends in `ms`: the finale, then the results. For captures of the end without its 3 minutes */
+    endIn: (ms = 0) => {
+      const S = (room.session.net as unknown as { session?: { phase: string; sessionEnd: number | null; tEnd: number | null; changed: boolean } }).session;
+      if (!S || S.phase !== 'play') return false;
+      S.sessionEnd = S.tEnd = room.now() + ms; S.changed = true;
+      return true;
+    },
   };
   // bend.jogo: the hooks are installed after this (main.ts), so the first frame puts it there
   frame.tick('input', () => { const b = (window as unknown as { bend?: Record<string, unknown> }).bend; if (b && b.jogo !== api) b.jogo = api; }, 'jogo: bend.jogo');

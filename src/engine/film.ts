@@ -161,7 +161,9 @@ const SHORT: Cut = {
   ],
   holds: [1],
 };
-const CUTS: Record<string, Cut> = { showcase: { cues: CUES, paths: PATHS, holds: HOLDS }, dream: DREAM, forest: FOREST, short: SHORT };
+/** a jogo (src/play, ?jogo=script&script=…): it plays itself on its own clock; the film only wakes the music */
+const JOGO: Cut = { cues: [[0, (f) => f.prelude()], [0.05, (f) => f.wake()]], paths: [], holds: [] };
+const CUTS: Record<string, Cut> = { showcase: { cues: CUES, paths: PATHS, holds: HOLDS }, dream: DREAM, forest: FOREST, short: SHORT, jogo: JOGO };
 
 export async function film(api: FilmApi, recorder: Recorder, sink: string, seconds = 60, fps = 60, cutName = 'showcase') {
   const cut = CUTS[cutName] ?? CUTS.showcase;

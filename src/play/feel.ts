@@ -172,7 +172,7 @@ export class Feel {
         this.add(0.75, (u, age) => {
           const k = 1 - u;
           G.dot(meet, 0.12 + 0.05 * Math.sin(age * 40), [1.6, 1.5, 1.4], 2.2 * Math.pow(k, 3), 'spark');
-          G.dot(meet, 0.25 + u * 0.9 * big, mixRGB(colA, colD, 0.5), 0.9 * k * k, 'ring');
+          G.dot(meet, 0.1 + u * 0.5 * big, mixRGB(colA, colD, 0.5), 0.6 * k * k, 'ring');
           for (let j = 0; j < 16; j++) {
             const a = j * 2.39996, up = Math.cos(j * 1.7) * 0.6 + 0.4, sp = 2.4 + (j % 5) * 0.4;
             const x = meet[0] + Math.cos(a) * sp * age, y = meet[1] + up * sp * age - 4.9 * age * age, z = meet[2] + Math.sin(a) * sp * age * 0.6;

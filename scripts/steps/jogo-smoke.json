@@ -1,0 +1,6 @@
+[
+ { "name": "smoke-intro", "query": "jogo=script&script=pool-fire-water&world=pool", "frames": 200 },
+ { "name": "smoke-b3", "query": "jogo=script&script=pool-fire-water&world=pool", "frames": 250, "eval2": "console.warn('jogo', JSON.stringify(bend.jogo.stats()))" },
+ { "name": "smoke-b14", "query": "jogo=script&script=pool-fire-water&world=pool", "frames": 680, "eval2": "console.warn('jogo', JSON.stringify(bend.jogo.stats()))" },
+ { "name": "smoke-fusion", "query": "jogo=script&script=pool-fire-water&world=pool", "frames": 1300, "eval2": "console.warn('jogo', JSON.stringify(bend.jogo.stats()))" }
+]
