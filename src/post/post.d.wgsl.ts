@@ -64,6 +64,9 @@ export interface Post {
   highs: Vec4;
   look: Vec4;
   warm: Vec4;
+  shoulder: Vec4;
+  bloomCurve: Vec4;
+  stage: Vec4;
 }
 
 declare const shader: Shader<{ Frame: Frame; FullscreenOut: FullscreenOut; Post: Post }, 'frame' | 'post' | 'src' | 'prev' | 'bloomTex' | 'focusTex' | 'blurTex' | 'samp_linear' | 'samp_repeat' | 'samp_nearest' | 'samp_shadow'>;

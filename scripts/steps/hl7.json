@@ -1,0 +1,458 @@
+[
+ {
+  "name": "fw-temple",
+  "query": "play&two&dress=fire,water&world=temple",
+  "fps": 5,
+  "seconds": 2,
+  "warm": 300,
+  "setup": "bend.set('camera', { followDist: 2.8, followFov: 40, followPitch: 0.08, followSwing: 0 });bend.wake(); bend.place(0,-0.65,0.3,Math.PI/2); bend.place(1,0.65,0.3,-Math.PI/2);",
+  "cues": {
+   "0": "bend.move(0,'armada')",
+   "1": "bend.move(0,'armada')"
+  },
+  "each": "bend.camera({ yaw: t < 1 ? 0.25 + 1.35 : 0.25 - 1.35 });",
+  "sheet": {
+   "cols": 5,
+   "rows": 2,
+   "width": 320
+  },
+  "stills": [
+   0.6,
+   1.6
+  ]
+ },
+ {
+  "name": "fw-pool",
+  "query": "play&two&dress=fire,water&world=pool",
+  "fps": 5,
+  "seconds": 2,
+  "warm": 300,
+  "setup": "bend.set('camera', { followDist: 2.8, followFov: 40, followPitch: 0.08, followSwing: 0 });bend.wake(); bend.place(0,-0.65,0.3,Math.PI/2); bend.place(1,0.65,0.3,-Math.PI/2);",
+  "cues": {
+   "0": "bend.move(0,'armada')",
+   "1": "bend.move(0,'armada')"
+  },
+  "each": "bend.camera({ yaw: t < 1 ? 0.25 + 1.35 : 0.25 - 1.35 });",
+  "sheet": {
+   "cols": 5,
+   "rows": 2,
+   "width": 320
+  },
+  "stills": [
+   0.6,
+   1.6
+  ]
+ },
+ {
+  "name": "core-fire",
+  "query": "play&two&dress=fire,water&world=redwoods",
+  "fps": 5,
+  "seconds": 2,
+  "warm": 300,
+  "setup": "bend.set('camera', { followDist: 2.8, followFov: 40, followPitch: 0.08, followSwing: 0 });bend.wake(); bend.place(0,-0.65,0.3,Math.PI/2); bend.place(1,0.65,0.3,-Math.PI/2);",
+  "cues": {
+   "0.2": "bend.move(0,'armada')",
+   "1.2": "bend.move(0,'meia-lua')"
+  },
+  "each": "bend.set('camera', { followDist: t < 1 ? 2.4 : 6 }); bend.camera({ yaw: 0.25 });",
+  "sheet": {
+   "cols": 5,
+   "rows": 2,
+   "width": 320
+  },
+  "stills": [
+   0.6,
+   1.6
+  ]
+ },
+ {
+  "name": "core-plasma",
+  "query": "play&two&dress=plasma,ice&world=geode",
+  "fps": 5,
+  "seconds": 2,
+  "warm": 300,
+  "setup": "bend.set('camera', { followDist: 2.8, followFov: 40, followPitch: 0.08, followSwing: 0 });bend.wake(); bend.place(0,-0.65,0.3,Math.PI/2); bend.place(1,0.65,0.3,-Math.PI/2);",
+  "cues": {
+   "0.2": "bend.move(0,'armada')",
+   "1.2": "bend.move(0,'meia-lua')"
+  },
+  "each": "bend.set('camera', { followDist: t < 1 ? 2.4 : 6 }); bend.camera({ yaw: 0.25 });",
+  "sheet": {
+   "cols": 5,
+   "rows": 2,
+   "width": 320
+  },
+  "stills": [
+   0.6,
+   1.6
+  ]
+ },
+ {
+  "name": "bloom-pool-moon",
+  "query": "jogo=partner&world=pool&dress=gems,fire",
+  "fps": 2,
+  "seconds": 1,
+  "warm": 360,
+  "setup": "await bend.jogo.start();",
+  "sheet": {
+   "cols": 2,
+   "rows": 1,
+   "width": 640
+  },
+  "stills": [
+   0.5
+  ]
+ },
+ {
+  "name": "bloom-geode-gems",
+  "query": "play&two&dress=gems,gems&world=geode",
+  "fps": 2,
+  "seconds": 1,
+  "warm": 300,
+  "setup": "bend.set('camera', { followDist: 2.8, followFov: 40, followPitch: 0.08, followSwing: 0 });bend.wake(); bend.place(0,-0.65,0.3,Math.PI/2); bend.place(1,0.65,0.3,-Math.PI/2);",
+  "each": "bend.camera({ yaw: 0.25 });",
+  "sheet": {
+   "cols": 2,
+   "rows": 1,
+   "width": 640
+  },
+  "stills": [
+   0.5
+  ]
+ },
+ {
+  "name": "refl-pool-fire-water",
+  "query": "play&two&dress=fire,water&world=pool",
+  "fps": 5,
+  "seconds": 2.4,
+  "warm": 300,
+  "setup": "bend.set('camera', { followDist: 4.5, followFov: 40, followPitch: 0.02, followSwing: 0 });bend.wake(); bend.place(0,-0.65,0.3,Math.PI/2); bend.place(1,0.65,0.3,-Math.PI/2);",
+  "cues": {
+   "0.4": "bend.move(0,'armada')"
+  },
+  "each": "bend.camera({ yaw: 0.25 }); if (t > 1.0) { const w = bend.worlds.find((x) => x.id === 'pool'); for (const d of bend.show.dancers) { const J = d.skeleton.world; for (let k = 0; k < 3; k++) w.ripple(J[0] + Math.sin(t * 9 + k * 2.1) * 0.5, J[2] + Math.cos(t * 7 + k * 2.1) * 0.5, 1.2, 0.18); } }",
+  "sheet": {
+   "cols": 6,
+   "rows": 2,
+   "width": 320
+  },
+  "stills": [
+   0.8,
+   2.2
+  ]
+ },
+ {
+  "name": "refl-pool-gems-water",
+  "query": "play&two&dress=gems,water&world=pool",
+  "fps": 5,
+  "seconds": 2.4,
+  "warm": 300,
+  "setup": "bend.set('camera', { followDist: 4.5, followFov: 40, followPitch: 0.02, followSwing: 0 });bend.wake(); bend.place(0,-0.65,0.3,Math.PI/2); bend.place(1,0.65,0.3,-Math.PI/2);",
+  "cues": {
+   "0.4": "bend.move(0,'armada')"
+  },
+  "each": "bend.camera({ yaw: 0.25 }); if (t > 1.0) { const w = bend.worlds.find((x) => x.id === 'pool'); for (const d of bend.show.dancers) { const J = d.skeleton.world; for (let k = 0; k < 3; k++) w.ripple(J[0] + Math.sin(t * 9 + k * 2.1) * 0.5, J[2] + Math.cos(t * 7 + k * 2.1) * 0.5, 1.2, 0.18); } }",
+  "sheet": {
+   "cols": 6,
+   "rows": 2,
+   "width": 320
+  },
+  "stills": [
+   0.8,
+   2.2
+  ]
+ },
+ {
+  "name": "refl-temple-fire-water",
+  "query": "play&two&dress=fire,water&world=temple",
+  "fps": 5,
+  "seconds": 2.4,
+  "warm": 300,
+  "setup": "bend.set('camera', { followDist: 4.5, followFov: 40, followPitch: 0.02, followSwing: 0 });bend.wake(); bend.place(0,-0.65,0.3,Math.PI/2); bend.place(1,0.65,0.3,-Math.PI/2);",
+  "cues": {
+   "0.4": "bend.move(0,'armada')"
+  },
+  "each": "bend.camera({ yaw: 0.25 }); if (t > 1.0) { const w = bend.worlds.find((x) => x.id === 'temple'); for (const d of bend.show.dancers) { const J = d.skeleton.world; for (let k = 0; k < 3; k++) w.ripple(J[0] + Math.sin(t * 9 + k * 2.1) * 0.5, J[2] + Math.cos(t * 7 + k * 2.1) * 0.5, 1.2, 0.18); } }",
+  "sheet": {
+   "cols": 6,
+   "rows": 2,
+   "width": 320
+  },
+  "stills": [
+   0.8,
+   2.2
+  ]
+ },
+ {
+  "name": "refl-temple-gems-water",
+  "query": "play&two&dress=gems,water&world=temple",
+  "fps": 5,
+  "seconds": 2.4,
+  "warm": 300,
+  "setup": "bend.set('camera', { followDist: 4.5, followFov: 40, followPitch: 0.02, followSwing: 0 });bend.wake(); bend.place(0,-0.65,0.3,Math.PI/2); bend.place(1,0.65,0.3,-Math.PI/2);",
+  "cues": {
+   "0.4": "bend.move(0,'armada')"
+  },
+  "each": "bend.camera({ yaw: 0.25 }); if (t > 1.0) { const w = bend.worlds.find((x) => x.id === 'temple'); for (const d of bend.show.dancers) { const J = d.skeleton.world; for (let k = 0; k < 3; k++) w.ripple(J[0] + Math.sin(t * 9 + k * 2.1) * 0.5, J[2] + Math.cos(t * 7 + k * 2.1) * 0.5, 1.2, 0.18); } }",
+  "sheet": {
+   "cols": 6,
+   "rows": 2,
+   "width": 320
+  },
+  "stills": [
+   0.8,
+   2.2
+  ]
+ },
+ {
+  "name": "waterline-temple",
+  "query": "play&two&dress=fire,water&world=temple",
+  "size": "1920x1080",
+  "fps": 5,
+  "seconds": 1.2,
+  "warm": 300,
+  "setup": "bend.set('camera', { followFov: 34, followSwing: 0, followDist: 7.7, followPitch: 0.045 }); bend.wake(); bend.place(0,-0.9,0.3,Math.PI/2); bend.place(1,0.9,0.3,-Math.PI/2);",
+  "each": "bend.camera({ yaw: 0.1 }); if (t > 0.5) { const w = bend.worlds.find((x) => x.id === 'temple'); for (const d of bend.show.dancers) { const J = d.skeleton.world; for (let k = 0; k < 3; k++) w.ripple(J[0] + Math.sin(t * 9 + k * 2.1) * 0.5, J[2] + Math.cos(t * 7 + k * 2.1) * 0.5, 1.2, 0.18); } }",
+  "sheet": {
+   "cols": 6,
+   "rows": 1,
+   "width": 320
+  },
+  "stills": [
+   0.2,
+   1
+  ]
+ },
+ {
+  "name": "partner-temple-24",
+  "query": "jogo=partner&world=temple&dress=fire,water",
+  "fps": 1,
+  "seconds": 3,
+  "warm": 1380,
+  "setup": "await bend.jogo.start();",
+  "sheet": {
+   "cols": 3,
+   "rows": 1,
+   "width": 640
+  },
+  "stills": [
+   0,
+   1,
+   2
+  ]
+ },
+ {
+  "name": "dim-geode",
+  "query": "jogo=partner&world=geode&dress=fire,water",
+  "fps": 2,
+  "seconds": 2,
+  "warm": 300,
+  "setup": "await bend.jogo.start();",
+  "each": "bend.set('post', { stageDim: t < 1 ? 0 : 0.6 });",
+  "sheet": {
+   "cols": 4,
+   "rows": 1,
+   "width": 480
+  },
+  "stills": [
+   0.5,
+   1.5
+  ]
+ },
+ {
+  "name": "dim-redwoods",
+  "query": "jogo=partner&world=redwoods&dress=fire,water",
+  "fps": 2,
+  "seconds": 2,
+  "warm": 300,
+  "setup": "await bend.jogo.start();",
+  "each": "bend.set('post', { stageDim: t < 1 ? 0 : 0.6 });",
+  "sheet": {
+   "cols": 4,
+   "rows": 1,
+   "width": 480
+  },
+  "stills": [
+   0.5,
+   1.5
+  ]
+ },
+ {
+  "name": "dim-pool",
+  "query": "jogo=partner&world=pool&dress=fire,water",
+  "fps": 2,
+  "seconds": 2,
+  "warm": 300,
+  "setup": "await bend.jogo.start();",
+  "each": "bend.set('post', { stageDim: t < 1 ? 0 : 0.6 });",
+  "sheet": {
+   "cols": 4,
+   "rows": 1,
+   "width": 480
+  },
+  "stills": [
+   0.5,
+   1.5
+  ]
+ },
+ {
+  "name": "dim-temple",
+  "query": "jogo=partner&world=temple&dress=fire,water",
+  "fps": 2,
+  "seconds": 2,
+  "warm": 300,
+  "setup": "await bend.jogo.start();",
+  "each": "bend.set('post', { stageDim: t < 1 ? 0 : 0.6 });",
+  "sheet": {
+   "cols": 4,
+   "rows": 1,
+   "width": 480
+  },
+  "stills": [
+   0.5,
+   1.5
+  ]
+ },
+ {
+  "name": "dim-forge",
+  "query": "jogo=partner&world=forge&dress=fire,water",
+  "fps": 2,
+  "seconds": 2,
+  "warm": 300,
+  "setup": "await bend.jogo.start();",
+  "each": "bend.set('post', { stageDim: t < 1 ? 0 : 0.6 });",
+  "sheet": {
+   "cols": 4,
+   "rows": 1,
+   "width": 480
+  },
+  "stills": [
+   0.5,
+   1.5
+  ]
+ },
+ {
+  "name": "t-temple-pair",
+  "query": "play&two&dress=fire,water&world=temple",
+  "size": "1920x1080",
+  "fps": 2,
+  "seconds": 0.5,
+  "warm": 300,
+  "setup": "bend.set('camera', { followDist: 4, followFov: 40, followPitch: 0.08 });bend.wake(); bend.place(0,-0.7,0.3,Math.PI/2); bend.place(1,0.7,0.3,-Math.PI/2);",
+  "timings": true,
+  "sheet": {
+   "cols": 1,
+   "rows": 1,
+   "width": 640
+  }
+ },
+ {
+  "name": "t-pool-pair",
+  "query": "play&two&dress=fire,water&world=pool",
+  "size": "1920x1080",
+  "fps": 2,
+  "seconds": 0.5,
+  "warm": 300,
+  "setup": "bend.set('camera', { followDist: 4, followFov: 40, followPitch: 0.08 });bend.wake(); bend.place(0,-0.65,0.3,Math.PI/2); bend.place(1,0.65,0.3,-Math.PI/2);",
+  "timings": true,
+  "sheet": {
+   "cols": 1,
+   "rows": 1,
+   "width": 640
+  }
+ },
+ {
+  "name": "t-redwoods-pair",
+  "query": "play&two&dress=fire,water&world=redwoods",
+  "size": "1920x1080",
+  "fps": 2,
+  "seconds": 0.5,
+  "warm": 300,
+  "setup": "bend.set('camera', { followDist: 4, followFov: 40, followPitch: 0.08 });bend.wake(); bend.place(0,-0.65,0.3,Math.PI/2); bend.place(1,0.65,0.3,-Math.PI/2);",
+  "timings": true,
+  "sheet": {
+   "cols": 1,
+   "rows": 1,
+   "width": 640
+  }
+ },
+ {
+  "name": "t-hub-pair",
+  "query": "play&two&dress=fire,water",
+  "size": "1920x1080",
+  "fps": 2,
+  "seconds": 0.5,
+  "warm": 300,
+  "setup": "bend.set('camera', { followDist: 6, followFov: 40, followPitch: 0.08 });bend.wake(); bend.place(0,-0.65,0.3,Math.PI/2); bend.place(1,0.65,0.3,-Math.PI/2);",
+  "timings": true,
+  "sheet": {
+   "cols": 1,
+   "rows": 1,
+   "width": 640
+  }
+ },
+ {
+  "name": "t-hub-gates-0",
+  "query": "play&two&dress=fire,water",
+  "size": "1920x1080",
+  "fps": 2,
+  "seconds": 0.5,
+  "warm": 200,
+  "setup": "bend.set('camera', { followDist: 6, followFov: 40, followPitch: 0.08, followSwing: 0 });bend.wake(); bend.place(0,-0.65,0.3,Math.PI/2); bend.place(1,0.65,0.3,-Math.PI/2);bend.camera({ yaw: 0 });",
+  "each": "bend.camera({ yaw: 0 });",
+  "timings": true,
+  "sheet": {
+   "cols": 1,
+   "rows": 1,
+   "width": 640
+  }
+ },
+ {
+  "name": "t-hub-gates-1p6",
+  "query": "play&two&dress=fire,water",
+  "size": "1920x1080",
+  "fps": 2,
+  "seconds": 0.5,
+  "warm": 200,
+  "setup": "bend.set('camera', { followDist: 6, followFov: 40, followPitch: 0.08, followSwing: 0 });bend.wake(); bend.place(0,-0.65,0.3,Math.PI/2); bend.place(1,0.65,0.3,-Math.PI/2);bend.camera({ yaw: 1.6 });",
+  "each": "bend.camera({ yaw: 1.6 });",
+  "timings": true,
+  "sheet": {
+   "cols": 1,
+   "rows": 1,
+   "width": 640
+  }
+ },
+ {
+  "name": "t-hub-gates-3p1",
+  "query": "play&two&dress=fire,water",
+  "size": "1920x1080",
+  "fps": 2,
+  "seconds": 0.5,
+  "warm": 200,
+  "setup": "bend.set('camera', { followDist: 6, followFov: 40, followPitch: 0.08, followSwing: 0 });bend.wake(); bend.place(0,-0.65,0.3,Math.PI/2); bend.place(1,0.65,0.3,-Math.PI/2);bend.camera({ yaw: 3.1 });",
+  "each": "bend.camera({ yaw: 3.1 });",
+  "timings": true,
+  "sheet": {
+   "cols": 1,
+   "rows": 1,
+   "width": 640
+  }
+ },
+ {
+  "name": "t-hub-gates-4p7",
+  "query": "play&two&dress=fire,water",
+  "size": "1920x1080",
+  "fps": 2,
+  "seconds": 0.5,
+  "warm": 200,
+  "setup": "bend.set('camera', { followDist: 6, followFov: 40, followPitch: 0.08, followSwing: 0 });bend.wake(); bend.place(0,-0.65,0.3,Math.PI/2); bend.place(1,0.65,0.3,-Math.PI/2);bend.camera({ yaw: 4.7 });",
+  "each": "bend.camera({ yaw: 4.7 });",
+  "timings": true,
+  "sheet": {
+   "cols": 1,
+   "rows": 1,
+   "width": 640
+  }
+ }
+]

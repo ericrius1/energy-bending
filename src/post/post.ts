@@ -13,14 +13,15 @@
 // nearer of the opaque distance and the translucent matter's.
 import { Ref, type Kit, type RenderPass, type Texture, type UniformBuffer } from '@ericrius1/weft';
 import postShader, { type Post as PostU } from './post.wgsl';
-import airShader from './air.wgsl';
+import airShader, { type AirView } from './air.wgsl';
 import yuvShader from './yuv.wgsl';
 import type { FrameBuilder, FrameCtx, Stage } from '../engine/frame';
 import type { ViewCtx } from '../engine/views';
 import { focusSources } from '../engine/scene';
 import type { Dancer } from '../dancer/dancer';
 import type { Grade, World } from '../worlds/world';
-import { defineParams, onParams } from '../engine/params';
+import { defineParams, onParams, hex } from '../engine/params';
+import { matterKinds } from '../matter/core/kind';
 import { JOINT } from '../skeleton/rig';
 import { gradeOf, gradeIdentity, PROPOSED_GRADES, type GradeValues } from './grade';
 import { budget } from '../engine/perf';
@@ -59,6 +60,26 @@ export const postParams = defineParams('post', {
   proposals: false,
   /** a test of the focus path (m, 0 off): a stand-in focus texture, a disc of that distance in the middle */
   focusStub: 0,
+  /** the highlight shoulder (post.wgsl toneMap): how much, the peak where it starts and where it is whole, and the
+   *  peak past which a colour may go white (all white at 4 ×): hot cores keep their hue and structure */
+  shoulder: 0.8,
+  shoulderFrom: 2,
+  shoulderTo: 6,
+  whiteFrom: 10,
+  /** the bloom's curve: the most one pixel gives the halo (what passes the threshold rolls off toward it), and the
+   *  knee as a share of the threshold */
+  bloomCap: 3,
+  bloomKnee: 0.6,
+  /** light behind a water or ice body (when the body says nothing itself): how much shows through, and its tint */
+  through: 0.3,
+  throughTint: '#8fd0ff',
+  /** how much fire's mirror copy on the water is bent by the waves (0: a still mirror) */
+  mirrorBend: 1,
+  /** the locked view's stage dim, for testing (the camera rig sets PostChain.stage; this adds to it): how much, and
+   *  how much darker and softer (px) what lies beyond the stage gets at full dim */
+  stageDim: 0,
+  stageDarken: 0.45,
+  stageSoften: 2.5,
 }, {
   exposure: { min: 0.1, max: 4 },
   bloom: { min: 0, max: 2 },
@@ -72,10 +93,34 @@ export const postParams = defineParams('post', {
   focusEase: { min: 0, max: 1 },
   holdBoth: { min: 0.3, max: 5 },
   focusStub: { min: 0, max: 20 },
+  shoulder: { min: 0, max: 1 },
+  shoulderFrom: { min: 0.2, max: 4 },
+  shoulderTo: { min: 0.5, max: 8 },
+  whiteFrom: { min: 1, max: 40 },
+  bloomCap: { min: 0.2, max: 40 },
+  bloomKnee: { min: 0.05, max: 1 },
+  through: { min: 0, max: 1, label: 'light through water' },
+  mirrorBend: { min: 0, max: 1, label: "fire's reflection bent" },
+  stageDim: { min: 0, max: 1, label: 'stage dim (test)' },
+  stageDarken: { min: 0, max: 1 },
+  stageSoften: { min: 0, max: 8 },
 });
 
 /** how many focus textures the air binds (each is one sampled texture in the air's fragment stage) */
 export const FOCUS_SLOTS = 3;
+
+/** What a translucent body kind (water, ice) may hand the air besides its focus texture, so a light behind it (fire)
+ *  is seen through it the way the body says: `body(view)` on its MatterPasses, an rgba16float texture of any size:
+ *    r   the body's view distance (≥ 1e4: no body here; compare against it, never do arithmetic on it)
+ *    g   how much of what lies behind it shows through (0 … 1)
+ *    b a a screen offset (in the view's uv) to read what lies behind from: its refraction (0, 0: none)
+ *  Without one the air takes the body's focus texture as its distance, postParams.through and throughTint, and no
+ *  offset (air.wgsl glowSeen). */
+export interface BodySource { body?(view: ViewCtx): Texture | null }
+
+/** the kinds whose focus texture is a body's (matter that hides what is behind it) rather than a light's (matter that
+ *  adds light into the glow target: fire, plasma). A kind not named here is a light */
+export const BODY_KINDS: ReadonlySet<string> = new Set(['water', 'ice']);
 
 /** whether a world lays something over its scene before the air (worlds/light.wgsl worldScene: the pool's water (2),
  *  the temple's tide (3), the forge's heat (4)); keep in step with that switch */
@@ -85,7 +130,9 @@ export class PostChain {
   readonly post: UniformBuffer<PostU>;
   /** the film's YUV planes (null unless filming) */
   readonly planes;
-  private _post = { exposure: 1, focus: 4, blur: 5 };
+  private _post = { exposure: 1, focus: 4, blur: 5, stage: [0, 0, 0, 0] };
+  /** the stage dim on screen now (eased toward what is asked) */
+  private stageNow = 0;
   private filmSize: [number, number] | null;
   /** the depth-of-field composite (main view): a kind's `declarePost` adds draws to it, which land after the lens's
    *  own fullscreen draw, on the focused image (translucent matter the depth of field can't place: steam) */
@@ -114,6 +161,21 @@ export class PostChain {
     return out;
   };
   private emptyFocus: Texture;
+  /** a stand-in for a body texture (none handed over) and for a gate view's glow when its glow pass is skipped */
+  private emptyRgba: Texture;
+  private extraFocus = new Map<ViewCtx, (() => Texture | null)[]>();
+  /** the locked view's stage dim, set by the camera rig each frame (default 0: no change): `dim` 0 … 1, eased with
+   *  the lock (CameraRig.locked × a taste), `at` the stage's focus plane's distance from the eye (m; 0: the lens's focus
+   *  distance). What lies beyond the plane darkens and softens a little (postParams.stageDarken, stageSoften) */
+  stage = { dim: 0, at: 0 };
+  /** add a focus source to a view besides its kinds' (a gate's disc: the far view's focus distance where the disc is,
+   *  in an r16float texture of any size, ≥ 1e4 where there is nothing). It takes one of the FOCUS_SLOTS and counts as
+   *  a light's (it hides nothing behind it) */
+  focusFrom(view: ViewCtx, source: () => Texture | null) {
+    const list = this.extraFocus.get(view) ?? [];
+    list.push(source);
+    this.extraFocus.set(view, list);
+  }
   private stub: { tex: Texture; pass: RenderPass } | null = null;
 
   constructor(private kit: Kit, private frame: FrameBuilder, private main: ViewCtx, worlds: readonly World[], o: { film?: [number, number] | null; coarse?: boolean }) {
@@ -127,6 +189,7 @@ export class PostChain {
     const tex = (label: string, scale = 1, format: GPUTextureFormat = 'rgba16float') => kit.texture({ label, format, size: 'render', scale });
     // (a focus slot with no texture reads 0, which the air takes as "nothing here")
     this.emptyFocus = kit.texture({ label: 'focus.none', format: 'r16float', size: [1, 1] });
+    this.emptyRgba = kit.texture({ label: 'air.none', format: 'rgba16float', size: [1, 1] });
     this.focusTex = tex('focus', 1, 'r16float');
     const add = (p: RenderPass, stage: Stage = 'post') => frame.add(stage, p, 'post');
 
@@ -140,7 +203,8 @@ export class PostChain {
 
     // the lens: down to half (colour, nearest distance), the gather there, the composite at full resolution
     const half = tex('lens.half', 0.5), blurred = tex('lens.blur', 0.5), lensTex = tex('lens');
-    const dofOn = () => postParams.dof && postParams.blur > 0;
+    // (the stage dim softens with the gather even when the depth of field is off)
+    const dofOn = () => (postParams.dof && postParams.blur > 0) || (this.stageNow > 0 && postParams.stageSoften > 0);
     const down = kit.pass({ label: 'lens.down', color: [{ target: half }], enabled: dofOn });
     down.fullscreen(postShader, { label: 'lens.down', fragment: 'fs_lensdown', bind: { post: this.post, src: main.targets.air, focusTex: this.focusTex } });
     add(down);
@@ -203,13 +267,39 @@ export class PostChain {
     // the slots are filled each frame from the kinds that hand over a texture now (water and ice share one pool and
     // one surface: only the pool's primary kind returns it), so a kind that returns null takes no slot
     let warned = false;
+    // each slot is a body's (water, ice) or a light's (fire, a gate disc's far view): the air tells them apart
     const textures = () => {
-      const t = sources.map((m) => m.focus?.(view) ?? null).filter((x): x is Texture => !!x);
-      if (main && this.stub && postParams.focusStub > 0) t.splice(FOCUS_SLOTS - 1, 0, this.stub.tex);
+      const t: { tex: Texture; body: boolean }[] = [];
+      for (const m of sources) { const x = m.focus?.(view); if (x) t.push({ tex: x, body: BODY_KINDS.has(m.id) }); }
+      for (const f of this.extraFocus.get(view) ?? []) { const x = f(); if (x) t.push({ tex: x, body: false }); }
+      if (main && this.stub && postParams.focusStub > 0) t.splice(FOCUS_SLOTS - 1, 0, { tex: this.stub.tex, body: false });
       if (t.length > FOCUS_SLOTS && !warned) { warned = true; console.warn(`post: ${t.length} focus textures in view ${view.id}, more than FOCUS_SLOTS (${FOCUS_SLOTS}); the rest are left out`); }
       return t;
     };
-    const slot = (k: number) => new Ref<Texture>(() => textures()[k] ?? this.emptyFocus, `focus${k}${id}`);
+    const slot = (k: number) => new Ref<Texture>(() => textures()[k]?.tex ?? this.emptyFocus, `focus${k}${id}`);
+    // the first body kind that says more about itself (BodySource), else the stand-in
+    const bodyOf = () => { for (const m of sources) { const b = (m as BodySource).body?.(view); if (b) return b; } return null; };
+    const bodyTex = new Ref<Texture>(() => bodyOf() ?? this.emptyRgba, `air.body${id}`);
+    const airv = kit.uniforms(airShader.structs.AirView, `air.view${id}`);
+    const vals: AirView = { bodies: 0, hasBody: 0, through: 0, bend: 0, tint: [1, 1, 1, 0] };
+    this.frame.tick('post', () => {
+      const t = textures(), P = postParams, c = hex(P.throughTint);
+      vals.bodies = t.slice(0, FOCUS_SLOTS).reduce((m, x, k) => m | (x.body ? 1 << k : 0), 0);
+      vals.hasBody = bodyOf() ? 1 : 0;
+      vals.through = P.through;
+      vals.bend = P.mirrorBend;
+      vals.tint = [c[0], c[1], c[2], 0];
+      airv.set(vals);
+    }, `post: the air of view ${view.id}`);
+    // a gate's view: its glow pass runs only when something in it can glow (a dancer seen there, or a draw of the
+    // world's or the gates' own), else the air reads a cleared stand-in (0.1 ms an empty view: an MSAA clear and
+    // resolve). Only a gate's: the main view's glow target also takes fire's composite
+    if (stage === 'gates' && !glow) {
+      const was = view.glow.enabled;
+      const runs = () => (typeof was === 'function' ? was() : was) && this.glows(view);
+      view.glow.enabled = runs;
+      glow = new Ref<Texture>(() => (this.glows(view) ? view.targets.glow : this.emptyRgba), `air.glow${id}`);
+    }
     const perWorld = (pass: RenderPass, label: string, fragment: string, bind: Record<string, unknown>) => {
       for (const w of worlds) {
         pass.fullscreen(airShader, { label: `${label}.${w.id}${id}`, fragment, bind, constants: { WORLD: w.light }, enabled: () => view.world === w.id });
@@ -217,7 +307,7 @@ export class PostChain {
     };
     // (an entry reads only some of these, but weft's reflection counts the module's bindings for each: bind them all,
     // never the pass's own target)
-    const common = { glow: glow ?? view.targets.glow, focus0: slot(0), focus1: slot(1), focus2: slot(2) };
+    const common = { glow: glow ?? view.targets.glow, focus0: slot(0), focus1: slot(1), focus2: slot(2), airv, bodyTex };
     let src: Texture | Ref<Texture> = view.targets.hdr;
     if (own) {
       // only where the world has a scene step: elsewhere the steps would give back what they were given, and the air
@@ -239,6 +329,36 @@ export class PostChain {
     const pass = kit.pass({ label: main ? 'air' : `air.${view.id}`, color, view: vw, enabled: view.on });
     perWorld(pass, 'air', main ? 'fs_main' : 'fs', { ...common, src, opaque: src, surfaced: src });
     this.frame.add(stage, pass, 'post');
+  }
+
+  /** whether anything can glow in a view this frame (asked once per frame and view, kept). The signal "anything
+   *  here?": a dancer the view sees (its `seen` uniform, filled by the portals: a dancer in another world is hidden),
+   *  since every kind's glow draws are a dancer's matter; or a glow draw that is no kind's (a world's motes, the
+   *  gates' halos and rings: told by the label's first word, which is the kind's id) that is on and has something to
+   *  draw. A kind could say more (MatterPasses.glows?(view): sparks left behind by a dancer who has gone): none does
+   *  yet, so a kind's glow draws are taken to need one of its dancers in the view */
+  private glowSeen = new Map<ViewCtx, { at: number; v: boolean }>();
+  glows(view: ViewCtx): boolean {
+    const at = this.kit.frameIndex, c = this.glowSeen.get(view);
+    if (c && c.at === at) return c.v;
+    const v = this.anythingGlows(view);
+    this.glowSeen.set(view, { at, v });
+    return v;
+  }
+  private anythingGlows(view: ViewCtx): boolean {
+    const seen = view.seen.get('d') as { clip: number[] }[] | undefined;
+    if (!seen || seen.some((s) => s.clip[3] >= 0 || s.clip[0] !== 0 || s.clip[1] !== 0 || s.clip[2] !== 0)) return true;
+    const kinds = new Set(matterKinds.ids());
+    for (const d of view.glow.draws) {
+      if (!('shader' in d)) return true;
+      if (kinds.has(d.label.split('.')[0])) continue;
+      const e = d.enabled;
+      if (typeof e === 'function' ? !e() : !e) continue;
+      const n = (d.opts as { instances?: number | (() => number) }).instances;
+      if (n !== undefined && (typeof n === 'function' ? n() : n) <= 0) continue;
+      return true;
+    }
+    return false;
   }
 
   /** postParams.focusStub: a stand-in focus texture (a disc of that distance in the middle of the frame, half
@@ -268,6 +388,8 @@ export class PostChain {
       vignette: P.vignette, grain: P.grain, aberration: P.aberration, saturation: P.saturation, contrast: P.contrast, tonemap: P.tonemap === 'AgX' ? 1 : 0,
       smear: P.smear, bloomSat: P.bloomSat, wide: P.bloomWide, stub: P.focusStub,
       warm: [1 + 0.25 * P.bloomWarm, 1 - 0.1 * P.bloomWarm, 1 - 0.45 * P.bloomWarm, 0],
+      shoulder: [P.shoulder, P.shoulderFrom, Math.max(P.shoulderTo, P.shoulderFrom + 0.05), P.whiteFrom],
+      bloomCurve: [P.bloomCap, P.bloomKnee, 0, 0],
     });
   }
 
@@ -311,9 +433,16 @@ export class PostChain {
     else this.focusNow += (target - this.focusNow) * (1 - Math.exp(-f.dt / P.focusEase));
     this.blurNow = cut ? blur : this.blurNow + (blur - this.blurNow) * (1 - Math.exp(-f.dt / Math.max(P.focusEase, 1e-3)));
 
+    // the stage dim: what the rig asks for (plus the test parameter), eased so the lock doesn't pop it
+    const dimWant = Math.min(1, Math.max(0, this.stage.dim + P.stageDim));
+    this.stageNow += (dimWant - this.stageNow) * (1 - Math.exp(-Math.max(f.dt, 0) / 0.4));
+    if (Math.abs(dimWant - this.stageNow) < 1e-3) this.stageNow = dimWant;
+    const at = this.stage.at > 0 ? this.stage.at : this.focusNow;
+
     this._post.exposure = P.exposure * this.exposureOf(world);
     this._post.focus = this.focusNow;
     this._post.blur = this.blurNow;
+    this._post.stage = [this.stageNow, at, P.stageDarken, P.stageSoften];
     this.post.set({ ...this._post, ...this.grade.uniform });
   }
   private blurNow = 0;
