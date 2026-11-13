@@ -29,7 +29,8 @@ export class IceDraws {
   /** the set ice the game builds with */
   readonly setIce = new SetIce();
   readonly look: UniformBuffer<IceLook>;
-  private sets: StorageBuffer;
+  /** set ice's shards on the GPU (the water's surface splats them too) */
+  readonly sets: StorageBuffer;
   private mist: UniformBuffer<Mist>;
   private motes: StorageBuffer;
   private _look = {} as IceLook;

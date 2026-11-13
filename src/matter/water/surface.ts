@@ -41,6 +41,11 @@ export interface SurfacePool {
   count(): number;
   /** anything on a body to draw */
   liquid(): boolean;
+  /** set ice (ice/setice.ts): its look (the clock), its shards, how many, and the world it was laid in ('' none) */
+  look: UniformBuffer<any>;
+  sets: StorageBuffer;
+  setCount(): number;
+  setWorld(): string;
 }
 
 /** the most smoothing passes (each one x then y); waterParams.smoothPasses picks how many run */
@@ -82,13 +87,18 @@ export class WaterSurface {
     const B = tex('smoothB', 'rgba32float');
     this.smoothed = B;
     // (seen: what this view sees of each dancer, engine/seen.wgsl)
-    const bind = { sim: pool.sim, state: pool.state, aux: pool.aux, homes: pool.homes, seen: view.seen };
-    const constants = { MIRROR: mode === 'mirror' ? 1 : 0 };
+    const bind = { sim: pool.sim, state: pool.state, aux: pool.aux, homes: pool.homes, seen: view.seen, look: pool.look, sets: pool.sets };
+    const constants = { MIRROR: mode === 'mirror' ? 1 : 0, SET: 0 };
+    const setConstants = { ...constants, SET: 1 };
+    // set ice is drawn only in the world it was laid in
+    const setOn = () => pool.setCount() > 0 && (!pool.setWorld() || pool.setWorld() === view.world);
 
     const splatD = kit.pass({ label: `water.splat.depth${id}`, color: [{ target: dist, clear: [0, 0, 0, 0] }], depth: { target: depth, clear: 0 }, view: v, enabled: on });
-    splatD.draw(splatShader, { label: `water.splat.depth${id}`, fragment: 'fs_depth', bind, constants, count: 6, instances: () => pool.count(), cull: 'none' });
+    splatD.draw(splatShader, { label: `water.splat.depth${id}`, fragment: 'fs_depth', bind, constants, count: 6, instances: () => pool.count(), cull: 'none', enabled: () => pool.count() > 0 });
+    splatD.draw(splatShader, { label: `water.splat.depth.set${id}`, fragment: 'fs_depth', bind, constants: setConstants, count: 6, instances: () => pool.setCount(), cull: 'none', enabled: setOn });
     const splatT = kit.pass({ label: `water.splat.thick${id}`, color: [{ target: thick, clear: [0, 0, 0, 0] }], view: v, enabled: on });
-    splatT.draw(splatShader, { label: `water.splat.thick${id}`, fragment: 'fs_thick', bind, constants, count: 6, instances: () => pool.count(), cull: 'none', blend: 'add', depthWrite: false });
+    splatT.draw(splatShader, { label: `water.splat.thick${id}`, fragment: 'fs_thick', bind, constants, count: 6, instances: () => pool.count(), cull: 'none', blend: 'add', depthWrite: false, enabled: () => pool.count() > 0 });
+    splatT.draw(splatShader, { label: `water.splat.thick.set${id}`, fragment: 'fs_thick', bind, constants: setConstants, count: 6, instances: () => pool.setCount(), cull: 'none', blend: 'add', depthWrite: false, enabled: setOn });
     frame.add('cull', splatD, 'water');
     frame.add('cull', splatT, 'water');
     // x into A, y into B; the first reads the splats; every pass binds all three sources (smooth.wgsl says why). A
@@ -97,9 +107,11 @@ export class WaterSurface {
     for (let k = 0; k < passes; k++) {
       const passOn = () => on() && k < Math.max(1, Math.round(waterParams.smoothPasses));
       const h = kit.pass({ label: `water.smooth.x${k}${id}`, color: [{ target: A }], view: v, enabled: passOn });
-      h.fullscreen(smoothShader, { label: `water.smooth.x${k}${id}`, fragment: k === 0 ? 'fs_first' : 'fs_next', bind: { sm: pool.smoothX, dist, thick, src: B } });
+      // (the order of the two directions alternates pass by pass, so neither leaves its rows in the result)
+      const [first, second] = k % 2 ? [pool.smoothY, pool.smoothX] : [pool.smoothX, pool.smoothY];
+      h.fullscreen(smoothShader, { label: `water.smooth.x${k}${id}`, fragment: k === 0 ? 'fs_first' : 'fs_next', bind: { sm: first, dist, thick, src: B } });
       const w = kit.pass({ label: `water.smooth.y${k}${id}`, color: [{ target: B }], view: v, enabled: passOn });
-      w.fullscreen(smoothShader, { label: `water.smooth.y${k}${id}`, fragment: 'fs_next', bind: { sm: pool.smoothY, dist, thick, src: A } });
+      w.fullscreen(smoothShader, { label: `water.smooth.y${k}${id}`, fragment: 'fs_next', bind: { sm: second, dist, thick, src: A } });
       frame.add('cull', h, 'water');
       frame.add('cull', w, 'water');
     }

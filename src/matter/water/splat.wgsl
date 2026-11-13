@@ -6,20 +6,26 @@
 // the world). `fs_thick` adds up how much matter each pixel looks through (the sphere's chord), with how much of it is
 // foam and how much is frozen. Water lying on the floor before the dancers rise is drawn as flat discs (a film).
 // Ice that has broken off and flies is not splatted: it is shards (ice/shards.wgsl).
+// SET = 1 draws set ice (ice/setice.ts) the same way: each of its shards as a frozen sphere, in the world's own frame
+// (it doesn't move), all but its icicles and its broken pieces, which stay shards (ice/shards.wgsl).
 // MIRROR = 1 draws the same particles reflected in the floor (y → 2·floor − y) for a mirroring floor.
 // A dancer's particles are drawn where this view sees them (engine/seen.wgsl: only in the dancer's world, carried
 // through a gate, cut at its door; fewer and bigger in a gate's small view).
 #include "weft/frame"
 #include "./water"
 #include "../../engine/seen"
+#include "../ice/set"
 
 override MIRROR: u32 = 0u;
+override SET: u32 = 0u;
 
 @group(1) @binding(0) var<uniform> sim: WaterSim;
 @group(1) @binding(1) var<storage, read> state: array<Particle>;
 @group(1) @binding(2) var<storage, read> aux: array<Aux>;
 @group(1) @binding(3) var<storage, read> homes: array<Home>;
 @group(1) @binding(4) var<uniform> seen: ViewSeen;
+@group(1) @binding(5) var<uniform> look: IceLook;
+@group(1) @binding(6) var<storage, read> sets: array<SetShard>;
 
 struct SOut {
   @builtin(position) pos: vec4f,
@@ -38,13 +44,33 @@ const CORNERS = array<vec2f, 6>(vec2f(-1.0, -1.0), vec2f(1.0, -1.0), vec2f(1.0, 
 
 @vertex fn vs(@builtin(vertex_index) vi: u32, @builtin(instance_index) ii: u32) -> SOut {
   var o: SOut;
+  let floorY = sim.body.floorY;
+  let c = CORNERS[vi];
+  if (SET == 1u) {
+    let sh = sets[ii];
+    let n = setShardNow(sh, look.setTime, floorY);
+    if (n.broken || setHangs(sh) || n.size < 1e-4) { o.pos = vec4f(2.0, 2.0, 2.0, 1.0); return o; }
+    var sp = n.centre;
+    if (MIRROR == 1u) { sp.y = 2.0 * floorY - sp.y; }
+    let r = n.size * 1.8;
+    let wp = sp + (frame.camRight * c.x + frame.camUp * c.y) * (r * 1.15);
+    o.pos = frame.viewProj * vec4f(wp, 1.0);
+    o.wp = wp;
+    o.uv = c * 1.15;
+    o.centre = sp;
+    o.r = r;
+    o.foam = 0.0;
+    o.ice = 1.0;
+    o.slot = 0.0;
+    o.film = 0.0;
+    return o;
+  }
   let p = state[ii];
   let a = aux[ii];
   let h = homes[ii];
   let sd = seen.d[min(dancerOf(h), MAX_DANCERS - 1u)];
   var pos = seenPos(sd, p.pos);
   var r = splatRadius(h, a, p, sim.radius) * seen.grow;
-  let floorY = sim.body.floorY;
   // (a drop past this view's door, or of a dancer not in this view's world, isn't drawn: cut drop by drop)
   if (r < 1e-4 || ii >= sim.count || seenClip(sd, pos) < 0.0 || rnd(ii * 2654435761u + 5u) > seen.keep) { o.pos = vec4f(2.0, 2.0, 2.0, 1.0); return o; }
   let resting = modeIs(p.mode, RESTING);
@@ -53,7 +79,6 @@ const CORNERS = array<vec2f, 6>(vec2f(-1.0, -1.0), vec2f(1.0, -1.0), vec2f(1.0, 
     if (resting || pos.y - floorY > 1.9) { o.pos = vec4f(2.0, 2.0, 2.0, 1.0); return o; }
     pos.y = 2.0 * floorY - pos.y;
   }
-  let c = CORNERS[vi];
   var wp: vec3f;
   if (resting) {
     // a disc lying on the floor, wider than the sphere: the puddle is a thin film, not a heap of beads

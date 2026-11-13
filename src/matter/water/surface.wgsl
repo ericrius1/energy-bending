@@ -158,18 +158,20 @@ fn shade(q: vec2i, wdims: vec2i, W: vec4f) -> Shade {
   let wduv = 1.0 / vec2f(wdims);
   let uv0 = (vec2f(q) + 0.5) * wduv;
   let P = atDist(uv0, W.x);
-  // each way, the neighbour nearer in depth (so an edge doesn't bend the normal toward what's behind it); two texels
-  // each way (one texel's grain would show in the normal)
-  let xr = textureLoad(water, clamp(q + vec2i(2, 0), vec2i(0), wdims - 1), 0);
-  let xl = textureLoad(water, clamp(q - vec2i(2, 0), vec2i(0), wdims - 1), 0);
-  let yd = textureLoad(water, clamp(q + vec2i(0, 2), vec2i(0), wdims - 1), 0);
-  let yu = textureLoad(water, clamp(q - vec2i(0, 2), vec2i(0), wdims - 1), 0);
+  // each way, the neighbour nearer in depth (so an edge doesn't bend the normal toward what's behind it), a few texels
+  // away (a texel or two apart, what is left of the beads and of the separable filter's rows would show in the normal)
+  let st = i32(max(2.0, round(f32(wdims.y) / 300.0)));
+  let xr = textureLoad(water, clamp(q + vec2i(st, 0), vec2i(0), wdims - 1), 0);
+  let xl = textureLoad(water, clamp(q - vec2i(st, 0), vec2i(0), wdims - 1), 0);
+  let yd = textureLoad(water, clamp(q + vec2i(0, st), vec2i(0), wdims - 1), 0);
+  let yu = textureLoad(water, clamp(q - vec2i(0, st), vec2i(0), wdims - 1), 0);
+  let fo = f32(st);
   var dx = vec3f(0.0);
   var dy = vec3f(0.0);
   let useR = xr.x > 0.0 && (xl.x <= 0.0 || abs(xr.x - W.x) < abs(xl.x - W.x));
   let useD = yd.x > 0.0 && (yu.x <= 0.0 || abs(yd.x - W.x) < abs(yu.x - W.x));
-  if (useR) { dx = atDist(uv0 + vec2f(2.0 * wduv.x, 0.0), xr.x) - P; } else if (xl.x > 0.0) { dx = P - atDist(uv0 - vec2f(2.0 * wduv.x, 0.0), xl.x); }
-  if (useD) { dy = atDist(uv0 + vec2f(0.0, 2.0 * wduv.y), yd.x) - P; } else if (yu.x > 0.0) { dy = P - atDist(uv0 - vec2f(0.0, 2.0 * wduv.y), yu.x); }
+  if (useR) { dx = atDist(uv0 + vec2f(fo * wduv.x, 0.0), xr.x) - P; } else if (xl.x > 0.0) { dx = P - atDist(uv0 - vec2f(fo * wduv.x, 0.0), xl.x); }
+  if (useD) { dy = atDist(uv0 + vec2f(0.0, fo * wduv.y), yd.x) - P; } else if (yu.x > 0.0) { dy = P - atDist(uv0 - vec2f(0.0, fo * wduv.y), yu.x); }
   let ray = normalize(P);
   let V = -ray;
   var Nd = V;
@@ -178,7 +180,7 @@ fn shade(q: vec2i, wdims: vec2i, W: vec4f) -> Shade {
   // near the outline the thickness says more than the depth: it falls off toward the edge, so the normal turns out
   // there (the reference's normal is the gradient of the amount alone)
   let Wr = amount * surf.cover.w;
-  let k = surf.cover.w * surf.cover.z * 18.0 * f32(wdims.y) / 800.0;
+  let k = surf.cover.w * surf.cover.z * 36.0 / fo * f32(wdims.y) / 800.0;
   let gx = (xr.y - xl.y) * k;
   let gy = (yd.y - yu.y) * k;
   let Nt = normalize(frame.camRight * (-gx) + frame.camUp * gy + V);
@@ -199,7 +201,7 @@ fn shade(q: vec2i, wdims: vec2i, W: vec4f) -> Shade {
   let grain = vnoise(bone.p * 120.0);
 
   // ---------------------------------------------------------------- water
-  let rp = fbm(bone.p * surf.caustic + bone.n * 0.7 - bone.up * (surf.time * surf.rise * surf.caustic));
+  let rp = fbm(bone.p * surf.caustic - bone.up * (surf.time * surf.rise * surf.caustic));
   var wc = mix(surf.thin.rgb, surf.deep.rgb, smoothstep(0.2, 1.3, Wr)) * (0.35 + 1.5 * rp * rp) * surf.thin.w;
   wc += surf.rim.rgb * surf.rim.w * (1.0 - smoothstep(0.22, 0.62, Wr));
   let spec = pow(max(dot(N, Lv), 0.0), 56.0) * 1.5 + pow(max(dot(R, key.dir), 0.0), 400.0) * 6.0 * key.glint * luma(key.col) * 2.0;
@@ -211,7 +213,7 @@ fn shade(q: vec2i, wdims: vec2i, W: vec4f) -> Shade {
   wc = mix(wc, vec3f(0.8, 0.9, 1.0) * (0.35 + 0.4 * max(dot(N, Lv), 0.0)), foam);
 
   // ---------------------------------------------------------------- ice
-  let vr = voro3(bone.p * surf.iceThin.w + bone.n * 0.15);
+  let vr = voro3(bone.p * surf.iceThin.w);
   let cid = vr.z;
   let tilt = (vec3f(fract(cid * 13.7), fract(cid * 71.3), fract(cid * 37.1)) - 0.5) * 1.1;
   let fn_ = normalize(N + tilt);
@@ -227,8 +229,8 @@ fn shade(q: vec2i, wdims: vec2i, W: vec4f) -> Shade {
   // ---------------------------------------------------------------- one or the other, and the freeze between them
   var col = mix(wc, ic, fi);
   // the freeze front: a band of white crystal where the pixel is half frozen
-  let front = smoothstep(0.15, 0.5, frost) * (1.0 - smoothstep(0.5, 0.85, frost));
-  col += vec3f(0.8, 0.92, 1.0) * front * smoothstep(0.45, 0.8, grain) * 0.8;
+  let front = smoothstep(0.3, 0.5, frost) * (1.0 - smoothstep(0.5, 0.7, frost));
+  col += vec3f(0.8, 0.92, 1.0) * front * (0.35 + 0.65 * vnoise(bone.p * 30.0)) * 0.6;
   var opac = mix(surf.deep.w, 0.96, fi);
   var cover = mix(smoothstep(surf.cover.x, surf.cover.y, amount), smoothstep(surf.cover.x * 0.6, surf.cover.y * 0.6, amount), fi);
 

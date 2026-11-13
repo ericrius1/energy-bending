@@ -174,13 +174,15 @@ export class WaterPool {
     const pool = {
       sim: this.sim, state: this.state, aux: this.aux, homes: this.homes, surf: this.surf, smoothX: this.smoothX, smoothY: this.smoothY,
       count: () => this._count, liquid: () => this._count > 0,
+      look: this.ice.look, sets: this.ice.sets, setCount: () => this.ice.setIce.shardCount, setWorld: () => this.ice.setIce.world,
     };
+    const any = () => this._count > 0 || this.ice.setIce.shardCount > 0;
     // a gate's view (src/portals) draws its surface inside its own scene pass (its scene runs in the 'gates' stage,
     // before the 'air' stage where the main view's composite is), at a lower resolution
     let surface = this.surfaces.get(view.id);
     if (!surface) {
       const gate = view.id.startsWith('gate');
-      surface = new WaterSurface(this.kit, this.ctx.frame, view, pool, gate ? 'scene' : 'air', () => view.on() && this._count > 0, gate ? 0.7 : 1);
+      surface = new WaterSurface(this.kit, this.ctx.frame, view, pool, gate ? 'scene' : 'air', () => view.on() && any(), gate ? 0.7 : 1);
       this.surfaces.set(view.id, surface);
     }
     surface.addWorld(s);
@@ -189,7 +191,7 @@ export class WaterPool {
       let mirror = this.mirrors.get(view.id);
       if (!mirror) {
         const mirrorWorld = () => this.ctx.worlds.find((w) => w.id === view.world)?.mirrorFloor ?? false;
-        mirror = new WaterSurface(this.kit, this.ctx.frame, view, pool, 'mirror', () => view.on() && this._count > 0 && waterParams.mirror > 0 && mirrorWorld(), 0.5);
+        mirror = new WaterSurface(this.kit, this.ctx.frame, view, pool, 'mirror', () => view.on() && any() && waterParams.mirror > 0 && mirrorWorld(), 0.5);
         this.mirrors.set(view.id, mirror);
       }
       mirror.addWorld(s);
