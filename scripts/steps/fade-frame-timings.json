@@ -1,0 +1,8 @@
+[
+ { "name": "geode-a", "query": "duel&world=geode&dress=gems,plasma&p1=bot&p2=bot&style=lead,flyer&skill=0.85&seed=3", "frames": 300, "timings": true },
+ { "name": "geode-b", "query": "duel&world=geode&dress=gems,plasma&p1=bot&p2=bot&style=lead,flyer&skill=0.85&seed=3", "frames": 1, "timings": true },
+ { "name": "geode-c", "query": "duel&world=geode&dress=gems,plasma&p1=bot&p2=bot&style=lead,flyer&skill=0.85&seed=3", "frames": 1, "timings": true },
+ { "name": "geode-d", "query": "duel&world=geode&dress=gems,plasma&p1=bot&p2=bot&style=lead,flyer&skill=0.85&seed=3", "frames": 1, "timings": true },
+ { "name": "geode-e", "query": "duel&world=geode&dress=gems,plasma&p1=bot&p2=bot&style=lead,flyer&skill=0.85&seed=3", "frames": 1, "timings": true },
+ { "name": "geode-f", "query": "duel&world=geode&dress=gems,plasma&p1=bot&p2=bot&style=lead,flyer&skill=0.85&seed=3", "frames": 1, "timings": true, "eval2": "console.warn('fade', JSON.stringify(bend.fade.seen))", "frames2": 0 }
+]

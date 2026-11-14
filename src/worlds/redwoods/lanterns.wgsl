@@ -120,7 +120,7 @@ fn flameAt(k: u32) -> vec3f {
     var c = lac * (woodsAmbient(N) * 2.0 + day * max(dot(N, L), 0.0) * 0.5 + worldLight.forest.lampCol.rgb * inside * 0.6);
     let H = normalize(L + V);
     c += day * pow(max(dot(N, H), 0.0), 40.0) * 0.06;
-    return vec4f(c, dot(i.wp - frame.camPos, frame.camFwd));
+    return vec4f(sightLit(c), dot(i.wp - frame.camPos, frame.camFwd));
   }
   // each its own paper: cream, warm white, amber, a pale rose
   let paper = array<vec3f, 4>(vec3f(1.0, 0.86, 0.66), vec3f(1.0, 0.93, 0.82), vec3f(1.0, 0.68, 0.38), vec3f(1.0, 0.74, 0.66))[u32(h.x * 3.99)];
@@ -152,7 +152,7 @@ fn flameAt(k: u32) -> vec3f {
   let ndl = dot(N, L);
   let sky = mix(vec3f(luma(woodsAmbient(N))), woodsAmbient(N), 0.4) * 3.0;
   c += paper * 0.6 * (day * (max(ndl, 0.0) + 0.5 * max(-ndl, 0.0)) * leafLight(i.wp) + sky) * fib * (1.0 - 0.5 * hoop) * (1.0 - 0.15 * seam);
-  return vec4f(c, dot(i.wp - frame.camPos, frame.camFwd));
+  return vec4f(sightLit(c), dot(i.wp - frame.camPos, frame.camFwd));
 }
 
 // ---------------------------------------------------------------- their halo in the mist

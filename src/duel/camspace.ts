@@ -28,10 +28,11 @@ export function spaceOf(list: readonly Solid[], ground: (x: number, z: number) =
     blocked: (a, b) => S.sweep(a, b, 0.12) < 0.98,
     sweep: (a, b, r) => S.sweep(a, b, r),
     // (only the solids within reach of the eye are swept: most frames there are none)
-    fg: (eye, rays, reach, r = 0.04, weights) => {
+    fg: (eye, rays, reach, r = 0.04, weights, skip) => {
       const near: Solid[] = [];
       for (let i = 0; i < list.length; i++) {
         const o = i * 4;
+        if (skip?.has(list[i])) continue;
         if (Math.hypot(eye[0] - B[o], eye[1] - B[o + 1], eye[2] - B[o + 2]) - B[o + 3] <= reach + r) near.push(list[i]);
       }
       if (!near.length || reach <= 0.05) return 0;
@@ -107,8 +108,9 @@ const CORNERS = cornerMask(JUDGE.cols, JUDGE.rows);
 
 const inFrame = (s: [number, number] | null, top = 0.04) => !!s && s[0] >= 0 && s[0] <= 1 && s[1] >= top && s[1] <= 1;
 
-/** a pose judged against the world and the bodies */
-export function judge(pose: CamPose, bodies: readonly CamBody[], space: CamSpace | null, aspect: number): CamJudged {
+/** a pose judged against the world and the bodies; `faded`: the solids the near fade dissolves now
+ *  (worlds/fade-frame.ts), counted clear in the near frame and its corners */
+export function judge(pose: CamPose, bodies: readonly CamBody[], space: CamSpace | null, aspect: number, faded?: ReadonlySet<object>): CamJudged {
   const eye = pose.eye, f: V3 = [pose.look[0] - eye[0], pose.look[1] - eye[1], pose.look[2] - eye[2]], L = Math.hypot(...f) || 1;
   const yaw = Math.atan2(-f[0], -f[2]), pitch = Math.asin(Math.max(-1, Math.min(1, -f[1] / L)));
   let whole = true;
@@ -123,7 +125,7 @@ export function judge(pose: CamPose, bodies: readonly CamBody[], space: CamSpace
   const rays = raysAt(yaw, pitch, pose.fov, aspect, JUDGE.cols, JUDGE.rows), reach = judgeReach(eye, bodies);
   return {
     clear: space.clear(eye), hidden, whole, pitch,
-    fg: space.fg ? space.fg(eye, rays, reach) : 0,
-    corner: space.fg ? space.fg(eye, rays, reach, 0.04, CORNERS) : 0,
+    fg: space.fg ? space.fg(eye, rays, reach, 0.04, undefined, faded) : 0,
+    corner: space.fg ? space.fg(eye, rays, reach, 0.04, CORNERS, faded) : 0,
   };
 }

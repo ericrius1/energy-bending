@@ -109,5 +109,5 @@ fn toWorld(b: Point, q: vec3f) -> vec3f {
   col += mix(tc, vec3f(1.0), 0.4) * smoothstep(0.9, 1.0, along) * glow * 0.8;
   // a glint where a face turns the softbox to the eye
   col += vec3f(1.0, 0.97, 0.92) * pow(max(dot(R, key.dir), 0.0), 200.0) * key.glint * 1.5 * step(0.55, faceH);
-  return vec4f(col, dot(i.wp - frame.camPos, frame.camFwd));
+  return vec4f(sightLit(col), dot(i.wp - frame.camPos, frame.camFwd));
 }

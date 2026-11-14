@@ -254,3 +254,147 @@ heavier near cost. The test's geode set (seed 45, the pair under the high blade 
 is 39 to 44 % near frame with either camera. What would: the near fade dissolving what stands in the near part of the
 frame in the duel (`worlds/fade.ts` fades only within 0.6 m of the eye and across a dancer's sight line), or the
 geode's beams and the low blades made shorter or moved off the camera's side of the plane (the arena's, not mine).
+
+## The near fade in the duel's frame (branch `p3-near-fade`)
+
+The second pass left the geode with lit pieces in the near part of the frame that no yaw, boom, turn cost or pitch
+cleared. Now the near fade dissolves them: in the duel, a piece standing between the eye and the pair, across a share of
+the frame or a near corner, dissolves gracefully, and its edges stay as a faint line of the arena's rim light, so the
+arena's shape still reads and can be used. In every world: the arena's pieces, the world's solids and the gems'
+pillars. The camera is unchanged (it never reads the fade, so every number it makes is the same as before, frame for
+frame).
+
+**Measured:** `scripts/cam-sim.mjs` (the same 24 seeded sets of 40 s as above, every frame judged twice: as before, and
+with the pieces the fade has dissolved at least halfway counted as clear); `src/worlds/fade-frame.test.ts` (new, 7
+tests); `npm run typecheck`; `node scripts/test-ts.mjs` (19 of 19 files); `check-limits`, `check-bindings`; GPU timings
+in the geode's duel against master served beside it (`shot.mjs --timings`, 1280×720, 24 windows of 150 frames each
+side) and on the plain geode page; headless 960×540 stills of the page on my dev server, each moment grabbed with the
+frame test on and, one stepped frame later, off (`scripts/fade-cap.mjs`, new); the Node harness (`duel-measure.mjs`)
+before and after the one layout change I tried (reverted). **Not measured:** a person playing; a phone or a laptop (the
+16 slots' loop on a weak GPU); 1080p; the gems' pillar dimming seen in a still (no pillar stood in a near corner at a
+moment I grabbed); the redwoods' dissolve in a still (no moment of its run covered a quarter of the frame); `npm run
+test:net`. The duel in the page is not deterministic from run to run (the same seed gives other moments), so the stills
+are pairs grabbed at the same moment of one run, not the second pass's moments.
+
+### How
+
+- **The test, on the CPU** (`src/worlds/fade-frame.ts`, pure: the page's `worlds/fade.ts` and the Node probe both run
+  it). Each frame a 16 × 9 grid of rays from the eye, over a frame 1.2 times the lens, looks for solids within the near
+  part of the frame (0.6 of the way to the nearer body, at most 5 m: the judge's own yardstick). Each piece it meets has
+  its share of the frame and of the frame's corners (the judge's corner cells). A piece starts to dissolve when it
+  covers 3 % of the frame or 10 % of its corners, or is about to (as much in the band just outside the lens, or within
+  1.15 times the near part: the eye coming in toward the pair).
+- **No flicker**: a piece keeps dissolving while any ray still meets it within 1.3 times the near part, and for a second
+  after; its strength eases in (0.18 s) and out (0.6 s). In the measure a piece comes back and dissolves again within a
+  second 1.6 to 5.7 times a minute per world (a slow pulse, eased both ways), never from one frame to the next.
+- **Never what the pair is on**: not while a body's feet are within 0.45 m of it, a hand or a foot at its top (standing,
+  hanging from its edge), its hips against it, or the feet's path over the next 0.9 s (carried by the body's velocity,
+  falling) meets it. Under a body it comes back in 0.08 s and stays whole 0.8 s after. In the measure, 0 of 55,272
+  frames have a piece dissolved past a tenth under a standing body. The shaders also leave whole whatever stands at the
+  pair's own depth (within 0.6 m of the nearer body's distance), whatever the test found.
+- **A piece** is a solid, or boxes turned the same way that nearly fill the box round them (a shelf's blades, a
+  column's drums): one piece, one strength, so a shelf dissolves whole.
+- **On the GPU** (`worlds/light.wgsl sightFade`, no new binding: 16 pieces ride in `WorldLight.sight`, which grows from
+  80 to 1,136 bytes; the world light is 4,640 of 65,536). A fragment inside a piece (its box, or its capsule) dissolves
+  patch by patch as the strength rises (a front through a noise in the stone, so a half-dissolved piece is whole patches
+  and holes, not a screen door the lens blurs into a veil). Its edges stay: for a surface on its box's faces (a blade, a
+  beam, a slab) the box's edges; for a surface inside it (a round column stood in for by a box, a crystal, a trunk)
+  where it turns away from the eye. No line within a metre of the eye (there it is only a blur). `sightLit(col)`, one
+  call in each world solid shader's return, brightens what is left of the edges with the arena's rim light
+  (`fade.outline`, 0.35). The gems' pillar is glow, not a solid draw: `power-fx.ts` dims its crystals and core with the
+  same strength (`PlayApp.fade.strengthOf`) and lays a faint ring at its foot and top.
+- In the duel only (the arena shown: `shownArena()`); `fade.frame` and `fadeFrame` (its numbers) in the params;
+  `bend.fade.seen.pieces` (each dissolving piece's strength) and `.cover`.
+
+### The numbers (24 sets, 55,272 frames; "before" is master's, the same frames)
+
+| | before | with the fade |
+|---|---|---|
+| a piece in the near frame | 11.5 % | **5.7 %** |
+| … over a tenth of it | 4.8 % | **1.7 %** |
+| a near corner filled | 8.7 % | **3.6 %** |
+| … an eighth of the corners or more | 6.2 % | **2.3 %** |
+| a dissolved piece under a standing body | | 0 frames |
+| the test's CPU a frame (Node, a shared machine) | | 0.02 to 0.19 ms |
+
+| world | near frame over a tenth | a near corner ≥ 1/8 | a piece dissolving | again within 1 s |
+|---|---|---|---|---|
+| temple | 1.5 → 0.4 % | 2.3 → 0.5 % | 59 % of frames | 2.3 a minute |
+| redwoods | 1.6 → 0.8 % | 3.4 → 1.8 % | 60 % | 1.6 |
+| geode | 11.1 → **4.0 %** | 13.3 → **4.7 %** | 71 % | 5.7 |
+| Pool | 4.9 → 1.7 % | 5.8 → 2.1 % | 72 % | 4.7 |
+
+("A piece dissolving" counts the ones just outside the lens and coming in, which nobody sees.) Everything else the
+probe measures (the eye in a solid, past the room, the look down, hidden bodies, the flyer in frame 17,262 of 17,262)
+is unchanged: the camera is master's.
+
+**What is left in the geode** (`cam-sim.mjs --world geode --why`, the frames still over a tenth with the fade): a piece
+a body has just stood on, resting whole (598 frame-pieces), one still easing in (537), one under a body now (79), and
+one too small to start or with the slots taken (179). By solid: the jogo's high blade over the middle (solids 14 to 16)
+and the high shelves (90 to 95), both reaching 0.7 m past the plane toward the camera and both stood on often; the
+drops' beams (190, 191) are left in 57 frames.
+
+### GPU (RTX 5090, 1280×720, weft's profiler)
+
+| | master | p3-near-fade |
+|---|---|---|
+| geode duel, the whole frame (24 windows of 150 frames each side, four runs alternating) | 0.803 ± 0.048 ms | 0.807 ± 0.045 ms |
+| … the scene pass | 0.272 ± 0.024 ms | 0.293 ± 0.029 ms |
+| the plain geode page (nothing to fade), the scene pass (6 windows each) | 0.253 ms | 0.250 ms |
+
+The whole frame is unchanged within the noise; the scene pass gains about 0.02 ms on average in the duel, the world
+behind a dissolved piece now drawn (as report 9 found for the old near fade). With nothing to dissolve the shaders pay
+one uniform branch more.
+
+### Seen
+
+![the geode: master's fade above, the frame test below, the same moments (6, 8, 10, 13 s of seed 3)](media/14-fade-geode.jpg)
+![the geode at 8 s: a selenite beam filling the near left and a low beam across the near bottom, kept as lines of light](media/14-fade-geode-beam.jpg)
+![the temple: master above, the frame test below (25, 27, 39, 41.5 s of seed 3)](media/14-fade-temple.jpg)
+![the Pool: a standing stone across the near left dissolves and the gems' prism behind it shows (5.5, 8 s)](media/14-fade-pool.jpg)
+
+What I see in them: in the geode the beams and shelves that filled a third of the frame are gone but for a faint honey
+outline; the pair and the floor behind read clearly, and the arena's shape still reads from the lines. In the temple the
+near drums and columns open to a faint silhouette and what stood behind them (another broken column, the court) shows;
+a column's upper drums at the pair's depth stay whole. In the Pool a dark standing stone opens on the prism behind it.
+The outline is thicker than a pixel near the eye: the lens blurs it into a soft band, which reads as light, not stone.
+An earlier take (before the patch-by-patch dissolve and the metre without lines) showed a half-dissolved temple column
+as a pale veil over the pair, the lens blurring its dither; the stills here are after that fix.
+
+### Tried and reverted: the geode's layout
+
+The high shelves ending 0.25 m past the plane (not 0.7) and the drops' beams moved 0.2 m back off the camera's side:
+the geode's near frame over a tenth went 4.0 → 4.2 % with the fade (11.1 → 12.3 % without), the eye in a solid 0.1 →
+0.5 %, and the harness's falls doubled (0.10 → 0.20 a set; catches 21.6 → 22.5 a minute). Not kept: what remains is
+mostly the pieces the pair stands on, which the fade must leave, and pulling them back changed the camera's choices for
+the worse. With the fade the geode does not read cluttered in the stills, so its layout is as it was, and the harness's
+numbers are master's (geode, 20 sets: falls 0.10 a set, catches 21.6 a minute, 3 fused).
+
+### Files
+
+`src/worlds/fade-frame.ts` (new: the test), `src/worlds/fade-frame.test.ts` (new), `src/worlds/fade.ts` (the camera's
+axes and lens in, the pieces to the uniform, `strengthOf`), `src/worlds/light.wgsl` (`SightPiece`, `Sight.piece`, `.f`,
+`.glow`; `sightFade`'s pieces; `sightLit`), one call in each world solid shader's return (`temple/stones`,
+`geode/shelves`, `geode/crystals`, `pool/stones`, `redwoods/lanterns`, `redwoods/trunks`: its stage entry now calls the
+fade before its own discard, in uniform control flow), the regenerated `.d.wgsl.ts`, `src/main.ts` (the camera to the
+fade, the fade to the play app), `src/play/index.ts` (`PlayApp.fade`), `src/duel/index.ts` and `power-fx.ts` (the
+pillar dims), `src/duel/camspace.ts` and `camera.ts` (the judge takes the dissolved pieces), `src/duel/camprobe.ts`
+(the test on every pose, the numbers with the fade, `--nofade`, `--why`'s leftovers), `scripts/fade-cap.mjs` (new: A/B
+stills of a duel), `scripts/steps/fade-frame-timings.json` (new), AGENTS.md.
+
+```bash
+node scripts/cam-sim.mjs [--world geode] [--why] [--nofade]
+node scripts/fade-cap.mjs shots/fade --url http://127.0.0.1:<port>/energybending/ --world geode --dress gems,plasma --find 4 --seed 3
+node scripts/shot.mjs shots/t scripts/steps/fade-frame-timings.json --url http://127.0.0.1:<port>/energybending/ --size 1280x720
+```
+
+### Not done
+
+- The geode is still the densest: a piece over a tenth of the near frame in 4.0 % of frames with the fade (the temple
+  0.4 %), nearly all of it a piece the pair stands on or has just left. Dissolving only a piece's near end while a body
+  stands on its far end (the high blade reaches 0.7 m past the plane) would be the next step; the shaders' guard at the
+  pair's depth already keeps the end under the body.
+- A piece the camera sweeps into fast is seen whole for its first 0.1 to 0.2 s (537 frame-pieces in the geode).
+- The powers' other temporary solids (the ice steps, the frozen bar) are set ice drawn by the water kind, not a world
+  solid draw: they don't dissolve.
+- The 16 slots' loop runs in every solid fragment while anything dissolves: not measured on a weak GPU.

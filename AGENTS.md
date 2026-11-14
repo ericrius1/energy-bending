@@ -85,7 +85,8 @@ src/
   worlds/            World contract and registry, solids.ts (World.solids: the one description of a world's solid
                      things, read by the camera, World.clear, the brains and the near fade), light.wgsl (world light
                      per pipeline, group 2, with the dancers' fire; and the near fade, `sightDrop`), fade.ts (what the
-                     near fade fades), shared.ts (its one uniform: a slot per world, lightSlot), stage.ts (stage
+                     near fade fades; fade-frame.ts its duel's frame test), shared.ts (its one uniform: a slot per
+                     world, lightSlot), stage.ts (stage
                      planes), water/ (ripples and the surface of the pool and temple)
   worlds/geode|redwoods|pool|temple/   the four worlds, each with its stage, ledges and portal sites
   portals/           live gates: slots (views), the gate camera, the disc's surface, the depth of field's window
@@ -106,7 +107,8 @@ films/               the films' timelines (scripts/film.mjs renders them; docs/e
 scripts/             shot.mjs (stills + GPU timings; a step's `eval`/`eval2` run in the page with `bend`), film.mjs (a
                      timeline, shot by shot in takes under the lock; film-serve.mjs serves it without hot reload,
                      film-seams.mjs checks the seams), critic-cap.mjs (a staged take frame by frame: stills, a sheet,
-                     timings; `ab` grabs each frame twice, a stepped frame apart),
+                     timings; `ab` grabs each frame twice, a stepped frame apart), fade-cap.mjs (a duel's moments
+                     grabbed with the near fade's frame test on and off), cam-sim.mjs (the duel camera's measure),
                      test-ts.mjs, test-audio.mjs, check-portals.mjs, check-limits.mjs,
                      check-bindings.mjs (the binding budget), audio-lab.mjs, lib/browser.mjs
 sketches/            dance-first-2d/: the 2D prototype, plain JS with its own package.json, ignored by typecheck/build
@@ -157,8 +159,14 @@ stands on), in the main view only (weft's per-view `Frame.user.x` is 1 there; a 
 `user.y`, `.z`, `.w` are free). What is drawn stays opaque and writes its distance, so the depth contract holds. No
 binding: the numbers ride in the world light uniform as `WorldLight.sight` (a member after the worlds'). Only what
 `World.solids` describes wakes it (the CPU tests the eye and the sight lines against them each frame; otherwise every
-fragment pays one uniform branch), and grass, ferns and flowers don't call it. Params `fade`; `bend.fade.seen` says
-what the CPU found.
+fragment pays one uniform branch), and grass, ferns and flowers don't call it. **In the duel** (the arena shown) it
+also dissolves a piece standing in the near part of the frame (`worlds/fade-frame.ts`, pure: a ray grid through the
+lens, a share of the frame or a near corner, hysteresis, eased; never what a body stands on, hangs from or is about to
+land on; boxes side by side are one piece), patch by patch, its edges kept as a faint line: up to 16 pieces in
+`Sight.piece`, and `return vec4f(sightLit(col), …)` in each solid shader brightens what is left with the arena's rim
+light. Call `sightDrop` in uniform control flow (it takes the facet from the derivatives). The gems' pillar dims with it
+(`PlayApp.fade.strengthOf`). Params `fade` (`frame`, `outline`) and `fadeFrame`; `bend.fade.seen` says what the CPU
+found (`pieces`, `cover`); report 14-camera, "The near fade in the duel's frame".
 
 **What each stage costs** (RTX 5090, 1280×800, the critic's six scenes, 5-integration.md): sim about 0.1 ms (field,
 fire 0.006 + curl 0.05, water 0.012, steam 0.02); cull 0.3 to 0.6 (water's splats and smoothing about 0.5 with a water
@@ -287,8 +295,8 @@ a shared group whole in every stage of a pipeline that uses any of it; a shader'
 whose entry uses them. For a render shader the shared groups any of its entries uses are counted in all of them (an
 upper bound: which vertex and fragment entries pair is the TypeScript's business). Per stage, vertex / fragment
 (v/f) or compute (c), the most any entry of that stage uses; the baseline less that is what is left. Samplers are 4
-of 16 everywhere (group 0's; no shader declares its own). The world light uniform is 3,584 of 65,536 bytes (the near
-fade's `sight` is 80 of them).
+of 16 everywhere (group 0's; no shader declares its own). The world light uniform is 4,640 of 65,536 bytes (the near
+fade's `sight` is 1,136 of them: its 16 pieces 1,024).
 Regenerate with `node scripts/check-bindings.mjs --table` (one row per stage) after changing a binding.
 
 | shader | stages | uniform buffers (of 12) | storage buffers (of 8) | sampled textures (of 16) | storage textures (of 4) | groups |

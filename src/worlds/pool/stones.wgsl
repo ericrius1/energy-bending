@@ -108,5 +108,5 @@ struct VOut {
   // the glow behind the stage round every silhouette
   let rim = pow(1.0 - cosV, 4.0) * max(dot(-V, worldLight.pool.glowDir.xyz) * 0.5 + 0.5, 0.0);
   col += worldLight.pool.glow.rgb * worldLight.pool.glow.w * rim * 0.5;
-  return vec4f(col, dot(i.wp - frame.camPos, frame.camFwd));
+  return vec4f(sightLit(col), dot(i.wp - frame.camPos, frame.camFwd));
 }

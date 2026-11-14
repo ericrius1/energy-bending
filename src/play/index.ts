@@ -27,6 +27,7 @@ import type { Show } from '../dancer/show';
 import type { Dancer } from '../dancer/dancer';
 import type { Motion } from '../skeleton/clips';
 import type { World } from '../worlds/world';
+import type { Solid } from '../worlds/solids';
 import type { Music } from '../audio/music';
 import type { Field } from '../matter/field/field';
 import type { MatterPasses } from '../matter/core/kind';
@@ -82,6 +83,8 @@ export interface PlayApp {
   setWorld?(id: string): Promise<void>;
   /** the hand (its one-frame blast throws matter off a body: the duel's KO) */
   hand?: { burst: Float32Array | number[] };
+  /** the near fade (worlds/fade.ts): how strongly it dissolves a solid now (the duel dims a power drawn as glow with it) */
+  fade?: { strengthOf(s: Solid | null | undefined): number };
 }
 
 /** the scripted jogos shipped with the game (src/play/scripts/*.json) */

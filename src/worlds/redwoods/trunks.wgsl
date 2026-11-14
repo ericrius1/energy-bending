@@ -204,14 +204,18 @@ fn profile(s: f32, len: f32, r0: f32, sh: vec4f, a: f32) -> f32 {
 
 @fragment fn fs(i: VOut) -> @location(0) vec4f {
   if (sightDrop(i.wp, i.pos.xy)) { discard; }   // the near fade (worlds/fade.ts)
-  return bark(i);
+  let c = bark(i);
+  return vec4f(sightLit(c.rgb), c.a);
 }
 
 /** a stage log's: the same, but a log settled into the ground is cut away under it (the ground is the backdrop, which
  *  writes no depth). (Its own entry, so the trunks keep their early depth test.) */
 @fragment fn fs_stage(i: VOut) -> @location(0) vec4f {
-  if (i.wp.y < 0.0 || sightDrop(i.wp, i.pos.xy)) { discard; }
-  return bark(i);
+  // (the near fade first, in uniform control flow: it takes the surface's facet from the derivatives)
+  let drop = sightDrop(i.wp, i.pos.xy);
+  if (i.wp.y < 0.0 || drop) { discard; }
+  let c = bark(i);
+  return vec4f(sightLit(c.rgb), c.a);
 }
 
 fn bark(i: VOut) -> vec4f {

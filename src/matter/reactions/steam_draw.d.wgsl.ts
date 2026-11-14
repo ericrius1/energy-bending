@@ -160,9 +160,18 @@ export interface SightBody {
   lo: Vec4;
   hi: Vec4;
 }
+export interface SightPiece {
+  a: Vec4;
+  x: Vec4;
+  y: Vec4;
+  h: Vec4;
+}
 export interface Sight {
   body: Partial<SightBody>[];
   k: Vec4;
+  piece: Partial<SightPiece>[];
+  f: Vec4;
+  glow: Vec4;
 }
 export interface KeyLight {
   dir: Vec3;
@@ -226,5 +235,5 @@ export interface SOut {
   warm: Vec4;
 }
 
-declare const shader: Shader<{ Frame: Frame; FieldBox: FieldBox; FieldSample: FieldSample; Geode: Geode; Forest: Forest; Pool: Pool; Temple: Temple; FireLight: FireLight; FireLights: FireLights; WorldLight: WorldLight; SightBody: SightBody; Sight: Sight; KeyLight: KeyLight; Puff: Puff; Steam: Steam; SOut: SOut }, 'frame' | 'fieldBox' | 'worldLight' | 'steam' | 'puffs' | 'fieldA' | 'fieldB' | 'fieldC' | 'poolWaves' | 'templeWaves' | 'sceneTex' | 'samp_linear' | 'samp_repeat' | 'samp_nearest' | 'samp_shadow'>;
+declare const shader: Shader<{ Frame: Frame; FieldBox: FieldBox; FieldSample: FieldSample; Geode: Geode; Forest: Forest; Pool: Pool; Temple: Temple; FireLight: FireLight; FireLights: FireLights; WorldLight: WorldLight; SightBody: SightBody; SightPiece: SightPiece; Sight: Sight; KeyLight: KeyLight; Puff: Puff; Steam: Steam; SOut: SOut }, 'frame' | 'fieldBox' | 'worldLight' | 'steam' | 'puffs' | 'fieldA' | 'fieldB' | 'fieldC' | 'poolWaves' | 'templeWaves' | 'sceneTex' | 'samp_linear' | 'samp_repeat' | 'samp_nearest' | 'samp_shadow'>;
 export default shader;
