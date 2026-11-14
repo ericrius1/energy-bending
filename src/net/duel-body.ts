@@ -6,6 +6,7 @@
 import { Character } from '../dancer/character';
 import { makeIntent, type Intent } from '../input/intent';
 import { NJ, MOVES } from '../dancer/moves';
+import { swellAt, type Hazard } from '../duel/hazards';
 import { DUEL_BTN, DUEL_FLAG, type DuelBodySnap, type DuelInput, type V3 } from '../../shared/protocol.ts';
 
 const HANDS = ['relaxed', 'fist', 'open', 'floor'] as const;
@@ -101,6 +102,15 @@ export function copyShown(dst: Character, src: Character) {
   dst.lastGroundY = src.lastGroundY; dst.groundY = src.groundY;
   dst.style = src.style; dst.energy = src.energy; dst.move = src.move;
   dst.events.length = 0;
+}
+
+/** an arena's hazard put at a beat: its clock (the tide's water, the gust, the hum) and the Pool's stones on the swell.
+ *  The arenas are made once (src/worlds/<id>/arena.ts), so every room in a server and every stepper on a page shares
+ *  one: whoever steps a body puts the hazard where its own clock has it first */
+export function poseHazard(H: Hazard | undefined, beat: number) {
+  if (!H) return;
+  H.beat = beat;
+  if (H.swell) H.swell.movers.forEach((m, i) => { const h = swellAt(H, m.rest[0], m.rest[2], beat) * m.k; H.swell!.bob[i] = h; m.solid.c[1] = m.rest[1] + h; });
 }
 
 // ---------------------------------------------------------------- inputs

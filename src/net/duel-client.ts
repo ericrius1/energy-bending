@@ -36,7 +36,7 @@ import {
   type DuelBodySnap, type DuelInput, type DuelSnap, type DuelTickEvents, type DuelWelcome, type DuelSlowState, type V3,
 } from '../../shared/protocol.ts';
 import { PoseBuffer, DIM, YAW, LOCAL, type BufferParams } from './net';
-import { inputOf, intentOf, kitOf, kitField, setKit, saveChar, loadChar, puppet, styleByte, type CharSave, type Kit, type ShownBody } from './duel-body';
+import { inputOf, intentOf, kitOf, kitField, setKit, poseHazard, saveChar, loadChar, puppet, styleByte, type CharSave, type Kit, type ShownBody } from './duel-body';
 
 /** what the client needs of its connection (Net has these) */
 export interface DuelLink {
@@ -132,6 +132,8 @@ export class DuelClient {
   private queue: DuelFrameEvents[] = [];
   private tent: { seq: number; until: number; kind: 'catch' | 'aerial' } | null = null;
   private look: V3 = [0, 0, 0];
+  /** the worst steady errors this run (report().worst) */
+  worst: { e: number; d: number[]; v: number[]; ack: number; diff: Record<string, unknown> }[] = [];
   /** the arena's hazard as the server steps it, on the predicted body */
   private hz: DuelHazards | null = null;
   private hzMatch: { bodyEvents: Record<string, unknown>[][] } | null = null;
@@ -259,7 +261,7 @@ export class DuelClient {
       c.lookAt = this.look;
     } else c.lookAt = this.shownChars[1 - k].root;
     // (the hazard's water and stones where the server's will be when it steps this input: its last tick's beat)
-    if (this.o.arena?.hazard) this.o.arena.hazard.beat = beat - (this.w.music.bpm * this.tickMs) / 60000;
+    poseHazard(this.o.arena?.hazard, beat - (this.w.music.bpm * this.tickMs) / 60000);
     c.update(this.tickMs / 1000, it, { beats: beat, bpm: this.w.music.bpm });
     if (this.hz && this.hzMatch) { this.hzMatch.bodyEvents[k] = c.events.slice(); this.hz.step(beat, this.tickMs); this.hzMatch.bodyEvents[k] = []; }
     c.events.length = 0;
@@ -432,6 +434,19 @@ export class DuelClient {
     const e = dist(h.root, B.root), ev = dist(h.v, B.v);
     const kitOff = K ? ['grounded', 'airJumps', 'dashes', 'wallSide'].some((f) => kitField(K, f) !== h.save[f]) : h.grounded !== !(B.flags & DUEL_FLAG.AIRBORNE);
     if (!this.follow && !(B.flags & DUEL_FLAG.FROZEN)) (wasFollow || B.flags & DUEL_FLAG.PUSHED ? this.stats.errAfter : this.stats.err).push(e);
+    // (the worst steady errors, with what differed: the probe's way to find what a prediction gets wrong)
+    if (!this.follow && !wasFollow && !(B.flags & (DUEL_FLAG.FROZEN | DUEL_FLAG.PUSHED)) && e > 0.03) {
+      const diff: Record<string, unknown> = {};
+      if (K) for (const f of ['grounded', 'airJumps', 'dashes', 'dashT', 'wallSide', 'coyote', 'jumpBuf', 'lastGroundY', 'groundY', 'yaw', 'dir', 'reformT', 'landLagT', 'stagger']) {
+        const a = kitField(K, f), b = h.save[f];
+        if (typeof a === 'number' && typeof b === 'number' ? Math.abs(a - b) > 1e-3 : a !== b) diff[f] = [b, a];
+      }
+      const kmv = K ? K[K.length - 2] : null, pmv = (h.save.move as { name?: string } | null)?.name ?? null;
+      if (kmv !== pmv) diff.move = [pmv, kmv];
+      this.worst.push({ e: +e.toFixed(3), d: [0, 1, 2].map((i) => +(B.root[i] - h.root[i]).toFixed(3)), v: [0, 1, 2].map((i) => +(B.v[i] - h.v[i]).toFixed(2)), ack, diff });
+      this.worst.sort((x, y) => y.e - x.e);
+      if (this.worst.length > 12) this.worst.length = 12;
+    }
     if (this.stats.err.length > 20000) this.stats.err.splice(0, 10000);
     this.hist.delete(ack);
     if (e <= CLIENT.EPS && ev <= CLIENT.EPS_V && !kitOff && !this.follow) return;
@@ -507,11 +522,13 @@ export class DuelClient {
       err: { n: e.length, rmsMm: +(1000 * Math.sqrt(e.reduce((a, b) => a + b * b, 0) / Math.max(1, e.length))).toFixed(1), p50Mm: +(1000 * q(0.5)).toFixed(1), p95Mm: +(1000 * q(0.95)).toFixed(1), maxMm: +(1000 * (e[e.length - 1] ?? 0)).toFixed(1) },
       corrections: this.stats.corrections, perSecond: +(this.stats.corrections / s).toFixed(2), cuts: this.stats.cuts, replayed: this.stats.replayed,
       catches: { felt: this.stats.caught, confirmed: this.stats.confirmed, mutual: this.stats.mutual, denied: this.stats.denied },
+      worst: this.worst.slice(0, 6),
       delay: +this.delay.toFixed(0), queue: this.last?.x.q ?? null, events: this.log.length,
     };
   }
   resetStats() {
     const S = this.stats;
+    this.worst = [];
     Object.assign(S, { snaps: 0, bytesIn: 0, bytesOut: 0, devBytes: 0, ticks: 0, err: [], errAfter: [], corrections: 0, cuts: 0, replayed: 0, caught: 0, confirmed: 0, denied: 0, mutual: 0, followTicks: 0, since: performance.now() });
   }
 }
