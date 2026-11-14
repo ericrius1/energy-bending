@@ -9,9 +9,15 @@
 // they re-form at their spawn. The dancers wear gems unless ?dress says otherwise.
 // ?play&two adds a second dancer on a bot from the start (for scripts). main.ts wires it with one line, like the other
 // demos; it runs on the frame's input and camera phases.
+// ?play&duel plays with the duel's movement (docs/design/duel.md): the bodies on DUEL_PHYS (wall slides and kicks, the
+// dash, the duel's run and jump) and every device on the duel's buttons. ?play&arena=test does that on a test arena
+// of its own, locked from the start: the world's first stage plane (where it stands, its lens) with two blocks whose
+// four faces are walls, the plane's ends, a shaft between the left end and the tall block, and a few platforms; a 2D
+// overlay draws it over the canvas (#arena-overlay), since no world draws it. The duel's own arenas are src/duel's.
 import type { Kit } from '@ericrius1/weft';
 import type { Show } from './show';
-import type { CameraRig, StagePlane, Ledge } from '../engine/camera';
+import { planePoint, type CameraRig, type StagePlane, type Ledge, type Wall } from '../engine/camera';
+import { DUEL_PHYS } from './character';
 import type { FrameBuilder } from '../engine/frame';
 import type { World } from '../worlds/world';
 import type { Motion } from '../skeleton/clips';
@@ -76,6 +82,70 @@ export function testLedges(halfWidth: number): Ledge[] {
 
 const TEST_PLANE: StagePlane = { id: 'test', origin: [0, 0, 0], right: [1, 0, 0], halfWidth: 4, ground: 0, ledges: testLedges(4), spawns: [[-1.5, 0], [1.5, 0]] };
 
+/** ?play&arena=test: a duel test arena on a world's stage plane (where it stands and how the camera sees it), its floor
+ *  at the stage's ground (0 over a pit). In its own coordinates (s along the plane, y up from the floor): a tall block
+ *  at s -3.0 … -2.4 (4.5 m) and a low step at 2.4 … 3.0 (1.2 m), each a solid ledge with a wall on each face; the shaft
+ *  between the left end and the tall block (2.7 m); a one-way platform at 1.7 m, one at 3.3 m, a perch at 6 m in the
+ *  shaft; the ends at ±5.75 (the pool's own: walls too) */
+export function testArena(base: StagePlane): StagePlane {
+  const g = base.ground ?? 0, oy = base.origin[1] + g;
+  const block = (id: string, x0: number, x1: number, h: number): { ledge: Ledge; walls: Wall[] } => ({
+    ledge: { id, x0, x1, y: g + h, solid: true, thick: h },
+    walls: [{ id: `${id}.l`, s: x0, side: -1, y0: oy, y1: oy + h }, { id: `${id}.r`, s: x1, side: 1, y0: oy, y1: oy + h }],
+  });
+  const tall = block('arena.tall', -3.0, -2.4, 4.5), low = block('arena.low', 2.4, 3.0, 1.2);
+  return {
+    id: 'arena.test', origin: base.origin, right: base.right, halfWidth: 5.75, ground: g,
+    ledges: [tall.ledge, low.ledge,
+      { id: 'arena.mid', x0: -1.8, x1: 0.2, y: g + 1.7 }, { id: 'arena.high', x0: -0.4, x1: 1.8, y: g + 3.3 }, { id: 'arena.perch', x0: -5.6, x1: -4.6, y: g + 6.0 }],
+    walls: [...tall.walls, ...low.walls],
+    spawns: [[-1.5, g], [4.2, g]],
+    height: 6.5, lens: base.lens, yaw: base.yaw, pitch: base.pitch,
+  };
+}
+
+/** the test arena drawn in 2D over the canvas (no world draws it): its blocks filled, its walls bright, its platforms
+ *  as lines, the plane's ends; projected with the camera each frame */
+function arenaOverlay(canvas: HTMLCanvasElement, kit: Kit, plane: () => StagePlane | null) {
+  const el = document.createElement('canvas');
+  el.id = 'arena-overlay';
+  Object.assign(el.style, { position: 'fixed', pointerEvents: 'none', zIndex: '4' });
+  (canvas.parentElement ?? document.body).append(el);
+  const P: [number, number, number] = [0, 0, 0];
+  return () => {
+    const r = canvas.getBoundingClientRect(), pl = plane();
+    Object.assign(el.style, { left: `${r.left}px`, top: `${r.top}px`, width: `${r.width}px`, height: `${r.height}px` });
+    const w = canvas.width, h = canvas.height;
+    if (el.width !== w || el.height !== h) { el.width = w; el.height = h; }
+    const c = el.getContext('2d')!;
+    c.clearRect(0, 0, w, h);
+    if (!pl) return;
+    const m = kit.camera.viewProj;
+    const at = (s: number, y: number): [number, number] | null => {
+      planePoint(pl, s, y, P);
+      const x = P[0], yy = P[1], z = P[2];
+      const cx = m[0] * x + m[4] * yy + m[8] * z + m[12], cy = m[1] * x + m[5] * yy + m[9] * z + m[13], cw = m[3] * x + m[7] * yy + m[11] * z + m[15];
+      return cw > 1e-4 ? [(cx / cw * 0.5 + 0.5) * w, (0.5 - cy / cw * 0.5) * h] : null;
+    };
+    const poly = (pts: [number, number][], fill: string | null, stroke: string | null, lw = 2) => {
+      const q = pts.map(([s, y]) => at(s, y));
+      if (q.some((p) => !p)) return;
+      c.beginPath(); q.forEach((p, i) => (i ? c.lineTo(p![0], p![1]) : c.moveTo(p![0], p![1])));
+      if (fill) { c.closePath(); c.fillStyle = fill; c.fill(); }
+      if (stroke) { c.strokeStyle = stroke; c.lineWidth = lw * (h / 800); c.stroke(); }
+    };
+    const g = pl.ground ?? 0, top = g + (pl.height ?? 6) + 1.5;
+    for (const L of pl.ledges) {
+      if (L.solid) poly([[L.x0, L.y - (L.thick ?? 0.4)], [L.x1, L.y - (L.thick ?? 0.4)], [L.x1, L.y], [L.x0, L.y]], 'rgba(120, 100, 190, 0.28)', 'rgba(215, 205, 255, 0.55)', 1.5);
+      else poly([[L.x0, L.y], [L.x1, L.y]], null, 'rgba(225, 215, 255, 0.85)', 4);
+    }
+    const oy = pl.origin[1];
+    for (const W of pl.walls ?? []) poly([[W.s, W.y0 - oy], [W.s, W.y1 - oy]], null, W.climb === false ? 'rgba(255, 200, 160, 0.6)' : 'rgba(250, 245, 255, 0.95)', 3);
+    for (const e of [-pl.halfWidth, pl.halfWidth]) poly([[e, g], [e, top]], null, 'rgba(250, 245, 255, 0.6)', 3);
+    poly([[-pl.halfWidth, g], [pl.halfWidth, g]], null, 'rgba(225, 215, 255, 0.5)', 2);
+  };
+}
+
 /** set ice's stretches (sloped from y0 to y1) as flat one-way ledges a body can stand on: a sloped one in steps of at
  *  most 0.3 m, each at the stretch's height at its middle */
 export function flatSteps(stretches: readonly IceLedge[]): Ledge[] {
@@ -124,14 +194,20 @@ export async function playDemo(ctx: PlayCtx): Promise<PlayHandle> {
   const iceLedges = (plane: StagePlane | null): Ledge[] => (ice && plane && (!ice.setIce.world || ice.setIce.world === ctx.world().id) ? flatSteps(ice.setIce.ledgesIn(plane)) : []);
   const controllers: IntentController[] = [];
   const dancers: Dancer[] = [];
+  // the duel's movement (&duel), on a test arena of its own (&arena=test)
+  const q = new URLSearchParams(location.search);
+  const arenaTest = q.get('arena') === 'test', duel = arenaTest || q.has('duel');
+  let arena: StagePlane | null = null, arenaBase: StagePlane | null = null;
   const addDancer = (seat: number) => {
     const sp = ctx.world().spawns[seat] ?? [seat ? 1.2 : -1.2, 0, 0];
     // (each dancer on its own world's ground: see PlayCtx.worldOf)
     let dancer: Dancer | null = null;
     const home = () => (dancer && ctx.worldOf ? ctx.worldOf(dancer) : ctx.world());
-    const terrain = { groundAt: (x: number, z: number) => home().groundAt(x, z), get fallY() { return home().fallY; } };
+    // (its solids too: a body on the duel's profile stands on them and kicks off them)
+    const terrain = { groundAt: (x: number, z: number) => home().groundAt(x, z), get fallY() { return home().fallY; }, get solids() { return home().solids; } };
     const c = new IntentController(skel, { seat, terrain, moves, at: [sp[0], sp[1], sp[2]] });
     c.character.flourish = flourish?.name ?? null;
+    if (duel) c.character.setProfile(DUEL_PHYS);
     c.character.extraLedges = () => iceLedges(c.character.plane);
     c.character.yaw = seat ? -Math.PI / 2 : Math.PI / 2;
     if (lockedPlane) c.setPlane(lockedPlane);
@@ -165,6 +241,7 @@ export async function playDemo(ctx: PlayCtx): Promise<PlayHandle> {
     },
     facing: (i) => controllers[i]?.character.dir ?? 1,
   });
+  if (duel) hub.scheme = 'duel';
   let pad: TouchPad | null = null;
   const seat = (p: Player) => {
     if (p.device !== 'bot') ctx.wake();
@@ -194,7 +271,11 @@ export async function playDemo(ctx: PlayCtx): Promise<PlayHandle> {
   const planeOf = (): StagePlane | null => {
     // the world's own stage, as it is (the pool's has no ledges on purpose: the pure stage); a test plane only where a
     // world has none
-    return ctx.world().stages[0] ?? TEST_PLANE;
+    const base = ctx.world().stages[0] ?? TEST_PLANE;
+    if (!arenaTest) return base;
+    // (the test arena on that stage, made once per stage so the lock keeps one plane)
+    if (base !== arenaBase) { arenaBase = base; arena = testArena(base); }
+    return arena;
   };
   const setLock = (plane: StagePlane | null) => {
     lockedPlane = plane;
@@ -229,6 +310,13 @@ export async function playDemo(ctx: PlayCtx): Promise<PlayHandle> {
     rig.lookBy(look.camX, look.camY, f.dt);
     pad?.update();
   }, 'play: the lock, partners, the follow camera');
+
+  // the test arena: locked onto from the start, drawn over the canvas
+  if (arenaTest) {
+    rig.lock(planeOf());
+    const draw = arenaOverlay(canvas, kit, () => (rig.mode === 'locked' ? rig.plane : null));
+    frame.tick('post', () => draw(), 'play: the test arena overlay');
+  }
 
   const addPlayer = (source: IntentSource) => { const c = addDancer(controllers.length); c.source = source; source.mode = lockedPlane ? 'locked' : 'free'; show.stage(show.program); return c; };
   return { hub, controllers, dancers, plane: () => lockedPlane, addDancer: (d) => { others.push(d); show.stage(show.program); }, addPlayer };

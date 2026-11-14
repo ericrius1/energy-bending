@@ -76,11 +76,12 @@ function build(): TempleDuel {
     walls.push({ id: `arch${id}.end`, s: a1, side: side < 0 ? 1 : -1, y0: colTop, y1: colTop + arch.thick });
   }
   // a second lintel mirroring the jogo's (its columns behind the stage at the same depth), and the high one over the
-  // middle on two taller columns further back, clear of the low lintels' columns and their back edge
+  // middle on two taller columns further back, clear of the low lintels' columns and their back edge, high enough over
+  // them (2.25 m under it) that a jump from a low lintel doesn't meet its underside
   const low = jogo.find((l) => l.id === 'lintel')!;
   lintel(-low.x1, -low.x0, low.y, low.thick ?? 0.5, SZ - 1.55, SZ + 0.35, 0.55, SZ - 0.95);
   ledges.push({ id: 'lintelL', x0: -low.x1, x1: -low.x0, y: low.y, thick: low.thick });
-  const high = { x0: -2.0, x1: 2.0, top: 5.3, thick: 0.55 };
+  const high = { x0: -2.0, x1: 2.0, top: 5.9, thick: 0.55 };
   lintel(high.x0, high.x1, high.top, high.thick, SZ - 2.55, SZ + 0.3, 0.55, SZ - 2.15);
   ledges.push({ id: 'high', x0: high.x0, x1: high.x1, y: high.top, thick: high.thick });
 
@@ -130,7 +131,7 @@ function build(): TempleDuel {
   all.forEach((st, i) => data.set([...st.at, st.yaw, ...st.size, st.kind === 'drum' ? 1 : 0, st.seed, st.broken, st.carve, st.tilt], i * STONE_FLOATS));
   const arena: Arena = {
     world: 'temple',
-    space: { center: [0, 0, -0.5], radius: 11, yKill: -2.2, yTop: 8.4 },
+    space: { center: [0, 0, -0.5], radius: 11, yKill: -2.2, yTop: 9.0 },
     spawns: [[-3, 0, SZ], [3, 0, SZ], [0, 0.9, 4.4], [-7.6, colTop + arch.thick, SZ], [7.6, colTop + arch.thick, SZ], [3.6, 3.0, -7.8], [-6, 0, 6.5]],
     pieces: solidsOf(all), plane, drops,
     camera: { minDist: 9, maxDist: 22, lens: 30, low: -0.6 },

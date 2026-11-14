@@ -6,6 +6,7 @@
 import type { CameraRig, StagePlane } from '../engine/camera';
 import type { Show } from '../dancer/show';
 import type { World } from '../worlds/world';
+import type { FrameBuilder } from '../engine/frame';
 import { arenaFor, arenas, showArena, type Arena } from './arena';
 import { arenaParams } from './arena-layer';
 
@@ -21,6 +22,12 @@ export interface ArenaViewCtx {
  *  says, or just above the kill floor), so the rig's framing (nobody on it: the whole stage) takes in the drops as well */
 function viewPlane(a: Arena): StagePlane {
   return { ...a.plane, ground: a.camera?.low ?? a.space.yKill + 0.6, height: a.space.yTop };
+}
+
+/** ?play&duel: the arena of whichever world the main view shows, shown under the players (until the duel's own rules
+ *  turn it on and off themselves) */
+export function arenaInPlay(frame: FrameBuilder, world: () => string) {
+  frame.tick('input', () => showArena(arenaFor(world()) ? world() : null), 'the duel arena shown (?play&duel)');
 }
 
 export async function arenaView(o: ArenaViewCtx) {

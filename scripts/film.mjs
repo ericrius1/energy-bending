@@ -235,7 +235,7 @@ await new Promise((ok) => server.listen(PORT, '127.0.0.1', ok));
 // ---------------------------------------------------------------- the lock
 let release = null, heldAt = 0;
 const holds = [];
-async function lock() { release = await takeLock({ say: log, waitMs: 1000 }); heldAt = Date.now(); }
+async function lock() { release = await takeLock({ say: log, waitMs: 1000, heavy: !PREVIEW }); heldAt = Date.now(); }
 function unlock(what) {
   if (!release) return;
   const s = (Date.now() - heldAt) / 1000;

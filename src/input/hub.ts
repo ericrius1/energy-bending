@@ -7,7 +7,7 @@
 import { KeyboardSource, keysOf, type KeyLayout, type KeyboardOptions } from './keyboard';
 import { GamepadHub, type GetPads, type GamepadSource } from './gamepad';
 import { TouchSource } from './touch';
-import { hasDOM, type IntentSource } from './intent';
+import { hasDOM, type IntentSource, type Scheme } from './intent';
 
 export type Device = 'keyboard' | 'gamepad' | 'touch' | 'camera' | 'bot';
 export interface Player {
@@ -41,6 +41,10 @@ export class InputHub {
   onChange: ((p: Player) => void) | null = null;
   readonly pads: GamepadHub;
   private max: number;
+  private _scheme: Scheme = 'jogo';
+  /** what the buttons mean for every device seated now and later: the jogo's or the duel's (input/intent.ts Scheme) */
+  get scheme() { return this._scheme; }
+  set scheme(s: Scheme) { this._scheme = s; for (const p of this.players) if (p.device !== 'bot' && p.device !== 'camera') p.source.scheme = s; }
   private handlers: [EventTarget, string, EventListener][] = [];
 
   constructor(private o: HubOptions = {}) {
@@ -58,6 +62,7 @@ export class InputHub {
   get full() { return this.players.length >= this.max; }
   private add(source: IntentSource, device: Device, slot: number | KeyLayout) {
     const p: Player = { index: this.players.length, source, device, slot };
+    if (device !== 'bot' && device !== 'camera') source.scheme = this._scheme;
     this.players.push(p);
     this.onJoin?.(p);
     return p;
@@ -68,7 +73,9 @@ export class InputHub {
       dancerScreen: this.o.dancerScreen ? () => this.o.dancerScreen!(player) : undefined,
       facing: this.o.facing ? () => this.o.facing!(player) : undefined,
     };
-    return new KeyboardSource(layout, opts);
+    const k = new KeyboardSource(layout, opts);
+    k.scheme = this._scheme;
+    return k;
   }
 
   /** a key went down somewhere (the DOM calls this; tests may) */

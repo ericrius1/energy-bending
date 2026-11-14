@@ -13,6 +13,7 @@ import { stagePlane } from '../stage';
 import { arenas, floorWithDrops, mergeWalls, sides, type Arena, type Drop } from '../../duel/arena';
 import { layoutShelves, packBlades, solidsOfShelves, type Blade } from './shelves';
 import { HUB_GATES } from './gates';
+import { boxOn, type Solid } from '../solids';
 
 type V3 = [number, number, number];
 
@@ -33,7 +34,7 @@ const HALF = 8.7;
 function build(): GeodeDuel {
   const rng = mulberry32.create(53);
   const r = () => mulberry32.sample(rng);
-  const blades: Blade[] = [], points: Blade[] = [];
+  const blades: Blade[] = [], points: Blade[] = [], beamSolids = new Map<Blade, Solid>();
   const aim = (d: V3) => { const l = Math.hypot(...d) || 1; return { yaw: Math.atan2(d[0], d[2]), pitch: Math.asin(Math.max(-1, Math.min(1, d[1] / l))) }; };
   /** a shelf as shelves.ts grows them: a raft of prisms side by side, their tops flush, from `root` along `yaw` */
   const raft = (root: V3, yaw: number, across: [number, number], w: number, len: number) => {
@@ -49,7 +50,9 @@ function build(): GeodeDuel {
     // (from the floor up: the backdrop writes no depth, so anything under the floor would show through it; the drop's
     // side below is the backdrop's)
     const x = (s0 + s1) / 2;
-    blades.push({ at: [x - Math.sin(yaw) * depth / 2, 0, z - Math.cos(yaw) * depth / 2], yaw, pitch: Math.PI / 2, w: s1 - s0, thick: depth, len: top, tip: 0.04, seed: r() });
+    const b: Blade = { at: [x - Math.sin(yaw) * depth / 2, 0, z - Math.cos(yaw) * depth / 2], yaw, pitch: Math.PI / 2, w: s1 - s0, thick: depth, len: top, tip: 0.04, seed: r() };
+    blades.push(b);
+    beamSolids.set(b, boxOn([x, 0, z], [s1 - s0, top, depth], yaw));
   };
   const point = (at: V3, dir: V3, w: number, len: number, tint: number, glow: number, tip?: number) => {
     points.push({ at, ...aim(dir), w, thick: w, len, tip: tip ?? w * (0.9 + 0.8 * r()), seed: r(), tint, glow });
@@ -76,7 +79,8 @@ function build(): GeodeDuel {
     druse(side * (HALF + 0.3), 0.7, 1.6, 4, 0.6);
   }
   // shelves from the great crystals in along the plane: the left lower than the right, as the jogo's are
-  const mids = [{ id: 'midL', side: -1, y: 3.3, to: -6.0 }, { id: 'midR', side: 1, y: 4.0, to: 6.0 }];
+  // (2 m clear over the jogo's low shelves under them, so a jump from those doesn't meet their undersides)
+  const mids = [{ id: 'midL', side: -1, y: 3.6, to: -6.0 }, { id: 'midR', side: 1, y: 4.4, to: 6.0 }];
   for (const m of mids) {
     raft([m.side * HALF, m.y, 0], -m.side * Math.PI / 2, [0, 1], 1.4, Math.abs(m.to - m.side * HALF));
     ledges.push({ id: m.id, x0: Math.min(m.side * HALF, m.to), x1: Math.max(m.side * HALF, m.to), y: m.y, thick: 0.45 });
@@ -85,7 +89,7 @@ function build(): GeodeDuel {
   // them across the plane (0.7 m past it, as the jogo's high blade does)
   point([0, 0, -5.7], [0, 1, 0.03], 1.6, 8.4, 4, 0.8, 1.6);
   druse(0, -5.2, 2.2, 5, 1.0);
-  const highs = [{ id: 'highL', x: -4.3, y: 5.3, w: 1.8, z: -3.9 }, { id: 'highR', x: 4.3, y: 5.3, w: 1.8, z: -3.9 }, { id: 'top', x: 0, y: 6.9, w: 2.0, z: -5.0 }];
+  const highs = [{ id: 'highL', x: -4.3, y: 5.8, w: 1.8, z: -3.9 }, { id: 'highR', x: 4.3, y: 5.8, w: 1.8, z: -3.9 }, { id: 'top', x: 0, y: 7.4, w: 2.0, z: -5.0 }];
   for (const h of highs) {
     raft([h.x, h.y, h.z], 0, [1, 0], h.w, 0.7 - h.z);
     ledges.push({ id: h.id, x0: h.x - h.w / 2, x1: h.x + h.w / 2, y: h.y, thick: 0.5 });
@@ -137,11 +141,12 @@ function build(): GeodeDuel {
     ...stagePlane({ id: 'geode.duel', origin: [0, 0, 0], right: [1, 0, 0], halfWidth: HALF, ground: null, ledges, spawns: [[-1.2, 0], [1.2, 0]], lens: 40, pitch: 0.06, yaw: 0.04, height: 8.6 }),
     walls: mergeWalls(walls, HALF),
   };
-  const pieces = solidsOfShelves(blades, points);
+  // (a beam's solid with its y axis up, as the movement reads a box's top; the rest as the shelves' own)
+  const pieces = [...solidsOfShelves(blades.filter((b) => !beamSolids.has(b)), points), ...beamSolids.values()];
   const arena: Arena = {
     world: 'geode',
-    space: { center: [0, 0, -1.2], radius: 10.5, yKill: -2.0, yTop: 9.0 },
-    spawns: [[-1.2, 0, 0.6], [3.0, 0, 2.4], [6.6, 2.4, -3.0], [-7.0, 3.3, 0], [-3.4, 3.6, -6.9], [0, 3.1, -1.6]],
+    space: { center: [0, 0, -1.2], radius: 10.5, yKill: -2.0, yTop: 9.6 },
+    spawns: [[-1.2, 0, 0.6], [3.0, 0, 2.4], [6.6, 2.4, -3.0], [-7.0, 3.6, 0], [-3.4, 3.6, -6.9], [0, 3.1, -1.6]],
     pieces, plane, drops,
     camera: { minDist: 6, maxDist: 10.5, lens: 40, low: -0.6 },
     // (the selenite's honey light)

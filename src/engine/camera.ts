@@ -38,7 +38,8 @@ type V3 = [number, number, number];
  *  height at a beat, for physics and drawing alike */
 export interface Ledge { id: string; x0: number; x1: number; y: number; solid?: boolean; thick?: number; bob?: number }
 
-/** a face of a stage plane a body can slide down and kick off (the duel: docs/design/duel.md) */
+/** a vertical face on a stage plane (the duel's walls: docs/design/duel.md). A body on its facing side can't pass it,
+ *  and (climbable) slides down it and kicks off it (dancer/character.ts). One-sided: a block has two, one per side */
 export interface Wall {
   id: string;
   /** position along the plane's right axis (metres from its origin), and the side that faces the player:
@@ -62,11 +63,11 @@ export interface StagePlane {
   /** the floor's height (plane y, m), or null for a pit (fall out and re-form at a spawn) */
   ground: number | null;
   ledges: Ledge[];
+  /** vertical faces a body stops at, slides down and kicks off (the duel's). The plane's own ends (±halfWidth) count
+   *  as walls too (climbable, full height) */
+  walls?: Wall[];
   /** where the players appear: [s, y] per seat */
   spawns: [number, number][];
-  /** walls to slide on and kick off (the duel). The plane's own ends (±halfWidth) count as walls too (climbable, full
-   *  height) */
-  walls?: Wall[];
   /** the height of a ledge at a beat, when the stage moves its ledges its own way (default: `ledgeY`) */
   ledgeY?: (ledge: Ledge, beat: number) => number;
   /** how much of the plane above its floor to frame when nobody is on it (m; default 3) */

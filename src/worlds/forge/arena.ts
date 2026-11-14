@@ -24,9 +24,9 @@ const STONES: Stone[] = [
   { id: 'lowR', x: 7.3, z: 0, top: -1.0, R: 0.36, rad: 1.1, depth: 2.6, edge: 1.9, row: [1, 1] },
   { id: 'midL', x: -7.2, z: 0, top: 3.4, R: 0.36, rad: 1.0, depth: 2.4, edge: 2.0, row: [1, 1] },
   { id: 'midR', x: 7.2, z: 0, top: 3.4, R: 0.36, rad: 1.0, depth: 2.4, edge: 2.0, row: [1, 1] },
-  { id: 'highL', x: -4.5, z: 0, top: 5.1, R: 0.3, rad: 0.9, depth: 1.6, edge: 1.1, row: [1, 1] },
-  { id: 'highR', x: 4.5, z: 0, top: 5.1, R: 0.3, rad: 0.9, depth: 1.6, edge: 1.1, row: [1, 1] },
-  { id: 'top', x: 0, z: 0, top: 6.8, R: 0.3, rad: 0.9, depth: 1.4, edge: 0.9, row: [1, 1] },
+  { id: 'highL', x: -4.5, z: 0, top: 5.6, R: 0.3, rad: 0.9, depth: 1.6, edge: 1.1, row: [1, 1] },
+  { id: 'highR', x: 4.5, z: 0, top: 5.6, R: 0.3, rad: 0.9, depth: 1.6, edge: 1.1, row: [1, 1] },
+  { id: 'top', x: 0, z: 0, top: 7.2, R: 0.3, rad: 0.9, depth: 1.4, edge: 0.9, row: [1, 1] },
   // behind the stage, climbing away from the anvil's back edge (the gate's lobe left clear)
   { id: 'back1', x: 3.2, z: -5.6, top: 1.2, R: 0.36, rad: 1.3, depth: 2.2, edge: 1.2 },
   { id: 'back2', x: 7.2, z: -4.2, top: 2.7, R: 0.36, rad: 1.1, depth: 2.4, edge: 1.4 },

@@ -1,0 +1,187 @@
+[
+ {
+  "name": "geode-lock",
+  "query": "play&two&hud=demo&dress=fire,water",
+  "world": "geode",
+  "wake": true,
+  "lock": true,
+  "frames": 90,
+  "eval2": "const d = bend.hud.demo; let s = 13; for (; s < 60; s += 0.05) { if (d.at(s).pops.some((p) => p.kind === \"ko\" && p.age < 0.1)) break; } d.at(s - 0.8);",
+  "frames2": 60
+ },
+ {
+  "name": "pool-lock",
+  "query": "play&two&hud=demo&dress=fire,water",
+  "world": "pool",
+  "wake": true,
+  "lock": true,
+  "frames": 90,
+  "eval2": "const d = bend.hud.demo; let s = 13; for (; s < 60; s += 0.05) { if (d.at(s).pops.some((p) => p.kind === \"ko\" && p.age < 0.1)) break; } d.at(s - 0.8);",
+  "frames2": 60
+ },
+ {
+  "name": "temple-lock",
+  "query": "play&two&hud=demo&dress=fire,water",
+  "world": "temple",
+  "wake": true,
+  "lock": true,
+  "frames": 90,
+  "eval2": "const d = bend.hud.demo; let s = 13; for (; s < 60; s += 0.05) { if (d.at(s).pops.some((p) => p.kind === \"ko\" && p.age < 0.1)) break; } d.at(s - 0.8);",
+  "frames2": 60
+ },
+ {
+  "name": "forge-lock",
+  "query": "play&two&hud=demo&dress=fire,water",
+  "world": "forge",
+  "wake": true,
+  "lock": true,
+  "frames": 90,
+  "eval2": "const d = bend.hud.demo; let s = 13; for (; s < 60; s += 0.05) { if (d.at(s).pops.some((p) => p.kind === \"ko\" && p.age < 0.1)) break; } d.at(s - 0.8);",
+  "frames2": 60
+ },
+ {
+  "name": "redwoods-day-lock",
+  "query": "play&two&hud=demo&dress=fire,water",
+  "world": "redwoods",
+  "wake": true,
+  "lock": true,
+  "params": {
+   "redwoods": {
+    "hour": 11,
+    "dayGoes": false
+   }
+  },
+  "frames": 90,
+  "eval2": "const d = bend.hud.demo; let s = 13; for (; s < 60; s += 0.05) { if (d.at(s).pops.some((p) => p.kind === \"ko\" && p.age < 0.1)) break; } d.at(s - 0.8);",
+  "frames2": 60
+ },
+ {
+  "name": "redwoods-night-lock",
+  "query": "play&two&hud=demo&dress=fire,water",
+  "world": "redwoods",
+  "wake": true,
+  "lock": true,
+  "params": {
+   "redwoods": {
+    "hour": 22.5,
+    "dayGoes": false
+   }
+  },
+  "frames": 90,
+  "eval2": "const d = bend.hud.demo; let s = 13; for (; s < 60; s += 0.05) { if (d.at(s).pops.some((p) => p.kind === \"ko\" && p.age < 0.1)) break; } d.at(s - 0.8);",
+  "frames2": 60
+ },
+ {
+  "name": "geode-free",
+  "query": "play&two&hud=demo&dress=fire,water",
+  "world": "geode",
+  "wake": true,
+  "lock": false,
+  "frames": 90,
+  "eval2": "const d = bend.hud.demo; let s = 13; for (; s < 60; s += 0.05) { if (d.at(s).pops.some((p) => p.kind === \"ko\" && p.age < 0.1)) break; } d.at(s - 0.8);",
+  "frames2": 60
+ },
+ {
+  "name": "pool-free",
+  "query": "play&two&hud=demo&dress=fire,water",
+  "world": "pool",
+  "wake": true,
+  "lock": false,
+  "frames": 90,
+  "eval2": "const d = bend.hud.demo; let s = 13; for (; s < 60; s += 0.05) { if (d.at(s).pops.some((p) => p.kind === \"ko\" && p.age < 0.1)) break; } d.at(s - 0.8);",
+  "frames2": 60
+ },
+ {
+  "name": "temple-free",
+  "query": "play&two&hud=demo&dress=fire,water",
+  "world": "temple",
+  "wake": true,
+  "lock": false,
+  "frames": 90,
+  "eval2": "const d = bend.hud.demo; let s = 13; for (; s < 60; s += 0.05) { if (d.at(s).pops.some((p) => p.kind === \"ko\" && p.age < 0.1)) break; } d.at(s - 0.8);",
+  "frames2": 60
+ },
+ {
+  "name": "forge-free",
+  "query": "play&two&hud=demo&dress=fire,water",
+  "world": "forge",
+  "wake": true,
+  "lock": false,
+  "frames": 90,
+  "eval2": "const d = bend.hud.demo; let s = 13; for (; s < 60; s += 0.05) { if (d.at(s).pops.some((p) => p.kind === \"ko\" && p.age < 0.1)) break; } d.at(s - 0.8);",
+  "frames2": 60
+ },
+ {
+  "name": "redwoods-day-free",
+  "query": "play&two&hud=demo&dress=fire,water",
+  "world": "redwoods",
+  "wake": true,
+  "lock": false,
+  "params": {
+   "redwoods": {
+    "hour": 11,
+    "dayGoes": false
+   }
+  },
+  "frames": 90,
+  "eval2": "const d = bend.hud.demo; let s = 13; for (; s < 60; s += 0.05) { if (d.at(s).pops.some((p) => p.kind === \"ko\" && p.age < 0.1)) break; } d.at(s - 0.8);",
+  "frames2": 60
+ },
+ {
+  "name": "redwoods-night-free",
+  "query": "play&two&hud=demo&dress=fire,water",
+  "world": "redwoods",
+  "wake": true,
+  "lock": false,
+  "params": {
+   "redwoods": {
+    "hour": 22.5,
+    "dayGoes": false
+   }
+  },
+  "frames": 90,
+  "eval2": "const d = bend.hud.demo; let s = 13; for (; s < 60; s += 0.05) { if (d.at(s).pops.some((p) => p.kind === \"ko\" && p.age < 0.1)) break; } d.at(s - 0.8);",
+  "frames2": 60
+ },
+ {
+  "name": "geode-countdown",
+  "query": "play&two&hud=demo&dress=fire,water",
+  "world": "geode",
+  "wake": true,
+  "lock": true,
+  "frames": 30,
+  "eval2": "bend.hud.demo.at(1.25);",
+  "frames2": 12
+ },
+ {
+  "name": "geode-bend",
+  "query": "play&two&hud=demo&dress=fire,water",
+  "world": "geode",
+  "wake": true,
+  "lock": true,
+  "frames": 10,
+  "eval2": "bend.hud.demo.at(2.85);",
+  "frames2": 14
+ },
+ {
+  "name": "geode-won",
+  "query": "play&two&hud=demo&dress=fire,water",
+  "world": "geode",
+  "wake": true,
+  "lock": true,
+  "frames": 10,
+  "eval2": "const d = bend.hud.demo; let s = 20; for (; s < 90; s += 0.5) { if (d.at(s).round.phase === \"won\") break; } d.at(s - 0.4);",
+  "frames2": 60
+ },
+ {
+  "name": "pool-free-behind",
+  "query": "play&two&hud=demo&dress=fire,water",
+  "world": "pool",
+  "wake": true,
+  "lock": false,
+  "frames": 60,
+  "eval": "bend.hud.demo.at(9);",
+  "eval2": "const c = bend.camera(), e = c.eye, t = c.target; bend.place(1, e[0] + (e[0] - t[0]) * 0.3 + 1.2, e[2] + (e[2] - t[2]) * 0.3);",
+  "frames2": 4
+ }
+]
