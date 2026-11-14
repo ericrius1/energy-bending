@@ -4,9 +4,11 @@
 // in them; and through a whole simulated set (the real bodies, brains and arena: sim.ts) the turn is smooth (bounded,
 // no snaps) and the flyer stays in frame.
 import { test, assert, near, done } from '../dancer/test/check';
-import { DUEL_CAM, DuelCamera, apexOf, fit, screenOf, short, type CamBody, type CamSpace, type V3 } from './camera';
-import { Solids, distTo } from '../engine/camera';
+import { DUEL_CAM, IMPULSE, DuelCamera, apexOf, fit, screenOf, short, type CamBody, type CamImpulseKind, type CamInput, type CamSpace, type V3 } from './camera';
+import { Solids } from '../engine/camera';
 import { simulateDuel, nodeArena, makeBrains } from './sim';
+import { judge, spaceOf as camSpaceOf } from './camspace';
+import { CAM_WORLDS, nodeWorld } from './camworlds';
 
 const ASPECT = 16 / 9;
 /** a body standing (or flying) with its feet at r: the points the page frames, from a rough skeleton */
@@ -14,11 +16,8 @@ const bodyAt = (r: V3, vel: V3 = [0, 0, 0], air = false): CamBody => {
   const at = (dy: number, dx = 0): V3 => [r[0] + dx, r[1] + dy, r[2]];
   return { pts: [at(0.95), at(1.3), at(1.2, 0.5), at(1.2, -0.5), at(0.05, 0.15), at(0.05, -0.15)], sight: [at(0.95), at(1.3)], head: at(1.8), root: [...r] as V3, vel, air };
 };
-const spaceOf = (S: Solids, groundAt: (x: number, z: number) => number): CamSpace => ({
-  clear: (p) => { let d = Infinity; for (const s of S.list) d = Math.min(d, distTo(s, p)); return d; },
-  blocked: (a, b) => S.sweep(a, b, 0.2) < 0.98,
-  ground: groundAt,
-});
+/** the page's space (camspace.ts): the eye, the sight lines and the frame's near part judged against every solid */
+const spaceOf = (S: Solids, groundAt: (x: number, z: number) => number): CamSpace => camSpaceOf(S.list, groundAt)!;
 const inFrame = (s: [number, number] | null, top = 0.08) => !!s && s[0] >= 0 && s[0] <= 1 && s[1] >= top && s[1] <= 1;
 
 test('the fit holds every point inside the margins, and stands no further back than it must', () => {
@@ -137,5 +136,141 @@ test('through a simulated temple set the turn is smooth and the flyer stays in f
   assert(flips / (n / 3600) < 30, `the turn reversed ${flips} times (${(flips / (n / 3600)).toFixed(0)} a minute)`);
   return `${n} frames: flyer in frame ${up - upOut}/${up}, eye near a stone ${nearEye}, largest turn a frame ${(maxStep * 57.3).toFixed(2)}°, ${flips} reversals`;
 });
+
+/** a simulated set in a world with the camera framing it, every frame judged (camprobe.ts measures many more) */
+function judgeSet(id: string, seed: number, seconds: number, dress: [string, string], impulses = false) {
+  const { arena, world } = nodeWorld(id);
+  const cam = new DuelCamera();
+  let space: CamSpace | null = null, version = -1;
+  const T = { n: 0, nearEye: 0, fg10: 0, hidden: 0, flyer: 0, flyerOut: 0 };
+  simulateDuel({
+    arena, world, seconds, dress, brains: makeBrains(['lead', 'flyer'], [0.85, 0.85], [seed, seed + 7]),
+    each: ({ match, powers, bodies, events }) => {
+      // (the powers' steps and pillars in the solids while they stand, as World.solids has them in the page)
+      if ((powers?.version ?? 0) !== version) { version = powers?.version ?? 0; space = camSpaceOf([...(world.solids ?? [])], world.groundAt); }
+      if (match.state.phase !== 'play') return;
+      const B = bodies.map((c) => ({ ...bodyAt([c.root[0], c.root[1], c.root[2]], [c.v[0], c.v[1], c.v[2]], !c.grounded), away: c.reforming }));
+      const seen = B.filter((b) => !b.away);
+      if (impulses) {
+        for (const x of match.touches) if (x.kind === 'catch' || x.kind === 'aerial' || x.kind === 'fling' || x.kind === 'lift') cam.impulse({ at: x.at, kind: x.kind === 'aerial' ? 'catch' : x.kind, k: 1 });
+        for (const e of events) if (e.k === 'merge') cam.impulse({ at: match.contact.link?.at ?? B[0].head, kind: 'merge', k: 1 });
+      }
+      const pose = cam.update(1 / 60, { bodies: B, aspect: ASPECT, gravity: 40, space, near: 0.6, center: arena.space.center, room: arena.camera?.maxDist ?? 22, maxDist: arena.camera?.maxDist });
+      const J = judge(pose, seen.length ? seen : B, space, ASPECT);
+      T.n++;
+      if (J.clear < 0.6) T.nearEye++;
+      if (J.fg >= 0.1) T.fg10++;
+      if (J.hidden[0] >= 0.6 || J.hidden[1] >= 0.6) T.hidden++;
+      const dh = B[0].head[1] - B[1].head[1];
+      let f: number | null = match.contact.flown?.flyer ?? null;
+      if (f == null && Math.abs(dh) > 1) f = dh > 0 ? 0 : 1;
+      if (f != null && B[f].air) { T.flyer++; if (!inFrame(screenOf([B[f].head[0], B[f].head[1] + 0.12, B[f].head[2]], pose.eye, pose.look, pose.fov, ASPECT))) T.flyerOut++; }
+    },
+  });
+  return T;
+}
+
+test('in all four arenas the eye stays clean: out of the pieces, nothing across the near frame, the flyer in frame', () => {
+  const lines: string[] = [];
+  let n = 0, nearEye = 0, fg10 = 0, flyer = 0, flyerOut = 0;
+  const dress: [string, string][] = [['fire', 'water'], ['water', 'ice'], ['plasma', 'gems'], ['ice', 'gems']];
+  CAM_WORLDS.forEach((id, i) => {
+    const T = judgeSet(id, 11 + i * 17, 30, dress[i]);
+    n += T.n; nearEye += T.nearEye; fg10 += T.fg10; flyer += T.flyer; flyerOut += T.flyerOut;
+    lines.push(`${id} ${(100 * T.fg10 / T.n).toFixed(1)}% near frame, ${(100 * T.nearEye / T.n).toFixed(1)}% eye near, flyer ${T.flyer - T.flyerOut}/${T.flyer}`);
+  });
+  // (camprobe's 24 sets on master with the arenas track's hazards: a piece across a tenth of the frame in 6.4% of frames
+  // before phase 3, 3.5% after; one geode set among the high shelves is most of what is left here: report 14-camera)
+  assert(fg10 / n <= 0.075, `a piece across the near frame in ${(100 * fg10 / n).toFixed(1)}% of frames: ${lines.join('; ')}`);
+  assert(nearEye / n <= 0.015, `the eye within the near fade's distance in ${(100 * nearEye / n).toFixed(1)}% of frames`);
+  // (camprobe's 24 sets: the flyer in frame in every frame; this geode set, the pair behind the great crystal trunk under the
+  // high shelves, loses the top 8 % for 2 frames of 741)
+  assert(flyerOut / Math.max(1, flyer) <= 0.002, `the flyer left the frame in ${flyerOut} of ${flyer} frames: ${lines.join("; ")}`);
+  return `${n} frames, flyer in frame ${flyer - flyerOut}/${flyer}: ${lines.join('; ')}`;
+});
+
+/** two bodies standing still, the camera settled on them */
+const still = () => {
+  const cam = new DuelCamera(), I: CamInput = { bodies: [bodyAt([-1, 0, 0]), bodyAt([1, 0, 0])], aspect: ASPECT, gravity: 40, space: null, near: 0.6, center: [0, 0, 0], room: 30 };
+  let pose = cam.update(1 / 60, I);
+  for (let i = 0; i < 240; i++) pose = cam.update(1 / 60, I);
+  return { cam, I, rest: pose };
+};
+
+test('an impulse eases toward the contact and settles back, with no jolt', () => {
+  const lines: string[] = [];
+  for (const kind of Object.keys(IMPULSE) as CamImpulseKind[]) {
+    const { cam, I, rest } = still(), at: V3 = [1.5, 2.2, 0.5];
+    cam.impulse({ at, kind, k: 1 });
+    const eyes: V3[] = [rest.eye], looks: V3[] = [rest.look];
+    const frames = Math.ceil((IMPULSE[kind].len + 0.3) * 60);
+    for (let i = 0; i < frames; i++) { const p = cam.update(1 / 60, I); eyes.push(p.eye); looks.push(p.look); }
+    // (the look point's furthest lean toward the contact, and the eye's largest step and change of step a frame)
+    let lean = 0, vMax = 0, aMax = 0;
+    const toward = (p: V3) => ((p[0] - rest.look[0]) * (at[0] - rest.look[0]) + (p[1] - rest.look[1]) * (at[1] - rest.look[1]) + (p[2] - rest.look[2]) * (at[2] - rest.look[2])) / Math.hypot(at[0] - rest.look[0], at[1] - rest.look[1], at[2] - rest.look[2]);
+    for (const l of looks) lean = Math.max(lean, toward(l));
+    for (const path of [eyes, looks]) for (let i = 1; i < path.length; i++) {
+      const v = Math.hypot(path[i][0] - path[i - 1][0], path[i][1] - path[i - 1][1], path[i][2] - path[i - 1][2]) * 60;
+      vMax = Math.max(vMax, v);
+      if (i > 1) aMax = Math.max(aMax, Math.hypot(...[0, 1, 2].map((j) => path[i][j] - 2 * path[i - 1][j] + path[i - 2][j])) * 3600);
+    }
+    // the first frame barely moves (it starts at rest), the speed changes smoothly, it leans toward the contact, and it
+    // comes back to where it was
+    const first = Math.hypot(...[0, 1, 2].map((j) => eyes[1][j] - eyes[0][j]));
+    assert(first < 0.002, `${kind}: the first frame moved the eye ${(first * 1000).toFixed(1)} mm`);
+    assert(aMax < 12, `${kind}: the eye or the look point accelerated at ${aMax.toFixed(1)} m/s²`);
+    if (IMPULSE[kind].lean > 0) assert(lean > 0.08, `${kind}: leaned only ${lean.toFixed(3)} m toward the contact`);
+    const back = Math.hypot(...[0, 1, 2].map((j) => looks[looks.length - 1][j] - rest.look[j]));
+    assert(back < 0.01, `${kind}: ${back.toFixed(3)} m from rest after it`);
+    lines.push(`${kind} lean ${lean.toFixed(2)} m, ≤ ${vMax.toFixed(2)} m/s, ≤ ${aMax.toFixed(1)} m/s²`);
+  }
+  return lines.join('; ');
+});
+
+test('impulses never let a body out of the frame, nor take the eye into the pieces', () => {
+  // a launch with a merge and catches piling on: the flyer's head stays in frame
+  const cam = new DuelCamera();
+  const base = bodyAt([0, 0, 0]);
+  let p: V3 = [0.6, 1.0, 0], v: V3 = [0.5, 0, 0], out = 0;
+  for (let i = 0; i < 200; i++) {
+    const dt = 1 / 60;
+    if (i === 30) { v = [0.5, 16, 0]; cam.impulse({ at: [0.3, 2.2, 0], kind: 'lift', k: 1 }); cam.impulse({ at: [0.3, 2, 0], kind: 'merge', k: 1 }); }
+    if (i === 60 || i === 70) cam.impulse({ at: [-3, 0.5, 0], kind: 'catch', k: 1 });
+    if (i > 30) { v = [v[0], v[1] - 40 * dt, v[2]]; p = [p[0] + v[0] * dt, Math.max(1.0, p[1] + v[1] * dt), p[2]]; }
+    const flyer = bodyAt(p, v, i > 30 && p[1] > 1.0);
+    const pose = cam.update(dt, { bodies: [base, flyer], aspect: ASPECT, gravity: 40, space: null, near: 0.6, center: [0, 0, 0], room: 30 });
+    for (const b of [base, flyer]) if (!inFrame(screenOf([b.head[0], b.head[1] + 0.12, b.head[2]], pose.eye, pose.look, pose.fov, ASPECT), 0.06)) out++;
+  }
+  assert(out === 0, `a head left the frame in ${out} frames`);
+  // a temple set with an impulse at every catch, fling, lift and merge: as clean as without
+  const plain = judgeSet('temple', 7, 30, ['fire', 'water']), felt = judgeSet('temple', 7, 30, ['fire', 'water'], true);
+  assert(felt.flyerOut === 0, `with impulses the flyer left the frame in ${felt.flyerOut} frames`);
+  assert(felt.nearEye / felt.n <= plain.nearEye / plain.n + 0.005, `with impulses the eye stood near a stone in ${felt.nearEye} frames (${plain.nearEye} without)`);
+  assert(felt.fg10 / felt.n <= plain.fg10 / plain.n + 0.01, `with impulses a piece crossed the near frame in ${felt.fg10} frames (${plain.fg10} without)`);
+  return `the temple with impulses: near frame ${felt.fg10} frames (${plain.fg10} without), eye near ${felt.nearEye} (${plain.nearEye}), of ${felt.n}`;
+});
+
+test('the camera runs on real time: a hit-stop or a slow motion leaves it easing at its own pace', () => {
+  // (the bodies frozen, as in a hit-stop: the game's dt is 0, the camera's is the frame's)
+  const { cam, I } = still();
+  cam.impulse({ at: [0, 2, 0], kind: 'catch', k: 1 });
+  let peak = 0;
+  for (let i = 0; i < 30; i++) { cam.update(1 / 60, I); peak = Math.max(peak, cam.last.lean); }
+  assert(peak > 0.05, `the impulse moved ${peak.toFixed(3)} m while the game stood still`);
+  for (let i = 0; i < Math.ceil(IMPULSE.catch.len * 60); i++) cam.update(1 / 60, I);
+  assert(cam.last.lean < 1e-6, 'the impulse is over after its length in real seconds');
+  // (a slow motion: the bodies move at a fifth of their pace, the camera still turns within its bounds)
+  const c2 = new DuelCamera();
+  let x = 0, prev: number | null = null, maxStep = 0;
+  for (let i = 0; i < 300; i++) {
+    x += 0.2 * 6 / 60;
+    const pose = c2.update(1 / 60, { bodies: [bodyAt([x, 0, 0], [1.2, 0, 0]), bodyAt([2 - x * 0.5, 0, x * 0.8], [-0.6, 0, 1])], aspect: ASPECT, gravity: 40, space: null, near: 0.6, center: [0, 0, 0], room: 30 });
+    if (prev != null) maxStep = Math.max(maxStep, Math.abs(Math.atan2(Math.sin(pose.yaw - prev), Math.cos(pose.yaw - prev))));
+    prev = pose.yaw;
+  }
+  assert(maxStep <= DUEL_CAM.yawRate / 60 + 1e-6, `the yaw jumped ${maxStep.toFixed(3)} rad in a frame`);
+  return `an impulse at a hit-stop leaned ${peak.toFixed(2)} m and was over in ${IMPULSE.catch.len} s`;
+});
+
 
 done();
