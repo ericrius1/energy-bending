@@ -54,6 +54,9 @@ export interface Arena {
   /** (beyond the contract, phase 3) the arena's gentle hazard, nature's own (hazards.ts): the temple's tide, the
    *  redwoods' wind, the Pool's swell, the geode's hum; `hazard.on` its switch */
   hazard?: Hazard;
+  /** (beyond the contract, phase 3) the shared energy here (shared/duel.ts DuelTune): its gains and ebbs scaled, for a
+   *  world whose ground makes the dance denser than the others (the Pool). Absent: as the rules say */
+  energy?: { gain?: number; ebb?: number };
 }
 
 const byWorld = new Map<string, Arena>();

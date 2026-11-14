@@ -125,6 +125,11 @@ function build(): PoolDuel {
     rim: [0.6, 0.78, 1.0],
     // the hazard: a swell across the pool on each phrase, from a different side in turn (hazards.ts)
     hazard: swellHazard({ amp: 0.32, width: 2.1, reach: 13, dirs: [0.3, 2.4, 4.4, 1.3, 3.5, 5.5], movers }),
+    // the shared energy here (shared/duel.ts DuelTune): the water keeps the two within reach and the swell throws them
+    // together, so they meet more and more often in the air (three catches in four from the air, a third more catches
+    // than elsewhere) and the energy sat at the top; its gains a little smaller and its ebbs a little faster keep the
+    // fusion as rare as in the other worlds (report 14-pool-fusion: 31 of 40 sets fused, now about 1 in 9)
+    energy: { gain: 0.93, ebb: 1.15 },
   };
   const data = new Float32Array(rocks.length * ROCK_FLOATS);
   rocks.forEach((k, i) => data.set([...k.at, k.yaw, ...k.size, k.ice ? 1 : 0, k.seed, k.round, 0, 0], i * ROCK_FLOATS));

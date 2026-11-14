@@ -228,6 +228,12 @@ or sway, not a jolt), report 13's issues 1 and 3 became these (report 14):
 - **The finale** settles the powers' effects as FINALE fires (`DuelPowers.settle`: each ends and fades), and a set that
   didn't fuse says how near it came under the banner ("NEARLY · HELD 2.1 S OF 3 AT THE TOP", "· NO MERGE YET"; a set
   never at the top: "FUSION · HOLD 90% FOR 3 S · AND MERGE").
+- **The fusion as rare in every world** (report 14-pool-fusion). The energy's ebb apart no longer halves while both
+  dancers' combos are live: two dancers busy side by side are not playing together. That was the loophole the Pool's
+  water opened, where afloat by the stones both wall-jump all the time. An arena may also scale its world's energy
+  (`Arena.energy: { gain, ebb }`, read into `DuelState.tune`). The Pool's swell and water make its dance denser (a third
+  more catches, three in four from the air), so its gains are ×0.93 and its ebbs ×1.15. At skill 0.85 the fusion is
+  about 1 set in 8 there as elsewhere (the Pool 31 of 40 before, 16 of 120 after).
 
 ## The contracts the parallel work shares
 

@@ -104,7 +104,9 @@ export const DUEL = {
    *  twice on the beat, NOVEL times for a kind not in the pair's last RECENT links); a kind already twice in them
    *  takes ENERGY_REPEAT away instead. Joined, the hold's first CONTACT_FRESH_MS fill it at ENERGY_CONTACT a second;
    *  held on after them it ebbs at EBB_HELD (the same thing held). Apart it ebbs at EBB_NEAR a second within NEAR_M
-   *  (m, across the ground) up to EBB_FAR beyond FAR_M, times EBB_LIVE while both combos are live, and EBB_STALE more
+   *  (m, across the ground) up to EBB_FAR beyond FAR_M (the same whatever each is doing alone: two dancers each busy
+   *  with their own moves side by side are not playing together; until phase 3 it was halved while both combos were
+   *  live, the loophole the Pool's water and swell opened, report 14-pool-fusion), and EBB_STALE more
    *  while the pair's last RECENT links have fewer than STALE_KINDS kinds. Gains are ARC_FROM times as big at a set's
    *  start, growing to whole by ARC_AT of it (the set builds with its music), and (1 - TOP_DRAG × energy²) as big
    *  near the top (the last tenth is hard won: a good set hovers high and reaches the top in its best moments).
@@ -121,7 +123,6 @@ export const DUEL = {
   EBB_HELD: 0.04,
   NEAR_M: 2.5,
   FAR_M: 7,
-  EBB_LIVE: 0.5,
   EBB_STALE: 0.03,
   STALE_KINDS: 3,
   ARC_FROM: 0.5,
@@ -144,6 +145,9 @@ export type LinkKind = 'catch' | 'aerial' | 'swing' | 'fling' | 'flown' | 'lift'
 export const CONTACT_LINKS: ReadonlySet<LinkKind> = new Set<LinkKind>(['catch', 'aerial', 'swing', 'fling', 'flown', 'lift', 'vault', 'counter']);
 /** the pair combo: the two's chain of contact links (n of them, `varied` toward its tiers), the links' worth by who
  *  made them (`share`) and how many each made, the last few links and whose they were */
+/** a world's energy: its gains (a link's, a hold's first moments) and its ebbs (apart, held on) scaled, for a world whose
+ *  ground makes the dance denser than the rules assume (the Pool: its water a floor, its swell throwing the two together) */
+export interface DuelTune { gain: number; ebb: number }
 export interface PairCombo { n: number; varied: number; tier: number; score: number; share: [number, number]; made: [number, number]; links: LinkKind[]; by: number[]; perfect: number; live: boolean; since: number; last: number }
 
 /** a combo: n links, its multiplier and score, the last few links and which of them were on the beat (aligned) */
@@ -192,6 +196,9 @@ export interface DuelState {
   /** the pair combo (both dancers' contact links on one chain), and the longest this set */
   pair: PairCombo;
   pairBest: number;
+  /** the world's energy (the arena's `energy`, DuelTune): its gains and its ebbs scaled; 1, 1 where it plays as the rules
+   *  say */
+  tune: DuelTune;
   stats: { catches: number; aerials: number; swings: number; flings: number; lifts: number; vaults: number; counters: number; falls: number; perfect: number; links: number; merges: number; sets: number };
 }
 
@@ -235,15 +242,15 @@ const countMs = (bpm: number) => Math.max(DUEL.COUNT_MIN_MS, 60000 / Math.max(40
 const stats0 = () => ({ catches: 0, aerials: 0, swings: 0, flings: 0, lifts: 0, vaults: 0, counters: 0, falls: 0, perfect: 0, links: 0, merges: 0, sets: 0 });
 
 /** a duel whose first step begins set 1 (a 'set' event places the bodies, then the count-in) */
-export function newDuel(now: number, bpm = 112): DuelState {
+export function newDuel(now: number, bpm = 112, tune: Partial<DuelTune> = {}): DuelState {
   return {
     phase: 'done', set: 0, since: now - DUEL.DONE_MS, countMs: countMs(bpm), count: DUEL.COUNT_FROM, playFrom: now, winner: null,
     seats: [seat0(), seat0()], energy: 0, peak: 0, merge: 0, joined: false, joinedSince: 0, held: -1, heldSince: 0, recent: [],
-    merges: 0, mergeRest: -1e9, highSince: -1, highBest: 0, fused: false, pair: pair0(), pairBest: 0, stats: stats0(),
+    merges: 0, mergeRest: -1e9, highSince: -1, highBest: 0, fused: false, pair: pair0(), pairBest: 0, tune: { gain: tune.gain ?? 1, ebb: tune.ebb ?? 1 }, stats: stats0(),
   };
 }
 /** from set 1 again (the next step's 'set' event places the bodies) */
-export function restartDuel(d: DuelState, now: number, bpm = 112) { Object.assign(d, { ...newDuel(now, bpm), stats: d.stats }); }
+export function restartDuel(d: DuelState, now: number, bpm = 112) { Object.assign(d, { ...newDuel(now, bpm, d.tune), stats: d.stats }); }
 
 /** a seat's controls are held: the count-in, or reforming after a fall */
 export function frozen(d: DuelState, seat: number) { return d.phase === 'intro' || d.seats[seat].fellAt >= 0; }
@@ -362,7 +369,7 @@ function shareEnergy(d: DuelState, seat: number, kind: LinkKind, perfect: boolea
     const seen = d.recent.filter((x) => x === kind).length;
     if (d.joined || O.live) {
       if (seen >= 2) d.energy = Math.max(0, d.energy - DUEL.ENERGY_REPEAT);
-      else d.energy = Math.min(1, d.energy + DUEL.ENERGY_LINK * arc(d, now, setMs) * (perfect ? 2 : 1) * (seen ? 1 : DUEL.NOVEL)
+      else d.energy = Math.min(1, d.energy + DUEL.ENERGY_LINK * d.tune.gain * arc(d, now, setMs) * (perfect ? 2 : 1) * (seen ? 1 : DUEL.NOVEL)
         * (kind === 'catch' || kind === 'aerial' || kind === 'fling' || kind === 'lift' ? 2 : 1));
     }
     d.recent.push(kind);
@@ -448,15 +455,15 @@ export function duelStep(d: DuelState, now: number, dt: number, bodies: readonly
   if (d.phase === 'play') {
     const s = dt / 1000;
     if (d.joined) {
-      if (now - d.joinedSince < DUEL.CONTACT_FRESH_MS) d.energy = Math.min(1, d.energy + DUEL.ENERGY_CONTACT * arc(d, now, setMs) * s);
-      else d.energy = Math.max(0, d.energy - DUEL.EBB_HELD * s);
+      if (now - d.joinedSince < DUEL.CONTACT_FRESH_MS) d.energy = Math.min(1, d.energy + DUEL.ENERGY_CONTACT * d.tune.gain * arc(d, now, setMs) * s);
+      else d.energy = Math.max(0, d.energy - DUEL.EBB_HELD * d.tune.ebb * s);
     } else {
       const A = bodies[0], B = bodies[1];
       const gap = A.x != null && B.x != null ? Math.hypot(A.x - B.x, (A.z ?? 0) - (B.z ?? 0)) : DUEL.NEAR_M;
       const far = Math.min(1, Math.max(0, (gap - DUEL.NEAR_M) / (DUEL.FAR_M - DUEL.NEAR_M)));
       const stale = d.recent.length >= DUEL.RECENT && new Set(d.recent).size < DUEL.STALE_KINDS ? DUEL.EBB_STALE : 0;
-      const ebb = (DUEL.EBB_NEAR + (DUEL.EBB_FAR - DUEL.EBB_NEAR) * far) * (d.seats[0].combo.live && d.seats[1].combo.live ? DUEL.EBB_LIVE : 1) + stale;
-      d.energy = Math.max(0, d.energy - ebb * s);
+      const ebb = DUEL.EBB_NEAR + (DUEL.EBB_FAR - DUEL.EBB_NEAR) * far + stale;
+      d.energy = Math.max(0, d.energy - ebb * d.tune.ebb * s);
     }
     d.peak = Math.max(d.peak, d.energy);
     if (d.energy >= DUEL.FUSE_AT) {
