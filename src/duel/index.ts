@@ -28,10 +28,9 @@
 // Intent split between its body and the contact (seat gates); travel — the contact and the rules, the effects;
 // camera — the free camera side-on to the pair; post — the glows up to the GPU, the HUD's state.
 import type { FrameCtx } from '../engine/frame';
-import { Solids, distTo, type StagePlane } from '../engine/camera';
+import type { StagePlane } from '../engine/camera';
 import type { Dancer } from '../dancer/dancer';
 import type { IntentController } from '../dancer/intent-controller';
-import type { Music } from '../audio/music';
 import type { PlayApp } from '../play';
 import { makeIntent, EDGES, type Intent, type IntentSource, type InputMode } from '../input/intent';
 import { BotSource } from '../input/touch';
@@ -61,8 +60,12 @@ import type { WaterPasses } from '../matter/water/pool';
 import type { PlasmaPasses } from '../matter/plasma/plasma';
 import { Finale } from './finale';
 import { DuelCamera, type CamBody, type CamSpace } from './camera';
+import { spaceFor } from './camspace';
+import { SEAT_CSS } from './seat';
 import { camKind } from './weight';
 import { DuelHud, screenOf, type HudSeat, type HudState, type HudWord } from './hud-state';
+import { duelSound, phraseSetMs } from './sound';
+import { trackFor } from '../audio/track';
 // (the HUD is the page's one, reached through bend.hud, and screenOf is hud-state.ts's copy of src/hud's: any value
 // imported from src/hud lands in main.ts's own chunk, and the duel's chunk importing it waits for main.ts to finish
 // evaluating, which awaits the duel at the top level: a production build hung, the page never ready)
@@ -157,7 +160,8 @@ export async function startDuel(app: PlayApp, opts: { joined?: Joined } = {}) {
   // ---------------------------------------------------------------- the duel
   let now = 0;
   const bpm0 = 112;
-  const setMs = Number(q.get('set') ?? 60) * 1000;
+  // (a set of whole phrases of the world's track, so its finale lands on a phrase line: sound.ts; a film's or &set's as asked)
+  const setMs = q.has('set') || app.film ? Number(q.get('set') ?? 60) * 1000 : phraseSetMs(60000, trackFor(W.id)?.bpm ?? bpm0);
   const match = new DuelMatch(chars, arena, plane, 0, bpm0, { solids, setMs });
   // the powers by each body's matter (its dress's biggest layer, as dressed: not its form)
   const kindOf = (k: number) => { const d = play.dancers[k]; let best = show.dress[k], share = -1; if (d) for (const l of d.loadout.layers) if (l.share > share) { share = l.share; best = l.kind; } return matterOf(best); };
@@ -250,16 +254,17 @@ export async function startDuel(app: PlayApp, opts: { joined?: Joined } = {}) {
   const fx = new DuelFx({
     glows, dancer, character: (k) => chars[k], element: (k) => elementOf(dancer(k)),
     slot: (k) => { const d = dancer(k); return d ? show.dancers.indexOf(d) : -1; },
-    sfx: (name, o) => { music.sfx(name as Parameters<Music['sfx']>[0], o); }, ear,
+    sfx: (name, o) => sound.jogo(name, o), ear,
     rumble: (k, s, ms) => { const i = humanSeats.indexOf(k); if (i >= 0) hub.rumble(i, s, ms); },
     field: field as unknown as DuelFxCtx['field'], burst: app.hand?.burst ?? null, finale: () => finale.look(),
+    eye: () => [cam.position[0], cam.position[1], cam.position[2]], form: (k) => powers.hud(k).form,
   });
   const water = app.kinds.find((k) => k.id === 'water' || k.id === 'ice') as WaterPasses | undefined;
   const plasma = app.kinds.find((k) => k.id === 'plasma') as PlasmaPasses | undefined;
   const powerFx = new PowerFxDraw({
     glows, dancer, field: field as unknown as ConstructorParameters<typeof PowerFxDraw>[0]['field'], arcs: plasma?.arcs ?? null, setIce: water?.setIce ?? null,
     ripple: (x, z, s, r) => { (world() as unknown as { ripple?: (x: number, z: number, s: number, r: number) => void }).ripple?.(x, z, s, r); },
-    sfx: (name, o) => { music.sfx(name as Parameters<Music['sfx']>[0], o); }, ear,
+    sfx: (name, o) => sound.jogo(name, o), ear,
     rumble: (k, s, ms) => { const i = humanSeats.indexOf(k); if (i >= 0) hub.rumble(i, s, ms); },
   }, (k) => powers.rules.seats[k].matter);
   const hazardFx = new HazardFxDraw({ glows, eye: () => cam.position, ground: (x, z) => world().groundAt(x, z), field: field as unknown as ConstructorParameters<typeof HazardFxDraw>[0]['field'], ripple: (x, z, s, r) => { (world() as unknown as { ripple?: (x: number, z: number, s: number, r: number) => void }).ripple?.(x, z, s, r); } });
@@ -343,25 +348,15 @@ export async function startDuel(app: PlayApp, opts: { joined?: Joined } = {}) {
   // eases the lock in and out from it. A player's own look input (the right stick, the mouse) turns it by hand for a
   // moment. The lock gets the same head room (CameraRig.apexG, headroom)
   const dcam = new DuelCamera();
-  let solidsFor: readonly Solid[] | null = null, solidSet: Solids | null = null;
-  const camSpace = (): CamSpace | null => {
-    const list = solids();
-    if (list.length !== solidsFor?.length) { solidsFor = list; solidSet = list.length ? new Solids(list) : null; }
-    const S = solidSet;
-    if (!S) return null;
-    return {
-      clear: (p) => { let d = Infinity; for (const s of S.list) d = Math.min(d, distTo(s, p)); return d; },
-      blocked: (a, b) => S.sweep(a, b, 0.12) < 0.98,
-      ground: (x, z) => world().groundAt(x, z),
-    };
-  };
+  // (camspace.ts: World.solids with the powers' own, made again whenever one comes or goes)
+  const spaceNow = spaceFor((x, z) => world().groundAt(x, z)), camSpace = (): CamSpace | null => spaceNow(solids());
   const FRAMED = [JOINT.Hips, JOINT.Spine1, JOINT.LeftHand, JOINT.RightHand, JOINT.LeftToeBase, JOINT.RightToeBase];
   const camBody = (k: number): CamBody | null => {
     const d = dancer(k);
     if (!d) return null;
     const J = d.skeleton.world, at = (j: number): V3 => [J[j * JOINT_FLOATS], J[j * JOINT_FLOATS + 1], J[j * JOINT_FLOATS + 2]];
     const c = chars[k];
-    return { pts: FRAMED.map(at), sight: [at(JOINT.Hips), at(JOINT.Spine1)], head: at(JOINT.HeadEnd), root: [c.root[0], c.root[1], c.root[2]], vel: [c.v[0], c.v[1], c.v[2]], air: !c.grounded };
+    return { pts: FRAMED.map(at), sight: [at(JOINT.Hips), at(JOINT.Spine1)], head: at(JOINT.HeadEnd), root: [c.root[0], c.root[1], c.root[2]], vel: [c.v[0], c.v[1], c.v[2]], air: !c.grounded, away: c.reforming };
   };
   rig.apexG = chars[0].phys.gravity;
   rig.headroom = 0.5;
@@ -387,7 +382,9 @@ export async function startDuel(app: PlayApp, opts: { joined?: Joined } = {}) {
     let ev: DuelEvent[];
     if (net) { ev = net.frame(f.danceDt); now = net.now(); }
     else {
-      now += f.danceDt * 1000;
+      // (the set's clock kept with the music: sound.ts SetMusic.nudge, 12 % at most, nothing in a film; online the
+      // set's clock is the room server's)
+      now += f.danceDt * 1000 + sound.music.nudge(f.dt, f.danceDt);
       powers.gripInputs([gates[0].contact, gates[1].contact]);
       ev = match.step(now, beat, bpm, f.danceDt * 1000, [gates[0].contact, gates[1].contact]);
       // the powers after the contact (a catch at range joins the two through it), their effects drawn
@@ -445,12 +442,15 @@ export async function startDuel(app: PlayApp, opts: { joined?: Joined } = {}) {
     // (from: the holder's contact point, its grip; to: the held body's, its chest, which the grip carries)
     const link = L ? { on: true, from: linkAt ?? undefined, to: project(fx.chest(L.held)) } : { on: false };
     hudState = duelHud.build(match.state, now, f.dt, seats, beat, bpm, setMs, link);
+    for (const p of hudState.players) p.color = SEAT_CSS[p.seat];   // (each seat its own colour, whatever its matter: seat.ts)
     (window as unknown as { bend?: { hud?: { set?: (s: HudState) => void } } }).bend?.hud?.set?.(hudState);
   }, 'duel: its glows to the GPU, its HUD state');
 
   // ---------------------------------------------------------------- bend.duel
+  // the duel's sound (sound.ts): its moments, powers, tiers and movement on the music's beat, the track following the set
+  const sound = duelSound({ frame, music, listener: kit.camera, film: app.film, world: () => app.main.world, duel: () => api, wake: () => { app.wake(); if (!music.live && !app.film) music.start(show.program.key); } });
   const api = {
-    match, arena, plane, finale, powers, hazards,
+    match, arena, plane, finale, powers, hazards, sound,
     /** online (&net): the room, this page's seat, the measurements (net.stats()), the client; null offline */
     net,
     /** the free camera (camera.ts): its choice, what it framed, how clear its eye stood */

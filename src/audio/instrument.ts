@@ -9,6 +9,9 @@ import type { Tone, Room } from './sound';
 import type { Harm } from './harmony';
 import type { Timbre } from './voices';
 
+/** the game's buses under a track, each × its level without one (synth/mix.ts UNDER) */
+export interface UnderLevels { all: number; world: number; fx: number; sfx: number; duel: number; motion: number }
+
 export type { Timbre };
 /** the colour a jogo sound is played in: fire / plasma for the hot side, water / ice for the cold */
 export type Element = 'fire' | 'plasma' | 'water' | 'ice';
@@ -38,6 +41,41 @@ export interface SfxCall {
   dur?: number;
 }
 
+/** the duel's sounds (synth/duel.ts; src/duel/sound.ts decides them): the contact dance's moments, the powers, the
+ *  tiers, the set's count-in, finale and banner, and the soft movement voices. Water, wind, embers, glass bowls, chimes
+ *  and breath: never an impact */
+export type DuelCue =
+  | 'count' | 'go' | 'catch' | 'aerial' | 'range' | 'swing' | 'fling' | 'landed' | 'lift' | 'counter' | 'release'
+  | 'merge' | 'finale' | 'fusion' | 'banner' | 'tier' | 'bank' | 'fall' | 'reform'
+  | 'cast' | 'form' | 'react' | 'launch' | 'swap' | 'redirect'
+  | 'dash' | 'walljump' | 'land' | 'jump'
+  | 'splash' | 'crest' | 'tide' | 'gust' | 'swell' | 'hum' | 'humlift';
+export const DUEL_CUES: DuelCue[] = ['count', 'go', 'catch', 'aerial', 'range', 'swing', 'fling', 'landed', 'lift', 'counter', 'release',
+  'merge', 'finale', 'fusion', 'banner', 'tier', 'bank', 'fall', 'reform', 'cast', 'form', 'react', 'launch', 'swap', 'redirect',
+  'dash', 'walljump', 'land', 'jump', 'splash', 'crest', 'tide', 'gust', 'swell', 'hum', 'humlift'];
+/** the movement voices and the arenas' hazards (soft, under the music: their own bus) */
+export const MOTION_CUES: ReadonlySet<DuelCue> = new Set(['dash', 'walljump', 'land', 'jump', 'splash', 'tide', 'gust', 'swell', 'hum']);
+/** a duel sound as the instrument is handed it */
+export interface DuelCall {
+  cue: DuelCue;
+  /** the colour: the seat's matter ('fire' | 'water' | 'ice' | 'plasma' | 'gems'), and the other seat's (a catch, a merge) */
+  matter: string;
+  other?: string;
+  /** a cast's power ('flare' … 'prism'), a reaction's kind ('geyser' | 'melt' | 'freeze') */
+  power?: string;
+  pan: number; dist: number; vel: number;
+  /** a tier (1 … 4), a count (3, 2, 1), a swing's count in its hold, a combo's length */
+  level: number;
+  /** the form's on or off; a cast in the form (bigger); on the beat */
+  on?: boolean; big?: boolean; perfect?: boolean;
+  /** how long it lasts (s: a wave's wash, a ribbon) */
+  dur?: number;
+  /** the harmony sounding then, and the beat's length (s) */
+  H: Harm; spb: number;
+  /** 0 … 1, the same for the same event: its variations */
+  seed: number;
+}
+
 /** a matter voice's one-off sound (a crackle, a splash, a zap): where, how hard, and its note if it has one */
 export interface MatterPlay {
   pan: number; dist: number; strength: number;
@@ -65,8 +103,9 @@ export interface Instrument {
   duck(t: number, depth: number): void;
   /** the ping-pong delay follows the tempo (a dotted eighth) */
   delayBeat(t: number, beat: number): void;
-  /** under a world's track (1) the world's sounds, the effects and the jogo's sit lower; 0 puts them back */
-  under(t: number, amount: number): void;
+  /** under a world's track (1) the world's sounds, the effects and the jogo's sit lower; 0 puts them back. `levels`
+   *  (synth/mix.ts UNDER's, each × the bus's level without a track) for a mode with its own balance: the duel's */
+  under(t: number, amount: number, levels?: Partial<UnderLevels>): void;
   // ---- drums
   kick(t: number, vel: number, hard?: boolean): void;
   clap(t: number, vel: number): void;
@@ -97,6 +136,8 @@ export interface Instrument {
   fusionStep(t: number, kind: FusionKind, fm: number, fb: number, s16: number, rel: number, H: Harm, sd: number): void;
   tension(t: number, T: number, s16: number, L: number, quiet: boolean, H: Harm, sd: number): void;
   sfx(t: number, call: SfxCall): void;
+  /** the duel's sounds (src/duel/sound.ts) */
+  duel(t: number, call: DuelCall): void;
   // ---- the stones and the room's own sounds (Gem Dancers)
   strike(t: number, timbre: Timbre, midi: number, vel: number, pan: number, wet?: number, reverse?: boolean, dist?: number): void;
   ambience(t: number, day: number, night: number, dawn: number, wind: number): void;

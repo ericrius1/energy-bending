@@ -153,8 +153,9 @@ export class Deck {
     try { s.src.stop(s.stop); } catch { /* already stopped */ }
   }
 
-  /** silence at once (the page is closing, the music switched off) */
-  stop() { const t = this.ctx.currentTime; for (const s of this.segs) this.fade(s, t, 0.05); }
+  /** silence at once (the page is closing, the music switched off), or over `fade` s (the duel's count-in: the track
+   *  set to start again on its "go", src/duel/sound.ts); the next tick starts it where the clock says */
+  stop(fade = 0.05) { const t = this.ctx.currentTime; for (const s of this.segs) if (!s.fading || fade <= 0.05) this.fade(s, t, fade); }
 
   stats() { return { ...this.counts, playing: this.segs.filter((s) => !s.fading).map((s) => s.track.id), segments: this.segs.length }; }
   /** where the newest segment of the current track is in its file at context time t (null: none) — for the checks */

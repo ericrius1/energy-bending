@@ -11,18 +11,19 @@
 //   duck ──┼─ music ─ musicLP ─┐                                 ├─ water LP (breathing) ─┐
 //   leads ─┤          (suck)   │   reverb (room A ⇄ room B) ─────┘                        │
 //   delay ─┘                   ├───────────────────────────────────────────── master ─ comp ─ tanh ─ out
-//   fx, sfx ──────────────────────────────────────────────────────────────────┘           │
+//   fx, sfx, duel, motion ────────────────────────────────────────────────────┘           │
 //   track ─ trackLP (suck) ───────────────────────────────────────────────────────────────────── out
 import { renderRoom } from '../voices';
 import type { Room, Tone } from '../sound';
 import { wetOf } from '../sound';
 import { clamp, type Nodes } from './nodes';
+import type { UnderLevels } from '../instrument';
 
 /** the game's sounds under a track (× their levels without one): all of them (-14 dB), then the world's sounds
  *  (stones, feet, matter: the held roars and pours are most of the game's loudness) 4.4 dB lower again, the effects 2 dB
  *  lower, the jogo's sounds 4 dB higher (they say what happened). Measured on film 2's temple (a recorded score against
  *  its track), the game's sounds come out about 8 dB under the track (docs/reports/9-music.md) */
-export const UNDER = { all: 0.2, world: 0.6, fx: 0.8, sfx: 1.6 };
+export const UNDER: UnderLevels = { all: 0.2, world: 0.6, fx: 0.8, sfx: 1.6, duel: 1.6, motion: 0.8 };
 
 export class Mix {
   readonly master: GainNode;
@@ -37,6 +38,10 @@ export class Mix {
   readonly leadBus: GainNode;
   readonly fxBus: GainNode;
   readonly sfxBus: GainNode;
+  /** the duel's moments (synth/duel.ts: catches, flings, the powers, the tiers, the set's count-in and banner), and its
+   *  movement voices (dashes, wall jumps, landings: soft, under the music) */
+  readonly duelBus: GainNode;
+  readonly motionBus: GainNode;
   /** the stones, the wood, the matter voices: heard through the place */
   readonly world: GainNode;
   /** the reverb's input for everything but the groove; the groove's own (scaled by the world's grooveWet) */
@@ -89,6 +94,8 @@ export class Mix {
     this.leadBus = g(0.9); this.leadBus.connect(this.musicBus);
     this.fxBus = g(1); this.fxBus.connect(this.master);
     this.sfxBus = g(0.9); this.sfxBus.connect(this.master);
+    this.duelBus = g(0.9); this.duelBus.connect(this.master);
+    this.motionBus = g(0.9); this.motionBus.connect(this.master);
 
     // the place: a low-pass whose cutoff breathes slowly (Gem Dancers' water), over the world and the reverb
     this.water = n.bq('lowpass', tone.water, 0.5);
@@ -180,6 +187,8 @@ export class Mix {
     to(this.world.gain, 1, L.world);
     to(this.fxBus.gain, 1, L.fx);
     to(this.sfxBus.gain, 0.9, L.sfx);
+    to(this.duelBus.gain, 0.9, L.duel);
+    to(this.motionBus.gain, 0.9, L.motion);
   }
 
   /** the kick: the pad and the bass dip under it and come back */
