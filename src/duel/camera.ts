@@ -43,8 +43,9 @@ export interface CamSpace {
   /** the share of a → b a sphere of radius r moves before it touches a solid (1: clear) */
   sweep?(a: V3, b: V3, r: number): number;
   /** the share of the rays (unit directions) from the eye that meet a solid within `reach` m: a piece standing in the
-   *  near part of the frame (without it only the eye and the sight lines are judged) */
-  fg?(eye: V3, rays: readonly V3[], reach: number, r?: number, weights?: readonly number[]): number;
+   *  near part of the frame (without it only the eye and the sight lines are judged); `skip`: solids counted as clear
+   *  (the near fade's dissolved pieces, for the judge) */
+  fg?(eye: V3, rays: readonly V3[], reach: number, r?: number, weights?: readonly number[], skip?: ReadonlySet<object>): number;
   /** the same space over only the solids within r of p (null: all of them are) */
   local?(p: V3, r: number): CamSpace | null;
 }
