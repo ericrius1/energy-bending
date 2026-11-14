@@ -186,3 +186,71 @@ node scripts/cam-sim.mjs [--world temple,redwoods,geode,pool] [--sets 6] [--set-
 - The halo is faint on water in the redwoods' shade; the rose is near plasma's own pink (seat 1 plasma reads rose, but
   its matter's violet shows less). A per-matter rim in the bodies' own shaders would be crisper than a glow.
 - The judge's bodies in Node are rough (root-relative points), not the page's skeletons.
+
+## Second pass (branch `p3-camera-2`): a players' view, not a security camera's
+
+The coordinator's stills of merged master showed the camera rising too far: in the temple it looked steeply down onto
+the pair with drums in the near corners, and in the geode a lit block stood in the near bottom-left over the pair.
+
+**What changed** (`src/duel/camera.ts`):
+- **The look down is capped**: under 35° (`softPitch`), and to 43° (`maxPitch`) only when the frame before found
+  neither a modest tilt, a turn nor the boom coming in made the eye clean. The choice's pitches are 0.2, 0.38 and
+  0.55 rad, it pays 2.0 a radian for looking down (1.4 before), and the fallback's rises stop at the cap.
+- **A turn comes before a rise**: an unclean eye asks the choice again at once (at most every 0.15 s), so a yaw to a
+  clear side is taken while a modest tilt covers the moment.
+- **The near corners weigh more**: a ray through a corner of the near grid counts 2.5 times, so a drum filling a near
+  corner costs nearly what one over a body does; one hidden sight point already makes the eye unclean (it was two).
+- The near part of the frame the camera looks at now matches the judge's (0.6 of the way to the nearer body, at most
+  5 m).
+
+**The judge** (`camspace.ts`) now has its own fixed yardstick (0.6 of the way, at most 5 m), its pitch, and the near
+corners' coverage (the 2 × 2 cells at each corner of the 9 × 5 grid). `cam-sim.mjs` prints the look down (mean, 90th
+percentile, the share past 35° and 45°) and the corners (any, an eighth or more), and takes `--dress a,b`.
+
+**The numbers**, 24 sets on master `040beef`, the master camera against this one, the new yardstick for both:
+
+| | master | p3-camera-2 |
+|---|---|---|
+| look down, mean | 27.7° | **22.0°** |
+| look down, 90th percentile | 43 to 59° | **35°** |
+| frames past 35° | 30.0 % | **2.4 %** |
+| frames past 45° | 18.3 % | **0 %** |
+| a near corner filled | 11.2 % | **8.7 %** |
+| … an eighth of the corners or more | 8.1 % | **6.2 %** |
+| a piece in the near frame | 14.4 % | **11.5 %** |
+| … over a tenth of it | 6.1 % | **4.8 %** |
+| eye within 0.6 m of a solid | 0.4 % | 0.8 % |
+| eye inside a solid | 0.0 % | 0.1 % |
+| a body hidden | 5.6 % | 5.6 % |
+| flyer in frame | 17,262 / 17,262 | 17,262 / 17,262 |
+
+| world | past 35° | a near corner (≥ 1/8) | near frame over a tenth |
+|---|---|---|---|
+| temple | 15.1 → 0.3 % | 3.6 → 2.3 % | 2.2 → 1.5 % |
+| redwoods | 20.6 → 1.0 % | 2.1 → 3.4 % | 1.0 → 1.6 % |
+| geode | 30.5 → 4.2 % | 15.9 → 13.3 % | 13.4 → 11.1 % |
+| Pool | 53.7 → 4.4 % | 10.8 → 5.8 % | 7.8 → 4.9 % |
+
+The cost: the eye stands within 0.6 m of a solid a little more often (0.4 → 0.8 %; the Pool's stones, the geode), the
+redwoods' corners a little worse (2.1 → 3.4 %), the geode's turn reverses more (28 → 33 a minute).
+
+**Stills** (the same seeds and moments, 12, 15, 18 and 21 s in the temple, 14 to 23 s in the geode; master's camera
+above, this one below; the sets diverge once the camera does):
+
+![temple: master above (looking down at 40 to 60°), p3-camera-2 below](media/14-camera-2-temple.jpg)
+![geode: master above, p3-camera-2 below](media/14-camera-2-geode.jpg)
+
+What I see in them: the temple is the players' view now, low and side on, the court behind the pair; a drum or a
+block still sits in a bottom corner in two of the four. The geode is not fixed: lower, the eye now looks across the
+arena's standing selenite beams (`--why` names solids 190 to 193, at x ±3.8 and the drops' outer edges) and the gems'
+pillars, and the blocks sit in its near bottom-right (below). The geode's corners improved by the numbers (15.9 →
+13.3 %) but not enough to see.
+
+![the geode with the cap: a selenite beam in the near bottom-right](media/14-camera-2-geode-beam.jpg)
+
+**Not done, the geode**: tried and reverted, none of which moved it: a fifth yaw offset (1.25 rad), a closer boom
+for the wide lens, a cap on the turn's cost so the camera swings round the great crystal trunk, finer pitches and a
+heavier near cost. The test's geode set (seed 45, the pair under the high blade and behind the trunk for the whole set)
+is 39 to 44 % near frame with either camera. What would: the near fade dissolving what stands in the near part of the
+frame in the duel (`worlds/fade.ts` fades only within 0.6 m of the eye and across a dancer's sight line), or the
+geode's beams and the low blades made shorter or moved off the camera's side of the plane (the arena's, not mine).

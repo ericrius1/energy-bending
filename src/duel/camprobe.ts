@@ -36,16 +36,19 @@ const DRESS: [string, string][] = [['fire', 'water'], ['water', 'ice'], ['plasma
 interface Tally {
   frames: number; inside: number; nearEye: number; fgAny: number; fg10: number; fgSum: number; hidden: number; hiddenAny: number;
   flyer: number; flyerOut: number; whole: number; out: number; maxStep: number; flips: number; ms: number; dist: number; pitch: number; minClear: number;
+  p35: number; p45: number; cornerAny: number; corner8: number; cornerSum: number;
 }
-const blank = (): Tally => ({ frames: 0, inside: 0, nearEye: 0, fgAny: 0, fg10: 0, fgSum: 0, hidden: 0, hiddenAny: 0, flyer: 0, flyerOut: 0, whole: 0, out: 0, maxStep: 0, flips: 0, ms: 0, dist: 0, pitch: 0, minClear: Infinity });
+const blank = (): Tally => ({ frames: 0, inside: 0, nearEye: 0, fgAny: 0, fg10: 0, fgSum: 0, hidden: 0, hiddenAny: 0, flyer: 0, flyerOut: 0, whole: 0, out: 0, maxStep: 0, flips: 0, ms: 0, dist: 0, pitch: 0, minClear: Infinity, p35: 0, p45: 0, cornerAny: 0, corner8: 0, cornerSum: 0 });
 const add = (a: Tally, b: Tally) => { for (const k of Object.keys(a) as (keyof Tally)[]) { if (k === 'maxStep') a[k] = Math.max(a[k], b[k]); else if (k === 'minClear') a[k] = Math.min(a[k], b[k]); else a[k] += b[k]; } };
 
 const pct = (n: number, d: number) => `${((100 * n) / Math.max(1, d)).toFixed(1)}%`;
 const report: Record<string, unknown>[] = [];
 const all = blank();
+const pitchesAll: number[] = [];
+const p90 = (x: number[]) => { const y = [...x].sort((a, b) => a - b); return y.length ? y[Math.floor(y.length * 0.9)] : 0; };
 for (const id of worlds) {
   const { arena, world } = nodeWorld(id);
-  const T = blank();
+  const T = blank(), pitches: number[] = [];
   for (let s = 0; s < sets; s++) {
     const seed = seed0 + s * 101, pair = PAIRS[s % PAIRS.length], dress = (argv.includes('--dress') ? arg('dress', '').split(',') : DRESS[s % DRESS.length]) as [string, string];
     const cam = new DuelCamera();
@@ -98,7 +101,14 @@ for (const id of worlds) {
         if (why && J.clear < 0.6) { const key = `near fb${cam.last.bad > 0 ? 1 : 0} pitch${Math.round(pose.pitch * 57.3 / 10) * 10}`; whyN.set(key, (whyN.get(key) ?? 0) + 1); }
         if (J.hidden[0] > 0 || J.hidden[1] > 0) T.hiddenAny++;
         if (J.whole) T.whole++;
-        T.dist += pose.dist; T.pitch += pose.pitch;
+        // the look down as seen (eye to look point) and the near corners
+        const pd = J.pitch * 57.2958;
+        T.dist += pose.dist; T.pitch += J.pitch; pitches.push(pd); pitchesAll.push(pd);
+        if (pd > 35) T.p35++;
+        if (pd > 45) T.p45++;
+        if (J.corner > 0) T.cornerAny++;
+        if (J.corner >= 0.125) T.corner8++;
+        T.cornerSum += J.corner;
         // the flyer: the flown body, or the higher by a metre, while in the air (the test's)
         const dh = B[0].head[1] - B[1].head[1];
         let f: number | null = match.contact.flown?.flyer ?? null;
@@ -124,12 +134,16 @@ for (const id of worlds) {
     fgAny: T.fgAny / T.frames, fg10: T.fg10 / T.frames, fgMean: T.fgSum / T.frames, hidden: T.hidden / T.frames, hiddenAny: T.hiddenAny / T.frames,
     flyerIn: 1 - T.flyerOut / Math.max(1, T.flyer), flyerFrames: T.flyer, whole: T.whole / T.frames, maxStepDeg: T.maxStep * 57.3,
     flipsPerMin: T.flips / (T.frames / 3600), msPerFrame: T.ms / T.frames, dist: T.dist / T.frames, pitchDeg: (T.pitch / T.frames) * 57.3,
+    pitchP90: p90(pitches), pitch35: T.p35 / T.frames, pitch45: T.p45 / T.frames,
+    cornerAny: T.cornerAny / T.frames, corner8: T.corner8 / T.frames, cornerMean: T.cornerSum / T.frames,
   };
   report.push(line);
   console.log(`${id.padEnd(9)} (${(world.solids ?? []).length} solids) ${T.frames} frames: eye in a solid ${pct(T.inside, T.frames)}, past the room ${pct(T.out, T.frames)}, within 0.6 m ${pct(T.nearEye, T.frames)} (nearest ${T.minClear.toFixed(2)} m); ` +
     `a piece in the near frame ${pct(T.fgAny, T.frames)} (over a tenth of it ${pct(T.fg10, T.frames)}, mean ${(100 * line.fgMean).toFixed(2)}%); ` +
     `a body hidden ${pct(T.hidden, T.frames)} (any line ${pct(T.hiddenAny, T.frames)}); flyer in frame ${T.flyer - T.flyerOut}/${T.flyer}; both whole ${pct(T.whole, T.frames)}; ` +
     `turn ≤ ${line.maxStepDeg.toFixed(2)}°/frame, ${line.flipsPerMin.toFixed(1)} reversals/min; boom ${line.dist.toFixed(1)} m, pitch ${line.pitchDeg.toFixed(0)}°; ${line.msPerFrame.toFixed(3)} ms/frame`);
+  console.log(`          pitch mean ${line.pitchDeg.toFixed(0)}°, p90 ${line.pitchP90.toFixed(0)}°, over 35° ${pct(T.p35, T.frames)}, over 45° ${pct(T.p45, T.frames)}; a near corner filled ${pct(T.cornerAny, T.frames)} (an eighth of the corners or more ${pct(T.corner8, T.frames)}, mean ${(100 * line.cornerMean).toFixed(2)}%)`);
 }
 console.log(`ALL       ${all.frames} frames: eye in a solid ${pct(all.inside, all.frames)}, past the room ${pct(all.out, all.frames)}, within 0.6 m ${pct(all.nearEye, all.frames)}; near frame ${pct(all.fgAny, all.frames)} (>10% ${pct(all.fg10, all.frames)}); hidden ${pct(all.hidden, all.frames)} (any ${pct(all.hiddenAny, all.frames)}); flyer ${all.flyer - all.flyerOut}/${all.flyer}; whole ${pct(all.whole, all.frames)}; ${(all.ms / all.frames).toFixed(3)} ms/frame`);
+console.log(`          pitch mean ${((all.pitch / all.frames) * 57.3).toFixed(0)}°, p90 ${p90(pitchesAll).toFixed(0)}°, over 35° ${pct(all.p35, all.frames)}, over 45° ${pct(all.p45, all.frames)}; a near corner ${pct(all.cornerAny, all.frames)} (≥ 1/8 ${pct(all.corner8, all.frames)})`);
 if (jsonOut) { const fs = await import('node:fs'); fs.writeFileSync(jsonOut, JSON.stringify(report, null, 1)); console.log(`wrote ${jsonOut}`); }
