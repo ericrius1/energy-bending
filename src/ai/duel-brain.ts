@@ -788,7 +788,8 @@ export class DuelBrain implements Brain {
           break;
         case 'step':
           if (oAir && o.vy < -1.5 && dist < 4.5 && o.y - groundOf(D, o.x, o.z, o.y) > 1.2) keen = 1.4;
-          else if (!c.grounded && me.vy < -2 && (overVoid || this.style === 'flyer')) { keen = overVoid ? 3 : 0.6; aim = null; }
+          // (falling: a step under its own feet, a ledge in the air to leap from at the other; over the void, a save)
+          else if (!c.grounded && me.vy < -2 && (overVoid || (dist > 1.8 && me.y - groundOf(D, me.x, me.z, me.y) > 1.2))) { keen = overVoid ? 3 : this.style === 'flyer' ? 1.2 : 0.8; aim = null; }
           // (a step set between the two for a water partner's lash, the bar, or a fire partner's flare, the melt; or one
           // to climb: a ledge the body runs up onto)
           else if (other === 'water' && answers('whip') && c.grounded && dist > 2.5 && dist < 5.5) keen = 1.2;
@@ -850,7 +851,7 @@ export class DuelBrain implements Brain {
     // the hum: into its column with the other (live, or about to be), to float up together
     for (const L of Z.lifts) {
       const dMe = Math.hypot(L.at[0] - me.x, L.at[2] - me.z), dO = Math.hypot(L.at[0] - o.x, L.at[2] - o.z);
-      if (dMe < 5.5 && dO < 3.5 && Math.hypot(o.x - me.x, o.z - me.z) < 4 && this.rng.chance(L.live ? 0.5 : 0.25)) {
+      if (dMe < 7 && dO < 5.5 && Math.hypot(o.x - me.x, o.z - me.z) < 4.5 && this.rng.chance(L.live ? 0.55 : 0.3)) {
         const a = this.rng.range(0, Math.PI * 2), r = L.r * 0.4;
         this.count('hum-go');
         return { x: L.at[0] + Math.cos(a) * r, y: L.at[1], z: L.at[2] + Math.sin(a) * r, why: 'hum' };

@@ -153,8 +153,9 @@ function build(): GeodeDuel {
     // (the selenite's honey light)
     rim: [1.0, 0.78, 0.5],
     // the hazard: the crystals' hum, a phrase each in turn, where the hollow stands open overhead (no shelf over it for
-    // 6.8 m) and no drop within 1.7 m: behind each drop, and in front of the middle and of the right beam (hazards.ts)
-    hazard: humHazard({ spots: [[-2.25, 0, -2.75], [0, 0, 2.2], [2.25, 0, -2.75], [4.5, 0, 3.4]], r: 1.25, h: 4.2 }),
+    // 6.8 m) and the drops a way off (a body flung from the column's top lands on the agate): behind the drops either
+    // side of the great trunk, and in front of the middle and of the left beam (hazards.ts)
+    hazard: humHazard({ spots: [[-2.5, 0, -4.5], [0, 0, 4.5], [2.5, 0, -4.5], [-3.5, 0, 4.0]], r: 1.25, h: 4.2 }),
   };
   // (the gates stand clear: none within 2 m of the plane between the ends, nor of a piece)
   for (const [w, [x, z]] of Object.entries(HUB_GATES)) {
