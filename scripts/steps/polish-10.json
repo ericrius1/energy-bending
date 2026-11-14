@@ -1,0 +1,207 @@
+[
+ {
+  "name": "p10-lock-redwoods",
+  "query": "jogo=script&script=none&world=redwoods&dress=fire,water",
+  "size": "1920x1080",
+  "fps": 2,
+  "seconds": 1,
+  "warm": 400,
+  "setup": "for (let k = 0; k < 400 && !bend.jogo; k++) await new Promise((r) => setTimeout(r, 50)); bend.set('redwoods', { hour: 19.4, dayGoes: false }); bend.jogo.run({\"name\":\"w9\",\"world\":\"redwoods\",\"lock\":true,\"dress\":[\"fire\",\"water\"],\"cues\":[{\"at\":0,\"seat\":0,\"place\":-0.6},{\"at\":0,\"seat\":1,\"place\":0.6}]});",
+  "timings": false,
+  "sheet": {
+   "cols": 2,
+   "rows": 1,
+   "width": 640
+  },
+  "stills": [
+   0.5
+  ]
+ },
+ {
+  "name": "p10-lock-redwoods-gems",
+  "query": "jogo=script&script=none&world=redwoods&dress=gems,water",
+  "size": "1920x1080",
+  "fps": 2,
+  "seconds": 1,
+  "warm": 400,
+  "setup": "for (let k = 0; k < 400 && !bend.jogo; k++) await new Promise((r) => setTimeout(r, 50)); bend.set('redwoods', { hour: 19.4, dayGoes: false }); bend.jogo.run({\"name\":\"w9\",\"world\":\"redwoods\",\"lock\":true,\"dress\":[\"gems\",\"water\"],\"cues\":[{\"at\":0,\"seat\":0,\"place\":-0.6},{\"at\":0,\"seat\":1,\"place\":0.6}]});",
+  "timings": false,
+  "sheet": {
+   "cols": 2,
+   "rows": 1,
+   "width": 640
+  },
+  "stills": [
+   0.5
+  ]
+ },
+ {
+  "name": "p10-lock-temple",
+  "query": "jogo=script&script=none&world=temple&dress=fire,water",
+  "size": "1920x1080",
+  "fps": 2,
+  "seconds": 1,
+  "warm": 400,
+  "setup": "for (let k = 0; k < 400 && !bend.jogo; k++) await new Promise((r) => setTimeout(r, 50)); bend.jogo.run({\"name\":\"w9\",\"world\":\"temple\",\"lock\":true,\"dress\":[\"fire\",\"water\"],\"cues\":[{\"at\":0,\"seat\":0,\"place\":-0.6},{\"at\":0,\"seat\":1,\"place\":0.6}]});",
+  "timings": false,
+  "sheet": {
+   "cols": 2,
+   "rows": 1,
+   "width": 640
+  },
+  "stills": [
+   0.5
+  ]
+ },
+ {
+  "name": "p10-jogo-temple",
+  "query": "jogo=partner&world=temple&dress=fire,water",
+  "fps": 2,
+  "seconds": 7,
+  "warm": 1,
+  "setup": "for (let k = 0; k < 400 && !bend.jogo; k++) await new Promise((r) => setTimeout(r, 50)); await bend.jogo.start();",
+  "cues": {
+   "4.0": "bend.move(0,'meia-lua')",
+   "5.5": "bend.move(0,'esquiva')",
+   "7.0": "bend.move(0,'armada')",
+   "8.5": "bend.move(0,'spin')",
+   "10.0": "bend.move(0,'martelo')",
+   "11.5": "bend.move(0,'au')"
+  },
+  "sheet": {
+   "cols": 8,
+   "rows": 3,
+   "width": 240
+  },
+  "stills": [
+   6
+  ],
+  "size": "1920x1080"
+ },
+ {
+  "name": "p10-t-temple-pair",
+  "query": "play&two&dress=fire,water&world=temple",
+  "size": "1920x1080",
+  "fps": 2,
+  "seconds": 1,
+  "warm": 300,
+  "setup": "const ai = (await navigator.gpu.requestAdapter())?.info ?? {}; console.warn('adapter in the page', ai.vendor, ai.architecture, ai.description); bend.set('camera', { followDist: 4, followFov: 40, followPitch: 0.08 }); bend.wake(); bend.place(0,-0.7,0.3,Math.PI/2); bend.place(1,0.7,0.3,-Math.PI/2);",
+  "timings": true,
+  "sheet": {
+   "cols": 2,
+   "rows": 1,
+   "width": 640
+  },
+  "stills": [
+   0.5
+  ]
+ },
+ {
+  "name": "p10-t-redwoods-pair",
+  "query": "play&two&dress=fire,water&world=redwoods",
+  "size": "1920x1080",
+  "fps": 2,
+  "seconds": 1,
+  "warm": 300,
+  "setup": "const ai = (await navigator.gpu.requestAdapter())?.info ?? {}; console.warn('adapter in the page', ai.vendor, ai.architecture, ai.description); bend.set('redwoods', { hour: 19.4, dayGoes: false }); bend.set('camera', { followDist: 4, followFov: 40, followPitch: 0.08 }); bend.wake(); bend.place(0,-0.7,0.3,Math.PI/2); bend.place(1,0.7,0.3,-Math.PI/2);",
+  "timings": true,
+  "sheet": {
+   "cols": 2,
+   "rows": 1,
+   "width": 640
+  },
+  "stills": [
+   0.5
+  ]
+ },
+ {
+  "name": "p10-t-redwoods-jogo",
+  "query": "jogo=partner&world=redwoods&dress=fire,water",
+  "size": "1920x1080",
+  "fps": 2,
+  "seconds": 1,
+  "warm": 300,
+  "setup": "for (let k = 0; k < 400 && !bend.jogo; k++) await new Promise((r) => setTimeout(r, 50)); const ai = (await navigator.gpu.requestAdapter())?.info ?? {}; console.warn('adapter in the page', ai.vendor, ai.architecture, ai.description); bend.set('redwoods', { hour: 19.4, dayGoes: false }); await bend.jogo.start();",
+  "timings": true,
+  "sheet": {
+   "cols": 2,
+   "rows": 1,
+   "width": 640
+  },
+  "stills": [
+   0.5
+  ]
+ },
+ {
+  "name": "p10-t-hub-pair",
+  "query": "play&two&dress=fire,water",
+  "size": "1920x1080",
+  "fps": 2,
+  "seconds": 1,
+  "warm": 300,
+  "setup": "const ai = (await navigator.gpu.requestAdapter())?.info ?? {}; console.warn('adapter in the page', ai.vendor, ai.architecture, ai.description); bend.set('camera', { followDist: 6, followFov: 44, followPitch: 0.2 }); bend.wake();",
+  "timings": true,
+  "sheet": {
+   "cols": 2,
+   "rows": 1,
+   "width": 640
+  },
+  "stills": [
+   0.5
+  ]
+ },
+ {
+  "name": "p10-t-fusion-pool",
+  "query": "jogo=script&script=none&world=pool&dress=fire,water",
+  "size": "1920x1080",
+  "fps": 2,
+  "seconds": 1,
+  "warm": 1300,
+  "setup": "for (let k = 0; k < 400 && !bend.jogo; k++) await new Promise((r) => setTimeout(r, 50)); const ai = (await navigator.gpu.requestAdapter())?.info ?? {}; console.warn('adapter in the page', ai.vendor, ai.architecture, ai.description); bend.jogo.run({\"name\":\"critic6-steam\",\"world\":\"pool\",\"lock\":true,\"dress\":[\"fire\",\"water\"],\"cues\":[{\"at\":0,\"seat\":0,\"place\":-0.52},{\"at\":0,\"seat\":1,\"place\":0.52},{\"at\":1,\"seat\":0,\"move\":\"martelo\"},{\"at\":1,\"seat\":1,\"press\":\"dodge\",\"hold\":{\"moveY\":-1},\"for\":0.6},{\"at\":3,\"seat\":1,\"move\":\"meia-lua\"},{\"at\":3,\"seat\":0,\"press\":\"dodge\",\"hold\":{\"moveY\":-1},\"for\":0.6},{\"at\":5,\"seat\":0,\"move\":\"meia-lua\"},{\"at\":5,\"seat\":1,\"move\":\"meia-lua\"},{\"at\":7,\"seat\":0,\"move\":\"bencao\"},{\"at\":8.5,\"seat\":0,\"goto\":-0.52},{\"at\":8.5,\"seat\":1,\"goto\":0.52},{\"at\":10,\"seat\":0,\"move\":\"spin\"},{\"at\":10,\"seat\":1,\"move\":\"spin\"},{\"at\":12.5,\"seat\":0,\"goto\":-0.52},{\"at\":12.5,\"seat\":1,\"goto\":0.52},{\"at\":14,\"seat\":1,\"move\":\"armada\"},{\"at\":14,\"seat\":0,\"press\":\"dodge\",\"hold\":{\"moveY\":-1},\"for\":0.6},{\"at\":15.5,\"seat\":0,\"goto\":-0.52},{\"at\":15.5,\"seat\":1,\"goto\":0.52},{\"at\":17,\"seat\":0,\"move\":\"rasteira\"},{\"at\":17,\"seat\":1,\"press\":\"jump\",\"hold\":{\"jumpHeld\":true},\"for\":0.4},{\"at\":18.5,\"seat\":0,\"goto\":-0.52},{\"at\":18.5,\"seat\":1,\"goto\":0.52},{\"at\":20,\"seat\":1,\"move\":\"bencao\"},{\"at\":20.25,\"seat\":0,\"press\":\"dodge\",\"hold\":{\"dodgeHeld\":true},\"for\":0.6},{\"at\":21.5,\"seat\":0,\"goto\":-0.52},{\"at\":21.5,\"seat\":1,\"goto\":0.52},{\"at\":23,\"seat\":0,\"move\":\"meia-lua\"},{\"at\":23,\"seat\":1,\"press\":\"dodge\",\"hold\":{\"moveY\":-1},\"for\":0.6},{\"at\":25,\"seat\":1,\"move\":\"martelo\"},{\"at\":25,\"seat\":0,\"press\":\"dodge\",\"hold\":{\"moveY\":-1},\"for\":0.6},{\"at\":27,\"seat\":0,\"move\":\"armada\"},{\"at\":27.5,\"seat\":1,\"press\":\"dodge\",\"hold\":{\"moveY\":-1},\"for\":0.6},{\"at\":29,\"seat\":0,\"goto\":-0.16},{\"at\":29,\"seat\":1,\"goto\":0.16},{\"at\":29.5,\"seat\":\"both\",\"hold\":{\"merge\":true},\"for\":4},{\"at\":33,\"seat\":0,\"goto\":-0.42},{\"at\":33,\"seat\":1,\"goto\":0.42},{\"at\":36,\"seat\":\"both\",\"move\":\"spin\"},{\"at\":40,\"seat\":\"both\",\"move\":\"macaco\"},{\"at\":44,\"seat\":0,\"move\":\"spin\"},{\"at\":45,\"seat\":1,\"move\":\"spin\"},{\"at\":48,\"seat\":0,\"goto\":-0.3},{\"at\":48,\"seat\":1,\"goto\":0.3},{\"at\":52,\"seat\":\"both\",\"move\":\"spin\"},{\"at\":56,\"seat\":\"both\",\"move\":\"macaco\"}]});",
+  "timings": true,
+  "sheet": {
+   "cols": 2,
+   "rows": 1,
+   "width": 640
+  },
+  "stills": [
+   0.5
+  ]
+ },
+ {
+  "name": "p10-baseline-redwoods",
+  "query": "baseline&jogo=script&script=none&world=redwoods&dress=fire,water",
+  "size": "1280x800",
+  "fps": 2,
+  "seconds": 1,
+  "warm": 400,
+  "setup": "for (let k = 0; k < 400 && !bend.jogo; k++) await new Promise((r) => setTimeout(r, 50)); bend.set('redwoods', { hour: 19.4, dayGoes: false }); bend.jogo.run({\"name\":\"w9\",\"world\":\"redwoods\",\"lock\":true,\"dress\":[\"fire\",\"water\"],\"cues\":[{\"at\":0,\"seat\":0,\"place\":-0.6},{\"at\":0,\"seat\":1,\"place\":0.6}]});",
+  "timings": false,
+  "sheet": {
+   "cols": 2,
+   "rows": 1,
+   "width": 640
+  },
+  "stills": [
+   0.5
+  ]
+ },
+ {
+  "name": "p10-baseline-fusion-pool",
+  "query": "baseline&jogo=script&script=none&world=pool&dress=fire,water",
+  "size": "1280x800",
+  "fps": 2,
+  "seconds": 1,
+  "warm": 1300,
+  "setup": "for (let k = 0; k < 400 && !bend.jogo; k++) await new Promise((r) => setTimeout(r, 50)); const ai = (await navigator.gpu.requestAdapter())?.info ?? {}; console.warn('adapter in the page', ai.vendor, ai.architecture, ai.description); bend.jogo.run({\"name\":\"critic6-steam\",\"world\":\"pool\",\"lock\":true,\"dress\":[\"fire\",\"water\"],\"cues\":[{\"at\":0,\"seat\":0,\"place\":-0.52},{\"at\":0,\"seat\":1,\"place\":0.52},{\"at\":1,\"seat\":0,\"move\":\"martelo\"},{\"at\":1,\"seat\":1,\"press\":\"dodge\",\"hold\":{\"moveY\":-1},\"for\":0.6},{\"at\":3,\"seat\":1,\"move\":\"meia-lua\"},{\"at\":3,\"seat\":0,\"press\":\"dodge\",\"hold\":{\"moveY\":-1},\"for\":0.6},{\"at\":5,\"seat\":0,\"move\":\"meia-lua\"},{\"at\":5,\"seat\":1,\"move\":\"meia-lua\"},{\"at\":7,\"seat\":0,\"move\":\"bencao\"},{\"at\":8.5,\"seat\":0,\"goto\":-0.52},{\"at\":8.5,\"seat\":1,\"goto\":0.52},{\"at\":10,\"seat\":0,\"move\":\"spin\"},{\"at\":10,\"seat\":1,\"move\":\"spin\"},{\"at\":12.5,\"seat\":0,\"goto\":-0.52},{\"at\":12.5,\"seat\":1,\"goto\":0.52},{\"at\":14,\"seat\":1,\"move\":\"armada\"},{\"at\":14,\"seat\":0,\"press\":\"dodge\",\"hold\":{\"moveY\":-1},\"for\":0.6},{\"at\":15.5,\"seat\":0,\"goto\":-0.52},{\"at\":15.5,\"seat\":1,\"goto\":0.52},{\"at\":17,\"seat\":0,\"move\":\"rasteira\"},{\"at\":17,\"seat\":1,\"press\":\"jump\",\"hold\":{\"jumpHeld\":true},\"for\":0.4},{\"at\":18.5,\"seat\":0,\"goto\":-0.52},{\"at\":18.5,\"seat\":1,\"goto\":0.52},{\"at\":20,\"seat\":1,\"move\":\"bencao\"},{\"at\":20.25,\"seat\":0,\"press\":\"dodge\",\"hold\":{\"dodgeHeld\":true},\"for\":0.6},{\"at\":21.5,\"seat\":0,\"goto\":-0.52},{\"at\":21.5,\"seat\":1,\"goto\":0.52},{\"at\":23,\"seat\":0,\"move\":\"meia-lua\"},{\"at\":23,\"seat\":1,\"press\":\"dodge\",\"hold\":{\"moveY\":-1},\"for\":0.6},{\"at\":25,\"seat\":1,\"move\":\"martelo\"},{\"at\":25,\"seat\":0,\"press\":\"dodge\",\"hold\":{\"moveY\":-1},\"for\":0.6},{\"at\":27,\"seat\":0,\"move\":\"armada\"},{\"at\":27.5,\"seat\":1,\"press\":\"dodge\",\"hold\":{\"moveY\":-1},\"for\":0.6},{\"at\":29,\"seat\":0,\"goto\":-0.16},{\"at\":29,\"seat\":1,\"goto\":0.16},{\"at\":29.5,\"seat\":\"both\",\"hold\":{\"merge\":true},\"for\":4},{\"at\":33,\"seat\":0,\"goto\":-0.42},{\"at\":33,\"seat\":1,\"goto\":0.42},{\"at\":36,\"seat\":\"both\",\"move\":\"spin\"},{\"at\":40,\"seat\":\"both\",\"move\":\"macaco\"},{\"at\":44,\"seat\":0,\"move\":\"spin\"},{\"at\":45,\"seat\":1,\"move\":\"spin\"},{\"at\":48,\"seat\":0,\"goto\":-0.3},{\"at\":48,\"seat\":1,\"goto\":0.3},{\"at\":52,\"seat\":\"both\",\"move\":\"spin\"},{\"at\":56,\"seat\":\"both\",\"move\":\"macaco\"}]});",
+  "timings": false,
+  "sheet": {
+   "cols": 2,
+   "rows": 1,
+   "width": 640
+  },
+  "stills": [
+   0.5
+  ]
+ }
+]
