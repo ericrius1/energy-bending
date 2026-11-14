@@ -1,20 +1,26 @@
-// Words that pop from where a named move happened, and the small tag over each player's head so a body is never
-// lost in its own matter. Each kind moves its own way:
+// Words that pop for a named move, and the small tag over each player's head so a body is never lost in its own
+// matter. The words keep off the bodies and off each other (phase 2's fix 5): each dancer has a lane beside its body,
+// on the side away from the other (kept while the two are close, so a swing turning them round each other leaves the
+// lanes where they are), the newest word at the lane's foot about the shoulders and the older above it, at most
+// LANE_MAX at once (the oldest goes as another comes); the words that are nobody's (MERGE) stand above the pair. A
+// pop with the same `id` as one on screen is that one, updated in place (SWING ×2, ×3: a bump, not a new word), and
+// the same word coming again while it shows in its lane counts up on it (the older stream, one SWING a swing). The
+// finale and the banner are the centre's (centre.ts): every word goes as the finale starts, and none is drawn over
+// the centre's word. Each kind moves its own way, a little, in its lane:
 //   CATCH      snaps in: from large and faint to its size in a tenth of a second, a ring closing on it like a hand
 //   SWING      hangs from a point above it and swings, a pendulum dying away
-//   FLING ×n   flies off on its tangent (the way the flung body is going on screen; with no motion to read, away from
-//              the partner and up), stretched, a ghost or two trailing
-//   PERFECT    gold, springs in with a ring of light opening, rises
-//   COMBO ×n   punches in, bigger the longer the combo, a shiver, rises
+//   FLING ×n   leans off along the flight (the game's `dir`, else the faster body's motion on screen), a ghost trailing
+//   PERFECT    gold, springs in with a ring of light opening
+//   COMBO ×n   punches in, bigger the longer the combo, a shiver
 //   MERGE      two halves in the two dancers' colours slide together and become one word with a flash
-//   info       a plain note rising
+//   info       a plain note
 // Each word is a sprite made once per text, kind and colour (its glow and halo baked in) and stamped with its motion.
 // A tag is a sprite too; off the screen's edge it is held at the edge and points to where its player is.
 import type { HudState, HudPop, HudPlayer, PopKind } from './state';
 import type { Layout, Box } from './layout';
 import { LINK_KINDS } from './state';
 import { linkIcon } from './icons';
-import { FONT, GOLD, GOLD_HI, INK, glow, lift, rgba, sprite, stamp, clamp01, easeOutBack, easeOut, type Ctx } from './style';
+import { FONT, GOLD, GOLD_HI, INK, glow, lift, measure, rgba, sprite, stamp, clamp01, easeOutBack, easeOut, type Ctx } from './style';
 
 const LIFE: Record<PopKind, number> = { catch: 0.95, swing: 1.05, fling: 1.0, perfect: 1.0, combo: 1.2, merge: 1.4, info: 1.6 };
 export const popLife = (k: PopKind) => LIFE[k] ?? 1.1;
@@ -63,16 +69,74 @@ function word(text: string, L: Look, u: number, dpr: number) {
   });
 }
 
+/** a word on screen, fed by the state's pops: one per `id` (updated in place as its text changes), or several of the
+ *  same word in a row merged into one that counts up */
+interface Entry {
+  /** the state's pops it has taken (their ids, or for a pop without one its text and birth) */
+  ids: Set<string>;
+  /** the lane: a seat, or -1 for the words that are nobody's (MERGE) */
+  lane: number;
+  kind: PopKind;
+  seat?: number;
+  /** what it says, what its feed says (a repeat of exactly that counts it up), and the count */
+  text: string;
+  src: string;
+  count: number;
+  age: number;
+  /** the HUD's clock when it came, last changed (a bump), and was let go (or -1) */
+  born: number;
+  bump: number;
+  gone: number;
+  seen: boolean;
+  order: number;
+  /** where it is drawn: its slot's height, eased (px), and its side's x kept while it fades */
+  y: number | null;
+  x: number | null;
+  at: [number, number];
+  dir?: [number, number];
+}
+
+/** pops a lane shows at once (the oldest goes as another comes) */
+export const LANE_MAX = 3;
+/** how long a word let go takes to fade (s) */
+const GONE = 0.16;
+type Pop2 = HudPop & { id?: number; dir?: [number, number] };
+const keyOf = (p: Pop2, lane: number, born: number) => (p.id != null ? `#${p.id}` : `${lane}|${p.text}|${born.toFixed(2)}`);
+/** a pop without an id is the same pop on a later frame when its text and lane match and it was born within a frame */
+const sameNoId = (ids: Set<string>, p: Pop2, lane: number, born: number) => {
+  if (p.id != null) return false;
+  for (const k of ids) {
+    if (k[0] === '#') continue;
+    const i = k.lastIndexOf('|'), head = k.slice(0, i);
+    if (head === `${lane}|${p.text}` && Math.abs(Number(k.slice(i + 1)) - born) < 0.05) return true;
+  }
+  return false;
+};
+
 export class Pops {
   private t = 0;
   /** each seat's head on screen last frame, and its smoothed velocity (px/s) */
   private prev: ([number, number] | null)[] = [null, null];
   private vel: [number, number][] = [[0, 0], [0, 0]];
-  /** a fling's direction, fixed when it is first seen */
-  private dirs = new Map<string, [number, number]>();
+  private entries: Entry[] = [];
+  private order = 0;
+  /** each seat's lane side (-1 left of its body, +1 right), kept while the two are close (a swing turns them round
+   *  each other: the lanes stay put) */
+  private side = [-1, 1];
+  private phase = '';
+  /** drawn last frame: in all, per seat, nobody's; and the most since `most` was reset */
+  shown = { total: 0, seats: [0, 0], centre: 0 };
+  most = { total: 0, seats: [0, 0], centre: 0 };
+
+  private dt = 1 / 60;
+
+  /** the words standing now (not fading out), by lane: what they say (for the tests and bend.hud) */
+  get words(): { text: string; lane: number }[] {
+    return this.entries.filter((e) => e.gone < 0).sort((a, b) => a.order - b.order).map((e) => ({ text: e.text, lane: e.lane }));
+  }
 
   update(st: HudState, L: Layout, dt: number) {
-    this.t += dt;
+    this.t += dt; this.dt = dt;
     for (const p of st.players) {
       const s = p.seat, sc = p.screen;
       if (!sc || dt <= 0) { this.prev[s] = null; continue; }
@@ -84,141 +148,221 @@ export class Pops {
       }
       this.prev[s] = [x, y];
     }
-    if (this.dirs.size > 24) for (const [k] of this.dirs) { this.dirs.delete(k); if (this.dirs.size <= 12) break; }
+    // the finale and the banner are the centre's: every pop goes as the finale starts, none comes till the next set
+    const ph = st.set.phase, quiet = ph === 'finale' || ph === 'done';
+    if (quiet && this.phase !== ph) for (const e of this.entries) if (e.gone < 0) e.gone = this.t;
+    this.phase = ph;
+    for (const e of this.entries) e.seen = false;
+    if (!quiet) {
+      const live = (st.pops as Pop2[]).filter((p) => p.age >= 0 && p.age < popLife(p.kind)).sort((a, b) => b.age - a.age);
+      for (const p of live) {
+        // (BEND, FINALE and the like are the centre's words: nobody's plain notes are not drawn as pops)
+        if (p.seat == null && p.kind === 'info') continue;
+        const lane = p.seat === 0 || p.seat === 1 ? p.seat : -1, born = this.t - p.age, key = keyOf(p, lane, born);
+        // the same pop as last frame: updated in place (a new text is a bump, not a new word); one already let go (a
+        // lane's oldest, pushed out) stays gone while its feed lasts, or it would come back as a new word every frame
+        let e = this.entries.find((q) => q.ids.has(key) || sameNoId(q.ids, p, lane, born));
+        if (e && e.gone >= 0) { e.seen = true; continue; }
+        if (e) {
+          if (p.text !== e.src) { e.src = p.text; e.text = p.text; e.count = 1; e.bump = this.t; }
+          e.age = e.seen ? Math.min(e.age, p.age) : p.age; e.seen = true; e.at = p.at;
+          if (p.dir) e.dir = p.dir;
+          continue;
+        }
+        // the same word again while it shows in its lane: counted up on it (SWING, SWING ×2, SWING ×3)
+        e = this.entries.find((q) => q.gone < 0 && q.lane === lane && q.kind === p.kind && q.src === p.text);
+        if (e) {
+          e.ids.add(key); e.count++; e.text = `${p.text} ×${e.count}`; e.bump = this.t;
+          e.age = p.age; e.seen = true; e.at = p.at;
+          continue;
+        }
+        // a new word: the lane's oldest goes if it would hold more than LANE_MAX
+        const inLane = this.entries.filter((q) => q.lane === lane && q.gone < 0).sort((a, b) => a.order - b.order);
+        while (inLane.length >= LANE_MAX) inLane.shift()!.gone = this.t;
+        this.entries.push({
+          ids: new Set([key]), lane, kind: p.kind, seat: p.seat, text: p.text, src: p.text, count: 1, age: p.age, born,
+          bump: -1, gone: -1, seen: true, order: ++this.order, y: null, x: null, at: p.at, ...(p.dir ? { dir: p.dir } : {}),
+        });
+      }
+    }
+    // a word whose feed is gone fades out; one faded is dropped once its feed is gone too, one past its life at once
+    for (const e of this.entries) {
+      if (e.gone < 0 && !e.seen) e.gone = this.t;
+      if (e.gone >= 0 || !e.seen) e.age += dt;
+    }
+    this.entries = this.entries.filter((e) => (e.gone < 0 || this.t - e.gone < GONE || e.seen) && e.age < popLife(e.kind) + GONE);
   }
 
-  /** the way a fling pop flies: the faster body's motion on screen, or away from the far one and up */
-  private dirOf(p: HudPop, st: HudState, L: Layout): [number, number] {
-    const key = `${p.text}|${p.seat}|${Math.round((this.t - p.age) * 20)}`;
-    const had = this.dirs.get(key);
-    if (had) return had;
-    let best: [number, number] | null = null, bs = 220 * L.u;
+  /** the way a fling pop flies: the game's (pops[].dir), else the faster body's motion on screen, else out of its lane */
+  private dirOf(e: Entry, side: number, u: number): [number, number] {
+    if (e.dir) return e.dir;
+    let best: [number, number] | null = null, bs = 220 * u;
     for (const v of this.vel) { const s = Math.hypot(v[0], v[1]); if (s > bs) { bs = s; best = [v[0] / s, v[1] / s]; } }
-    if (!best) {
-      const ax = p.at[0] * L.W, ay = p.at[1] * L.H;
-      let far: [number, number] | null = null, fd = 0;
-      for (const q of st.players) if (q.screen) { const d = Math.hypot(q.screen[0] * L.W - ax, q.screen[1] * L.H - ay); if (d > fd) { fd = d; far = [q.screen[0] * L.W, q.screen[1] * L.H]; } }
-      let dx = far && fd > 8 ? ax - far[0] : p.seat === 1 ? -1 : 1, dy = far && fd > 8 ? (ay - far[1]) : 0;
-      const l = Math.hypot(dx, dy) || 1;
-      dx /= l; dy = dy / l - 0.9;
-      const m = Math.hypot(dx, dy) || 1;
-      best = [dx / m, dy / m];
-    }
-    this.dirs.set(key, best);
+    best ??= [side * 0.75, -0.66];
+    e.dir = best;
     return best;
   }
 
-  draw(g: Ctx, st: HudState, L: Layout, dpr: number, out: Box[]) {
+  /** draw the pops, each lane beside its dancer (off the bodies), nobody's above the pair, none over another or in
+   *  `avoid` (the centre's word) */
+  draw(g: Ctx, st: HudState, L: Layout, dpr: number, out: Box[], avoid: Box | null = null) {
     const u = L.u * (L.compact ? 0.82 : 1);
-    // a newer word near an older one pushes it away (sliding, as the newer one pops in: up if it was above, down if
-    // below), so two never sit on each other; a fling, flying off, pushes but isn't pushed
-    const live = st.pops.filter((p) => p.age >= 0 && p.age < popLife(p.kind)).sort((a, b) => a.age - b.age);
-    const placed: { x: number; y: number; h: number; age: number }[] = [];
-    for (let i = 0; i < live.length; i++) {
-      const p = live[i];
-      const life = popLife(p.kind), k = p.age / life, age = p.age;
-      const look = lookOf(p, st), spr = word(p.text, look, u, dpr);
-      const m = L.margin + spr.w * 0.36;
-      const x0 = Math.max(m, Math.min(L.W - m, p.at[0] * L.W));
-      const yMin = L.top + spr.h * 0.3;
-      let y0 = Math.max(yMin, Math.min(L.H - L.margin - spr.h * 0.3, p.at[1] * L.H));
-      const h = look.size * u * 1.5;
-      if (p.kind !== 'fling') for (const q of placed) {
-        if (Math.abs(q.x - x0) > 150 * u) continue;
-        const sep = (q.h + h) * 0.55, d = y0 - q.y;
-        if (Math.abs(d) >= sep) continue;
-        // (pushed up unless that would put it over the panels and their combos: then down)
-        const e = easeOut(q.age / 0.15), side = d > 0 || q.y - sep < yMin ? 1 : -1;
-        y0 += (q.y + side * sep - y0) * e;
-      }
-      placed.push({ x: x0, y: y0, h, age });
-      const fade = 1 - clamp01((k - 0.62) / 0.38);
-      let x = x0, y = y0, sc = 1, a = clamp01(age / 0.05) * fade, rot = 0, sx = 1;
-      const col = st.players.find((q) => q.seat === p.seat)?.color ?? '#ffffff';
-      switch (p.kind) {
-        case 'catch': {
-          // snaps in, a ring closing on it
-          const s = clamp01(age / 0.11);
-          sc = s < 1 ? 1.75 - 0.83 * easeOut(s) : 0.92 + 0.08 * easeOut(clamp01((age - 0.11) / 0.12));
-          a = clamp01(age / 0.07) * fade;
-          y -= 14 * u * easeOut(clamp01((age - 0.4) / 0.6));
-          const r = clamp01(age / 0.16);
-          if (r < 1) {
-            g.lineWidth = Math.max(1, 2.4 * u * (1 - r));
-            g.strokeStyle = rgba(lift(col, 0.5), 0.85 * (1 - r));
-            g.beginPath(); g.arc(x, y, spr.h * (0.95 - 0.55 * easeOut(r)), 0, Math.PI * 2); g.stroke();
-          }
-          break;
-        }
-        case 'swing': {
-          // hangs from a point above it and swings
-          const d = 30 * u, th = 0.55 * Math.exp(-2.6 * age) * Math.cos(age * 8.5);
-          const px = x0, py = y0 - d;
-          x = px + Math.sin(th) * d; y = py + Math.cos(th) * d - 10 * u * easeOut(k);
-          rot = -th * 0.8;
-          sc = 0.7 + 0.3 * easeOutBack(clamp01(age / 0.18));
-          break;
-        }
-        case 'fling': {
-          // off on its tangent, stretched, trailing ghosts
-          const [dx, dy] = this.dirOf(p, st, L);
-          const D = 190 * u, q = k, go = D * (0.55 * q + 0.45 * (1 - Math.pow(1 - q, 3)));
-          x = x0 + dx * go; y = y0 + dy * go;
-          sc = 0.8 + 0.2 * easeOutBack(clamp01(age / 0.12));
-          sx = 1 + 0.25 * (1 - clamp01(age / 0.35));
-          rot = Math.max(-0.3, Math.min(0.3, Math.atan2(dy, Math.abs(dx)) * Math.sign(dx || 1) * 0.35));
-          a = clamp01(age / 0.04) * (1 - clamp01((k - 0.5) / 0.5));
-          for (let i = 2; i >= 1; i--) {
-            const gq = Math.max(0, q - i * 0.07), gg = D * (0.55 * gq + 0.45 * (1 - Math.pow(1 - gq, 3)));
-            drawWord(g, spr, x0 + dx * gg, y0 + dy * gg, sc * sx, sc, rot, a * (0.32 - i * 0.1));
-          }
-          break;
-        }
-        case 'perfect': {
-          sc = 0.65 + 0.35 * easeOutBack(clamp01(age / 0.16));
-          y -= 38 * u * easeOut(k);
-          const r = clamp01(age / 0.4);
-          if (r < 1) {
-            g.lineWidth = Math.max(1, 1.6 * u * (1 - r));
-            g.strokeStyle = rgba(GOLD_HI, 0.8 * (1 - r));
-            g.beginPath(); g.ellipse(x, y, spr.w * 0.18 + 40 * u * easeOut(r), spr.h * 0.2 + 12 * u * easeOut(r), 0, 0, Math.PI * 2); g.stroke();
-          }
-          break;
-        }
-        case 'combo': {
-          const s = clamp01(age / 0.14);
-          sc = s < 1 ? 1.55 - 0.6 * easeOut(s) : 0.95 + 0.05 * easeOutBack(clamp01((age - 0.14) / 0.2));
-          const shiver = Math.exp(-age * 9) * 2.2 * u;
-          x += Math.sin(age * 70) * shiver;
-          y -= 30 * u * easeOut(clamp01((age - 0.2) / 0.8));
-          break;
-        }
-        case 'merge': {
-          // two halves sliding together, then one with a flash
-          const c = clamp01(age / 0.32), off = 46 * u * (1 - easeOut(c));
-          y -= 18 * u * easeOut(k);
-          if (c < 1) {
-            drawWord(g, spr, x - off, y, 1, 1, 0, a * 0.55);
-            drawWord(g, spr, x + off, y, 1, 1, 0, a * 0.55);
-            a = 0;
-          } else {
-            const f = clamp01((age - 0.32) / 0.35);
-            if (f < 1) stamp(g, glow('#ffffff', spr.h * 0.9, dpr, 0.6), x, y, 1 + 0.5 * f, 0.8 * (1 - f));
-            sc = 1.08 - 0.08 * easeOut(f);
-          }
-          break;
-        }
-        default:
-          sc = 0.8 + 0.2 * easeOutBack(clamp01(age / 0.16));
-          y -= 34 * u * easeOut(k);
-      }
-      // (rising, a word stops under the panels and their combos; a fling may fly over them)
-      if (p.kind !== 'fling') y = Math.max(y, yMin);
-      if (a > 0.003) drawWord(g, spr, x, y, sc * sx, sc, rot, a);
-      const reach = p.kind === 'fling' ? 200 * u : p.kind === 'merge' ? 50 * u : 4;
-      const hw = spr.w * 0.62 * Math.max(sc * sx, 1.75) + reach, hh = spr.h * 0.62 * Math.max(sc, 1.75) + reach + 40 * u;
-      out.push({ x: x0 - hw, y: y0 - hh, w: hw * 2, h: hh * 2 });
+    this.shown = { total: 0, seats: [0, 0], centre: 0 };
+    if (!this.entries.length) return;
+    // the lanes' anchors: beside each head, on the side away from the other (kept while the two are close), and the
+    // middle lane above them both
+    const head: ([number, number] | null)[] = [0, 1].map((s) => {
+      const p = st.players.find((q) => q.seat === s)?.screen;
+      return p ? [Math.max(-0.1, Math.min(1.1, p[0])) * L.W, Math.max(-0.1, Math.min(1.1, p[1])) * L.H] : null;
+    });
+    const near = 170 * u, gap = 54 * u, row = 27 * u;
+    const both = head[0] && head[1];
+    if (both) {
+      const dx = head[0]![0] - head[1]![0];
+      if (Math.abs(dx) > near * 0.75) { this.side[0] = Math.sign(dx); this.side[1] = -this.side[0]; }
+      else if (this.side[0] === this.side[1]) { this.side[0] = dx >= 0 ? 1 : -1; this.side[1] = -this.side[0]; }
     }
+    const close = !!both && Math.abs(head[0]![0] - head[1]![0]) < near;
+    const yMin = L.top + 8 * u, yMax = L.H - L.margin - 14 * u;
+    const lanes: { x: number; y: number; side: number; up: number }[] = [0, 1].map((s) => {
+      const h = head[s] ?? head[1 - s] ?? [L.W / 2, L.H * 0.45];
+      let side = this.side[s];
+      const xs = close ? [head[0]![0], head[1]![0]] : [h[0]];
+      let edge = side < 0 ? Math.min(...xs) - gap : Math.max(...xs) + gap;
+      // (no room on its side of the screen: the other side)
+      if ((side < 0 && edge < L.margin + 90 * u) || (side > 0 && edge > L.W - L.margin - 90 * u)) {
+        side = -side; edge = side < 0 ? Math.min(...xs) - gap : Math.max(...xs) + gap;
+      }
+      const y = Math.max(yMin + row * (LANE_MAX - 1), Math.min(yMax, (close ? Math.max(head[0]![1], head[1]![1]) : h[1]) + 30 * u));
+      return { x: edge, y, side, up: 0 };
+    });
+    // (both lanes on one side: the second stands over the first)
+    if (lanes[0].side === lanes[1].side && Math.abs(lanes[0].x - lanes[1].x) < 160 * u) lanes[1].up = row * LANE_MAX;
+    const hs = head.filter((h): h is [number, number] => !!h);
+    const mid = {
+      x: hs.length ? hs.reduce((a, h) => a + h[0], 0) / hs.length : L.W / 2,
+      y: Math.max(yMin + row * (LANE_MAX - 1), Math.min(yMax, (hs.length ? Math.min(...hs.map((h) => h[1])) : L.H * 0.4) - 46 * u)),
+    };
+    const placed: Box[] = [];
+    if (avoid) placed.push(avoid);
+    const ease = 1 - Math.exp(-30 * Math.max(0, this.dt));
+    for (const lane of [0, 1, -1]) {
+      const list = this.entries.filter((e) => e.lane === lane).sort((a, b) => b.order - a.order);
+      let slot = 0;
+      for (const e of list) {
+        const look = lookOf({ text: e.text, kind: e.kind, seat: e.seat, at: e.at, age: e.age }, st), spr = word(e.text, look, u, dpr);
+        const fs = look.size * u, tw = measure(e.text, fs, look.weight, look.track), h = fs * 1.35;
+        // (a word going fades where it is)
+        if (e.gone >= 0 && this.t - e.gone >= GONE) continue;
+        if (e.gone >= 0 && e.x != null && e.y != null) { this.one(g, e, spr, e.x, e.y, u, dpr, lane < 0 ? 1 : lanes[lane].side, st, out); continue; }
+        // the slot: the newest at the lane's foot, the older above it
+        const s = slot++;
+        let x: number, y: number;
+        if (lane < 0) { x = mid.x; y = mid.y - s * row; }
+        else { const Ln = lanes[lane]; x = Ln.x + Ln.side * tw / 2; y = Ln.y - Ln.up - s * row; }
+        x = Math.max(L.margin + tw / 2, Math.min(L.W - L.margin - tw / 2, x));
+        y = Math.max(yMin, Math.min(yMax, y));
+        // (off the words already placed and the centre's: moved up past them, or down when there is no room above)
+        for (let i = 0; i < 6; i++) {
+          const hit = placed.find((b) => Math.abs(b.x + b.w / 2 - x) < b.w / 2 + tw / 2 + 6 * u && Math.abs(b.y + b.h / 2 - y) < b.h / 2 + h / 2);
+          if (!hit) break;
+          const upY = hit.y - h / 2 - 2 * u, downY = hit.y + hit.h + h / 2 + 2 * u;
+          y = upY >= yMin ? upY : downY;
+        }
+        // eased into its slot (a new word starts there; an older one slides up as another comes under it)
+        if (e.y == null || e.x == null) { e.y = y; e.x = x; }
+        else { e.y += (y - e.y) * ease; e.x += (x - e.x) * ease; }
+        placed.push({ x: x - tw / 2, y: y - h / 2, w: tw, h });
+        const a = this.one(g, e, spr, e.x, e.y, u, dpr, lane < 0 ? 1 : lanes[lane].side, st, out);
+        if (a > 0.3) { this.shown.total++; if (lane >= 0) this.shown.seats[lane]++; else this.shown.centre++; }
+      }
+    }
+    const M = this.most, S = this.shown;
+    M.total = Math.max(M.total, S.total); M.centre = Math.max(M.centre, S.centre);
+    M.seats = [Math.max(M.seats[0], S.seats[0]), Math.max(M.seats[1], S.seats[1])];
+  }
+
+  /** one word at its place, moving its kind's way (small: it stays in its lane); returns its alpha */
+  private one(g: Ctx, e: Entry, spr: ReturnType<typeof word>, x0: number, y0: number, u: number, dpr: number, side: number, st: HudState, out: Box[]) {
+    // (the entrance runs on the word's own time since it came: a pop updated in place keeps its age low, and must not
+    // pop in again; the fade runs on its feed's age)
+    const life = popLife(e.kind), age = Math.max(0, this.t - e.born), k = Math.min(1, e.age / life);
+    const fadeLife = 1 - clamp01((k - 0.72) / 0.28), fadeGone = e.gone >= 0 ? 1 - clamp01((this.t - e.gone) / GONE) : 1;
+    let x = x0, y = y0, sc = 1, a = clamp01(age / 0.05) * fadeLife * fadeGone, rot = 0, sx = 1;
+    const col = st.players.find((q) => q.seat === e.seat)?.color ?? '#ffffff';
+    switch (e.kind) {
+      case 'catch': {
+        // snaps in, a ring closing on it
+        const s = clamp01(age / 0.11);
+        sc = s < 1 ? 1.6 - 0.68 * easeOut(s) : 0.92 + 0.08 * easeOut(clamp01((age - 0.11) / 0.12));
+        a = clamp01(age / 0.07) * fadeLife * fadeGone;
+        const r = clamp01(age / 0.16);
+        if (r < 1) {
+          g.lineWidth = Math.max(1, 2.2 * u * (1 - r));
+          g.strokeStyle = rgba(lift(col, 0.5), 0.8 * (1 - r) * fadeGone);
+          g.beginPath(); g.arc(x, y, spr.h * (0.8 - 0.45 * easeOut(r)), 0, Math.PI * 2); g.stroke();
+        }
+        break;
+      }
+      case 'swing': {
+        // hangs from a point above it and swings a little, dying away
+        const d = 16 * u, th = 0.4 * Math.exp(-2.6 * age) * Math.cos(age * 8.5);
+        x = x0 + Math.sin(th) * d; y = y0 - d + Math.cos(th) * d;
+        rot = -th * 0.6;
+        sc = 0.75 + 0.25 * easeOutBack(clamp01(age / 0.18));
+        break;
+      }
+      case 'fling': {
+        // off along the flight, a little way, stretched, a ghost trailing
+        const [dx, dy] = this.dirOf(e, side, u);
+        const D = 34 * u, go = D * easeOut(k * 1.6);
+        x = x0 + dx * go; y = y0 + dy * go * 0.6;
+        sc = 0.85 + 0.15 * easeOutBack(clamp01(age / 0.12));
+        sx = 1 + 0.22 * (1 - clamp01(age / 0.35));
+        rot = Math.max(-0.25, Math.min(0.25, Math.atan2(dy, Math.abs(dx)) * Math.sign(dx || 1) * 0.3));
+        drawWord(g, spr, x0 + dx * go * 0.55, y0 + dy * go * 0.33, sc * sx, sc, rot, a * 0.22);
+        break;
+      }
+      case 'perfect': {
+        sc = 0.65 + 0.35 * easeOutBack(clamp01(age / 0.16));
+        const r = clamp01(age / 0.4);
+        if (r < 1) {
+          g.lineWidth = Math.max(1, 1.4 * u * (1 - r));
+          g.strokeStyle = rgba(GOLD_HI, 0.7 * (1 - r) * fadeGone);
+          g.beginPath(); g.ellipse(x, y, spr.w * 0.16 + 22 * u * easeOut(r), spr.h * 0.18 + 7 * u * easeOut(r), 0, 0, Math.PI * 2); g.stroke();
+        }
+        break;
+      }
+      case 'combo': {
+        const s = clamp01(age / 0.14);
+        sc = s < 1 ? 1.45 - 0.5 * easeOut(s) : 0.95 + 0.05 * easeOutBack(clamp01((age - 0.14) / 0.2));
+        x += Math.sin(age * 70) * Math.exp(-age * 9) * 2 * u;
+        break;
+      }
+      case 'merge': {
+        // two halves sliding together, then one with a flash
+        const c = clamp01(age / 0.32), off = 30 * u * (1 - easeOut(c));
+        if (c < 1) {
+          drawWord(g, spr, x - off, y, 1, 1, 0, a * 0.55);
+          drawWord(g, spr, x + off, y, 1, 1, 0, a * 0.55);
+          a = 0;
+        } else {
+          const f = clamp01((age - 0.32) / 0.35);
+          if (f < 1) stamp(g, glow('#ffffff', spr.h * 0.7, dpr, 0.6), x, y, 1 + 0.4 * f, 0.6 * (1 - f) * fadeGone);
+          sc = 1.06 - 0.06 * easeOut(f);
+        }
+        break;
+      }
+      default:
+        sc = 0.8 + 0.2 * easeOutBack(clamp01(age / 0.16));
+    }
+    // a count going up (SWING ×2 → ×3) or a text changed in place: a bump, not a new word
+    if (e.bump >= 0) { const b = clamp01((this.t - e.bump) / 0.22); sc *= 1 + 0.2 * Math.sin(Math.PI * b) * (1 - b * 0.3); }
+    if (a > 0.003) drawWord(g, spr, x, y, sc * sx, sc, rot, a);
+    const reach = e.kind === 'fling' ? 40 * u : e.kind === 'merge' ? 34 * u : 6 * u;
+    const hw = spr.w * 0.6 * Math.max(sc * sx, 1.6) + reach, hh = spr.h * 0.6 * Math.max(sc, 1.6) + reach + 18 * u;
+    out.push({ x: x0 - hw, y: y0 - hh, w: hw * 2, h: hh * 2 });
+    return a;
   }
 }
 

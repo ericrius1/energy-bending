@@ -41,6 +41,7 @@ import type { Solid } from '../worlds/solids';
 import { DuelMatch, duelPlane } from './match';
 import { noInput, splitIntent, type ContactInput, type ContactEvent } from './contact';
 import { DuelFx, type DuelFxCtx } from './fx';
+import { Finale } from './finale';
 import { DuelHud, screenOf, type HudSeat, type HudState } from './hud-state';
 // (the HUD is the page's one, reached through bend.hud, and screenOf is hud-state.ts's copy of src/hud's: any value
 // imported from src/hud lands in main.ts's own chunk, and the duel's chunk importing it waits for main.ts to finish
@@ -115,6 +116,8 @@ export async function startDuel(app: PlayApp) {
   const bpm0 = 112;
   const setMs = Number(q.get('set') ?? 60) * 1000;
   const match = new DuelMatch(chars, arena, plane, 0, bpm0, { solids, setMs });
+  // the finale's duet (finale.ts): it holds both seats and moves the bodies for its length
+  const finale = new Finale(chars);
   const sight = (): DuelSight => {
     const L = match.contact.link;
     return {
@@ -127,7 +130,7 @@ export async function startDuel(app: PlayApp) {
   // ---------------------------------------------------------------- the seats: humans and virtual players
   const kinds = [q.get('p1') ?? 'human', q.get('p2') ?? 'bot'].map((x) => (x === 'bot' || x === 'ai' || x === 'cpu' ? 'bot' : 'human'));
   let started = false;
-  const gates = [0, 1].map((k) => new SeatGate(k, () => !started || match.frozen(k), (it) => splitIntent(chars[k], it, match.contact.holding(k), match.contact.held(k))));
+  const gates = [0, 1].map((k) => new SeatGate(k, () => !started || match.frozen(k) || finale.holds(k), (it) => splitIntent(chars[k], it, match.contact.holding(k), match.contact.held(k))));
   for (let k = 0; k < 2; k++) ctl[k].source = gates[k];
   const scene = new Scene();
   scene.bodies = [0, 1].map((k) => ({ id: `seat.${k}`, seat: k, character: chars[k] }));
@@ -196,7 +199,7 @@ export async function startDuel(app: PlayApp) {
     slot: (k) => { const d = dancer(k); return d ? show.dancers.indexOf(d) : -1; },
     sfx: (name, o) => { music.sfx(name as Parameters<Music['sfx']>[0], o); }, ear,
     rumble: (k, s, ms) => { const i = humanSeats.indexOf(k); if (i >= 0) hub.rumble(i, s, ms); },
-    field: field as unknown as DuelFxCtx['field'], burst: app.hand?.burst ?? null,
+    field: field as unknown as DuelFxCtx['field'], burst: app.hand?.burst ?? null, finale: () => finale.look(),
   });
   const duelHud = new DuelHud();
   // (the head on screen, past 0 … 1 when it is out of frame: the HUD points an arrow at it from the edge)
@@ -284,6 +287,11 @@ export async function startDuel(app: PlayApp) {
     now += f.danceDt * 1000;
     const ev = match.step(now, beat, bpm, f.danceDt * 1000, [gates[0].contact, gates[1].contact]);
     frameEvents = ev;
+    for (const e of ev) {
+      if (e.k === 'finale') finale.start(e.fused, bpm, [match.state.seats[0].style, match.state.seats[1].style]);
+      else if (e.k === 'set') finale.stop();
+    }
+    finale.update(f.danceDt);
     fx.update(f.danceDt, ev, match.touches, match.contact, match.state);
     pendingHud.push(...ev); pendingTouches.push(...match.touches);
     // (the finale and the result stand the camera back a little)
@@ -306,7 +314,7 @@ export async function startDuel(app: PlayApp) {
 
   // ---------------------------------------------------------------- bend.duel
   const api = {
-    match, arena, plane,
+    match, arena, plane, finale,
     get state() { return match.state; },
     get started() { return started; },
     /** this frame's events, and every event so far with its time (ms of duel time) */
@@ -316,7 +324,7 @@ export async function startDuel(app: PlayApp) {
     hud: () => hudState,
     /** begin now (the human seats' devices not yet in), or from set 1 again */
     start: begin,
-    restart: () => { if (!started) begin(); else match.restart(now); },
+    restart: () => { finale.stop(); if (!started) begin(); else match.restart(now); },
     /** the duel's end: the arena off, the world's room back */
     stop: () => {
       started = false; showArena(null); field.fuse(null);
