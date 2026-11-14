@@ -75,7 +75,7 @@ export class DuelMatch {
 
   constructor(readonly chars: readonly [Character, Character], readonly arena: Arena, readonly plane: StagePlane, now = 0, bpm = 112, readonly o: MatchOptions = {}) {
     this.bpm = bpm;
-    this.state = newDuel(now, bpm);
+    this.state = newDuel(now, bpm, arena.energy);
     this.contact = new Contact(chars);
     // the pose pass: after each body posed itself, the hands on the contact (IntentController fits the rig to the
     // Character's landmarks after its update, so this lands in the frame's pose)
