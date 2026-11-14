@@ -108,7 +108,7 @@ test('dancing well builds flow: on the beat more, varied more, a hit costs it', 
   assert(a > c, `varied ${a.toFixed(1)} > the same kick four times ${c.toFixed(1)}`);
   assert(on.d.seats[0].streak === 4, 'a streak of four');
   duelStep(on.d, on.t, [body(0.2, { facing: -1 }), body(-0.6, { reach: 0.9, serial: 9 })], arena);
-  assert(on.d.seats[0].flow < a && on.d.seats[0].streak === 0, `hit: flow ${a.toFixed(1)} → ${on.d.seats[0].flow.toFixed(1)}`);
+  assert(on.d.seats[0].flow < a && (on.d.seats[0].streak as number) === 0, `hit: flow ${a.toFixed(1)} → ${on.d.seats[0].flow.toFixed(1)}`);
   return `four varied on the beat ${a.toFixed(1)}, off ${b.toFixed(1)}, one kick ×4 ${c.toFixed(1)}`;
 });
 

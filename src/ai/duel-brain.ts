@@ -149,7 +149,7 @@ export class DuelBrain implements Brain {
   private airUsed = false;
   private dropUntil = -1;
   private down = -1;
-  private pending: { move: string; at: number; dir: [number, number]; why: string } | null = null;
+  private pending: { move: string; at: number; dir: [number, number]; why: string; tries?: number } | null = null;
   private lastPress = -1;
   private aimOff: [number, number] = [0, 0];
   private answered = new Set<number>();
@@ -255,7 +255,12 @@ export class DuelBrain implements Brain {
       // free, a strike goes where the body faces: thrown only once it has turned to the other (else let go)
       if (ok && !pl && MOVES[p.move]?.attack) {
         const f = this.fwd(c), dx = O.root[0] - c.root[0], dz = O.root[2] - c.root[2], l = Math.hypot(dx, dz) || 1;
-        if ((f[0] * dx + f[1] * dz) / l < 0.75) { ok = false; this.count('held'); }
+        if ((f[0] * dx + f[1] * dz) / l < 0.75) {
+          ok = false;
+          // (still turning: a moment more, twice; then let it go)
+          if ((p.tries ?? 0) < 2) this.pending = { ...p, at: t + 0.06, tries: (p.tries ?? 0) + 1 };
+          else this.count('held');
+        }
       }
       if (ok) {
         const fl = pressMove(c, p.move, p.dir, it);
@@ -611,7 +616,7 @@ export class DuelBrain implements Brain {
     if (!this.rng.chance(p * 0.35 + 0.05)) return;
     const pick = this.rng.weighted(cands, (x) => x.w)!.r;
     // (free and moving: a moment to stand and turn to it first)
-    const settle = !pl && c.grounded && (Math.hypot(c.v[0], c.v[2]) > 0.7 || (o.x - me.x) * fx + (o.z - me.z) * fz < 0.8 * Math.hypot(o.x - me.x, o.z - me.z)) ? 0.12 : 0;
+    const settle = !pl && c.grounded && (Math.hypot(c.v[0], c.v[2]) > 0.7 || (o.x - me.x) * fx + (o.z - me.z) * fz < 0.8 * Math.hypot(o.x - me.x, o.z - me.z)) ? 0.18 : 0;
     this.pending = { move: pick.name, at: Math.max(t + settle, this.onBeatAt(S, 0.16 + settle)), dir: [fx, fz], why: `strike ${pick.name}` };
   }
 

@@ -42,6 +42,7 @@ import type { Solid } from '../worlds/solids';
 import { DuelMatch, duelPlane } from './match';
 import { DuelFx } from './fx';
 import { DuelHud, type HudSeat, type HudState } from './hud-state';
+import { hud, screenOf } from '../hud';
 import type { DuelEvent } from '../../shared/duel.ts';
 
 type V3 = [number, number, number];
@@ -183,14 +184,9 @@ export async function startDuel(app: PlayApp) {
     field, arcs: plasma?.arcs ?? null, burst: app.hand?.burst ?? null, frame: () => kit.frameIndex,
     untouchable: (k) => match.untouchable(k, now),
   });
-  const hud = new DuelHud();
-  const project = (p: V3): [number, number] | null => {
-    const m = cam.viewProj, x = p[0], y = p[1], z = p[2];
-    const cx = m[0] * x + m[4] * y + m[8] * z + m[12], cy = m[1] * x + m[5] * y + m[9] * z + m[13], w = m[3] * x + m[7] * y + m[11] * z + m[15];
-    if (w <= 1e-4) return null;
-    const u = cx / w * 0.5 + 0.5, v = 0.5 - cy / w * 0.5;
-    return u < -0.2 || u > 1.2 || v < -0.2 || v > 1.2 ? null : [u, v];
-  };
+  const duelHud = new DuelHud();
+  // (the head on screen, past 0 … 1 when it is out of frame: the HUD points an arrow at it from the edge)
+  const project = (p: V3): [number, number] => screenOf(cam.viewProj, p);
   const hudSeats = (): HudSeat[] => [0, 1].map((k) => {
     const d = dancer(k), c = chars[k] as unknown as Record<string, unknown>;
     const head = d ? (d.skeleton.pos[JOINT.HeadEnd] as unknown as V3) : null;
@@ -236,16 +232,21 @@ export async function startDuel(app: PlayApp) {
     frameEvents = ev;
     for (let k = 0; k < 2; k++) chars[k].events.length = 0;
     fx.update(f.danceDt, ev);
-    const seats = hudSeats();
-    hud.events(ev, seats);
-    hudState = hud.build(match.state, now, f.dt, seats, beat, bpm);
-    const H = (window as unknown as { bend?: { hud?: { set?: (s: HudState) => void } } }).bend?.hud;
-    H?.set?.(hudState);
+    pendingHud.push(...ev);
     // (a round's last KO and the results stand the camera back a little; the lock frames both bodies otherwise)
     rig.framePad = match.state.phase === 'won' ? 0.5 : 0;
   }, 'duel: the rules judge the bodies, the effects and the HUD');
 
-  frame.tick('post', () => draw.upload(), 'duel: its glows to the GPU');
+  // the HUD's state, after the camera moved (the tags ride the heads where this frame shows them)
+  const pendingHud: DuelEvent[] = [];
+  frame.tick('post', (f: FrameCtx) => {
+    draw.upload();
+    if (!started) return;
+    const seats = hudSeats();
+    duelHud.events(pendingHud.splice(0, pendingHud.length), seats);
+    hudState = duelHud.build(match.state, now, f.dt, seats, beat, bpm);
+    hud.set(hudState);
+  }, 'duel: its glows to the GPU, its HUD state');
 
   // ---------------------------------------------------------------- bend.duel
   const api = {

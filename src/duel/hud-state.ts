@@ -3,29 +3,11 @@
 // draws it; the duel draws no HUD of its own). The pops (PERFECT, KO, BEND, …) are kept here: events push them, they
 // age and go.
 //
-// (The HudState type is the contract's, copied as it is written there so this compiles before src/hud lands; the two
-// are the same shape, which is all TypeScript asks.)
+// (The HUD is src/hud's: its HudState is the contract's, docs/design/duel.md.)
 import { DUEL, type DuelEvent, type DuelState } from '../../shared/duel.ts';
+import type { HudPlayer, HudPop, HudState } from '../hud';
 
-export interface HudPlayer {
-  seat: 0 | 1; name: string; color: string;
-  matter: string;
-  hits: number; hitsMax: number;
-  kos: number;
-  dash: number;
-  charges: { spell: string; n: number; max: number; ready: number }[];
-  superMeter: number;
-  reforming: number;
-  screen?: [number, number];
-}
-export interface HudPop { text: string; seat?: number; at: [number, number]; age: number; kind: 'perfect' | 'parry' | 'ko' | 'react' | 'info' }
-export interface HudState {
-  mode: 'duel' | 'jogo' | 'none';
-  players: HudPlayer[];
-  round: { koTarget: number; time: number; phase: 'countdown' | 'play' | 'ko' | 'won'; countdown?: number; winner?: number };
-  beat: { phase: number; bpm: number; window: number };
-  pops: HudPop[];
-}
+export type { HudState };
 
 /** each matter's colour on the HUD (CSS), the duel's tag colours */
 export const MATTER_CSS: Record<string, string> = {
