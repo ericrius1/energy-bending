@@ -39,6 +39,9 @@ export interface DuelSimOptions {
   /** the two seats' matters (default fire and water): their powers; `powers: false` plays without any */
   dress?: [string, string];
   powers?: boolean;
+  /** the arena's gentle hazards (hazards.ts: the tide, the wind, the swell, the crystals' hum); default on where the
+   *  arena has them */
+  hazards?: boolean;
   each?: (f: { t: number; beat: number; match: DuelMatch; powers: DuelPowers | null; bodies: readonly Character[]; intents: Intent[]; events: DuelEvent[] }) => void;
 }
 
@@ -76,6 +79,8 @@ export interface DuelSimResult {
   match: DuelMatch;
   /** the powers: each seat's casts by power and forms, the reactions, what the bodies felt, every power event */
   powers: { casts: [Record<string, number>, Record<string, number>]; forms: [number, number]; reactions: Record<string, number>; felt: DuelPowers['felt']; events: { t: number; e: PowerEvent }[] } | null;
+  /** the hazards: each one's rides (how many, seconds), seconds the bodies spent in water; null: none */
+  hazards: { rides: Record<string, { n: number; s: number }>; waterS: number } | null;
 }
 
 /** the arena and the world a world id duels in, in Node: the world's own arena (worlds/<id>/arena.ts), shown */
@@ -123,7 +128,7 @@ export function simulateDuel(o: DuelSimOptions): DuelSimResult {
   const stage: StageView = { plane: o.locked ? plane : null, stage: plane, terrain, gates: [], room: A.space.radius, solids };
   const drivers = brains.map((b, k) => (b ? new BrainDriver(b, bodies[k], scene, () => stage) : null));
   const seats: [SeatStats, SeatStats] = [blankStats(), blankStats()];
-  const res: DuelSimResult = { seconds: 0, play: 0, sets: [], seats, stats: match.state.stats, holds: [], spread: [], ends: {}, merges: [[]], combos: [], pops: { max: 0, total: 0, updates: 0 }, energy: [[]], match, powers: null };
+  const res: DuelSimResult = { seconds: 0, play: 0, sets: [], seats, stats: match.state.stats, holds: [], spread: [], ends: {}, merges: [[]], combos: [], pops: { max: 0, total: 0, updates: 0 }, energy: [[]], match, powers: null, hazards: null };
   const powerEvents: { t: number; e: PowerEvent }[] = [];
   // (the HUD's pops as the page makes them, from the same events: how many words a second reach the screen)
   const hud = new DuelHud(), hudSeats: HudSeat[] = [0, 1].map((k) => ({ name: `P${k + 1}`, matter: 'fire', screen: [0.3 + 0.4 * k, 0.5], dash: 1, holding: false, held: false }));
