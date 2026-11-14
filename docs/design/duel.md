@@ -1,5 +1,46 @@
 # The duel: Energy Bending as a fast two-player arena game
 
+> **Second correction from the owner (13 Nov 2026). It overrides the hits, KOs and damage below.**
+> **Nobody gets knocked out or hurt.** It is a **dance battle**, like contact improvisation: you run at each other,
+> jump, **catch** each other, **swing** each other through the air, **fling** each other the other way, up, or
+> around things, **jump on and off each other**, and the two **energies merge**. It is competitive the way a dance
+> battle is (style, combos, who leads), not the way a fight is. Hits, hit pips, KO counts, "first to 5 KOs",
+> scattering and damage are all gone. See "The contact dance" below; it replaces "Hits, KOs and rounds".
+>
+> ## The contact dance
+>
+> **Contact moves.** All of them work in free 3D and in the lock, mid-air as well as on the ground.
+> - **Catch / grab**: reach the other body (hand to hand, hand to wrist, waist, ankle). The two bodies are joined
+>   by a soft link, a spring through the contact point. Either can grab. Catching someone in the air is the best
+>   move in the game.
+> - **Swing**: while joined, one body (the base, often the one on the ground or on a wall) swings the other round
+>   the contact: an orbit with momentum, pumped by the stick and on the beat, like a dancer swung by the arms.
+> - **Fling / release**: let go mid-swing. The flown body leaves on the swing's tangent, faster than it came. Flings
+>   go up, across, over the other's head, onto a ledge, or off a wall into a wall jump.
+> - **Lift / base**: one body holds the other up (a high catch, a shoulder stand). The top can launch from the
+>   base's hands or shoulders, a partner launch higher than any jump.
+> - **Vault / step**: a body is a platform. Land on the other's shoulders or back, run up them, bounce off them.
+> - **Counter-flow**: a held body can spin out of a grab, redirect the swing, or turn a fling into its own aú or wall
+>   run. Neither player is ever stuck.
+> - **Merge**: sustained contact merges the energies. Fire and water steam round the link, the bodies' matter
+>   mixes, and a long enough flow becomes the fusion as a finale.
+>
+> **Combos and style.** A combo chains moves without touching the ground for long: run, jump, catch, swing, fling,
+> wall run, catch again. Each link adds to a multiplier; on the beat it counts double; variety counts more than
+> repetition. Both dancers build a **shared energy**, the dance's intensity, which only rises when you play
+> together. Each also earns **style**, the battle's score, mostly for leading: starting catches, landing flings, and
+> catching the other. A round is a set on the music (a section of the world's track, about 45–90 s). The higher
+> style wins it, and the shared energy at its peak decides the finale (the fusion).
+>
+> **Falling** off the space or into a drop costs a little style and the body reforms in a moment. It is never a KO.
+>
+> **Virtual players** play this: they seek contact, time catches, pump swings on the beat, aim flings at ledges and
+> walls, and chain combos. Some are generous leads, some showy flyers.
+>
+> **The HUD** shows each dancer's style and combo (with its multiplier and the links as small icons), the shared
+> energy between them, the beat, the set's time, and pops for named moves ("CATCH", "SWING", "FLING ×3",
+> "PERFECT", "MERGE"). No hit pips, no KO marks.
+
 > **Correction from the owner (13 Nov 2026), which overrides anything below that reads otherwise.**
 > It is still a dance, and it is **3D native**. It is not a 2D arena brawler.
 > - **The view.** You move freely in the world, with a third-person camera framing both players. The 2D lock
