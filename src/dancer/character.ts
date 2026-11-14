@@ -11,9 +11,10 @@
 //   c.plane         a StagePlane locks movement to it (s along plane.right) with its ground and ledges (plus
 //                   `extraLedges()`, e.g. set ice); null = free 3D movement on terrain.groundAt(x, z). setPlane()
 //                   eases a dancer onto a new plane rather than snapping.
-//   c.env           { updraft 0..1, slick 0..1, carryX (m/s), blink, still? } set by the game each frame (element
-//                   perks; `still`: a fusion holds the pair as one body, so moves play where they start and the stick
-//                   turns the body without walking it).
+//   c.env           { updraft 0..1, slick 0..1, carryX (m/s), blink, still?, held? } set by the game each frame
+//                   (element perks; `still`: a fusion holds the pair as one body, so moves play where they start and
+//                   the stick turns the body without walking it; `held`: the duel's contact carries the body, so it
+//                   starts no wall slide or run of its own).
 //   c.lookAt        null | [x,y,z]: the partner. The dancer faces it when not running away from it.
 //   c.inputYaw      free mode: the camera's yaw, so moveX/moveZ are camera-relative (0 = the camera at +z).
 //   c.update(dt, intent, beat)   beat = a beat position or { pos, bpm }. Writes pose, vel, root, yaw; pushes events:
@@ -266,8 +267,9 @@ export class Character {
   /** what the game lays on the body each frame: the elements' perks, and `still` while a fusion holds the pair as one
    *  body (play/fusion.ts): a move started then plays where it starts (its travel and the slide it starts with
    *  absorbed: the start event carries fdir [0, 0] and no ground velocity, so Character.shapesAt replays it the same),
-   *  and the stick turns the body but does not walk it */
-  env: { updraft: number; slick: number; carryX: number; blink: boolean; still?: boolean } = { updraft: 0, slick: 0, carryX: 0, blink: false };
+   *  and the stick turns the body but does not walk it; `held` while another body carries it (the duel's contact): a
+   *  held body dragged along a face is not running on it, so no wall slide or run begins (or lasts) */
+  env: { updraft: number; slick: number; carryX: number; blink: boolean; still?: boolean; held?: boolean } = { updraft: 0, slick: 0, carryX: 0, blink: false };
   lookAt: ArrayLike<number> | null = null;
   inputYaw = 0;
   bpm: number | null = null;
@@ -1067,7 +1069,7 @@ export class Character {
     this.wallNear = near; this.wallNearId = nearId;
     if (near) { this.wallNearN = n; this.wallCoyoteT = P.wallCoyote; this.wallLast = near; this.wallLastId = nearId; this.wallLastN = n; }
     const down = it.moveY < -0.6;
-    const busy = this.grounded || this.dashT > 0 || !!this.move || this.stagger > 0;
+    const busy = this.grounded || this.dashT > 0 || !!this.move || this.stagger > 0 || !!this.env.held;
     if (this.wallSide) {
       if (!touch || down || busy || (this.plane && near !== this.wallSide)) { this.wallSide = 0; this.wallId = null; this.wallRunT = 0; }
       else {

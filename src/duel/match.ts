@@ -4,7 +4,8 @@
 // thing. Each frame, after the bodies moved:
 //   - the contact: catches, the rope, the pump, flings, lifts, counters, vaults (contact.ts), each a link in the
 //     combo of the dancer who made it; a fling landed is the flinger's lead
-//   - the bodies' own events, links too: a wall jump, a wall run, a dash, a flip, a kick or an aú in the air
+//   - the bodies' own events, links too: a wall jump, a wall run, a dash, a flip, a kick or an aú in the air (none for
+//     a body while it is held: the contact carries it, and `Character.env.held` keeps it off the walls)
 //   - the space's soft wall (free: past its radius a body is eased back and its outward speed taken away)
 //   - the rules' clock: the set, falls (a body below the kill floor reforms in a moment, near the other so the dance
 //     goes on), combos ending, the shared energy and the merge
@@ -31,6 +32,9 @@ export interface MatchOptions {
   /** a set's length (ms; default DUEL.SET_MS) */
   setMs?: number;
 }
+
+/** a wall run begun again this soon after the last (ms) is the same run */
+export const WALL_RUN_GAP_MS = 500;
 
 /** which link a body's own event is, if any */
 function bodyLink(e: Record<string, unknown>): LinkKind | null {
@@ -60,6 +64,8 @@ export class DuelMatch {
   /** every event so far with its time (ms), trimmed */
   readonly history: { t: number; e: DuelEvent }[] = [];
   bpm = 112;
+  /** each seat's last wall run (ms) */
+  private wallRunAt = [-1e9, -1e9];
 
   constructor(readonly chars: readonly [Character, Character], readonly arena: Arena, readonly plane: StagePlane, now = 0, bpm = 112, readonly o: MatchOptions = {}) {
     this.bpm = bpm;
@@ -94,22 +100,35 @@ export class DuelMatch {
     // the contact (nothing in the count-in, or for a body reforming)
     const live = (k: number) => !frozen(d, k);
     const ins: [ContactInput, ContactInput] = [live(0) ? inputs[0] : noInput(), live(1) ? inputs[1] : noInput()];
+    const setMs = this.o.setMs ?? DUEL.SET_MS;
     if (d.phase === 'play') {
       this.touches = this.contact.step(ins, dt / 1000, beatOn);
       for (const t of this.touches) {
         if (t.kind === 'landed') out.push(...duelFlingLanded(d, t.seat));
-        else if (t.kind !== 'release') out.push(...duelLink(d, t.seat, t.kind, t.perfect, now));
+        else if (t.kind !== 'release') out.push(...duelLink(d, t.seat, t.kind, t.perfect, now, setMs));
       }
     } else { this.touches = []; if (this.contact.link) this.contact.link = null; }
-    duelContact(d, !!this.contact.link, now);
-    // the bodies' own events: links
+    const L = this.contact.link;
+    duelContact(d, !!L, now, L ? L.held : -1);
+    // the bodies' own events: links. A body held (when it moved this frame, or now) made none of its own: the contact
+    // carried it, and dragged along a solid's face it would start and end a wall run every frame (report 12). The
+    // body is told it is held (Character.env.held) so it starts no wall slide or run while carried
     for (let k = 0; k < 2; k++) {
       const c = this.chars[k], ev = c.events; c.events = [];
       this.bodyEvents[k] = ev;
-      for (const e of ev) { const L = bodyLink(e); if (L) out.push(...duelLink(d, k, L, beatOn, now)); }
+      const carried = !!c.env.held || this.contact.held(k);
+      if (!carried) for (const e of ev) {
+        const B = bodyLink(e);
+        if (!B) continue;
+        // (a wall run met again within WALL_RUN_GAP_MS is the same run: a body flickering on a face is one link)
+        if (B === 'wallrun') { const again = now - this.wallRunAt[k] < WALL_RUN_GAP_MS; this.wallRunAt[k] = now; if (again) continue; }
+        out.push(...duelLink(d, k, B, beatOn, now, setMs));
+      }
+      c.env.held = this.contact.held(k);
       if (!c.plane) this.softWall(c);
     }
-    const ev = duelStep(d, now, dt, [{ y: this.chars[0].root[1], grounded: this.chars[0].grounded }, { y: this.chars[1].root[1], grounded: this.chars[1].grounded }], { yKill: this.arena.space.yKill, bpm, setMs: this.o.setMs });
+    const body = (c: Character) => ({ y: c.root[1], grounded: c.grounded, x: c.root[0], z: c.root[2] });
+    const ev = duelStep(d, now, dt, [body(this.chars[0]), body(this.chars[1])], { yKill: this.arena.space.yKill, bpm, setMs: this.o.setMs });
     for (const e of ev) this.apply(e);
     out.push(...ev);
     this.events = out;
@@ -148,10 +167,12 @@ export class DuelMatch {
     return [best[0], best[1], best[2]];
   }
 
+  private unheld() { for (const c of this.chars) c.env.held = false; }
+
   private apply(e: DuelEvent) {
     switch (e.k) {
-      case 'fall': if (this.contact.link) this.contact.link = null; this.formAt(e.seat, this.nearOther(e.seat)); break;
-      case 'set': for (let k = 0; k < 2; k++) this.formAt(k, this.arena.spawns[k]); this.contact.link = null; break;
+      case 'fall': if (this.contact.link) this.contact.link = null; this.unheld(); this.formAt(e.seat, this.nearOther(e.seat)); break;
+      case 'set': for (let k = 0; k < 2; k++) this.formAt(k, this.arena.spawns[k]); this.contact.link = null; this.unheld(); break;
     }
   }
 

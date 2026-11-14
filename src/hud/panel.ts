@@ -1,7 +1,8 @@
 // A dancer's panel in its top corner (a slim bar on a phone): the matter's emblem in a dark well, the name, the
 // **style** (the battle's score: a number that rolls up, and flares gold as a combo cashes into it), the dash's
-// readiness; and on the live layer, the **combo** hanging under the panel while it goes (its count, its multiplier
-// and the last few links as small icons, those landed on the beat in gold; a new link pops in), the combo's end (cashed:
+// readiness; and on the live layer, the **combo** hanging under the panel while it goes (its count, the whole combo's
+// however few icons fit, its multiplier (past ×4 its tier's word instead, in the tier's colour, the row's rim in it), and
+// the last few links as small icons, those landed on the beat in gold; a new link pops in), the combo's end (cashed:
 // the row gathers and flies up into the style, which flares, "+n" rising from it; dropped by a fall: the icons sink
 // and fade), and the **link** while the two are joined (a ring round the emblem in the partner's colour and a
 // "HOLDING" / "HELD" chip). Seat 1's panel is seat 0's mirrored: the emblem always on the outer edge. What never
@@ -44,7 +45,8 @@ const COMPACT: Metrics = {
 const POP_IN = 0.28, CASH = 0.62, DROP = 0.7, PLUS = 1.3;
 
 interface Item { kind: string; gold: boolean; at: number }
-interface Ended { items: Item[]; n: number; mult: number; perfect: number; at: number; drop: boolean; style0: number; width: number }
+interface Tier { n: number; name: string; color: string; at: number }
+interface Ended { items: Item[]; n: number; mult: number; perfect: number; at: number; drop: boolean; style0: number; width: number; tier: Tier | null }
 
 const fmt = (v: number) => {
   const s = String(Math.max(0, Math.round(v)));
@@ -69,6 +71,9 @@ export class PlayerPanel {
   private wasLive = false;
   private lastN = 0;
   private lastPerfect = 0;
+  private lastMult = 1;
+  /** the live combo's tier (past ×4), and since when it shows (its word pops in) */
+  private tier: Tier | null = null;
   private ended: Ended | null = null;
   private rowW = 0;
   private t = 0;
@@ -126,11 +131,15 @@ export class PlayerPanel {
     const c = p.combo, t = this.t, links = c.links ?? [];
     if (!c.live) {
       if (this.wasLive && this.items.length) {
-        this.ended = { items: this.items, n: this.lastN, mult: c.mult, perfect: this.lastPerfect, at: t, drop: p.reforming > 0, style0: p.style, width: this.rowW };
+        this.ended = { items: this.items, n: this.lastN, mult: this.lastMult, perfect: this.lastPerfect, at: t, drop: p.reforming > 0, style0: p.style, width: this.rowW, tier: this.tier };
       }
-      this.items = []; this.lastN = 0; this.lastPerfect = 0; this.wasLive = false;
+      this.items = []; this.lastN = 0; this.lastPerfect = 0; this.lastMult = 1; this.wasLive = false; this.tier = null;
       return;
     }
+    // the tier: a new one pops its word in
+    const tn = c.tier ?? 0;
+    if (tn > 0 && c.tierName) { if (!this.tier || this.tier.n !== tn) this.tier = { n: tn, name: c.tierName, color: c.tierColor ?? GOLD, at: t }; }
+    else this.tier = null;
     const fresh = !this.wasLive || c.n < this.lastN;
     if (fresh) this.ended = this.ended && t - this.ended.at < 0.25 ? this.ended : null;
     const dn = fresh ? c.n : c.n - this.lastN, dp = Math.max(0, c.perfect - (fresh ? 0 : this.lastPerfect));
@@ -145,7 +154,7 @@ export class PlayerPanel {
       items = links.map((k, i) => ({ kind: k, gold: i >= links.length - g, at: t - 1 }));
     }
     this.items = items;
-    this.lastN = c.n; this.lastPerfect = c.perfect; this.wasLive = true;
+    this.lastN = c.n; this.lastPerfect = c.perfect; this.lastMult = c.mult; this.wasLive = true;
   }
 
   private aligned(links: string[], items: Item[]) {
@@ -314,7 +323,7 @@ export class PlayerPanel {
     // ---- the combo row under the panel
     const c = p.combo, C = M.combo, cy = row.y + row.h / 2;
     if (c.live && this.items.length) {
-      const wide = this.drawRow(g, p, this.items, c.n, c.mult, c.perfect > 0, row, C, u, dpr, {}, out);
+      const wide = this.drawRow(g, p, this.items, c.n, c.mult, c.perfect > 0, row, C, u, dpr, { tier: this.tier }, out);
       this.rowW = approach(this.rowW || wide, wide, 18, this.dt);
     } else this.rowW = 0;
 
@@ -326,7 +335,7 @@ export class PlayerPanel {
       else if (k < 1) {
         if (E.drop) {
           // dropped: the row sinks, greys and fades
-          this.drawRow(g, p, E.items, E.n, E.mult, false, row, C, u, dpr, { a: 1 - k, dy: 16 * u * k * k, grey: true }, out);
+          this.drawRow(g, p, E.items, E.n, E.mult, false, row, C, u, dpr, { a: 1 - k, dy: 16 * u * k * k, grey: true, tier: E.tier }, out);
         } else {
           // cashed: the glass goes, the icons gather into the count, and the count flies up into the style, shrinking
           const fly = easeOut(clamp01((k - 0.15) / 0.85));
@@ -334,7 +343,7 @@ export class PlayerPanel {
           this.drawRow(g, p, E.items, E.n, E.mult, E.perfect > 0, row, C, u, dpr, {
             a: 1 - clamp01((k - 0.3) / 0.3), pill: 1 - clamp01(k / 0.25), gather: easeOut(k / 0.4), dy, fly,
             toX: (X(M.style.x) + this.styleEnd) / 2,
-            text: (1 + 0.2 * Math.sin(Math.PI * clamp01(k / 0.3))) * (1 - 0.35 * fly),
+            text: (1 + 0.2 * Math.sin(Math.PI * clamp01(k / 0.3))) * (1 - 0.35 * fly), tier: E.tier,
           }, out);
         }
       }
@@ -349,11 +358,11 @@ export class PlayerPanel {
     } else if (pa >= PLUS) this.plus = 0;
   }
 
-  /** the combo's row: count, multiplier, icons (oldest outermost, newest toward the centre). `o.a` fades it all,
-   *  `o.pill` the glass under it; `o.gather` 0 … 1 pulls the icons into the count (fading them); `o.dy` moves it; `o.text`
-   *  scales the count; `o.grey` draws it dropped. Returns its width */
+  /** the combo's row: count, multiplier, the tier's word (past ×4), icons (oldest outermost, newest toward the centre).
+   *  `o.a` fades it all, `o.pill` the glass under it; `o.gather` 0 … 1 pulls the icons into the count (fading them);
+   *  `o.dy` moves it; `o.text` scales the count; `o.grey` draws it dropped; `o.tier` the tier reached. Returns its width */
   private drawRow(g: Ctx, p: HudPlayer, items: Item[], n: number, mult: number, goldMult: boolean, row: Box, C: Metrics['combo'], u: number, dpr: number,
-    o: { a?: number; pill?: number; gather?: number; dy?: number; text?: number; grey?: boolean; toX?: number; fly?: number }, out: Box[]): number {
+    o: { a?: number; pill?: number; gather?: number; dy?: number; text?: number; grey?: boolean; toX?: number; fly?: number; tier?: Tier | null }, out: Box[]): number {
     const a = o.a ?? 1, gather = o.gather ?? 0, dy = o.dy ?? 0, grey = !!o.grey, pill = (o.pill ?? 1) * a;
     if (a <= 0.01) return 0;
     const flip = this.seat === 1, t = this.t, col = grey ? '#8c879a' : lift(p.color, 0.45);
@@ -363,7 +372,10 @@ export class PlayerPanel {
     const cs = C.count * u, ms = C.mult * u;
     const nl = label(String(n), cs, 700, 0, grey ? '#9a95a8' : '#ffffff', 0.5, Math.max(2, 2.6 * u), dpr), nw = nl.w;
     const ml = label(fmtMult(mult), ms, 650, 0.04, grey ? '#8c879a' : goldMult ? GOLD : INK, 0.5, Math.max(2, 2.4 * u), dpr), mw = ml.w;
-    const textW = nw + 4 * u + mw;
+    // past ×4 the tier's word, in its colour, in the multiplier's place (past the cap it is always ×4)
+    const T = o.tier ?? null, tl = T ? label(T.name, ms, 800, 0.14, grey ? '#8c879a' : lift(T.color, 0.1), 0.6, Math.max(2, 2.4 * u), dpr) : null;
+    const tw = tl ? tl.w : 0, mShow = tl ? 0 : mw;
+    const textW = nw + 4 * u + mShow + tw;
     const icons = Math.min(items.length, Math.max(1, Math.floor((row.w - C.inset * u * 2 - textW - 10 * u) / ((C.icon + C.gap) * u))));
     const shown = items.slice(items.length - icons);
     const i0 = C.inset * u + textW + 10 * u, step = (C.icon + C.gap) * u;
@@ -374,7 +386,11 @@ export class PlayerPanel {
       g.globalAlpha = pill;
       roundRect(g, flip ? row.x + row.w - w : row.x, row.y + (grey ? dy : 0), w, row.h, row.h / 2);
       g.fillStyle = 'rgba(10,8,18,0.5)'; g.fill();
-      g.lineWidth = 1; g.strokeStyle = grey ? 'rgba(255,255,255,0.08)' : rgba(lift(p.color, 0.3), 0.28); g.stroke();
+      // (the rim in the tier's colour once there is one, brighter as its word pops in)
+      const tin = T && !grey ? clamp01(1 - (t - T.at) / 0.8) : 0;
+      g.lineWidth = T && !grey ? Math.max(1, (1.4 + 1.6 * tin) * u) : 1;
+      g.strokeStyle = grey ? 'rgba(255,255,255,0.08)' : T ? rgba(T.color, 0.55 + 0.4 * tin) : rgba(lift(p.color, 0.3), 0.28);
+      g.stroke();
     }
     g.globalAlpha = a;
     // the icons
@@ -404,8 +420,18 @@ export class PlayerPanel {
     g.translate(o.toX != null ? (o.toX - ax) * (o.fly ?? 0) : 0, 0);
     g.translate(ax, cy); g.scale(k, k); g.translate(-ax, -cy);
     stampLabel(g, nl, at(C.inset * u), base, flip ? 'right' : 'left');
-    stampLabel(g, ml, at(C.inset * u + nw + 4 * u), base - 0.5 * u, flip ? 'right' : 'left');
+    if (!tl) stampLabel(g, ml, at(C.inset * u + nw + 4 * u), base - 0.5 * u, flip ? 'right' : 'left');
     g.restore();
+    if (tl && T) {
+      // the tier's word pops in (from small, settling) after the count, and goes with it into the style
+      const pin = grey || o.a != null ? 1 : clamp01((t - T.at) / POP_IN), sc = (0.4 + 0.6 * easeOutBack(pin)) * (o.text ?? 1);
+      const tx = at(C.inset * u + nw + 4 * u);
+      g.save();
+      g.translate(o.toX != null ? (o.toX - ax) * (o.fly ?? 0) : 0, 0);
+      g.translate(tx, cy); g.scale(sc, sc); g.translate(-tx, -cy);
+      stampLabel(g, tl, tx, base - 0.5 * u, flip ? 'right' : 'left', 1 - 0.5 * gather);
+      g.restore();
+    }
     g.letterSpacing = '0px';
     g.globalAlpha = 1;
     const bw = o.fly ? Math.max(width, row.w) : width, bx = flip ? row.x + row.w - bw - 10 * u : row.x - 10 * u;

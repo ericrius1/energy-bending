@@ -72,7 +72,14 @@
 > and `combo.cashed?: number` (set for the frame a combo ends), `players[].lead?: number` (0..1: how much of the
 > set this dancer led), `players[].best?: number` (the best combo this set, for the banner), `pops[].id?: number`
 > and `pops[].dir?: [number, number]` (a fling's direction on screen). `link.from` is the holder's contact point and
-> `link.to` the held's.
+> `link.to` the held's. Phase 2 (fixes 2, 3 and 5) adds: `combo.tier?: number` (past ×4 the tier reached, 0 none;
+> `DUEL.TIERS` in shared/duel.ts: FLOW at 12 varied links, BLOOM 18, RADIANT 26, SUBLIME 36), `combo.tierName?:
+> string` and `combo.tierColor?: string` (its word and CSS colour, from tier 1; on a combo's ended frame, the ended
+> combo's), and `shared.fusion?: number` (0 … 1, the fusion's charge: the set's longest stretch at `FUSE_AT` of
+> `FUSE_HOLD_MS`, 1 once the finale will fuse, which also needs a MERGE). A pop's `id` is stable: a pop counted up
+> or rewritten in place keeps it (one SWING per hold, its text going `SWING`, `SWING ×2`, …; one PERFECT per dancer
+> counting up; past the budget of about three new words a second a fresh pop of the same dancer's is rewritten), so
+> the HUD updates the pop rather than adding one. A tier reached pops its word (`FLOW ×12`, kind `combo`).
 
 > **Correction from the owner (13 Nov 2026), which overrides anything below that reads otherwise.**
 > It is still a dance, and it is **3D native**. It is not a 2D arena brawler.
