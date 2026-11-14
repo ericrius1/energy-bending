@@ -49,6 +49,8 @@ import { noInput, splitIntent, type ContactInput, type ContactEvent } from './co
 import { DuelFx, type DuelFxCtx } from './fx';
 import { DuelPowers, noPower, type PowerInput } from './powers';
 import { PowerFxDraw } from './power-fx';
+import { DuelHazards } from './hazards';
+import { HazardFxDraw } from './hazards-fx';
 import { matterOf, POWER_NAME } from '../../shared/powers.ts';
 import { onBeat } from '../../shared/duel.ts';
 import { POWER_KEYS, type KeyLayout } from '../input/keyboard';
@@ -65,6 +67,10 @@ import { DuelHud, screenOf, type HudSeat, type HudState, type HudWord } from './
 // imported from src/hud lands in main.ts's own chunk, and the duel's chunk importing it waits for main.ts to finish
 // evaluating, which awaits the duel at the top level: a production build hung, the page never ready)
 import type { DuelEvent } from '../../shared/duel.ts';
+import type { Joined } from '../play';
+import { duelLobby } from '../play/menu';
+import { installHelp } from './help';
+import { startLesson } from './lesson';
 
 type V3 = [number, number, number];
 
@@ -98,7 +104,7 @@ export interface BrainSpec { style?: DuelStyle; skill?: number; seed?: number }
 
 const perSeat = (v: string | null, k: number) => { if (v == null) return null; const xs = v.split(','); return xs[k] ?? xs[0]; };
 
-export async function startDuel(app: PlayApp) {
+export async function startDuel(app: PlayApp, opts: { joined?: Joined } = {}) {
   const { kit, frame, show, rig, music, field, query: q } = app;
   const world = () => app.worldOf(app.main.world);
   const W = world();
@@ -157,6 +163,8 @@ export async function startDuel(app: PlayApp) {
   const kindOf = (k: number) => { const d = play.dancers[k]; let best = show.dress[k], share = -1; if (d) for (const l of d.loadout.layers) if (l.share > share) { share = l.share; best = l.kind; } return matterOf(best); };
   const powers = new DuelPowers(chars, match, { matter: [kindOf(0), kindOf(1)], sink: powerSolids, groundAt: (x, z) => world().groundAt(x, z), yKill: arena.space.yKill });
   powersVersion = () => powers.version;
+  // the arena's gentle hazard (hazards.ts: the tide, the wind, the swell, the hum), after the powers; &hazards=0 off
+  const hazards = new DuelHazards(chars, match, arena, { on: q.get('hazards') !== '0' });
   // the finale's duet (finale.ts): it holds both seats and moves the bodies for its length
   const finale = new Finale(chars);
   const sight = (): DuelSight => {
@@ -165,7 +173,7 @@ export async function startDuel(app: PlayApp) {
       frozen: [match.frozen(0), match.frozen(1)], link: L ? { holder: L.holder, held: L.held, age: match.contact.age } : null,
       flown: match.contact.flown?.flyer ?? null,
       yKill: arena.space.yKill, space: arena.space, spawns: arena.spawns, solids: solids(), groundAt: (x, z) => world().groundAt(x, z),
-      powers: powers.sight(), bends: powers.liveSight(),
+      powers: powers.sight(), bends: powers.liveSight(), hazard: hazards.sight(),
     };
   };
 
@@ -252,6 +260,7 @@ export async function startDuel(app: PlayApp) {
     sfx: (name, o) => { music.sfx(name as Parameters<Music['sfx']>[0], o); }, ear,
     rumble: (k, s, ms) => { const i = humanSeats.indexOf(k); if (i >= 0) hub.rumble(i, s, ms); },
   }, (k) => powers.rules.seats[k].matter);
+  const hazardFx = new HazardFxDraw({ glows, eye: () => cam.position, ground: (x, z) => world().groundAt(x, z), field: field as unknown as ConstructorParameters<typeof HazardFxDraw>[0]['field'], ripple: (x, z, s, r) => { (world() as unknown as { ripple?: (x: number, z: number, s: number, r: number) => void }).ripple?.(x, z, s, r); } });
   const duelHud = new DuelHud();
   /** the keys a seat's powers are on (its device's), for the HUD */
   const powerKeys = (k: number): [string, string, string] | null => {
@@ -286,6 +295,9 @@ export async function startDuel(app: PlayApp) {
   };
   // only bots: at once; a human seat waits for its device (or &go). A film (stepped by hand) starts on its first frame
   if (!humanSeats.length || q.has('go')) begin();
+  // the lobby (play/menu.ts): a card per seat, how to join a waiting one; the press that began the duel on the front
+  // joins seat 1; a second human seat nobody takes can go to a virtual partner; a touch player's buttons
+  if (!app.film && !q.has('go')) duelLobby({ hub, frame, canvas: app.canvas, humanSeats, bot: (k) => !!brains[k], started: () => started, joined: opts.joined, partner: (k) => { setBrain(k, specOf(k)); begin(); } });
 
   // ---------------------------------------------------------------- each frame
   let frameEvents: DuelEvent[] = [];
@@ -357,6 +369,7 @@ export async function startDuel(app: PlayApp) {
     // the powers after the contact (a catch at range joins the two through it), their effects drawn
     powers.step(now, f.danceDt * 1000, [0, 1].map((k) => castNext[k] ?? gates[k].power), ev, onBeat(beat, bpm));
     castNext[0] = castNext[1] = null;
+    hazards.step(beat, f.danceDt * 1000);
     ev.push(...powers.duelEvents);
     for (const e of ev) {
       // (the finale: the set's powers end and fade, nothing of them runs on under the duet)
@@ -372,6 +385,7 @@ export async function startDuel(app: PlayApp) {
     frameEvents = ev;
     fx.update(danceReal, ev, match.touches, match.contact, match.state);
     powerFx.update(f.danceDt, powers);
+    hazardFx.update(f.danceDt, hazards);
     for (const e of powers.events) pendingPowers.push(e);
     for (const x of powers.fx) if (x.k === 'react') reactAt.set(x.kind, project(x.at));
     pendingHud.push(...ev); pendingTouches.push(...match.touches);
@@ -410,7 +424,7 @@ export async function startDuel(app: PlayApp) {
 
   // ---------------------------------------------------------------- bend.duel
   const api = {
-    match, arena, plane, finale, powers,
+    match, arena, plane, finale, powers, hazards,
     /** the free camera (camera.ts): its choice, what it framed, how clear its eye stood */
     camera: dcam, camSpace,
     /** cast a seat's power now (slot 0 or 1; the stick as a world x, z), or the form: as its buttons would */
@@ -429,7 +443,7 @@ export async function startDuel(app: PlayApp) {
     restart: () => { finale.stop(); if (!started) begin(); else match.restart(now); },
     /** the duel's end: the arena off, the world's room back */
     stop: () => {
-      started = false; match.warp.reset(); showArena(null); field.fuse(null); powerFx.clear(); powers.clear();
+      started = false; match.warp.reset(); showArena(null); field.fuse(null); powerFx.clear(); powers.clear(); hazardFx.clear();
       if (solidsWas) Object.defineProperty(W, 'solids', solidsWas); else delete (W as { solids?: unknown }).solids;
       rig.pose = null; rig.apexG = 0; rig.headroom = 0;
       app.gates.open(...W.portals.filter((p) => shut.includes(p.id)).map((p) => ({ ...p, world: W.id })));
@@ -460,6 +474,10 @@ export async function startDuel(app: PlayApp) {
       powers: { flow: powers.rules.seats.map((s) => +s.flow.toFixed(2)), form: [0, 1].map((k) => +powers.hud(k).form.toFixed(2)), casts: powers.rules.seats.map((s) => s.casts), forms: powers.rules.seats.map((s) => s.forms), reactions: { ...powers.rules.reactions }, live: powers.live.map((L) => L.kind), felt: { ...powers.felt } },
     }),
   };
+  // the first duel's lesson (lesson.ts, once) and the controls card (help.ts: ?, F1, Start, the ? chip)
+  const lesson = startLesson({ frame, duel: api, query: q, film: app.film, humanSeats, bot: (k) => !!brains[k], device: (k) => gates[k].inner?.name ?? null, root: (k) => chars[k].root, held: (k) => match.contact.held(k), joined: (k) => match.contact.held(k) || match.contact.holding(k) });
+  if (!app.film) installHelp({ frame, device: () => gates[humanSeats[0] ?? 0].inner?.name ?? null, matters: () => powers.rules.seats.map((s) => s.matter), lesson, split: () => gates.some((g) => g.inner?.name === 'keyboard-right') });
+  Object.assign(api, { lesson });
   frame.tick('input', () => { const b = (window as unknown as { bend?: Record<string, unknown> }).bend; if (b && b.duel !== api) b.duel = api; }, 'duel: bend.duel');
   console.info(`duel: ${W.id} (${arenaFor(W.id) ? 'its arena' : 'a fallback arena from its stage'}), ${kinds.join(' v ')}`);
   return api;
