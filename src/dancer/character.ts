@@ -21,6 +21,11 @@
 //       air, bpm, hand, camera?, limb? }   (all Character.shapesAt needs to replay it)
 //     { type:'jump', x, y, z, air }  { type:'land', x, y, z, impact }  { type:'respawn', x, y, z }
 //     { type:'step', x, y, z, foot }  { type:'blink', from, to }
+//     the duel's kit (phys = DUEL_PHYS): { type:'dash', x, y, z, dir:[x,y,z], air, s? }
+//     { type:'wall', x, y, z, n:[x,z], wall, run, side? }  { type:'wallJump', x, y, z, n, wall, dir? }; 'jump' with dash
+//   c.phys          PHYS (the jogo's) or DUEL_PHYS (setProfile('duel')): the duel's run and jump, wall slides, kicks and
+//                   runs (plane.walls locked; terrain.solids free), the 8-way / camera-relative dash, moves that flow.
+//                   State: dashing, dashReady, onWall, wallNormal, wallKick, invulnerable (+ the dash's first frames)
 //   c.startMove(name | def, opts?) → bool    c.hitShapes() / hurtShapes() / standShape()    c.applyKnock(vx, vy, s, vz)
 //   c.setPoseFromCamera(limbs, hasLegs)       the player's real body (Intent.limbs); fades out 0.3 s after the last.
 // Static / pure: Character.shapesAt(moveEvent, t), shapesFromPose, resolveExchange, foldExchange, capsuleDistance.
