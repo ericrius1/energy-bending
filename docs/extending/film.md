@@ -32,7 +32,8 @@ node scripts/film-seams.mjs films/test-seam.json --take 3  # prove the seams are
 Options: `--url` (default `http://127.0.0.1:5435/energybending/`), `--port` (the sink, default 5436), `--take <s>`
 (take length: 10 s master, 20 s preview; `0` for one take), `--force` (render again), `--only-take <k>` (one take in a
 fresh page, for checks), `--no-encode`, `--no-score` (pictures only, silence under them: the offline score is the slow
-part, about 8× real time, so leave it off while working on a timeline), `--variant <name>` (a separate cache), `--out <dir>`
+part, about 8× real time, so leave it off while working on a timeline), `--variant <name>` (a separate cache), `--seconds <s>` (every shot that long), `--size 1280x720` (a preview's
+size), `--name <x>` (the file: `<film>-<x>-preview.mp4`), `--flash` (the sync check, below), `--out <dir>`
 (default `docs/reports/media/film`, git-ignored). Files: `<out>/<film>-master.mp4`, `-web.mp4`, `-preview.mp4`,
 `<out>/cache/<quality>/<film>-<shot>-<key>/take-NNN.mkv` (lossless x264, the takes), `score.wav` and `info.json` (the
 shot's in-point, its page frames, the jogo's state at the end, the page's warnings), `<out>/work/<film>-<quality>/`
@@ -62,7 +63,7 @@ can't do yet down for the critic rather than working round it in the film.
   "world": "temple",
   "cast": [{ "dress": "fire" }, { "dress": "water", "brain": "calm", "seed": 5 }],
   "from": "1.1",                        // the in-point: a place on the jogo's grid, or "start" (with "preroll": s)
-  "bars": 28,                           // or "beats", or "seconds"; a bar is 4 beats at the film's "bpm" (112)
+  "bars": 28,                           // or "beats", or "seconds"; a bar is 4 beats at the film's tempo (its track's)
   "yawBase": "stage",                   // yaw 0 is the stage's camera side ("side": side-on to the pair; or a number)
   "hour": 19.7,                         // the redwoods' time of day (held still)
   "set": { "temple": { "tideHold": 0.42 } },          // any parameter group (bend.params), once at the start
@@ -168,6 +169,37 @@ docs/reports/6-film-tool.md for the numbers).
 Deterministic: the frames (stepped at 1/60 s, seeded brains, a seeded handheld, the jogo's room on a stepped clock),
 the score's calls. Not bit-exact: a handful of pixels per frame differ by one or two levels between runs of the same
 shot (GPU), and the offline audio render differs by an LSB or so (Chrome's OfflineAudioContext, docs/reports/1-audio.md).
+
+## The music: a track
+
+A film is scored by a world's track (`public/music/`, docs/extending/sound.md section 5):
+
+```json
+{ "name": "film2", "audio": { "track": "temple" }, "shots": [ … ] }
+```
+
+`track` is a world (or a track's id), or a file (a path from the timeline's folder: it is measured as the film starts,
+its tempo searched round `"bpm"`; the pages then play in the key of the first shot's world's track, so prefer a world's).
+Optional: `"gain"` (the track's level, 1) and `"score"` (the shots' recorded sounds under it, 1: the game's own balance).
+With a track:
+
+- The film's tempo is the track's measured tempo (a film's `bpm` is ignored): bars and beats are the track's.
+- Each shot's page runs the music's clock on the track's grid: a jogo's grid start (its "1.1"), or a play or show
+  shot's in-point, is the track beat at that point of the film. The first shot's page chooses: a bar line of the track
+  on its grid's start, the first that lets the track start under the film's first frame; its `info.json` says which
+  (`track.trackBeatAtGrid`, `trackBeatAtIn`, and `gridTime`, where on the score's clock the grid started). The later
+  shots are handed theirs (so the first shot renders first; a later shot alone stops if the first has no info yet).
+- The pages play none of the game's groove: each shot's recorded score is the matter voices, the stones and feet, the
+  players' melody and the jogo's sounds, in the track's key and on its 16ths. The `music` cues still set the groove's
+  level, which only the brains hear now.
+- Every shot is rendered a beat longer than asked and cut where its end falls on the nearest whole beat of the track
+  (to the frame: within half a frame, and no error carried from one shot to the next).
+- The track is laid under the whole film, its place at the first frame from the first shot's info, the shots' scores
+  under it at the game's balance, then a limiter at -1 dBFS (its look-ahead compensated: uncompensated it put the track 5 ms late). The source is the conformed WAV the analysis leaves in
+  `docs/reports/media/music/<id>.wav` (the .m4a when it isn't there).
+- `--flash` lights every frame that starts a beat of the track and measures, from the encoded picture, how far each
+  flash falls from its beat (`sync:` in the log and run.json): the pages' clock against the track the film lays.
+- A film without `audio` keeps the generative score (its pages run with `&procedural`).
 
 ## The score
 

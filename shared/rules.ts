@@ -16,9 +16,10 @@ import {
   type Phase, type Fusion, type FusionKind, type MusicClock, type PublicState, type Results, type RulesEvent,
   type SetPiece, type XchBody, type XchResult, type MoveRelay, type ClientMsg, type ServerMsg, type MoveMsg, type V3,
 } from './protocol.ts';
+import { trackFor } from './tracks.ts';
 
 export const RULES = {
-  SESSION_MS: 180000,       // play time; 84 bars at 112 bpm, so the finale starts on a bar line
+  SESSION_MS: 180000,       // play time (84 bars at 112 bpm; at any tempo the whole bars nearest it: sessionMs)
   INTRO_MIN_MS: 3000,       // intro is at least this long and ends on a bar line
   // Perfect timing: a move starting within PERFECT_MS of a grid line, the grid being PERFECT_GRID 16ths
   // (1 = 16ths, 2 = 8ths, 4 = beats). At 100-124 bpm 16ths are only 121-150 ms apart, so judging against 16ths
@@ -27,7 +28,7 @@ export const RULES = {
   PERFECT_GRID: 2,
   PERFECT_MS: 55,
   PARRY_MS: 150,            // a block timed within this of impact is a parry (the client judges)
-  BPM: 112,
+  BPM: 112,                 // the tempo of a world with no track (a world's track sets its own: tempoOf)
   /** the music's mood per stage (or world); unknown ids hash to 0..MOODS-1 */
   STAGE_MOODS: { void: 0, geode: 0, redwoods: 1, tide: 2, forge: 3 } as Record<string, number>,
   MOODS: 4,
@@ -193,6 +194,25 @@ export function nextBar(music: MusicClock, t: number) { const b = barMs(music); 
 export function gridError(music: MusicClock, t: number, grid = RULES.PERFECT_GRID) { const s = stepMs(music) * grid, x = (t - music.epoch) / s; return (x - Math.round(x)) * s; }
 /** the music's beat (fractional) at server time t */
 export const beatAt = (music: MusicClock, t: number) => ((t - music.epoch) * music.bpm) / 60000;
+/** the play time, in whole bars, so the finale starts on a bar line */
+export const sessionMs = (music: MusicClock) => Math.round(RULES.SESSION_MS / barMs(music)) * barMs(music);
+/** a world's tempo: its track's (shared/tracks.ts), or the rules' */
+export const tempoOf = (world: string | null | undefined) => trackFor(world)?.bpm ?? RULES.BPM;
+
+/**
+ * The room's world changed (a seat travelled): its music becomes the new world's track, whose bar 1 is the room's next
+ * bar line (the new epoch) at the new world's tempo; what was timed on the old grid (the end of play, a fusion, the
+ * intro) moves to the new grid's next bar line, so it still lands on one.
+ */
+export function retempo(s: Session, world: string, now: number) {
+  const bpm = tempoOf(world), epoch = Math.round(nextBar(s.music, now));
+  const music = { epoch, bpm, mood: s.music.mood };
+  const onGrid = (t: number | null) => (t == null || t <= epoch ? t : epoch + Math.ceil((t - epoch) / barMs(music) - 1e-9) * barMs(music));
+  s.music = music;
+  s.tEnd = onGrid(s.tEnd); s.sessionEnd = onGrid(s.sessionEnd);
+  if (s.fusion) { s.fusion.t0 = onGrid(s.fusion.t0)!; s.fusion.tEnd = onGrid(s.fusion.tEnd)!; }
+  s.changed = true;
+}
 
 function moodFor(stage: string) {
   if (Object.hasOwn(RULES.STAGE_MOODS, stage)) return RULES.STAGE_MOODS[stage];
@@ -210,7 +230,7 @@ const USED_MS = 60000;
 export function createSession(stage: string | null | undefined, nowMs: number, world: string | null = null): Session {
   const st = name(stage) ?? 'void';
   const s = {
-    stage: st, world: name(world), music: { epoch: Math.round(nowMs), bpm: RULES.BPM, mood: moodFor(st) },
+    stage: st, world: name(world), music: { epoch: Math.round(nowMs), bpm: tempoOf(name(world) ?? st), mood: moodFor(st) },
     present: [false, false], slots: new Array(SLOTS).fill(null), lastTick: nowMs,
     pieces: [], piecesRev: 0, pieceN: 0, builders: new Map(),
     lastTravel: new Array(SLOTS).fill(-Infinity), lastBreak: new Array(SLOTS).fill(-Infinity),
@@ -291,7 +311,7 @@ export function tick(s: Session, now: number): RulesEvent[] {
       if (s.present[0] && s.present[1]) startIntro(s, now);
       break;
     case 'intro':
-      if (now >= s.tEnd!) { s.phase = 'play'; s.sessionEnd = s.tEnd! + RULES.SESSION_MS; s.tEnd = s.sessionEnd; s.changed = true; }
+      if (now >= s.tEnd!) { s.phase = 'play'; s.sessionEnd = s.tEnd! + sessionMs(s.music); s.tEnd = s.sessionEnd; s.changed = true; }
       break;
     case 'play':
       if (s.fusion && now >= s.fusion.t0) {
@@ -485,7 +505,7 @@ export function onTravel(s: Session, slot: number, msg: { world?: unknown; porta
   if (now - s.lastTravel[slot] < RULES.TRAVEL_GAP_MS) return no('rate');
   s.lastTravel[slot] = now;
   if (sl) sl.world = world;
-  if (isSeat(slot)) s.world = world;
+  if (isSeat(slot) && s.world !== world) { s.world = world; if (tempoOf(world) !== s.music.bpm || trackFor(world)) retempo(s, world, now); }
   s.changed = true;
   return { ok: true, events: [{ k: 'travel', world, portal, by: slot }] as RulesEvent[] };
 }

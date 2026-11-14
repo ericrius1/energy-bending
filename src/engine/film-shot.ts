@@ -11,6 +11,13 @@
 //     exactly the frame that would have come anyway;
 //   - after the last frame (and the lock released), the score: the shot's Recorder rendered offline from page time 0,
 //     with the in-point's time so the sink can lay it under the frames.
+// A film with a track (its "audio": the plan's `track`) has the music's clock on that track's grid: a jogo's grid
+// start, or a play shot's in-point, is the track beat the plan says (`beatAtIn`, the film's track beat at this shot's
+// in-point; null for the film's first shot: the page puts a bar line of the track there, the first that lets the
+// track start under the film's first frame), so the matter voices, stones and feet land on the music's 16ths and
+// sound its bar's chord. info.json says where the grid started (`gridTime`, on the score's clock) and which track beat
+// that was (`trackBeatAtGrid`, `trackBeatAtIn`): scripts/film.mjs lays the track under the film by them. `flash` lights
+// the frame on each of the track's beats (the sync check).
 // Times: a cue's or a key's `at` is "bar.beat" (whole beats, 1-based: "1.1" is the first beat), "bar:beat" (beat may
 // be fractional: "3:2.5"), or seconds from the in-point. The grid is the jogo's (beats since play began) in a jogo
 // shot, else the shot's own from its in-point; a bar is four beats at the film's tempo.
@@ -21,6 +28,7 @@ import { planeNormal } from './camera';
 import { FilmCamera, type CamKey, type FilmScene, type V3, type Ease, type CamPose, type Capsule } from './filmcam';
 import type { FilmApi } from './film';
 import { moodIndex } from '../audio/harmony';
+import { TRACKS, barOf } from '../audio/track';
 
 type At = number | string;
 export interface ShotCue {
@@ -56,7 +64,13 @@ export interface ShotSpec {
   music?: { level?: number; key?: number; mood?: string };
   wake?: boolean;
 }
-export interface ShotPlan { fps: number; every: number; start: number; end: number; total: number; pauses: number[]; audio: boolean; tail: number }
+export interface ShotPlan {
+  fps: number; every: number; start: number; end: number; total: number; pauses: number[]; audio: boolean; tail: number;
+  /** the film's track, and its beat at this shot's in-point (null: the film's first shot, the page chooses) */
+  track?: { id: string; beatAtIn: number | null } | null;
+  /** light the frame on each of the track's beats */
+  flash?: boolean;
+}
 
 /** a beat on the grid (0-based) from "bar.beat" or "bar:beat"; null for seconds */
 export function gridBeat(at: At): number | null {
@@ -107,6 +121,23 @@ async function run(api: FilmApi, recorder: Recorder, shot: ShotSpec, plan: ShotP
   if (shot.music?.level != null) B.music.holdLevel(shot.music.level);
   if (shot.music?.key != null) B.music.engine.setKey(shot.music.key);
   if (shot.music?.mood) B.music.engine.setMood(moodIndex(shot.music.mood));
+  // the film's track: whatever world or room, its tempo, key and chords. A play shot's grid is anchored now (its in-point
+  // is known: the end of the pre-roll); a jogo's when its play begins (until then the track's first chord)
+  const M = B.music, track = plan.track ? TRACKS[plan.track.id] ?? null : null;
+  let trackBeatAtGrid: number | null = null, gridScore: number | null = null, trackBeatAtIn: number | null = null;
+  const inTimeOf = () => (prerollFrames + 1) * dt;
+  /** the track beat on the film's grid start, `g` seconds after the in-point */
+  const beatAtGrid = (g: number) => plan.track!.beatAtIn != null ? plan.track!.beatAtIn + g / spb : 4 * Math.max(0, Math.ceil((g - track!.downbeat) / barOf(track!) - 1e-9));
+  if (track) {
+    M.trackFixed = true;
+    M.engine.setTrack(track, true);
+    if (!jogo) {
+      trackBeatAtGrid = beatAtGrid(0); trackBeatAtIn = trackBeatAtGrid; gridScore = inTimeOf();
+      M.engine.trackBeat0 = 0;
+      M.clock.anchor(gridScore, trackBeatAtGrid, M.filmClock);
+    } else M.engine.trackBeat0 = NaN;
+  }
+  const flashBase = B.params?.post?.exposure ?? 1.08;
   // the first frame: the jogo's room starts on it (a script waits for the first stepped frame) and bend.jogo appears
   await B.step(1, dt);
   let i = 1;
@@ -358,7 +389,23 @@ async function run(api: FilmApi, recorder: Recorder, shot: ShotSpec, plan: ShotP
       t0 = performance.now();
     }
     each();
+    if (plan.flash && track) {
+      // (only where the page knows the track's grid: a jogo's lead-in before play begins doesn't, and plays free)
+      const b = M.clock.beatAt(M.filmClock + dt) - M.engine.trackBeat0, ph = b - Math.floor(b);
+      B.set('post', { exposure: Number.isFinite(b) && (ph < 0.06 || ph > 0.985) ? flashBase * 4 : flashBase });
+    }
     await B.step(1, dt);
+    if (track && jogo && gridScore == null) {
+      const b = J.beat() as number | null;
+      if (b != null) gridScore = M.filmClock - b * spb;
+    }
+    if (track && jogo && trackBeatAtGrid == null && gridScore != null && inPoint >= 0) {
+      const inTime = (inPoint + 1) * dt;
+      trackBeatAtGrid = beatAtGrid(gridScore - inTime);
+      trackBeatAtIn = trackBeatAtGrid - (gridScore - inTime) / spb;
+      // the room's clock (beats since its epoch) against the track's: whole beats apart
+      M.engine.trackBeat0 = Math.round(M.clock.beatAt(gridScore) - trackBeatAtGrid);
+    }
     // (a shot that began before the jogo's play: its grid is known from play's first frame; time the keys again)
     if (gridT0 == null) {
       const b = J.beat() as number | null;
@@ -383,7 +430,10 @@ async function run(api: FilmApi, recorder: Recorder, shot: ShotSpec, plan: ShotP
     if (k % 30 === 0) console.log(`film: ${shot.id} frame ${k}/${plan.total} (${((performance.now() - t0) / 1000).toFixed(1)} s)${where()}`);
     if (k + 1 >= plan.end) { i++; break; }
   }
-  const info = { shot: shot.id, inPoint, inTime: (inPoint + 1) * dt, pageFrames: i, pageTime: i * dt, width: kit.size.render[0], height: kit.size.render[1], jogo: J?.stats?.() ?? null };
+  const info = {
+    shot: shot.id, inPoint, inTime: (inPoint + 1) * dt, pageFrames: i, pageTime: i * dt, width: kit.size.render[0], height: kit.size.render[1], jogo: J?.stats?.() ?? null,
+    track: track ? { id: track.id, bpm: track.bpm, gridTime: gridScore, trackBeatAtGrid, trackBeatAtIn, trackBeat0: M.engine.trackBeat0, clockBpm: M.clock.bpm } : null,
+  };
   await post('/end', JSON.stringify(info));   // the sink releases the lock before it answers
   if (plan.audio) {
     const audio = await renderOffline(recorder, i * dt + plan.tail);

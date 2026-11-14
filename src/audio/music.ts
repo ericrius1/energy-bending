@@ -4,6 +4,13 @@
 // frame (synth/synth.ts renderOffline). It owns time: `clock` is what FrameCtx.beat reads, live and filming, and runs
 // before the sound starts (on the page's clock, rebased onto the AudioContext's when it is made). The world sets the
 // mood and the room (sound.ts); a world change moves them on the next bar line.
+//
+// With `tracks` (the game's default; the lab and its tests play the groove) each world's track is the music
+// (audio/track.ts, shared/tracks.ts): the engine runs at its tempo in its key with no groove of its own, the deck
+// (deck.ts) plays the file where the clock says, and a world change crossfades to the next world's track on a bar
+// line. A room (the jogo) says which track and where: its shared clock's epoch is the track's bar 1. The first touch
+// starts the hub's track at its bar 1; a film plays no track in the page (scripts/film.mjs lays the file under the
+// film) but runs the same clock, so what the dancers and the score do lands on its beats.
 import { Engine, grooveParams } from './engine';
 import { Score, earsOf, type Ears as JointEars } from './score';
 import { Conductor } from './conductor';
@@ -12,6 +19,9 @@ import { isVoiced } from './matter';
 import { Recorder, silent, type Instrument } from './instrument';
 import { worldSound } from './sound';
 import { Live } from './live';
+import { Deck, TrackLoader } from './deck';
+import { trackFor, trackPos } from './track';
+import type { Sync } from './clock';
 import type { Listener } from './spatial';
 import type { World } from '../worlds/world';
 import type { Dancer } from '../dancer/dancer';
@@ -50,8 +60,13 @@ export class Music {
   private heard: { world: Float32Array; ears: JointEars; player: boolean }[] = [];
   private _h = { energy: 0, sweep: 0, charge: 0 };
   private playing: { id: string; world: Float32Array }[] = [];
+  /** the track files (live only) and the deck that plays them (from the first touch) */
+  readonly loader: TrackLoader | null = null;
+  deck: Deck | null = null;
+  /** the track is fixed (a film's: its world's or its rooms' don't change it) */
+  trackFixed = false;
 
-  constructor(private film: boolean, private world: () => World, stones: string[], listener: Listener, kinds: readonly object[] = []) {
+  constructor(private film: boolean, private world: () => World, stones: string[], listener: Listener, kinds: readonly object[] = [], readonly tracks = false) {
     const out = this.out.instrument;
     if (film) this.out.s.target = this.recorder.instrument;
     const w = world(), ws = worldSound(w);
@@ -65,6 +80,19 @@ export class Music {
     this.recorder.room = ws.room;
     if (film) this.engine.setPlace(ws.moodIndex, w.tone(), ws.room, ws.grooveWet, true);
     else this.engine.clock.gridTime = this.time();
+    const tr = tracks ? trackFor(w.id) : null;
+    if (tr) {
+      this.engine.setTrack(tr, true);
+      // (the players' melody is a lead over the groove: under a recorded track, a quieter one)
+      this.conductor.params.gain = 0.5;
+      if (film) out.under(0, 1);
+      else {
+        // the first world's track now (decoded before the first touch), the others' files a little later
+        this.loader = new TrackLoader(import.meta.env.BASE_URL);
+        void this.loader.want(tr);
+        setTimeout(() => { for (const id of ['geode', 'redwoods', 'temple', 'pool', 'forge']) { const t = trackFor(id); if (t) void this.loader!.fetch(t); } }, 8000);
+      }
+    }
     for (const k of kinds) if (isVoiced(k)) k.hear(this.ears);
     onParams(audioParams, () => {
       if (this.live) this.live.synth.volume = audioParams.muted ? 0 : audioParams.volume;
@@ -86,20 +114,42 @@ export class Music {
     if (this.live || this.film) return;
     const before = this.time();
     const w = this.world(), ws = worldSound(w);
-    this.live = new Live(w.tone(), (cur, until) => this.engine.tick(cur, until));
+    this.live = new Live(w.tone(), (cur, until) => { this.engine.tick(cur, until); this.deck?.update(cur); });
     this.live.synth.volume = audioParams.muted ? 0 : audioParams.volume;
     // the clock carries on from where it was, now on the AudioContext's time
     this.engine.clock.rebase(this.live.time + 0.01 - before);
     this.out.s.target = this.live.synth;
     this.engine.setPlace(ws.moodIndex, w.tone(), ws.room, ws.grooveWet, true);
-    this.engine.setKey(key);
+    if (this.engine.track) {
+      // the track's bar 1 a moment from now (unless a room's clock already says where it is)
+      const t1 = this.now() + 0.08;
+      if (!this.engine.clock.sync) { this.engine.clock.anchor(t1, 0, this.now()); this.engine.trackAt = t1; }
+      this.out.instrument.under(this.now(), 1);
+      this.deck = new Deck(this.live.ctx, this.live.synth.mix.track, this.loader!, this.engine);
+    } else this.engine.setKey(key);
     this.engine.begin(this.now());
+  }
+
+  /** where the clock says the track is at time t (on the clock everything is scheduled on): the checks read it */
+  trackPlace(t = this.time()) {
+    const tr = this.engine.track;
+    return tr ? { id: tr.id, pos: trackPos(tr, this.clock.beatAt(t) - this.engine.trackBeat0) } : null;
+  }
+
+  /** follow a room's shared clock; its world (the jogo's) names the track, whose bar 1 is the clock's epoch */
+  syncTo(s: Sync & { world?: string | null }) {
+    const tr = this.tracks && !this.trackFixed ? trackFor(s.world) : undefined;
+    if (tr) void this.loader?.want(tr);
+    this.engine.syncTo({ epoch: s.epoch, bpm: s.bpm, track: tr === null ? undefined : tr });
   }
 
   /** the place changed (a portal, the `w` key): its mood, tone and room, from the next bar line */
   retone() {
     const w = this.world(), ws = worldSound(w);
     this.engine.setPlace(ws.moodIndex, w.tone(), ws.room, ws.grooveWet);
+    // its track from the next bar line (a room's clock says for itself; a world with no track keeps the last one)
+    const tr = this.tracks && !this.trackFixed ? trackFor(w.id) : null;
+    if (tr && !this.engine.clock.sync) { this.engine.setTrack(tr); void this.loader?.want(tr); }
   }
 
   /** the cast changed: which joints of each skeleton make sound */

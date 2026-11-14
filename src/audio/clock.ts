@@ -167,6 +167,17 @@ export class MusicClock {
     this.gridTime += clamp(err * 0.12, -0.012, 0.012);
   }
 
+  /** the free grid placed so that it is `beats` (since the origin) at time t, keeping the tempo; the next step to
+   *  schedule is the first at or after `from` (a track starting under the first touch; a film's shot put on its
+   *  film's grid). Step numbers stay where they were: only the origin and the grid's time move */
+  anchor(t: number, beats = 0, from = t) {
+    if (this.sync) return;
+    const sd = this.stepDur;
+    const k = Math.ceil(beats * 4 + (from - t) / sd - 1e-9);
+    this.origin = this.step - k;
+    this.gridTime = t + (k - beats * 4) * sd;
+  }
+
   /** the time base under the clock moved (live: the AudioContext started after a while on the page's clock) */
   rebase(dt: number) { this.gridTime += dt; this.lastSchedT += dt; }
 

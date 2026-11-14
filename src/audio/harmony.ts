@@ -124,6 +124,16 @@ export class Harmony {
     for (let n = this.mood.low - 12; n <= this.mood.low + 31; n++) if (this.mood.pent.includes(pc(n))) this.pool.push(n);
   }
 
+  /** play in a mood that is not one of MOODS (a world's track: its own key and triads, audio/track.ts); `moodIndex`
+   *  stays the world's, so a mood change by index still finds its way back */
+  setCustom(m: Mood) {
+    this.transpose = 0;
+    this.mood = m;
+    this.chordIdx = Math.min(this.chordIdx, m.chords.length - 1);
+    this.pool = [];
+    for (let n = m.low - 12; n <= m.low + 31; n++) if (m.pent.includes(pc(n))) this.pool.push(n);
+  }
+
   /** the transposition that brings this mood's root nearest a key (midi), within a tritone */
   transposeFor(key: number) {
     const base = MOODS[this.moodIndex];

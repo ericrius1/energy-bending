@@ -1,7 +1,7 @@
 {
   "name": "film2",
   "title": "Fire and water (pure beauty, one take), from docs/reports/6-critique.md's revised shot list; no text appears in the film",
-  "bpm": 90,
+  "audio": { "track": "temple" },
   "size": "1920x1080",
   "fps": 60,
   "fadeIn": 2.0,

@@ -9,11 +9,17 @@
 // there, down one only after two quiet bars. drop() sucks the music down and lands the peak on a beat; fusion(kind)
 // is a drop that holds one of four textures for eight bars; release() goes back to the groove. Moods change on a bar
 // line (a portal crossing), the tempo gliding to the new one. Randomness is seeded: the same inputs, the same music.
+//
+// With a world's track (setTrack: a Suno instrumental, audio/track.ts) the track is the music: the clock runs at its
+// tempo with its bar 1 on beat 0 (a new world's track starts on a bar line, the clock's origin moved there), the
+// harmony is its key and each bar its chord, and none of the groove sounds (no drums, bass, pad, arps, toque, tension
+// or fusion textures). What is left plays on its grid: the dancers' notes, the jogo's sounds, the drop's sweep and hit.
 import { mulberry32 } from 'math/random';
 import { MusicClock, type StepHost, type Sync } from './clock';
 import { Harmony, near, notes, pc, MOODS, type Harm } from './harmony';
 import { FUSIONS, SFX, type Instrument, type FusionKind, type SfxName, type Element } from './instrument';
 import type { Tone, Room } from './sound';
+import { trackMood, trackChord, type TrackInfo } from './track';
 import { defineParams } from '../engine/params';
 
 const clamp = (x: number, a: number, b: number) => Math.max(a, Math.min(b, x));
@@ -61,6 +67,14 @@ export class Engine implements StepHost {
   /** events for the visuals ({ t, type }: step, bar, kick, chord, level, drop, fusion …), polled by time */
   events: MusicEvent[] = [];
   performers: Performer[] = [];
+  /** the world's track, when the track is the music (null: the generative groove) */
+  track: TrackInfo | null = null;
+  /** when (on the clock everything is scheduled on) the current track began to be the music */
+  trackAt = 0;
+  /** the beat on the clock that is the track's bar 1 (0 in the game; a film puts its shot on the film's track) */
+  trackBeat0 = 0;
+  /** a track waiting for the next bar line (free) or the shared clock's next jump (synced); undefined: none */
+  private pendingTrack: TrackInfo | null | undefined = undefined;
   private bed = false;
   private padKey = '';
   private padCut = 0;
@@ -91,27 +105,53 @@ export class Engine implements StepHost {
   get chord() { return this.harmony.chord; }
   get stepDur() { return this.clock.stepDur; }
   get fusionKind() { return this.fus?.kind ?? null; }
-  /** the groove is running (level 1 or more, or a fusion): stones and matter go on the grid */
-  get grooving() { return this.level >= 1 || !!this.fus; }
+  /** stones and matter go on the grid: under a track always, once its grid is known (a film's jogo learns it when play
+   *  begins: until then they play free, not on a grid the track doesn't have); otherwise while the groove runs (level
+   *  1 or more, or a fusion) */
+  get grooving() { return this.track ? Number.isFinite(this.trackBeat0) : this.level >= 1 || !!this.fus; }
 
   /** the bed comes in at t (the first touch; a film's prelude) */
   begin(t: number) {
     if (this.bed) return;
     this.bed = true;
-    this.harmony.setChord(this.chordFor(Math.floor((this.clock.step - this.clock.origin) / 16), 0), t);
+    const rel = this.clock.step - this.clock.origin;
+    this.harmony.setChord(this.track ? trackChord(this.track, rel / 4 - this.trackBeat0) : this.chordFor(Math.floor(rel / 16), 0), t);
     this.padNow(t, 2.4);
   }
 
   /** schedule everything due before `until` (call often: every frame, and live from a timer too) */
   tick(cur: number, until: number) { this.clock.advance(cur, until, this); }
 
+  // ---------------------------------------------------------------- the track
+  /** the track that is the music (null: back to the groove). `now`: at once (the clock's tempo set, its origin left
+   *  alone: anchor it yourself); otherwise free, on the next bar line, which becomes its bar 1; synced, when the shared
+   *  clock next jumps (a room's new epoch is the new track's bar 1) */
+  setTrack(t: TrackInfo | null, now = false) {
+    if (now) { this.pendingTrack = undefined; this.useTrack(t, this.time()); return; }
+    if ((this.pendingTrack === undefined ? this.track : this.pendingTrack)?.id === t?.id) return;
+    this.pendingTrack = t;
+  }
+
+  private useTrack(t: TrackInfo | null, at: number) {
+    this.track = t;
+    this.trackAt = at;
+    if (!t) { this.harmony.setMood(this.harmony.moodIndex, 0); this.clock.swing = this.harmony.mood.swing; return; }
+    this.harmony.setCustom(trackMood(t));
+    this.clock.swing = t.swing;
+    if (!this.clock.sync) this.clock.bpm = this.clock.targetBpm = t.bpm;
+    this.padKey = '';
+  }
+
   // ---------------------------------------------------------------- the place and the harmony
   /** a new world's sound, from the next bar line: its mood (the tempo glides there), its tone and its room */
   setPlace(moodIdx: number, tone: Tone, room: Room, grooveWet: number, now = false) {
     if (now) {
       this.harmony.setMood(moodIdx);
-      this.clock.swing = this.harmony.mood.swing;
-      if (!this.clock.sync) this.clock.bpm = this.clock.targetBpm = this.harmony.mood.bpm;
+      if (this.track) this.harmony.setCustom(trackMood(this.track));
+      else {
+        this.clock.swing = this.harmony.mood.swing;
+        if (!this.clock.sync) this.clock.bpm = this.clock.targetBpm = this.harmony.mood.bpm;
+      }
       this.depth = tone.depth;
       const t = this.time();
       this.out.tone(t, tone);
@@ -138,6 +178,7 @@ export class Engine implements StepHost {
   }
 
   private padNow(t: number, swell: number) {
+    if (this.track) return;
     const ch = this.harmony.chord, key = `${this.harmony.moodIndex}.${this.harmony.transpose}.${ch.pad.join(',')}`;
     if (key === this.padKey) return;
     this.padKey = key;
@@ -150,8 +191,8 @@ export class Engine implements StepHost {
   step(rel: number, t: number) {
     const o = this.out, c = this.clock;
     if (this.dropStep >= 0 && c.step >= this.dropStep) {
-      // solo: re-base the bar so the drop lands on beat one; synced: the drop is on a shared bar line already
-      if (!c.synced) { c.origin = c.step; rel = 0; }
+      // solo: re-base the bar so the drop lands on beat one; synced (or on a track): it is on a bar line already
+      if (!c.synced && !this.track) { c.origin = c.step; rel = 0; }
       this.dropStep = -1;
       this.level = 4; this.peakUntil = rel + 16 * 8; this.lastDropRel = rel;
       this.impact(t);
@@ -183,6 +224,14 @@ export class Engine implements StepHost {
     const T = clamp(this.tension || 0, 0, 1);
 
     if (s16 === 0) this.barLine(bar, t);
+    if (this.track) {
+      // the track is the music: no groove; the level still follows the players (the partner reads it)
+      if (s16 % 8 === 0 && !inSuck) this.updateLevel(rel, s16, t);
+      if (!inSuck) for (const p of this.performers) p.onStep(rel, s16, t);
+      this.events.push({ t, type: 'step', s16, bar, level: this.level });
+      if (this.events.length > 256) this.events.splice(0, this.events.length - 256);
+      return;
+    }
     if (s16 % 8 === 0 && !inSuck) this.updateLevel(rel, s16, t);
 
     const L = inSuck ? -1 : this.level;
@@ -281,6 +330,14 @@ export class Engine implements StepHost {
   private barLine(bar: number, t: number) {
     const o = this.out, h = this.harmony;
     const barDur = this.clock.stepDur * 16;
+    // a new track (free): this bar line is its bar 1
+    if (this.pendingTrack !== undefined && !this.clock.sync) {
+      const tr = this.pendingTrack; this.pendingTrack = undefined;
+      if (tr) { this.clock.origin = this.clock.step; bar = 0; }
+      this.useTrack(tr, t);
+      this.events.push({ t, type: 'track', id: tr?.id ?? null });
+    }
+    if (this.track) { this.pendingMood = null; this.pendingKey = null; }
     if (this.pendingMood != null || this.pendingKey != null) {
       if (this.pendingMood != null) this.pendingKey = null; // a new mood is in its own key
       h.setMood(this.pendingMood ?? h.moodIndex, this.pendingMood != null ? 0 : this.pendingKey!);
@@ -295,7 +352,7 @@ export class Engine implements StepHost {
       o.tone(t, p.tone);
       o.room(t, p.room, barDur, p.grooveWet);
     }
-    const i = this.chordFor(bar, this.level);
+    const i = this.track ? trackChord(this.track, ((this.clock.step - this.clock.origin) / 4) - this.trackBeat0) : this.chordFor(bar, this.level);
     const prev = h.chordIdx;
     h.setChord(i, t);
     if (this.bed) this.padNow(t, this.level <= 0 && !this.fus ? 2.4 : 0.045);
@@ -408,6 +465,7 @@ export class Engine implements StepHost {
   /** the drop lands: the impact and the tonic, big and wide */
   private impact(t: number) {
     this.out.impact(t);
+    if (this.track) return;
     this.harmony.mood.chords[0].pad.forEach((m, i) => this.out.voice(t, 0, m + 12, 0.3, 1.4, (i - 1.5) * 0.4, 0));
   }
 
@@ -423,7 +481,7 @@ export class Engine implements StepHost {
 
   /** solo on the next beat (then re-based to bar one); synced on the next shared bar line (or a bar the server chose) */
   private armDrop(atStep: number | null) {
-    const c = this.clock, now = this.time(), synced = c.synced, unit = synced ? 16 : 4;
+    const c = this.clock, now = this.time(), synced = c.synced, unit = synced || this.track ? 16 : 4;
     let s = c.step;
     const lead = atStep != null && synced ? 0.1 : 0.28;
     if (atStep != null && synced) s = Math.max(s, atStep);
@@ -466,19 +524,30 @@ export class Engine implements StepHost {
   }
 
   // ---------------------------------------------------------------- the shared clock
-  syncTo(s: Sync & { mood?: number }) {
+  syncTo(s: Sync & { mood?: number; track?: TrackInfo | null }) {
+    const prev = this.clock.sync;
     this.clock.syncTo(s);
+    if (s.track !== undefined && (this.pendingTrack === undefined ? this.track : this.pendingTrack)?.id !== s.track?.id) {
+      // the new track starts with the room's new epoch (its bar 1), when the clock jumps onto it; at once if no jump
+      // is coming (the same epoch and tempo)
+      if (prev && prev.epoch === this.clock.sync!.epoch && prev.bpm === this.clock.sync!.bpm && this.clock.syncOff != null) this.useTrack(s.track, this.time());
+      else this.pendingTrack = s.track;
+    }
     if (s.mood != null && Number.isFinite(+s.mood) && +s.mood !== this.harmony.moodIndex) this.setMood(+s.mood);
   }
 
   /** the grid jumped onto a shared clock: everything counted in steps moves with it */
   jump(d: number, cur: number) {
+    if (this.pendingTrack !== undefined) {
+      const tr = this.pendingTrack; this.pendingTrack = undefined;
+      this.useTrack(tr, Math.max(cur, this.clock.stepTime(0)));
+    }
     if (this.lastDropRel > -900) this.lastDropRel += d;
     if (this.peakUntil >= 0) this.peakUntil += d;
     this.lastGrooveBar += Math.round(d / 16);
     if (this.fus) { this.fus.start += d; this.fus.end += d; if (this.fus.relStart >= 0) this.fus.relStart += d; }
     const n = this.clock.step;
-    this.harmony.setChord(this.chordFor(Math.floor(n / 16), this.level), cur + 0.005);
+    this.harmony.setChord(this.track ? trackChord(this.track, n / 4 - this.trackBeat0) : this.chordFor(Math.floor(n / 16), this.level), cur + 0.005);
     if (this.bed) this.padNow(cur + 0.005, 0.045);
     if (this.dropStep >= 0) { // a pending drop moves to the next shared bar line
       let s = Math.ceil(n / 16) * 16;
