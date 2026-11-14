@@ -1,7 +1,8 @@
 // The automation hooks: `window.bend`, what scripts (scripts/shot.mjs, scripts/film.mjs), tests and agents drive the
 // page with. Everything here works with the frame stepped by hand at a fixed dt (`step`), so a capture repeats.
 //   bend.step(n, dt)          step n frames by hand (kit.manual), waiting for the GPU and the sound events
-//   bend.grab(type?)          the canvas as an image (a data URL), from a frame stepped for it
+//   bend.grab(type?)          the canvas as an image (a data URL), from a frame stepped for it, with the HUD over it
+//                             (src/hud: what a player sees; bend.hud.visible = false or ?hud=0 for a still without it)
 //   bend.world(id?)           which world the main view shows (and move it there)
 //   bend.camera(o?)           the camera rig: { yaw, pitch, dist, height, fov, target, mode, shot } to read or set
 //   bend.lock(on)             lock the view to the world's first stage plane (or free it)
@@ -51,11 +52,14 @@ export interface HookApp {
   adapter: string;
   pending(): Promise<void> | null;
   grabYuv(): Promise<Uint8Array<ArrayBuffer>>;
+  /** lay what is over the canvas (the HUD) on a captured frame of w × h pixels */
+  overlay?(g: CanvasRenderingContext2D, w: number, h: number): void;
 }
 
 export function installHooks(app: HookApp) {
   const { kit, rig, show, hand } = app;
   let capture: Capture | null = null;
+  let still: HTMLCanvasElement | null = null;
   /** the dancers driven by Intents, in seat order */
   const players = () => show.dancers.map((d) => d.controller).filter((c): c is IntentController => c.kind === 'intent');
   const player = (p: number) => { const c = players()[p]; if (!c) throw new Error(`no player ${p} (there are ${players().length}: open with ?play)`); return c; };
@@ -71,11 +75,17 @@ export function installHooks(app: HookApp) {
       }
       await kit.device.queue.onSubmittedWorkDone();
     },
-    /** one more frame stepped and read back from the canvas, as a data URL */
+    /** one more frame stepped and read back from the canvas, the HUD laid over it, as a data URL */
     async grab(type = 'image/png', quality = 0.92, dt = 1 / 60) {
       kit.manual = true;
       capture ??= new Capture(kit);
-      return capture.grab(type, quality, dt);
+      const img = await capture.step(dt);
+      const c = (still ??= document.createElement('canvas'));
+      c.width = img.width; c.height = img.height;
+      const g = c.getContext('2d')!;
+      g.putImageData(img, 0, 0);
+      app.overlay?.(g, img.width, img.height);
+      return c.toDataURL(type, quality);
     },
     /** the last frame of a film as YUV 4:2:0 planes at the film's size (?film only) */
     grabYuv: () => app.grabYuv(),

@@ -171,7 +171,7 @@ export class PostChain {
   }
   private stub: { tex: Texture; pass: RenderPass } | null = null;
 
-  constructor(private kit: Kit, private frame: FrameBuilder, private main: ViewCtx, worlds: readonly World[], o: { film?: [number, number] | null; coarse?: boolean }) {
+  constructor(private kit: Kit, private frame: FrameBuilder, private main: ViewCtx, worlds: readonly World[], o: { film?: [number, number] | null; coarse?: boolean; overlay?: (pass: RenderPass) => void }) {
     this.filmSize = o.film ?? null;
     if (!budget().dof) postParams.dof = false;
     this.post = kit.uniforms(postShader.structs.Post, 'post');
@@ -233,6 +233,8 @@ export class PostChain {
       const filmTex = kit.texture({ label: 'film', format: 'rgba8unorm', size: 'render', usage: ['render', 'copy-src', 'sample'] });
       const outFilm = kit.pass({ label: 'grade.film', color: [{ target: filmTex }] });
       outFilm.fullscreen(postShader, { label: 'grade.film', fragment: 'fs_out', bind: { post: this.post, src: lensTex, bloomTex: blooms[0] } });
+      // what a player sees over the frame (src/hud), so the film shows it too
+      o.overlay?.(outFilm);
       const yuvU = kit.uniforms(yuvShader.structs.Yuv, 'film.yuv');
       this.planes = kit.storage({ label: 'film.yuv', size: W * H * 1.5, usage: ['storage', 'copy-src'] });
       const toYuv = kit.compute(yuvShader, { label: 'film.yuv', threads: [(W * H * 1.5) / 4], bind: { yuv: yuvU, src: filmTex, planes: this.planes } });
