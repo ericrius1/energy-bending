@@ -12,7 +12,7 @@ import { launch, takeLock } from './lib/browser.mjs';
 const argv = process.argv.slice(2), opt = {};
 for (let i = 0; i < argv.length; i++) if (argv[i].startsWith('--')) opt[argv[i].slice(2)] = argv[i + 1] && !argv[i + 1].startsWith('--') ? argv[++i] : true;
 const URL0 = opt.url ?? 'http://127.0.0.1:5481/energybending/';
-const WORLDS = String(opt.worlds ?? 'geode,redwoods,pool,temple,forge').split(',');
+const WORLDS = String(opt.worlds ?? 'geode,redwoods,pool,temple').split(',');
 const SECONDS = Number(opt.seconds ?? 30);
 
 const release = await takeLock({ say: console.log });

@@ -61,7 +61,6 @@ export const PROPOSED_GRADES: Record<string, Grade> = {
   redwoods: { lift: [0.003, 0.004, 0.002], shadows: [0.95, 1.02, 0.98], highlights: [1.05, 1.0, 0.9], saturation: 1.04, contrast: 1.04 },
   pool: { lift: [0.002, 0.001, 0.008], shadows: [0.96, 0.93, 1.08], highlights: [1.03, 0.98, 1.0], saturation: 1.06, contrast: 1.04 },
   temple: { lift: [0, 0.003, 0.008], shadows: [0.92, 0.98, 1.08], highlights: [1.05, 1.0, 0.93], saturation: 1.0, contrast: 1.04 },
-  forge: { lift: [0, 0.002, 0.004], shadows: [0.92, 0.98, 1.06], highlights: [1.04, 0.99, 0.94], saturation: 1.0, contrast: 1.03 },
 };
 
 export type { V3 };

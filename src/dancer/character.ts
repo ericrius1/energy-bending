@@ -204,7 +204,7 @@ export const PROFILES: Record<'jogo' | 'duel', Phys> = { jogo: PHYS, duel: DUEL_
 export const COMBAT = defineParams('combat', { PARRY_MS: 150, PERFECT_MS: 90, NEAR: 0.14 });
 
 /** where a free dancer stands: the floor's height under (x, z) (a World's groundAt) */
-/** the ground for free movement: its height under (x, z), and (where it can be fallen off: the forge) the height below
+/** the ground for free movement: its height under (x, z), and (where it can be fallen off: World.fallY) the height below
  *  which a body has fallen out and re-forms at its spawn */
 export interface Terrain {
   groundAt(x: number, z: number): number; fallY?: number;

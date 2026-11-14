@@ -6,8 +6,8 @@ A two-player 3D dance game on WebGPU. Dancers are skeletons (motion-captured, 38
 water, ice, plasma, gems and steam, GPU particles sprung to the body that answer the music and each other. Water
 freezes beside ice and boils beside flame; two dancers who hold close long enough fuse into one body (steam, prism,
 storm or aurora). You play capoeira's game, the jogo, with a friend on the same screen, someone far away, or an AI
-partner who circles, answers and can teach you the first moves, across five worlds (a geode, a redwood clearing at
-dusk, a still pool under the moon, a tide temple, a sky forge) joined by live gates you can walk through. Each world
+partner who circles, answers and can teach you the first moves, across four worlds (a geode, a redwood clearing at
+dusk, a still pool under the moon, a tide temple) joined by live gates you can walk through. Each world
 has its own music, and everything that lands on the beat lands on that track's beat.
 
 ```bash

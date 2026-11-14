@@ -112,7 +112,7 @@ async function run(api: FilmApi, recorder: Recorder, shot: ShotSpec, plan: ShotP
   const fromStart = shot.from === 'start' || !jogo;
   const B0 = fromStart ? 0 : gridBeat(shot.from ?? '1.1') ?? 0;
   // a duel on a track: its dance depends on where the beats fall from its first frame (the brains wait for the 8th
-  // lines and turn their swings every 16 beats, the forge's slabs bob by the beat), so the music's clock is anchored
+  // lines and turn their swings every 16 beats, a stage's bobbing ledges by the beat), so the music's clock is anchored
   // there, the same whatever the in-point: the page's beat 0 two frames after the first, and the pre-roll snapped to a
   // whole beat of it, so the in-point falls on a beat of the track (whose chords follow by trackBeat0). Moving a duel
   // shot's in-point (its pre-roll) then leaves its dance as it was: scout a whole set once, then cut into it

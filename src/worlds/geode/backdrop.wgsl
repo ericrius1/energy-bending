@@ -15,7 +15,7 @@
 fn geodePaths(q: vec2f) -> vec4f {
   var on = 0.0;
   var tint = vec3f(0.0);
-  for (var k = 0; k < 4; k++) {
+  for (var k = 0; k < 3; k++) {
     let g = worldLight.geode.gates[k];
     if (g.z <= 0.0) { continue; }
     // from near the middle of the floor to the foot of the gate

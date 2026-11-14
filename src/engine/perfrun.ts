@@ -2,7 +2,7 @@
 // perf-remote.mjs serves the build and the sink over the tailnet; scripts/perf-report.mjs makes the table). No click
 // is needed: the sound starts only if the browser allows it without one. The suite stages each scene with `bend` calls
 // (the critic's six from scripts/steps/critic-timings.json, then gem dancers in each world, a fire and water pair wide
-// and close in the Pool and the redwoods, the geode hub with two live gates, the locked forge), and for each runs it
+// and close in the Pool and the redwoods, the geode hub with two live gates, the locked temple), and for each runs it
 // in real time twice: with the class's autoscaler (what a player gets) and at render scale 1 (the true cost). Each run
 // warms up, then for a few seconds records the frames' intervals from requestAnimationFrame (against the display's
 // refresh, found first with the app paused), the JS time per frame and per CPU phase, weft's GPU times per pass (and
@@ -74,15 +74,15 @@ export const SCENES: Scene[] = [
   { id: 'hub-gates', group: 'play', size: 'native', note: 'the geode hub, fire and water, two live gates',
     setup: async (b) => { await pair(b, 'geode', ['fire', 'water'], { followDist: 5.5, followFov: 50, followPitch: 0.12, followSwing: 0 }, [-0.6, 1.0, 0.6, 1.0]); b.camera({ yaw: -2.9 }); },
     each: (b) => { b.camera({ yaw: -2.9 }); } },
-  { id: 'locked-forge', group: 'play', size: 'native', note: 'fire and water clashing in the forge, locked',
+  { id: 'locked-temple', group: 'play', size: 'native', note: 'fire and water clashing in the temple, locked',
     setup: async (b, r) => {
-      await pair(b, 'forge', ['fire', 'water'], { followSwing: 0 }, [-0.4, 0, 0.4, 0]);
+      await pair(b, 'temple', ['fire', 'water'], { followSwing: 0 }, [-0.4, 0, 0.4, 0]);
       b.lock(true); await r.wait(1.5); b.place(0, -0.4, 0, Math.PI / 2); b.place(1, 0.4, 0, -Math.PI / 2);
     },
     // (a kick each way every 1.6 s keeps the flames and the water in each other)
     each: (() => { let last = -9; return (b: Bend, t: number) => { if (t - last > 1.6) { last = t; try { b.move(0, 'armada'); b.move(1, 'armada'); } catch { /* not now */ } } }; })() },
   criticIce([1280, 800]), criticIce([1920, 1080]),
-  ...(['geode', 'redwoods', 'pool', 'temple', 'forge'] as const).map((w): Scene => ({
+  ...(['geode', 'redwoods', 'pool', 'temple'] as const).map((w): Scene => ({
     id: `gems-${w}`, group: 'gems', size: 'native', note: `gem dancers only, ${w}`,
     setup: async (b) => { await b.world(w); if (w === 'redwoods') dusk(b); b.wake(); },
   })),

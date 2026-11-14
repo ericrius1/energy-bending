@@ -65,7 +65,7 @@ export interface DuelSimResult {
 /** the arena and the world a world id duels in, in Node: the world's own arena (worlds/<id>/arena.ts), shown */
 export function nodeArena(id: string): { arena: Arena; world: WorldLike } {
   const w = worldFor(id);
-  if (!w) throw new Error(`duel: no world ${id} in Node (temple, forge, pool)`);
+  if (!w) throw new Error(`duel: no world ${id} in Node (temple, geode, pool)`);
   return { arena: w.arena, world: w };
 }
 

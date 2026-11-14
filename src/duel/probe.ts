@@ -2,14 +2,14 @@
 // the contact physics and the rules (sim.ts), free in 3D and locked to the stage plane, and what a player would feel in
 // them: combos a minute and the longest, catches (out of the air too), swings, flings, lifts, vaults, counters, time in
 // the air, falls, style, the shared energy's peak, merges. Run by scripts/duel-sim.mjs (bundled with esbuild):
-//   node scripts/duel-sim.mjs [--world temple,forge] [--view free,locked] [--sets 6] [--styles mix|lead,flyer]
+//   node scripts/duel-sim.mjs [--world temple,geode] [--view free,locked] [--sets 6] [--styles mix|lead,flyer]
 //                             [--skills 0.7,0.7] [--set-s 60] [--seed 1] [--json out.json] [-v]
 import { simulateDuel, nodeArena, makeBrains, type DuelSimResult } from './sim';
 import { DUEL_STYLES, STYLE_ALIAS, type DuelStyle } from '../ai/duel-brain';
 
 const argv = process.argv.slice(2);
 const arg = (k: string, d: string) => { const i = argv.indexOf(`--${k}`); return i >= 0 ? argv[i + 1] : d; };
-const worlds = arg('world', 'temple,forge').split(',');
+const worlds = arg('world', 'temple,geode').split(',');
 const views = arg('view', 'free,locked').split(',');
 const sets = Number(arg('sets', arg('rounds', '6')));
 const setMs = Number(arg('set-s', '60')) * 1000;
