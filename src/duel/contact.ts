@@ -78,7 +78,7 @@ export interface ContactInput {
 export const noInput = (): ContactInput => ({ grab: false, grabEdge: false, jump: false, dodge: false, stick: [0, 0] });
 
 export type ContactKind = 'catch' | 'aerial' | 'swing' | 'fling' | 'flown' | 'lift' | 'counter' | 'vault' | 'landed' | 'release';
-export interface ContactEvent { kind: ContactKind; seat: number; other: number; perfect: boolean; at: V3; speed?: number; /** a release's cause: stretched past BREAK, or a body re-forming */ why?: 'stretched' | 'reform' }
+export interface ContactEvent { kind: ContactKind; seat: number; other: number; perfect: boolean; at: V3; speed?: number; /** a fling's velocity (world) */ v?: V3; /** a release's cause: stretched past BREAK, or a body re-forming */ why?: 'stretched' | 'reform' }
 
 export interface Link {
   holder: number;
@@ -218,7 +218,7 @@ export class Contact {
           if (sp > CONTACT.MAX_SPEED) for (let a = 0; a < 3; a++) fv[a] *= CONTACT.MAX_SPEED / sp;
           this.setV(F, fv);
           this.flown = { flinger: L.holder, flyer: L.held, since: this.t };
-          out.push({ kind: 'fling', seat: L.holder, other: L.held, perfect: onBeat, at: L.at, speed: len(fv) });
+          out.push({ kind: 'fling', seat: L.holder, other: L.held, perfect: onBeat, at: L.at, speed: len(fv), v: [fv[0], fv[1], fv[2]] });
           out.push({ kind: 'flown', seat: L.held, other: L.holder, perfect: onBeat, at: L.at });
         } else out.push({ kind: 'release', seat: L.holder, other: L.held, perfect: false, at: L.at, why: F.reforming || H.reforming ? 'reform' : 'stretched' });
         this.noGrab[L.holder] = this.t + CONTACT.REGRAB;

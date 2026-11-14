@@ -67,13 +67,16 @@ export const DUEL = {
 
 export type LinkKind = 'catch' | 'aerial' | 'swing' | 'fling' | 'flown' | 'lift' | 'vault' | 'counter' | 'walljump' | 'wallrun' | 'dash' | 'flip' | 'kick' | 'au' | 'jump';
 
-export interface Combo { n: number; mult: number; score: number; links: LinkKind[]; perfect: number; live: boolean; since: number; last: number }
+/** a combo: n links, its multiplier and score, the last few links and which of them were on the beat (aligned) */
+export interface Combo { n: number; mult: number; score: number; links: LinkKind[]; beats: boolean[]; perfect: number; live: boolean; since: number; last: number }
 export interface DuelSeat {
   style: number;
   combo: Combo;
   /** the longest combo this set (links), and every link counted (the stats) */
   best: number;
   links: number;
+  /** the style earned by leading this set (catches, flings landed): the HUD's share of the lead */
+  led: number;
   /** reforming after a fall since (ms), or -1 */
   fellAt: number;
   /** on the ground since (ms), or -1 in the air */
@@ -114,8 +117,8 @@ export type DuelEvent =
   /** a set's count-in begins: both bodies (re)form at their spawns */
   | { k: 'set'; set: number };
 
-const combo0 = (): Combo => ({ n: 0, mult: 1, score: 0, links: [], perfect: 0, live: false, since: 0, last: -1e9 });
-const seat0 = (): DuelSeat => ({ style: 0, combo: combo0(), best: 0, links: 0, fellAt: -1, groundSince: 0 });
+const combo0 = (): Combo => ({ n: 0, mult: 1, score: 0, links: [], beats: [], perfect: 0, live: false, since: 0, last: -1e9 });
+const seat0 = (): DuelSeat => ({ style: 0, combo: combo0(), best: 0, links: 0, led: 0, fellAt: -1, groundSince: 0 });
 const countMs = (bpm: number) => Math.max(DUEL.COUNT_MIN_MS, 60000 / Math.max(40, bpm || 112));
 const stats0 = () => ({ catches: 0, aerials: 0, swings: 0, flings: 0, lifts: 0, vaults: 0, counters: 0, falls: 0, perfect: 0, links: 0, merges: 0, sets: 0 });
 
@@ -161,7 +164,8 @@ export function duelLink(d: DuelState, seat: number, kind: LinkKind, perfect: bo
   const value = (DUEL.LINK[kind] ?? 1) * (perfect ? DUEL.PERFECT_MUL : 1) * (repeat ? DUEL.REPEAT : 1);
   C.n++; C.score += value; C.last = now; C.mult = Math.min(DUEL.MULT_MAX, 1 + C.n * DUEL.MULT_STEP);
   if (perfect) { C.perfect++; d.stats.perfect++; }
-  C.links.push(kind); if (C.links.length > 8) C.links.shift();
+  C.links.push(kind); C.beats.push(perfect);
+  if (C.links.length > 8) { C.links.shift(); C.beats.shift(); }
   S.best = Math.max(S.best, C.n); S.links++; d.stats.links++;
   const st = d.stats as Record<string, number>;
   const key = ({ catch: 'catches', aerial: 'aerials', swing: 'swings', fling: 'flings', lift: 'lifts', vault: 'vaults', counter: 'counters' } as Record<string, string>)[kind];
@@ -171,7 +175,7 @@ export function duelLink(d: DuelState, seat: number, kind: LinkKind, perfect: bo
   const O = d.seats[1 - seat].combo;
   if (d.joined || O.live) d.energy = Math.min(1, d.energy + DUEL.ENERGY_LINK * (perfect ? 2 : 1) * (kind === 'catch' || kind === 'aerial' || kind === 'fling' || kind === 'lift' ? 2 : 1));
   // leading
-  const lead = (why: 'catch' | 'aerial' | 'fling', v: number) => { S.style += v; out.push({ k: 'lead', seat, why, style: v }); };
+  const lead = (why: 'catch' | 'aerial' | 'fling', v: number) => { S.style += v; S.led += v; out.push({ k: 'lead', seat, why, style: v }); };
   if (kind === 'catch') lead('catch', DUEL.LEAD_CATCH);
   else if (kind === 'aerial') lead('aerial', DUEL.LEAD_AERIAL);
   return out;
@@ -179,7 +183,7 @@ export function duelLink(d: DuelState, seat: number, kind: LinkKind, perfect: bo
 /** a fling one seat made has been landed well by the other (its feet, a wall, a catch): the flinger leads */
 export function duelFlingLanded(d: DuelState, flinger: number): DuelEvent[] {
   if (d.phase !== 'play') return [];
-  d.seats[flinger].style += DUEL.LEAD_FLING_LANDED;
+  d.seats[flinger].style += DUEL.LEAD_FLING_LANDED; d.seats[flinger].led += DUEL.LEAD_FLING_LANDED;
   return [{ k: 'lead', seat: flinger, why: 'fling', style: DUEL.LEAD_FLING_LANDED }];
 }
 /** the contact physics: joined or not this frame */

@@ -8,6 +8,7 @@ import { DuelMatch, duelPlane } from '../match';
 import { simulateDuel, makeBrains, nodeArena } from '../sim';
 import { DuelBrain, holdFor, jumpHeight } from '../../ai/duel-brain';
 import { makeIntent } from '../../input/intent';
+import { DuelHud, type HudSeat } from '../hud-state';
 
 const arena = { yKill: -2.2, bpm: 120, setMs: 30000 };
 const stand: [DuelBody, DuelBody] = [{ y: 0, grounded: true }, { y: 0, grounded: true }];
@@ -269,4 +270,28 @@ test('the brain holds its stick like a thumb: no flicker frame to frame', () => 
 });
 
 void DuelMatch;
+test('the HUD state (v2 with its optional fields): beats aligned with links, the combo ended and cashed, lead, best, pop ids, a fling direction', () => {
+  const { d, t } = playing();
+  const hud = new DuelHud();
+  const seats: HudSeat[] = [0, 1].map((k) => ({ name: `P${k + 1}`, matter: 'fire', screen: [0.3 + 0.4 * k, 0.5], dash: 1, holding: false, held: false }));
+  const ev = [...duelLink(d, 0, 'catch', true, t), ...duelLink(d, 0, 'swing', false, t + 100), ...duelLink(d, 0, 'fling', true, t + 200)];
+  const touches: ContactEvent[] = [{ kind: 'fling', seat: 0, other: 1, perfect: true, at: [0, 1, 0], v: [5, 0, 0] }];
+  hud.events(ev, touches, seats, [0.5, 0.5], (p) => [0.5 + p[0] * 0.05, 0.5 - p[1] * 0.05]);
+  let st = hud.build(d, t + 200, 1 / 60, seats, 0, 120, 60000, { on: false });
+  const P = st.players[0];
+  assert(P.combo.n === 3 && P.combo.beats?.join() === 'true,false,true', `beats aligned (${P.combo.links} / ${P.combo.beats})`);
+  assert(P.lead === 1 && st.players[1].lead === 0 && P.best === 3, `lead ${P.lead}, best ${P.best}`);
+  const fl = st.pops.find((p) => p.kind === 'fling');
+  assert(!!fl?.id && !!fl.dir && fl.dir[0] > 0.99, `a fling pop with an id and its direction (${fl?.dir})`);
+  assert(new Set(st.pops.map((p) => p.id)).size === st.pops.length, 'pop ids differ');
+  // the combo ends on the ground: cashed for one frame
+  let end: DuelEvent[] = [];
+  for (let k = 1; k < 200 && !end.some((e) => e.k === 'combo'); k++) end = duelStep(d, t + 200 + k * 16, 16, stand, arena);
+  hud.events(end, [], seats, null);
+  st = hud.build(d, t + 3400, 1 / 60, seats, 0, 120, 60000, { on: false });
+  assert(st.players[0].combo.ended === 'cashed' && (st.players[0].combo.cashed ?? 0) > 0, `cashed (${JSON.stringify(st.players[0].combo)})`);
+  st = hud.build(d, t + 3416, 1 / 60, seats, 0, 120, 60000, { on: false });
+  assert(st.players[0].combo.ended === undefined, 'ended only on that frame');
+});
+
 done();
