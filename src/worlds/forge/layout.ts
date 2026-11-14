@@ -100,21 +100,26 @@ export function layoutForge(o: { coarse: boolean; seed?: number }): ForgeLayout 
   return { slabs: [...stage, ...islands], ledges, columns: new Float32Array(cols), stageColumns, count: cols.length / COLUMN_FLOATS };
 }
 
-/** the top of the stage's floor under (x, z) (World.groundAt): the highest stage column whose hexagon holds the point
- *  (`lift(slab)`: how far a bobbing slab's top stands now; the anvil's is its top), or `below` where no column does.
+/** the floor a body walks on at (x, z) (World.groundAt): the **lowest** stage column whose hexagon holds the point, at
+ *  `lift(slab, top)` (how high a bobbing slab's top stands now; the anvil's is its top), or `below` where none does.
+ *  A slab hung over a lower one there (the crown over the anvil's middle, the floats' inner edges over the anvil) is
+ *  overhead, not floor: groundAt has no height to tell a body under it from one on it, and taking the highest put a
+ *  body walking under the crown onto its top (3.38 m) in one frame, which broke the duel's holds (11-duel.md). Those
+ *  are left to World.solids (solidsOfForge), whose faces stop a body from the side and whose tops it lands on from
+ *  above; the duel's Node world (src/duel/stages.ts) reads this same floor.
  *  A cell is a hexagon of corner radius R, flat sides facing ±x, and the cells of a slab tile it with no gap; the test
  *  was a circle of 0.9 R, which left the corners between cells open (a free dancer walking in from the gate met them as
  *  holes in the floor: 9-stage.md). A centimetre of margin so the shared edge is floor from either side */
-export function floorAt(L: ForgeLayout, x: number, z: number, top: (slab: Slab, column: number) => number, below: number) {
-  let best = below;
+export function groundOf(L: ForgeLayout, x: number, z: number, lift: (slab: Slab, top: number) => number, below: number) {
+  let low = -1, top = Infinity;
   const k = Math.sqrt(3) / 2;
   for (let i = 0; i < L.stageColumns; i++) {
     const o = i * COLUMN_FLOATS, R = L.columns[o + 3] + 0.01;
     const dx = Math.abs(x - L.columns[o]), dz = Math.abs(z - L.columns[o + 1]);
     if (dx > k * R || 0.5 * dx + k * dz > k * R) continue;
-    best = Math.max(best, top(L.slabs[L.columns[o + 5]], L.columns[o + 2]));
+    if (L.columns[o + 2] < top) { top = L.columns[o + 2]; low = L.columns[o + 5]; }
   }
-  return best;
+  return low < 0 ? below : lift(L.slabs[low], top);
 }
 
 /** the stage's columns as the camera's solids (World.solids): each a box from its flat top down `hang`, the bobbing ones
