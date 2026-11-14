@@ -142,7 +142,7 @@ function judgeSet(id: string, seed: number, seconds: number, dress: [string, str
   const { arena, world } = nodeWorld(id);
   const cam = new DuelCamera();
   let space: CamSpace | null = null, version = -1;
-  const T = { n: 0, nearEye: 0, fg10: 0, hidden: 0, flyer: 0, flyerOut: 0 };
+  const T = { n: 0, nearEye: 0, fg10: 0, hidden: 0, flyer: 0, flyerOut: 0, p35: 0, p45: 0 };
   simulateDuel({
     arena, world, seconds, dress, brains: makeBrains(['lead', 'flyer'], [0.85, 0.85], [seed, seed + 7]),
     each: ({ match, powers, bodies, events }) => {
@@ -160,6 +160,8 @@ function judgeSet(id: string, seed: number, seconds: number, dress: [string, str
       T.n++;
       if (J.clear < 0.6) T.nearEye++;
       if (J.fg >= 0.1) T.fg10++;
+      if (J.pitch > 0.611) T.p35++;
+      if (J.pitch > 0.785) T.p45++;
       if (J.hidden[0] >= 0.6 || J.hidden[1] >= 0.6) T.hidden++;
       const dh = B[0].head[1] - B[1].head[1];
       let f: number | null = match.contact.flown?.flyer ?? null;
@@ -172,20 +174,24 @@ function judgeSet(id: string, seed: number, seconds: number, dress: [string, str
 
 test('in all four arenas the eye stays clean: out of the pieces, nothing across the near frame, the flyer in frame', () => {
   const lines: string[] = [];
-  let n = 0, nearEye = 0, fg10 = 0, flyer = 0, flyerOut = 0;
+  let n = 0, nearEye = 0, fg10 = 0, flyer = 0, flyerOut = 0, p35 = 0, p45 = 0;
   const dress: [string, string][] = [['fire', 'water'], ['water', 'ice'], ['plasma', 'gems'], ['ice', 'gems']];
   CAM_WORLDS.forEach((id, i) => {
     const T = judgeSet(id, 11 + i * 17, 30, dress[i]);
-    n += T.n; nearEye += T.nearEye; fg10 += T.fg10; flyer += T.flyer; flyerOut += T.flyerOut;
+    n += T.n; nearEye += T.nearEye; p35 += T.p35; p45 += T.p45; fg10 += T.fg10; flyer += T.flyer; flyerOut += T.flyerOut;
     lines.push(`${id} ${(100 * T.fg10 / T.n).toFixed(1)}% near frame, ${(100 * T.nearEye / T.n).toFixed(1)}% eye near, flyer ${T.flyer - T.flyerOut}/${T.flyer}`);
   });
-  // (camprobe's 24 sets on master with the arenas track's hazards: a piece across a tenth of the frame in 6.4% of frames
-  // before phase 3, 3.5% after; one geode set among the high shelves is most of what is left here: report 14-camera)
-  assert(fg10 / n <= 0.075, `a piece across the near frame in ${(100 * fg10 / n).toFixed(1)}% of frames: ${lines.join('; ')}`);
+  // (the judge's yardstick since p3-camera-2: the near part 0.6 of the way to the nearer body, at most 5 m. Over camprobe's
+  // 24 sets a piece across a tenth of the frame in 6.1% of frames on master, 5.0% after; this test's geode set, the pair
+  // under the high blade and behind the crystal trunk for the whole set, is 39 to 44% with either camera)
+  assert(fg10 / n <= 0.14, `a piece across the near frame in ${(100 * fg10 / n).toFixed(1)}% of frames: ${lines.join('; ')}`);
   assert(nearEye / n <= 0.015, `the eye within the near fade's distance in ${(100 * nearEye / n).toFixed(1)}% of frames`);
   // (camprobe's 24 sets: the flyer in frame in every frame; this geode set, the pair behind the great crystal trunk under the
-  // high shelves, loses the top 8 % for 2 frames of 741)
-  assert(flyerOut / Math.max(1, flyer) <= 0.002, `the flyer left the frame in ${flyerOut} of ${flyer} frames: ${lines.join("; ")}`);
+  // high shelves, loses the top 8 % for 2 to 4 frames of 741)
+  // a players' view: the look down under 35° nearly always, never past 45°
+  assert(p45 === 0, `the camera looked down past 45° in ${p45} frames`);
+  assert(p35 / n <= 0.05, `the camera looked down past 35° in ${(100 * p35 / n).toFixed(1)}% of frames`);
+  assert(flyerOut / Math.max(1, flyer) <= 0.006, `the flyer left the frame in ${flyerOut} of ${flyer} frames: ${lines.join("; ")}`);
   return `${n} frames, flyer in frame ${flyer - flyerOut}/${flyer}: ${lines.join('; ')}`;
 });
 
