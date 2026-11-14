@@ -58,6 +58,8 @@ export interface Geode {
   pad0: number;
   pad1: number;
   pad2: number;
+  drops: ArrayLike<number> | Vec4[];
+  dropFrame: Vec4;
 }
 export interface Forest {
   pad: number;
@@ -87,6 +89,8 @@ export interface Forest {
   lamps: ArrayLike<number> | Vec4[];
   anchors: ArrayLike<number> | Vec4[];
   trunks: ArrayLike<number> | Vec4[];
+  drops: ArrayLike<number> | Vec4[];
+  dropFrame: Vec4;
 }
 export interface Pool {
   zenith: Vec4;
@@ -122,6 +126,8 @@ export interface Temple {
   lights: ArrayLike<number> | Vec4[];
   glow: ArrayLike<number> | Vec4[];
   cols: ArrayLike<number> | Vec4[];
+  drops: ArrayLike<number> | Vec4[];
+  dropFrame: Vec4;
 }
 export interface Forge {
   zenith: Vec4;
@@ -172,6 +178,13 @@ export interface KeyLight {
   plain: Vec3;
   glint: number;
 }
+export interface DropHit {
+  inside: unknown;
+  t: number;
+  n: Vec3;
+  below: number;
+  floor: number;
+}
 
-declare const shader: Shader<{ Frame: Frame; FullscreenOut: FullscreenOut; Geode: Geode; Forest: Forest; Pool: Pool; Temple: Temple; Forge: Forge; FireLight: FireLight; FireLights: FireLights; WorldLight: WorldLight; SightBody: SightBody; Sight: Sight; KeyLight: KeyLight }, 'frame' | 'worldLight' | 'poolWaves' | 'templeWaves' | 'groundTex' | 'samp_linear' | 'samp_repeat' | 'samp_nearest' | 'samp_shadow'>;
+declare const shader: Shader<{ Frame: Frame; FullscreenOut: FullscreenOut; Geode: Geode; Forest: Forest; Pool: Pool; Temple: Temple; Forge: Forge; FireLight: FireLight; FireLights: FireLights; WorldLight: WorldLight; SightBody: SightBody; Sight: Sight; KeyLight: KeyLight; DropHit: DropHit }, 'frame' | 'worldLight' | 'poolWaves' | 'templeWaves' | 'groundTex' | 'samp_linear' | 'samp_repeat' | 'samp_nearest' | 'samp_shadow'>;
 export default shader;

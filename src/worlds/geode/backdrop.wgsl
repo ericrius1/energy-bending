@@ -4,10 +4,12 @@
 // through water). The polish mirrors the wall's glow (softly) and the key, so no part of the floor is a black hole, and
 // a path worn smooth runs from the middle to each gate, lit at its end by the world beyond. Drawn first, with no
 // depth; the wall's own gem crystals and the mirrored stones are drawn on top of it. Alpha carries the distance along
-// the view, for the light in the air and the depth of field.
+// the view, for the light in the air and the depth of field. In the duel, its arena's drops crack the agate
+// (worlds/drops.wgsl): the slab's bands run on down their sides into the dark, a druse's violet light far below.
 #include "weft/frame"
 #include "weft/fullscreen"
 #include "../light"
+#include "../drops"
 
 /** how much of a worn path to a gate lies under floor point q (1 on it), and that gate's tint × how near its end */
 fn geodePaths(q: vec2f) -> vec4f {
@@ -47,8 +49,22 @@ fn geodePaths(q: vec2f) -> vec4f {
   }
   let p = cam + d * t;
   var c = vec3f(0.0);
+  let dh = dropHit(cam, d, t, L.floorY, 2.4, L.dropFrame, L.drops[0], L.drops[1]);
   if (!floorHit) {
     c = geodeWall(p, d);
+  } else if (dh.inside) {
+    // a drop: the agate's bands seen in section down its sides, darkening into the hollow under the floor, where a druse
+    // glows violet; its bottom a bed of small points catching that light
+    t = dh.t;
+    let q = cam + d * t;
+    let along = dot(q.xz, vec2f(-dh.n.z, dh.n.x));
+    let bands = 0.5 + 0.5 * sin(dh.below * 9.0 + fbm(vec3f(along * 0.8, dh.below * 2.0, 1.7)) * 3.0);
+    let slab = mix(L.floorCol.rgb * 0.05, L.floorBand.rgb, bands * L.floorBand.w);
+    let deep = exp(-dh.below * 1.4);
+    let glow = L.cave.rgb * L.cave.w * 0.35 * smoothstep(0.6, 2.4, dh.below) * (0.6 + 0.4 * vnoise2(vec2f(along, dh.below) * 4.0));
+    let bed = select(0.0, smoothstep(0.55, 0.9, vnoise2(q.xz * 9.0)), dh.floor > 0.5);
+    c = slab * (0.1 + 0.25 * deep) + glow * (1.0 + bed * 2.0) + L.rim.rgb * 0.02 * deep;
+    c = mix(c, horizon, 1.0 - exp(-t * L.fog));
   } else {
     let r = length(p.xz - L.pool.xy);
     let pool = exp(-r * r / (L.pool.w * L.pool.w));

@@ -1,0 +1,12 @@
+[
+ { "name": "geode-on", "query": "arena=geode", "params": { "camera": { "shots": false, "autoOrbit": false } }, "frames": 150, "timings": true },
+ { "name": "geode-off", "query": "arena=geode", "eval": "arena.geometry(false)", "frames": 30, "timings": true },
+ { "name": "redwoods-on", "query": "arena=redwoods", "params": { "camera": { "shots": false, "autoOrbit": false }, "redwoods": { "hour": 16, "dayGoes": false } }, "frames": 150, "timings": true },
+ { "name": "redwoods-off", "query": "arena=redwoods", "eval": "arena.geometry(false)", "frames": 30, "timings": true },
+ { "name": "pool-on", "query": "arena=pool", "params": { "camera": { "shots": false, "autoOrbit": false } }, "frames": 150, "timings": true },
+ { "name": "pool-off", "query": "arena=pool", "eval": "arena.geometry(false)", "frames": 30, "timings": true },
+ { "name": "temple-on", "query": "arena=temple", "params": { "camera": { "shots": false, "autoOrbit": false }, "temple": { "tideHold": 0.15 } }, "frames": 150, "timings": true },
+ { "name": "temple-off", "query": "arena=temple", "eval": "arena.geometry(false)", "frames": 30, "timings": true },
+ { "name": "forge-on", "query": "arena=forge", "params": { "camera": { "shots": false, "autoOrbit": false }, "forge": { "bobHold": 0 } }, "frames": 150, "timings": true },
+ { "name": "forge-off", "query": "arena=forge", "eval": "arena.geometry(false)", "frames": 30, "timings": true }
+]

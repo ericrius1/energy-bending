@@ -34,6 +34,8 @@ struct Forest {
   lamps: array<vec4f, MAXLAMP>,     // each lantern: its centre, w: how brightly it's lit
   anchors: array<vec4f, MAXLAMP>,   // where its cord is tied, w: its radius
   trunks: array<vec4f, MAXTRUNK>,   // each trunk (the nearest first): xz of its foot, its radius above the flare, its height
+  drops: array<vec4f, 2>,           // the duel arena's drops in the meadow (worlds/drops.wgsl): s0, t0, s1, t1 on its plane
+  dropFrame: vec4f,                 // that plane: its origin's x, z, its right's x, z
 }
 
 /** a trunk's radius at height y (r: above the flare, h: its height): it flares at the foot into its buttresses and
@@ -137,10 +139,17 @@ fn pathAt(xz: vec2f) -> f32 {
   return smoothstep(w, w * 0.35, dc) * smoothstep(1.0, 0.65, h);
 }
 
-/** whether xz is clear of the trunks' feet (by `room` past their flare) and of the fallen log; only the ring and its
- *  neighbours can be near */
+/** whether xz is clear of the trunks' feet (by `room` past their flare), of the fallen log and of the duel's drops; only
+ *  the ring and its neighbours can be near */
 fn clearOfTrunks(xz: vec2f, room: f32) -> bool {
   if (offLog(xz) < room * 0.5) { return false; }
+  // (nor over the duel arena's drops: nothing grows over a hole)
+  let F = worldLight.forest.dropFrame;
+  let q = vec2f(dot(xz - F.xy, F.zw), dot(xz - F.xy, vec2f(-F.w, F.z)));
+  for (var k = 0u; k < 2u; k++) {
+    let r = worldLight.forest.drops[k];
+    if (q.x > r.x - room && q.x < r.z + room && q.y > r.y - room && q.y < r.w + room) { return false; }
+  }
   if (length(xz) < worldLight.forest.clock.w - 4.5) { return true; }
   let n = min(u32(worldLight.forest.air.w), MAXTRUNK);
   for (var k = 0u; k < n; k++) {

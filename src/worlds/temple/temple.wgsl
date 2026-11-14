@@ -32,6 +32,8 @@ struct Temple {
   lights: array<vec4f, 8>,  // each dancer's light: xyz where it is (the chest), w: -
   glow: array<vec4f, 8>,    // its colour × strength
   cols: array<vec4f, 24>,   // the pillars that throw the moon's shadow: xz of the foot, radius, top
+  drops: array<vec4f, 2>,   // the duel arena's drops in the court (worlds/drops.wgsl): s0, t0, s1, t1 on its plane
+  dropFrame: vec4f,         // that plane: its origin's x, z, its right's x, z
 }
 
 // ---------------------------------------------------------------- the sky

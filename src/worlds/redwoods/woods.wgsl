@@ -2,10 +2,12 @@
 // other so it never repeats) lit through the leaves and dark round the trunks' feet; the canopy far overhead, dark with
 // the light in its edges; and the sky through the gaps, with the sun, the moon and the stars. Drawn first, with no
 // depth; alpha carries the distance along the view (the air and the depth of field read it). The trunks, the meadow and
-// the lanterns are drawn over it.
+// the lanterns are drawn over it. In the duel, its arena's drops open in the meadow (worlds/drops.wgsl): earth walls
+// laced with roots going down into the dark.
 #include "weft/frame"
 #include "weft/fullscreen"
 #include "../light"
+#include "../drops"
 
 @group(1) @binding(0) var groundTex: texture_2d<f32>;
 
@@ -61,6 +63,18 @@ fn groundAt(p: vec3f, uv: vec2f, dx: vec2f, dy: vec2f) -> vec3f {
     depth = min(tg, 140.0) * dot(d, frame.camFwd);
     c = far;
     if (tg < 140.0) { c = mix(groundAt(p, uv, dx, dy), far, smoothstep(50.0, 140.0, tg)); }
+    // the duel's drops: down an earth wall, roots hanging out of its top, into the dark
+    let dh = dropHit(cam, d, tg, 0.0, 2.6, worldLight.forest.dropFrame, worldLight.forest.drops[0], worldLight.forest.drops[1]);
+    if (dh.inside) {
+      let q = cam + d * dh.t;
+      let along = dot(q.xz, vec2f(-dh.n.z, dh.n.x));
+      let strata = 0.6 + 0.4 * vnoise2(vec2f(along * 1.5, dh.below * 7.0));
+      let roots = smoothstep(0.75, 0.95, vnoise2(vec2f(along * 6.0, dh.below * 1.2))) * smoothstep(1.4, 0.0, dh.below);
+      let earth = vec3f(0.09, 0.06, 0.04) * strata + vec3f(0.12, 0.08, 0.05) * roots;
+      let light = worldLight.forest.shade.rgb * 0.5 + worldLight.forest.keyCol.rgb * worldLight.forest.key.w * 0.02 * max(dot(dh.n, worldLight.forest.key.xyz), 0.0);
+      c = earth * light * exp(-dh.below * 1.1);
+      depth = dh.t * dot(d, frame.camFwd);
+    }
   } else {
     // the canopy's underside overhead, or the sky through a gap in it
     let H = worldLight.forest.keyCol.w;

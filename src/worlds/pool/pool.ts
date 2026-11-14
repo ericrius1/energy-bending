@@ -5,7 +5,8 @@
 // bent by a live ripple field (water/ripples.ts) that the dancers' feet and hands stir by themselves and that the game
 // can push with `ripple(x, z, strength, radius)`. Flat, no ledges: the pure stage. One event in its sky: a great
 // moon low behind the stage, climbing a few degrees over ten minutes and down again (`moonAt`), its road broken
-// across the ripples, a mist on the far water lit on its bearing.
+// across the ripples, a mist on the far water lit on its bearing. In the duel (arena.ts) stones and ice floes rise out
+// of it and the water is deep.
 import type { Pool as PoolU } from '../light.wgsl';
 import { lightSlot, type LightSlot } from '../shared';
 import backdropShader from './backdrop.wgsl';
@@ -15,6 +16,10 @@ import type { FrameCtx } from '../../engine/frame';
 import { defineParams, hex, onParams } from '../../engine/params';
 import { Ripples } from '../water/ripples';
 import { stagePlane, spawnsOf, type StagePlane } from '../stage';
+import stoneShader from './stones.wgsl';
+import type { Solid } from '../solids';
+import { arenaShown } from '../../duel/arena';
+import { poolDuel, poolGround } from './arena';
 
 export const poolParams = defineParams('pool', {
   zenith: '#010207',
@@ -84,6 +89,9 @@ export class Pool implements World {
   /** its colour (src/post/grade.ts): night blue in the shadows, the moon's warmth in the light, the water kept black
    *  (docs/reports/4-worlds-hub-pool-forge.md, in the hook's terms; its vignette 0.35 is not per world yet) */
   readonly grade: Grade = { lift: [0.002, 0.003, 0.008], shadows: [0.94, 0.96, 1.12], highlights: [1.03, 0.98, 0.9], saturation: 0.9, contrast: 1.15 };
+  /** nothing solid in the Pool, but the duel arena's stones and floes while it is shown (arena.ts) */
+  get solids(): readonly Solid[] { return arenaShown(this.id) ? poolDuel().arena.pieces! : []; }
+  private duelBuf: ReturnType<WorldCtx['kit']['storage']>;
   readonly room = 40;
   readonly maxDist = 16;
   private u: LightSlot<PoolU>;
@@ -100,6 +108,7 @@ export class Pool implements World {
       enabled: () => this.seen === kit.frameIndex,
     });
     this.shared = { poolWaves: this.waves.tex };
+    this.duelBuf = kit.storage({ label: 'pool.duel', data: poolDuel().data, usage: ['storage'] });
     this.live.march[0] = coarse ? 12 : 22;
     // the pure stage: a flat floor 11.5 m wide, nothing on it
     this.stages = [stagePlane({ id: 'pool', origin: [0, 0, 0], right: [1, 0, 0], halfWidth: 5.75, ground: 0, ledges: [], spawns: [[-2.45, 0], [2.45, 0]], lens: 18 })];
@@ -147,9 +156,12 @@ export class Pool implements World {
   declareScene(s: ScenePass) {
     if (s.world !== this) return;
     if (s.phase === 'backdrop') s.pass.fullscreen(backdropShader, { label: 'pool.backdrop', enabled: s.on });
+    // the duel arena's stones and floes (arena.ts), only while it is shown
+    else if (s.phase === 'opaque') s.pass.draw(stoneShader, { label: 'pool.duel', bind: { stones: this.duelBuf }, count: 6 * 6 * 6 * 6, instances: poolDuel().count, cull: 'none', enabled: () => s.on() && arenaShown(this.id) });
   }
 
-  groundAt() { return 0; }
+  /** the shallow water's floor; in the duel the water is deep, but for the stones and floes standing in it */
+  groundAt(x: number, z: number) { return arenaShown(this.id) ? poolGround(x, z) : 0; }
   /** the water is the floor: fire's mirror copy reflects about it */
   waterY() { return 0; }
   exposure() { return 1.15; }

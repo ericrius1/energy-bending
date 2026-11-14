@@ -20,6 +20,8 @@ export interface Temple {
   lights: ArrayLike<number> | Vec4[];
   glow: ArrayLike<number> | Vec4[];
   cols: ArrayLike<number> | Vec4[];
+  drops: ArrayLike<number> | Vec4[];
+  dropFrame: Vec4;
 }
 
 declare const shader: Shader<{ Temple: Temple }, never>;

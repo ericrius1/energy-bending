@@ -25,6 +25,8 @@ import type { ScenePass } from '../../engine/scene';
 import type { FrameCtx } from '../../engine/frame';
 import type { StagePlane } from '../../engine/camera';
 import { defineParams, hex, onParams } from '../../engine/params';
+import { arenaShown, dropsUniform, inDrop } from '../../duel/arena';
+import { geodeDuel } from './arena';
 
 export const geodeParams = defineParams('geode', {
   keyLight: 8,
@@ -111,8 +113,13 @@ export class Geode implements World {
   private pointBuf: ReturnType<WorldCtx['kit']['storage']>;
   /** each gate's xz, its path's half width, its world's tint */
   private gates: number[];
-  /** the blades and the bigger crystal points as simple shapes (World.solids), from the shelves' layout */
-  readonly solids: readonly Solid[];
+  /** the blades and the bigger crystal points as simple shapes (World.solids), from the shelves' layout; with the duel
+   *  arena's crystal while it is shown */
+  get solids(): readonly Solid[] { return arenaShown(this.id) ? this.duelSolids : this.stageSolids; }
+  private stageSolids: readonly Solid[];
+  private duelSolids: readonly Solid[];
+  private duelBlades: ReturnType<WorldCtx['kit']['storage']>;
+  private duelPoints: ReturnType<WorldCtx['kit']['storage']>;
 
   constructor(ctx: WorldCtx) {
     const P = geodeParams;
@@ -135,7 +142,12 @@ export class Geode implements World {
     this.blades = shelves.blades;
     this.bladeBuf = ctx.kit.storage({ label: 'geode.shelves', data: packBlades(this.blades), usage: ['storage'] });
     this.points = shelves.points;
-    this.solids = solidsOfShelves(this.blades, this.points);
+    this.stageSolids = solidsOfShelves(this.blades, this.points);
+    // the duel arena's shelves, beams and crystals (arena.ts), drawn only while it is shown
+    const duel = geodeDuel();
+    this.duelSolids = [...this.stageSolids, ...duel.arena.pieces!];
+    this.duelBlades = ctx.kit.storage({ label: 'geode.duel.shelves', data: duel.blades, usage: ['storage'] });
+    this.duelPoints = ctx.kit.storage({ label: 'geode.duel.crystals', data: duel.points, usage: ['storage'] });
     this.high = shelves.high;
     this.pointBuf = ctx.kit.storage({ label: 'geode.crystals', data: packBlades(this.points), usage: ['storage'] });
     this.stages = [stagePlane({
@@ -175,7 +187,9 @@ export class Geode implements World {
     this.shaft[0] = c.x; this.shaft[1] = c.z;
     this.shaft[2] = P.shaftRadius * (crowd === 'ring' ? 1.4 : crowd === 'many' ? 1.35 : 1);
     this.shaft[3] = P.shaft * (crowd === 'ring' ? 0.55 : 1);
-    this.u.set(this.live);
+    // the duel arena's drops in the agate (empty unless it is shown)
+    const duel = geodeDuel(), drops = dropsUniform(duel.arena.plane, duel.arena.drops!, arenaShown(this.id));
+    this.u.set({ ...this.live, drops: drops.rects, dropFrame: drops.frame });
   }
 
   declareScene(s: ScenePass) {
@@ -184,12 +198,19 @@ export class Geode implements World {
     else if (s.phase === 'opaque') {
       s.pass.draw(shelfShader, { label: 'geode.shelves', bind: { blades: this.bladeBuf }, count: 8 * 6 * 6 + 48, instances: () => (hubParams.highBlade ? this.blades.length : this.high), cull: 'none', enabled: () => s.on() && geodeParams.shelves });
       s.pass.draw(crystalShader, { label: 'geode.crystals', bind: { points: this.pointBuf }, count: 54, instances: this.points.length, cull: 'none', enabled: () => s.on() && geodeParams.shelves });
+      const duel = geodeDuel(), shown = () => s.on() && arenaShown(this.id);
+      s.pass.draw(shelfShader, { label: 'geode.duel.shelves', bind: { blades: this.duelBlades }, count: 8 * 6 * 6 + 48, instances: duel.bladeCount, cull: 'none', enabled: shown });
+      s.pass.draw(crystalShader, { label: 'geode.duel.crystals', bind: { points: this.duelPoints }, count: 54, instances: duel.pointCount, cull: 'none', enabled: shown });
     } else if (s.phase === 'glow') {
       s.pass.draw(moteShader, { label: 'geode.motes', count: 6, instances: () => geodeParams.motes, blend: 'add', depthWrite: false, cull: 'none', enabled: s.on });
     }
   }
 
-  groundAt() { return 0; }
+  /** the agate, or (the duel arena's drops) far down */
+  groundAt(x: number, z: number) {
+    if (arenaShown(this.id)) { const a = geodeDuel().arena; if (inDrop(a.plane, a.drops!, x, z)) return -2.4; }
+    return 0;
+  }
   /** the camera's clearance (World.clear): the segment against the blades and the big crystal points (a 40 cm margin) */
   clear(a: [number, number, number], b: [number, number, number]) { return clearOf(this.solids, a, b); }
   exposure() { return 1; }

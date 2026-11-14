@@ -29,6 +29,8 @@ export interface Forest {
   lamps: ArrayLike<number> | Vec4[];
   anchors: ArrayLike<number> | Vec4[];
   trunks: ArrayLike<number> | Vec4[];
+  drops: ArrayLike<number> | Vec4[];
+  dropFrame: Vec4;
 }
 
 declare const shader: Shader<{ Forest: Forest }, never>;

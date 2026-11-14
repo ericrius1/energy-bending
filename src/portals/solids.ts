@@ -4,13 +4,16 @@
 // each world's layout here; at the integration they moved into the worlds' folders as their `solids`.)
 import { Solids } from '../engine/camera';
 import type { World } from '../worlds/world';
+import type { Solid } from '../worlds/solids';
 
-const made = new WeakMap<World, Solids | null>();
+const made = new WeakMap<readonly Solid[], Solids>();
 
-/** a world's solids (null: none) */
+/** a world's solids (null: none). Wrapped once per list: a world whose list changes (the duel's arena matter, shown
+ *  and hidden: src/duel/arena.ts) hands over another array, and that one is wrapped once in its turn */
 export function solidsOf(w: World): Solids | null {
-  if (made.has(w)) return made.get(w)!;
-  const s = w.solids?.length ? new Solids(w.solids) : null;
-  made.set(w, s);
+  const list = w.solids;
+  if (!list?.length) return null;
+  let s = made.get(list);
+  if (!s) { s = new Solids(list); made.set(list, s); }
   return s;
 }
