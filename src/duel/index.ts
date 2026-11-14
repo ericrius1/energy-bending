@@ -372,7 +372,7 @@ export async function startDuel(app: PlayApp, opts: { joined?: Joined } = {}) {
   frame.tick('travel', (f: FrameCtx) => {
     glows.clear();
     if (!started) { for (let k = 0; k < 2; k++) chars[k].events.length = 0; return; }
-    // (the set's clock kept with the music: sound.ts SetMusic.nudge, a few percent at most, nothing in a film)
+    // (the set's clock kept with the music: sound.ts SetMusic.nudge, 12 % at most, nothing in a film)
     now += f.danceDt * 1000 + sound.music.nudge(f.dt, f.danceDt);
     powers.gripInputs([gates[0].contact, gates[1].contact]);
     const ev = match.step(now, beat, bpm, f.danceDt * 1000, [gates[0].contact, gates[1].contact]);

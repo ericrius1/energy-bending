@@ -343,8 +343,8 @@ export interface MusicLike {
 
 /** the duel's balance under a world's track (synth/mix.ts UNDER, each × the bus's level without a track): the moments
  *  and the movement up from the jogo's levels (measured at those, a catch peaked 2 dB over the music's rms and a
- *  landing 20 dB under it: unheard). Measured with these: the game's sounds about 6 LU under the track, a catch's peak
- *  about 7 dB over the track's rms (docs/reports/14-sound.md). The matter voices (the world's bus) keep the jogo's */
+ *  landing 20 dB under it: unheard). Measured with these, in the four worlds: the game's sounds 4 to 8 LU under the
+ *  track, a catch's peak 5 to 7 dB over the track's rms (docs/reports/14-sound.md). The matter voices (the world's bus) keep the jogo's */
 export const DUEL_BALANCE: Partial<UnderLevels> = { duel: 2.6, motion: 3.4 };
 
 // ---------------------------------------------------------------- joined to the page (src/duel/index.ts)
