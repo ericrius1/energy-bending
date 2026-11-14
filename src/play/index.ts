@@ -12,7 +12,8 @@
 //                    (&partner=… with a script: the partner brain plays dancer 2, the script dancer 1; &seed=N its seed)
 //   &world=pool &dress=fire,water &free (the 3D view; the side view is the default)
 //   nothing          the front of the game over the show (menu.ts); ?play stays the solo free dance. The front can
-//                    begin a jogo in the same page: bend.front.begin(mode, query, joined?) (geode/front.ts calls it)
+//                    begin a jogo or a duel in the same page: bend.front.begin(mode | 'duel', query, joined?)
+//                    (geode/front.ts calls it; for the duel the page's address is already the duel's)
 //
 // Each frame (phases in engine/frame.ts): input — the room's clock moves on, the beat and the music follow it, a
 // script cues; travel (after the gates carried anyone) — the jogo hears the dancers' moves and judges the exchanges,
@@ -115,9 +116,11 @@ export async function registerPlay(app: PlayApp) {
       // beginning in this page: the jogo with this page's parts, in the world the query names, the device that began it
       // joined to seat 1 at once
       const front = {
-        begin: async (m: 'same' | 'partner', query: URLSearchParams, joined?: Joined) => {
+        begin: async (m: 'same' | 'partner' | 'duel', query: URLSearchParams, joined?: Joined) => {
           const w = query.get('world');
           if (w && w !== app.main.world) await app.setWorld?.(w);
+          // the duel (src/duel), seat 1 the device that began it: the same parts, the duel's own lobby and lesson
+          if (m === 'duel') return (await import('../duel')).startDuel({ ...app, query }, { joined });
           return startJogo({ ...app, query }, m, { joined });
         },
       };
@@ -128,8 +131,9 @@ export async function registerPlay(app: PlayApp) {
   return startJogo(app, mode);
 }
 
-/** the device whose press began a jogo (the front's key, tap or click), joined to seat 1 as the jogo starts */
-export type Joined = { device: 'keyboard'; code: string } | { device: 'touch'; id: number; x: number; y: number } | { device: 'mouse' };
+/** the device whose press began a jogo or a duel (the front's key, tap, click or a gamepad's button), joined to seat 1
+ *  as it starts */
+export type Joined = { device: 'keyboard'; code: string } | { device: 'touch'; id: number; x: number; y: number } | { device: 'mouse' } | { device: 'gamepad'; index: number };
 
 export async function startJogo(app: PlayApp, mode: string, opts: { joined?: Joined } = {}) {
   const { kit, frame, show, rig, gates, music, field, query: q } = app;
@@ -406,6 +410,7 @@ export async function startJogo(app: PlayApp, mode: string, opts: { joined?: Joi
     if (j) {
       const n = hub.players.length;
       if (j.device === 'keyboard') hub.key(j.code);
+      else if (j.device === 'gamepad') { const p = hub.join(hub.pads.source(j.index), 'gamepad'); if (p) p.slot = j.index; }
       if (hub.players.length === n) joinPointer(j.device === 'touch' ? { touch: true, id: j.id, x: j.x, y: j.y } : { touch: false, id: 0, x: 0, y: 0 });
     }
   }
