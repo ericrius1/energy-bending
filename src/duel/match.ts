@@ -15,6 +15,7 @@ import { distTo, type StagePlane } from '../engine/camera';
 import type { Solid } from '../worlds/solids';
 import { DUEL, newDuel, duelStep, duelLink, duelContact, duelFlingLanded, frozen, restartDuel, onBeat, type DuelEvent, type DuelState, type LinkKind } from '../../shared/duel.ts';
 import { Contact, noInput, type ContactEvent, type ContactInput } from './contact';
+import { TimeWarp, juiceOf, liftJuice, atGeyserTop, type Juice, type LiveLike, type PowerMoment } from './weight';
 import type { Arena } from './arena';
 
 type V3 = [number, number, number];
@@ -66,6 +67,11 @@ export class DuelMatch {
   bpm = 112;
   /** each seat's last wall run (ms) */
   private wallRunAt = [-1e9, -1e9];
+  /** the weight of contact (weight.ts): the bodies' time, held on a catch, a fling, the lift's top, slowed on a pair
+   *  tier. The page and the harness scale their dance time by `warp.step(dt)` before the bodies move */
+  readonly warp = new TimeWarp();
+  /** this frame's moments (juice events), also in `events` and the history once `juice` ran */
+  juiceEvents: Juice[] = [];
 
   constructor(readonly chars: readonly [Character, Character], readonly arena: Arena, readonly plane: StagePlane, now = 0, bpm = 112, readonly o: MatchOptions = {}) {
     this.bpm = bpm;
@@ -174,6 +180,24 @@ export class DuelMatch {
       case 'fall': if (this.contact.link) this.contact.link = null; this.unheld(); this.formAt(e.seat, this.nearOther(e.seat)); break;
       case 'set': for (let k = 0; k < 2; k++) this.formAt(k, this.arena.spawns[k]); this.contact.link = null; this.unheld(); break;
     }
+  }
+
+  /** after the step and the powers' step: the frame's moments of weight (juice events) from the match's events and
+   *  touches, the powers' rules events (`extra`: a power's catch, a tier it made) and moments (`power`: a catch at
+   *  range), the powers' live effects (a geyser's top), and the finale's lift at its top (`lift`: base, flyer, where).
+   *  They hold or slow the warp and go into the history; the caller adds them to the frame's event stream (the step's
+   *  events, which the powers' were added to already or are passed here: each is read once) */
+  juice(now: number, extra: readonly DuelEvent[] = [], power: readonly PowerMoment[] = [], live: readonly LiveLike[] = [], lift?: { base: number; flyer: number; at: V3 } | null): Juice[] {
+    const chest = (k: number): V3 => { const r = this.chars[k].root; return [r[0], r[1] + 1.1, r[2]]; };
+    const all = [...new Set([...this.events, ...extra])];
+    if (all.some((e) => e.k === 'set')) this.warp.reset();
+    const j = juiceOf(all, this.touches, power, {
+      bpm: this.bpm, at: chest, geyserTop: live.length ? (k) => atGeyserTop(live, chest(k)) : undefined,
+    });
+    if (lift) j.push(liftJuice(lift.base, lift.flyer, lift.at));
+    for (const e of j) { this.warp.add(e); this.history.push({ t: Math.round(now), e }); }
+    this.juiceEvents = j;
+    return j;
   }
 
   /** the set's clock: seconds of play, and the count showing */

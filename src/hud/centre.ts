@@ -1,6 +1,7 @@
 // The middle of the screen: the set's intro countdown big in the middle ("3", "2", "1", then "DANCE" as play starts),
 // "FINALE" once as the set's last stretch begins (high, over the two's duet: src/duel/finale.ts), and the winner's
-// banner when the set is done (the finale is about a bar long, then this). A dance battle's win:
+// banner when the set is done (the finale is about a bar long, then this; a set that didn't fuse says how nearly it
+// did: `nearly`). A dance battle's win:
 // the band opens from the centre in the winner's colour, the name tracks in over "TAKES THE SET", and under it the
 // battle's numbers: each dancer's style in its colour and the peak the two reached together. The big words are
 // sprites (a glyph and its glow made once) stamped with a little motion. `last` is what was drawn, as one box: the
@@ -31,6 +32,17 @@ function bigWord(text: string, size: number, dpr: number, colour: string) {
 }
 
 const GO = 'DANCE', FIN = 'FINALE';
+
+/** the banner's "nearly", for a set that didn't fuse: "NEARLY · HELD 2.1 S OF 3 AT THE TOP" (and "· NO MERGE YET"
+ *  when it never merged); null when it fused or the game says nothing of it */
+export function nearly(st: HudState): string | null {
+  const S = st.set, H = st.shared;
+  if (S.fused !== false || H.high == null || !H.highFor) return null;
+  const held = Math.min(H.high, H.highFor);
+  const of = Number.isInteger(H.highFor) ? String(H.highFor) : H.highFor.toFixed(1);
+  const merge = H.merges === 0 ? '  ·  NO MERGE YET' : '';
+  return held >= H.highFor ? `NEARLY  ·  HELD ${of} S AT THE TOP${merge}` : `NEARLY  ·  HELD ${held.toFixed(1)} S OF ${of} AT THE TOP${merge}`;
+}
 
 /** the winner's name for the banner, at its size or smaller till it fits the screen, its glow behind (a sprite) */
 function winName(text: string, col: string, L: Layout, dpr: number) {
@@ -165,6 +177,13 @@ export class Centre {
         g.fillText('STYLE', cx + ls * 0.17, ny);
         g.fillStyle = rgba(GOLD_HI, 0.8);
         g.fillText(`TOGETHER  ${Math.round(st.shared.peak * 100)}%  AT PEAK`, cx + ls * 0.17, ny + ns * 1.05);
+        // a set that didn't fuse says how near it came: the longest stretch held near the top, of what the fusion
+        // needs (and that it needs a merge too, when there was none), so the next set knows what to reach for
+        const nb = nearly(st);
+        if (nb) {
+          g.fillStyle = 'rgba(236,230,244,0.62)';
+          g.fillText(nb, cx + ls * 0.17, ny + ns * 1.05 + ls * 1.7);
+        }
         g.globalAlpha = 1;
         g.letterSpacing = '0px';
       }

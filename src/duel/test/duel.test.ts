@@ -1,7 +1,10 @@
 // The dance battle: its rules (shared/duel.ts) on plain data, the contact physics (contact.ts) on real bodies free in
 // 3D and locked, and two virtual players dancing it in Node (sim.ts), free and locked. Run by scripts/test-ts.mjs.
 import { test, assert, near, done } from '../../dancer/test/check';
-import { DUEL, newDuel, duelStep, duelLink, duelContact, duelFlingLanded, frozen, onBeat, tierOf, type DuelBody, type DuelEvent, type DuelState } from '../../../shared/duel.ts';
+import { DUEL, newDuel, duelStep, duelLink, duelContact, duelFlingLanded, frozen, onBeat, tierOf, pairTierOf, type DuelBody, type DuelEvent, type DuelState } from '../../../shared/duel.ts';
+import { TimeWarp, juiceOf, WEIGHT, type Juice } from '../weight';
+import { Finale } from '../finale';
+import { nearly } from '../../hud/centre';
 import { Character, DUEL_PHYS, type CharEvent } from '../../dancer/character';
 import { Contact, CONTACT, noInput, splitIntent, type ContactEvent, type ContactInput } from '../contact';
 import { DuelMatch, duelPlane } from '../match';
@@ -455,16 +458,17 @@ test('a combo banks once its dancer has been held more than HELD_BANK_BEATS beat
 
 test('past ×4, tiers: a word and a colour at 12, 18, 26, 36 varied links (repeats don\'t climb), worth more banked', () => {
   const { d, t } = playing();
-  const kinds = ['walljump', 'dash', 'flip', 'kick', 'au', 'wallrun'] as const;
+  // (a run of one's own moves adds at most SOLO_RUN in a row: a contact link between them, as a dance has)
+  const kinds = ['walljump', 'dash', 'flip', 'kick', 'swing', 'au', 'wallrun', 'dash', 'flown'] as const;
   const tiers: Extract<DuelEvent, { k: 'tier' }>[] = [];
   for (let i = 0; i < 20; i++) for (const e of duelLink(d, 0, kinds[i % kinds.length], false, t + i * 100)) if (e.k === 'tier') tiers.push(e);
   assert(tiers.length === 2 && tiers[0].n === 12 && tiers[0].name === DUEL.TIERS[0].name && tiers[1].n === 18 && tiers[1].tier === 2, `tiers at ${tiers.map((x) => `${x.name} ${x.n}`)}`);
   assert(d.seats[0].combo.tier === 2 && tierOf(35) === 3 && tierOf(36) === 4 && tierOf(11) === 0, 'tierOf');
-  // the same link over and over: the count climbs, the tier doesn't
+  // the same link over and over: the count climbs only SOLO_RUN, the tier never
   const { d: r, t: t2 } = playing();
   let rep = 0;
   for (let i = 0; i < 30; i++) rep += duelLink(r, 0, 'dash', false, t2 + i * 100).filter((e) => e.k === 'tier').length;
-  assert(rep === 0 && r.seats[0].combo.n === 30, `30 dashes: no tier (${rep})`);
+  assert(rep === 0 && r.seats[0].combo.n === DUEL.SOLO_RUN, `30 dashes: no tier (${rep}), ${r.seats[0].combo.n} counted`);
   // banked with the bonus
   const C = d.seats[0].combo, want = Math.round(C.score * C.mult * (1 + DUEL.TIER_BONUS * 2));
   let got = -1;
@@ -555,6 +559,130 @@ test('the HUD state (v2 with its optional fields): beats aligned with links, the
   assert(st.players[0].combo.ended === 'cashed' && (st.players[0].combo.cashed ?? 0) > 0, `cashed (${JSON.stringify(st.players[0].combo)})`);
   st = hud.build(d, t + 3416, 1 / 60, seats, 0, 120, 60000, { on: false });
   assert(st.players[0].combo.ended === undefined, 'ended only on that frame');
+});
+
+// ---------------------------------------------------------------- phase 3: the pair combo, the weight of contact
+test('a run of one\'s own moves adds only SOLO_RUN in a row: past it the combo goes on, adding nothing, till a contact link', () => {
+  const { d, t } = playing();
+  const seq = ['dash', 'walljump', 'dash', 'walljump', 'dash', 'walljump', 'dash'] as const;
+  const ev = seq.flatMap((k, i) => duelLink(d, 0, k, false, t + i * 200));
+  const links = ev.filter((e) => e.k === 'link') as Extract<DuelEvent, { k: 'link' }>[];
+  const C = d.seats[0].combo;
+  assert(C.n === DUEL.SOLO_RUN && links.filter((e) => e.capped).length === seq.length - DUEL.SOLO_RUN, `${C.n} counted, ${links.filter((e) => e.capped).length} capped`);
+  assert(links.filter((e) => e.capped).every((e) => e.value === 0) && C.last === t + (seq.length - 1) * 200, 'the capped ones add nothing but keep it going');
+  duelLink(d, 0, 'catch', false, t + 2000);
+  duelLink(d, 0, 'dash', false, t + 2100);
+  assert(C.n === DUEL.SOLO_RUN + 2, `a catch opens the run again (${C.n})`);
+});
+
+test('the pair combo: both dancers\' contact links on one chain, its own tiers, banked by share; joined it never idles out; a fall drops it', () => {
+  const { d, t } = playing();
+  const cycle: [number, Parameters<typeof duelLink>[2]][] = [[0, 'catch'], [0, 'swing'], [0, 'swing'], [0, 'fling'], [1, 'flown'], [1, 'aerial'], [1, 'swing'], [1, 'fling'], [0, 'flown'], [0, 'lift']];
+  const ev: DuelEvent[] = [];
+  let u = t;
+  for (let i = 0; i < 30; i++) { const [s, k] = cycle[i % cycle.length]; ev.push(...duelLink(d, s, k, false, u)); u += 150; }
+  const P = d.pair, tiers = ev.filter((e) => e.k === 'pairTier') as Extract<DuelEvent, { k: 'pairTier' }>[];
+  assert(P.live && P.n === 30 && P.made[0] > 0 && P.made[1] > 0, `one chain of both (${P.n}: ${P.made})`);
+  assert(tiers.length === pairTierOf(P.varied) && tiers[0].name === DUEL.PAIR_TIERS[0].name, `pair tiers ${tiers.map((x) => `${x.name} ${x.n}`)} (varied ${P.varied})`);
+  // a solo move isn't the pair's
+  duelLink(d, 0, 'dash', false, u);
+  assert(d.pair.n === 30, 'a dash is not the pair\'s');
+  // joined, long past the idle: still live; apart, it banks each one's share
+  duelContact(d, true, u, 1);
+  for (let w = u; w < u + DUEL.PAIR_IDLE_MS + 500; w += 16) duelStep(d, w, 16, air, arena);
+  assert(d.pair.live, 'joined: it goes on');
+  duelContact(d, false, u + 3000);
+  const s0 = [d.seats[0].style, d.seats[1].style];
+  let end: Extract<DuelEvent, { k: 'pairCombo' }> | null = null;
+  for (let w = u + 3000; w < u + 3000 + DUEL.PAIR_IDLE_MS + 200 && !end; w += 16) for (const e of duelStep(d, w, 16, air, arena)) if (e.k === 'pairCombo') end = e;
+  assert(end && end.why === 'idle' && end.banked[0] > 0 && end.banked[1] > 0 && !d.pair.live, `banked ${end?.banked}`);
+  // (each one's share: the worth of the links it made)
+  const gained = [d.seats[0].style - s0[0], d.seats[1].style - s0[1]];
+  assert(gained[0] >= end.banked[0] && gained[1] >= end.banked[1], `into the style (${gained})`);
+  // a fall drops a live chain
+  const { d: f, t: tf } = playing();
+  duelLink(f, 0, 'catch', false, tf); duelLink(f, 1, 'flown', false, tf + 100);
+  const fell = duelStep(f, tf + 200, 16, [{ y: arena.yKill - 1, grounded: false }, { y: 1, grounded: false }], arena).find((e) => e.k === 'pairCombo') as Extract<DuelEvent, { k: 'pairCombo' }> | undefined;
+  assert(fell && fell.why === 'fall' && fell.banked[0] === 0 && fell.banked[1] === 0, 'dropped by a fall');
+  return `${tiers.map((x) => `${x.name} at ${x.n}`).join(', ')}; banked ${end.banked.join(' + ')}`;
+});
+
+test('the weight of contact: a catch holds the bodies\' time a few frames (more out of the air, most at range or a geyser\'s top), then eases back; a pair tier slows a beat', () => {
+  const at: [number, number, number] = [0, 1, 0];
+  const touch = (kind: ContactEvent['kind'], speed?: number): ContactEvent => ({ kind, seat: 0, other: 1, perfect: false, at, ...(speed ? { speed } : {}) });
+  const ctx = { bpm: 120, at: () => at };
+  const j = (ev: DuelEvent[], t: ContactEvent[], p: { k: string; seat?: number; power?: string }[] = [], top = false) => juiceOf(ev, t, p, { ...ctx, geyserTop: () => top });
+  const hold = (x: Juice[]) => x.map((e) => `${e.what}:${e.hold}`).join(',');
+  assert(hold(j([], [touch('catch')])) === `catch:${WEIGHT.FRAMES.catch}`, hold(j([], [touch('catch')])));
+  assert(hold(j([], [touch('aerial')])) === `aerial:${WEIGHT.FRAMES.aerial}`, 'an air catch');
+  assert(j([], [touch('aerial')], [], true)[0].via === 'geyser' && j([], [touch('aerial')], [], true)[0].hold === WEIGHT.FRAMES.geyser, 'at a geyser\'s top');
+  const r = j([], [], [{ k: 'catch', seat: 1, power: 'whip' }]);
+  assert(r[0].what === 'range' && r[0].via === 'whip' && r[0].hold === WEIGHT.FRAMES.range, 'a whip\'s catch is at range');
+  assert(WEIGHT.FRAMES.catch < WEIGHT.FRAMES.aerial && WEIGHT.FRAMES.aerial < WEIGHT.FRAMES.range && WEIGHT.FRAMES.catch >= 3 && WEIGHT.FRAMES.range <= 6, 'more in the air, most at range, 3 to 6');
+  const fl = j([], [touch('fling', 4)])[0], ff = j([], [touch('fling', 16)])[0];
+  assert(fl.what === 'fling' && fl.hold === WEIGHT.FRAMES.fling && ff.w > fl.w, 'a fling\'s release, weightier faster');
+  const pt = j([{ k: 'pairTier', seat: 0, tier: 1, name: 'DUET', color: '#fff', n: 14 }], [])[0];
+  assert(pt.what === 'pair' && pt.slow === WEIGHT.PAIR_SLOW && Math.abs((pt.slowS ?? 0) - 0.5) < 1e-9, `a pair tier: a beat slowed (${pt.slowS} s)`);
+  assert(j([{ k: 'finale', fused: true, peak: 1 }], [])[0]?.what === 'fusion' && !j([{ k: 'finale', fused: false, peak: 0.8 }], []).length, 'the fusion');
+  // the warp: held, then eased back, never frozen
+  const W = new TimeWarp(), dt = 1 / 60, ks: number[] = [];
+  W.add({ hold: 4 });
+  for (let i = 0; i < 14; i++) ks.push(W.step(dt));
+  assert(ks.slice(0, 4).every((k) => k === WEIGHT.HOLD_SCALE) && ks[4] > WEIGHT.HOLD_SCALE && ks[13] === 1 && Math.min(...ks) > 0, `held 4 frames, eased back (${ks.map((k) => k.toFixed(2)).join(' ')})`);
+  W.add({ hold: 0, slow: 0.4, slowS: 0.5 });
+  const sl: number[] = [];
+  for (let i = 0; i < 40; i++) sl.push(W.step(dt));
+  assert(Math.min(...sl) < 0.45 && sl[39] === 1 && sl.filter((k) => k < 0.5).length > 10, `slowed a beat (${Math.min(...sl).toFixed(2)} at the least)`);
+  return `frames held: catch ${WEIGHT.FRAMES.catch}, air ${WEIGHT.FRAMES.aerial}, range ${WEIGHT.FRAMES.range}, fling ${WEIGHT.FRAMES.fling}, lift ${WEIGHT.FRAMES.lift}`;
+});
+
+test('juice events reach the duel\'s stream: a played set has catches, flings and pair tiers held, and the warp takes a little time from the bodies', () => {
+  const { arena: A, world: W } = nodeArena('temple');
+  const seen: Record<string, number> = {};
+  const r = simulateDuel({ arena: A, world: W, brains: makeBrains(['lead', 'flyer'], [0.85, 0.85], [1, 8]), sets: 1, setMs: 30000, seconds: 60, warp: true,
+    each: ({ events }) => { for (const e of events) if (e.k === 'juice') seen[e.what] = (seen[e.what] ?? 0) + 1; } });
+  const lost = r.match.warp.lost;
+  assert((seen.catch ?? 0) + (seen.aerial ?? 0) + (seen.range ?? 0) > 3 && (seen.fling ?? 0) > 2, `juice ${JSON.stringify(seen)}`);
+  assert(r.match.history.some((h) => h.e.k === 'juice'), 'in the history (the film\'s log)');
+  assert(lost > 0.3 && lost < 0.15 * r.seconds, `the warp took ${lost.toFixed(2)} s of ${r.seconds.toFixed(1)}`);
+  return `${JSON.stringify(seen)}; ${lost.toFixed(2)} s held of ${r.seconds.toFixed(1)}`;
+});
+
+test('the finale: a fused lift reports its top once (the duel holds it); a bow never; the banner\'s "nearly" for a set that didn\'t fuse', () => {
+  const mk = () => [0, 1].map((k) => { const c = new Character({ seat: k }); c.setProfile('duel'); c.reset(k * 1.5, undefined, 0); return c; }) as [Character, Character];
+  for (const fused of [true, false]) {
+    const F = new Finale(mk());
+    F.start(fused, 120);
+    let tops = 0;
+    for (let i = 0; i < 200; i++) if (F.update(1 / 60)) tops++;
+    assert(tops === (fused ? 1 : 0), `${fused ? 'fused' : 'a bow'}: ${tops} tops`);
+  }
+  const st = { set: { fused: false }, shared: { high: 2.14, highFor: 3, merges: 1 } } as unknown as Parameters<typeof nearly>[0];
+  const a = nearly(st);
+  assert(a === 'NEARLY  ·  HELD 2.1 S OF 3 AT THE TOP', `${a}`);
+  assert(nearly({ ...st, shared: { high: 3.4, highFor: 3, merges: 0 } } as typeof st)!.includes('NO MERGE'), 'held but never merged');
+  assert(nearly({ ...st, set: { fused: true } } as typeof st) === null, 'fused: nothing');
+  return a!;
+});
+
+test('the HUD state carries the pair combo (its tier\'s word and colour, both colours) and its end, once', () => {
+  const { d, t } = playing();
+  const hud = new DuelHud();
+  const seats: HudSeat[] = [0, 1].map((k) => ({ name: `P${k + 1}`, matter: k ? 'water' : 'fire', screen: [0.3 + 0.4 * k, 0.5], dash: 1, holding: false, held: false }));
+  const kinds = ['catch', 'swing', 'fling', 'flown', 'aerial', 'swing', 'lift'] as const;
+  const ev: DuelEvent[] = [];
+  for (let i = 0; i < DUEL.PAIR_TIERS[0].at; i++) ev.push(...duelLink(d, i % 2, kinds[i % kinds.length], false, t + i * 100));
+  hud.events(ev, [], seats, [0.5, 0.5]);
+  let st = hud.build(d, t + 2000, 1 / 60, seats, 0, 120, 60000, { on: false });
+  assert(st.pair && st.pair.live && st.pair.tier === 1 && st.pair.tierName === DUEL.PAIR_TIERS[0].name && st.pair.colors[0] !== st.pair.colors[1], `pair ${JSON.stringify(st.pair)}`);
+  assert(st.pops.some((p) => p.kind === 'pair' && p.text.startsWith(DUEL.PAIR_TIERS[0].name)), 'its word pops');
+  let end: DuelEvent[] = [];
+  for (let k = 1; k < 400 && !end.some((e) => e.k === 'pairCombo'); k++) end = duelStep(d, t + 2000 + k * 16, 16, stand, arena);
+  hud.events(end, [], seats, null);
+  st = hud.build(d, t + 9000, 1 / 60, seats, 0, 120, 60000, { on: false });
+  assert(st.pair?.ended === 'cashed' && !st.pair.live && st.pair.n > 0, `ended (${JSON.stringify(st.pair)})`);
+  st = hud.build(d, t + 9016, 1 / 60, seats, 0, 120, 60000, { on: false });
+  assert(st.pair?.ended === undefined && st.pair?.n === 0, 'once');
 });
 
 done();

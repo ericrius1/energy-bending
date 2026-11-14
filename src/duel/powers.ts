@@ -281,6 +281,12 @@ export class DuelPowers {
     for (let k = 0; k < 2; k++) if (this.carried[k] === L) this.carried[k] = null;
   }
   /** everything gone (a new set) */
+  /** every effect ends now and fades as it would (the finale: nothing of the set's powers runs on under the duet) */
+  settle() {
+    for (const L of this.live) this.end(L);
+    this.carried = [null, null]; this.boost = [null, null]; this.ride = [null, null]; this.grip = [-1, -1];
+    for (const c of this.chars) { c.env.updraft = 0; c.env.slick = 0; c.env.carryX = 0; }
+  }
   clear() {
     for (const L of this.live) { this.dropSolid(L.solid); L.solid = null; }
     this.live.length = 0;

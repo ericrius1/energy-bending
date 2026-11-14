@@ -5,7 +5,7 @@
 // (0, 0) the top left, y down, so they don't depend on the device's pixel ratio or the render scale.
 
 export type HudMode = 'duel' | 'jogo' | 'none';
-export type PopKind = 'catch' | 'swing' | 'fling' | 'perfect' | 'combo' | 'merge' | 'info' | 'power' | 'react';
+export type PopKind = 'catch' | 'swing' | 'fling' | 'perfect' | 'combo' | 'merge' | 'info' | 'power' | 'react' | 'pair';
 /** a combo's link: one move chained */
 export type LinkKind = 'catch' | 'swing' | 'fling' | 'lift' | 'vault' | 'walljump' | 'wallrun' | 'dash' | 'flip' | 'kick' | 'aerial';
 export const LINK_KINDS: readonly LinkKind[] = ['catch', 'swing', 'fling', 'lift', 'vault', 'walljump', 'wallrun', 'dash', 'flip', 'kick', 'aerial'];
@@ -74,6 +74,33 @@ export interface HudShared {
   merge: number;
   /** 0 … 1: the fusion's (1: the finale will fuse: the set merged and held its energy near the top a few seconds) */
   fusion?: number;
+  /** the longest stretch near the top this set (s), of the `highFor` the fusion needs; the merges this set (the
+   *  banner's "nearly" note when the finale didn't fuse) */
+  high?: number;
+  highFor?: number;
+  merges?: number;
+}
+
+/** the pair combo: the two's chain of contact links, shared by both (docs/design/duel.md, phase 3) */
+export interface HudPair {
+  /** links chained, the multiplier, live while it goes */
+  n: number;
+  mult: number;
+  live: boolean;
+  /** its tier (0: none) and, from 1, the tier's word and colour */
+  tier: number;
+  tierName?: string;
+  tierColor?: string;
+  /** the last few links, and whose each was (seat) */
+  links: string[];
+  by: number[];
+  /** the longest this set */
+  best: number;
+  /** the two dancers' colours (CSS) */
+  colors: [string, string];
+  /** on the frame it ends: banked (cashed, each seat's share) or dropped (a fall) */
+  ended?: 'cashed' | 'dropped';
+  cashed?: [number, number];
 }
 
 export interface HudSet {
@@ -85,6 +112,8 @@ export interface HudSet {
   countdown?: number;
   /** the winner's seat, once done */
   winner?: number;
+  /** from the finale on: whether it fused */
+  fused?: boolean;
 }
 
 export interface HudBeat {
@@ -113,6 +142,8 @@ export interface HudState {
   set: HudSet;
   beat: HudBeat;
   pops: HudPop[];
+  /** the duel's pair combo (phase 3) */
+  pair?: HudPair;
 }
 
 export const emptyCombo = (): HudCombo => ({ n: 0, mult: 1, links: [], live: false, perfect: 0 });

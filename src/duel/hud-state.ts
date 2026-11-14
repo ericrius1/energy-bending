@@ -11,11 +11,11 @@
 // cashed, players' lead and best, pops' id and dir), which src/hud/state.ts doesn't type yet: the build is checked
 // against src/hud's HudState below, so the two stay in step. Types only: a value from src/hud would sit in main.ts's
 // chunk, see screenOf.)
-import { DUEL, fusionCharge, tierInfo, type DuelEvent, type DuelState } from '../../shared/duel.ts';
+import { DUEL, fusionCharge, tierInfo, pairTierInfo, pairMult, type DuelEvent, type DuelState } from '../../shared/duel.ts';
 import type { ContactEvent } from './contact';
 import type { HudState as HudContract } from '../hud/state';
 
-export type PopKind = 'catch' | 'swing' | 'fling' | 'perfect' | 'combo' | 'merge' | 'info' | 'power' | 'react';
+export type PopKind = 'catch' | 'swing' | 'fling' | 'perfect' | 'combo' | 'merge' | 'info' | 'power' | 'react' | 'pair';
 export interface HudPlayer {
   seat: 0 | 1; name: string; color: string; matter: string;
   /** the battle's score this set */
@@ -44,6 +44,11 @@ export interface HudPlayer {
 /** a word from elsewhere (the powers) for the pops, with its priority (events' `pop`: 3 always, 2 within the budget or
  *  rewriting, 1 within the budget) */
 export interface HudWord { text: string; kind: PopKind; seat?: number; at?: [number, number]; prio?: number }
+export interface HudPair {
+  n: number; mult: number; live: boolean; tier: number; tierName?: string; tierColor?: string;
+  links: string[]; by: number[]; best: number; colors: [string, string];
+  ended?: 'cashed' | 'dropped'; cashed?: [number, number];
+}
 export interface HudPop { text: string; seat?: number; at: [number, number]; age: number; kind: PopKind; id?: number; dir?: [number, number] }
 export interface HudState {
   mode: 'duel' | 'jogo' | 'none';
@@ -52,8 +57,17 @@ export interface HudState {
   link: { on: boolean; energy: number; from?: [number, number]; to?: [number, number] };
   /** 0 … 1: the dance's intensity, its peak this set, the merge charge; and the fusion's (1: the finale will fuse:
    *  the set merged and held its energy near the top for a few seconds) */
-  shared: { energy: number; peak: number; merge: number; fusion?: number };
-  set: { time: number; length: number; phase: 'intro' | 'play' | 'finale' | 'done'; countdown?: number; winner?: number };
+  shared: { energy: number; peak: number; merge: number; fusion?: number;
+    /** the longest stretch near the top this set (s), of the `highFor` the fusion needs, and the merges this set (the
+     *  banner's "nearly" when the finale didn't fuse) */
+    high?: number; highFor?: number; merges?: number };
+  set: { time: number; length: number; phase: 'intro' | 'play' | 'finale' | 'done'; countdown?: number; winner?: number;
+    /** the finale fused (from the finale on) */
+    fused?: boolean };
+  /** the pair combo: the two's chain of contact links (shared/duel.ts PairCombo), its multiplier, its tier's word and
+   *  colour from tier 1, the last few links and whose each was, the longest this set, the two's colours; on the frame
+   *  it ends, how (cashed: each dancer's share banked; dropped: a fall) */
+  pair?: HudPair;
   beat: { phase: number; bpm: number; window: number };
   pops: HudPop[];
 }
@@ -117,6 +131,8 @@ export class DuelHud {
   private swingPop = 0;
   private perfectPop: [number, number] = [0, 0];
   private perfects: [number, number] = [0, 0];
+  /** how the pair combo ended this frame (the next build carries it, once) */
+  private pairEnded: { how: 'cashed' | 'dropped'; banked: [number, number]; n: number; tier: number; mult: number } | null = null;
 
   /** the frame's events as pops, at the bodies' screen places (or the screen's middle); `project` puts a world point
    *  on screen (a fling's direction) */
@@ -185,6 +201,9 @@ export class DuelHud {
           if (e.why !== 'fall' && e.n >= 4) pop(`COMBO ×${e.n}`, 'combo', e.seat);
           break;
         case 'tier': pop(`${e.name} ×${e.n}`, 'combo', e.seat, undefined, undefined, 3); break;
+        // (the pair's tier: the two's word, nobody's lane, above the pair in both their colours)
+        case 'pairTier': pop(`${e.name} ×${e.n}`, 'pair', undefined, linkAt ?? [0.5, 0.36], undefined, 3); break;
+        case 'pairCombo': this.pairEnded = { how: e.why === 'fall' ? 'dropped' : 'cashed', banked: e.banked, n: e.n, tier: e.tier, mult: e.mult }; break;
         case 'merge': pop('MERGE', 'merge', undefined, linkAt ?? [0.5, 0.4], undefined, 3); break;
         case 'fall': pop('FELL', 'info', e.seat, undefined, undefined, 1); break;
         case 'finale': pop(e.fused ? 'FUSION' : 'FINALE', e.fused ? 'merge' : 'info', undefined, [0.5, 0.38], undefined, 3); break;
@@ -227,14 +246,28 @@ export class DuelHud {
     const st: HudState = {
       mode: 'duel', players,
       link: { on: link.on, energy: d.energy, ...(link.from ? { from: link.from } : {}), ...(link.to ? { to: link.to } : {}) },
-      shared: { energy: d.energy, peak: d.peak, merge: d.merge, fusion: +fusionCharge(d).toFixed(3) },
-      set: { time: Math.max(0, time), length: setMs / 1000, phase: d.phase, ...(d.phase === 'intro' ? { countdown: countLeft(d, now) } : {}), ...(d.winner != null ? { winner: d.winner } : {}) },
+      shared: { energy: d.energy, peak: d.peak, merge: d.merge, fusion: +fusionCharge(d).toFixed(3), high: +(d.highBest / 1000).toFixed(2), highFor: DUEL.FUSE_HOLD_MS / 1000, merges: d.merges },
+      set: { time: Math.max(0, time), length: setMs / 1000, phase: d.phase, ...(d.phase === 'intro' ? { countdown: countLeft(d, now) } : {}), ...(d.winner != null ? { winner: d.winner } : {}), ...(d.phase === 'finale' || d.phase === 'done' ? { fused: d.fused } : {}) },
+      pair: this.pairOf(d, players),
       beat: { phase: beat - Math.floor(beat), bpm, window: DUEL.PERFECT_MS / 1000 },
       pops: this.pops.map((p) => ({ ...p, at: [p.at[0], p.at[1]] })),
     };
     this.ended = [null, null];
+    this.pairEnded = null;
     this.state = st;
     return st;
+  }
+
+  /** the pair combo for the HUD (a chain that just ended shows what it was, once) */
+  private pairOf(d: DuelState, players: readonly HudPlayer[]): HudPair {
+    const P = d.pair, E = this.pairEnded, colors: [string, string] = [players[0]?.color ?? '#ff9a3c', players[1]?.color ?? '#4cc3ff'];
+    const tier = P.live ? P.tier : E?.tier ?? 0, T = pairTierInfo(tier);
+    return {
+      n: P.live ? P.n : E?.n ?? 0, mult: +(P.live ? pairMult(P) : E?.mult ?? 1).toFixed(2), live: P.live, tier,
+      ...(T ? { tierName: T.name, tierColor: T.color } : {}),
+      links: P.links.slice(-6), by: P.by.slice(-6), best: d.pairBest, colors,
+      ...(E ? { ended: E.how, ...(E.how === 'cashed' ? { cashed: E.banked } : {}) } : {}),
+    };
   }
 }
 
