@@ -24,14 +24,14 @@
 // Intent split between its body and the contact (seat gates); travel — the contact and the rules, the effects;
 // camera — the free camera side-on to the pair; post — the glows up to the GPU, the HUD's state.
 import type { FrameCtx } from '../engine/frame';
-import { Solids, type StagePlane } from '../engine/camera';
+import { Solids, distTo, type StagePlane } from '../engine/camera';
 import type { Dancer } from '../dancer/dancer';
 import type { IntentController } from '../dancer/intent-controller';
 import type { Music } from '../audio/music';
 import type { PlayApp } from '../play';
 import { makeIntent, EDGES, type Intent, type IntentSource, type InputMode } from '../input/intent';
 import { BotSource } from '../input/touch';
-import { JOINT } from '../skeleton/rig';
+import { JOINT, JOINT_FLOATS } from '../skeleton/rig';
 import { Glows } from '../play/glow';
 import { GlowDraw } from '../play/glow-draw';
 import { elementOf } from '../play';
@@ -53,6 +53,8 @@ import { POWER_KEYS, type KeyLayout } from '../input/keyboard';
 import { POWER_BUTTONS } from '../input/gamepad';
 import type { WaterPasses } from '../matter/water/pool';
 import type { PlasmaPasses } from '../matter/plasma/plasma';
+import { Finale } from './finale';
+import { DuelCamera, type CamBody, type CamSpace } from './camera';
 import { DuelHud, screenOf, type HudSeat, type HudState, type HudWord } from './hud-state';
 // (the HUD is the page's one, reached through bend.hud, and screenOf is hud-state.ts's copy of src/hud's: any value
 // imported from src/hud lands in main.ts's own chunk, and the duel's chunk importing it waits for main.ts to finish
@@ -150,6 +152,8 @@ export async function startDuel(app: PlayApp) {
   const kindOf = (k: number) => { const d = play.dancers[k]; let best = show.dress[k], share = -1; if (d) for (const l of d.loadout.layers) if (l.share > share) { share = l.share; best = l.kind; } return matterOf(best); };
   const powers = new DuelPowers(chars, match, { matter: [kindOf(0), kindOf(1)], sink: powerSolids, groundAt: (x, z) => world().groundAt(x, z), yKill: arena.space.yKill });
   powersVersion = () => powers.version;
+  // the finale's duet (finale.ts): it holds both seats and moves the bodies for its length
+  const finale = new Finale(chars);
   const sight = (): DuelSight => {
     const L = match.contact.link;
     return {
@@ -163,7 +167,7 @@ export async function startDuel(app: PlayApp) {
   // ---------------------------------------------------------------- the seats: humans and virtual players
   const kinds = [q.get('p1') ?? 'human', q.get('p2') ?? 'bot'].map((x) => (x === 'bot' || x === 'ai' || x === 'cpu' ? 'bot' : 'human'));
   let started = false;
-  const gates = [0, 1].map((k) => new SeatGate(k, () => !started || match.frozen(k), (it) => splitIntent(chars[k], it, match.contact.holding(k), match.contact.held(k))));
+  const gates = [0, 1].map((k) => new SeatGate(k, () => !started || match.frozen(k) || finale.holds(k), (it) => splitIntent(chars[k], it, match.contact.holding(k), match.contact.held(k))));
   for (let k = 0; k < 2; k++) ctl[k].source = gates[k];
   const scene = new Scene();
   scene.bodies = [0, 1].map((k) => ({ id: `seat.${k}`, seat: k, character: chars[k] }));
@@ -232,7 +236,7 @@ export async function startDuel(app: PlayApp) {
     slot: (k) => { const d = dancer(k); return d ? show.dancers.indexOf(d) : -1; },
     sfx: (name, o) => { music.sfx(name as Parameters<Music['sfx']>[0], o); }, ear,
     rumble: (k, s, ms) => { const i = humanSeats.indexOf(k); if (i >= 0) hub.rumble(i, s, ms); },
-    field: field as unknown as DuelFxCtx['field'], burst: app.hand?.burst ?? null,
+    field: field as unknown as DuelFxCtx['field'], burst: app.hand?.burst ?? null, finale: () => finale.look(),
   });
   const water = app.kinds.find((k) => k.id === 'water' || k.id === 'ice') as WaterPasses | undefined;
   const plasma = app.kinds.find((k) => k.id === 'plasma') as PlasmaPasses | undefined;
@@ -292,45 +296,49 @@ export async function startDuel(app: PlayApp) {
     }
   }, 'duel: what the brains see');
 
-  // the free camera, a fighting game's: the rig's own third-person follow (dancer/play.ts aims it at the pair's middle and
-  // stands it back to hold both), turned side-on to the line between the two, a little behind seat 1, so both are seen
-  // across the screen; it swings round (at the rig's own rate) as they circle. Of the side-on turns (either side, and a
-  // little either way of each) it takes the one whose boom the world's solids leave clearest (a slab's crown and
-  // the stones over it can pull the boom in to nothing from some sides), keeping the one it has unless another is clearly better.
-  // Snapped there on the first frames
-  // (World.clear and the gates' discs, the rig's clearance, pull the boom in the same way: off while free, the lock's own)
-  let clearWas: typeof rig.clearance = rig.clearance;
-  const freeClear = (a: V3, b: V3) => (rig.mode === 'locked' ? clearWas?.(a, b) ?? 1 : 1);
-  let camFrames = 0, camYaw: number | null = null, solidsFor: unknown = null, solidSet: Solids | null = null;
-  const wrap = (a: number) => Math.atan2(Math.sin(a), Math.cos(a));
-  frame.tick('camera', () => {
-    if (rig.mode === 'locked' || !rig.follow) return;
-    const a = chars[0].root, b = chars[1].root, dx = b[0] - a[0], dz = b[2] - a[2], l = Math.hypot(dx, dz);
-    if (l < 0.3) return;
+  // the free camera (camera.ts, pure): side on to the pair, both bodies whole with head room over the higher one (a
+  // rising body framed at its apex), its eye clear of the arena's pieces by more than the near fade's distance or
+  // risen over them, turned smoothly. Its pose goes to the rig (CameraRig.pose), which keeps it above the ground and
+  // eases the lock in and out from it. A player's own look input (the right stick, the mouse) turns it by hand for a
+  // moment. The lock gets the same head room (CameraRig.apexG, headroom)
+  const dcam = new DuelCamera();
+  let solidsFor: readonly Solid[] | null = null, solidSet: Solids | null = null;
+  const camSpace = (): CamSpace | null => {
     const list = solids();
-    if (list.length !== (solidsFor as Solid[] | null)?.length) { solidsFor = list; solidSet = list.length ? new Solids(list) : null; }
-    const mid: V3 = [(a[0] + b[0]) / 2, Math.max(a[1], b[1]) + 1.0, (a[2] + b[2]) / 2], dist = Math.max(4.6, rig.dist);
-    const behind = Math.atan2(-dx, -dz), c1 = Math.atan2(-dz / l, dx / l);
-    const score = (y: number) => {
-      const e: V3 = [mid[0] + Math.sin(y) * dist, mid[1] + 0.25 * dist, mid[2] + Math.cos(y) * dist];
-      const clear = solidSet ? solidSet.sweep(mid, e, 0.35) : 1;
-      return clear * 2 - Math.abs(wrap(y - (camYaw ?? rig.yaw))) * 0.25;
+    if (list.length !== solidsFor?.length) { solidsFor = list; solidSet = list.length ? new Solids(list) : null; }
+    const S = solidSet;
+    if (!S) return null;
+    return {
+      clear: (p) => { let d = Infinity; for (const s of S.list) d = Math.min(d, distTo(s, p)); return d; },
+      blocked: (a, b) => S.sweep(a, b, 0.12) < 0.98,
+      ground: (x, z) => world().groundAt(x, z),
     };
-    let best = camYaw ?? rig.yaw, bs = -Infinity;
-    for (const base of [c1, c1 + Math.PI]) for (const off of [0, 0.45, -0.45]) {
-      const y = wrap(base + off + 0.3 * Math.sign(wrap(behind - base)));
-      const sc = score(y);
-      if (sc > bs) { bs = sc; best = y; }
-    }
-    if (camYaw == null || bs > score(camYaw) + 0.3 || Math.abs(wrap(best - camYaw)) < 0.5) camYaw = best;
-    if (camFrames++ < 2) rig.yaw = camYaw;
-    // the boom kept long and the look point above the pieces: in a dense arena the rig's clearance pulled the eye in to
-    // its look point; the near fade (worlds/fade.ts) dissolves what stands in front instead (restored when locked)
-    rig.solids = null;
-    if (rig.clearance !== freeClear) { clearWas = rig.clearance; rig.clearance = freeClear; }
-    // (the follow swings the eye to its target's yaw + π while its target "runs": that is how it is turned)
-    rig.follow = { ...rig.follow, y: rig.follow.y + 0.5, yaw: wrap(camYaw - Math.PI), speed: 1 };
-  }, 'duel: the follow camera side-on to the pair');
+  };
+  const FRAMED = [JOINT.Hips, JOINT.Spine1, JOINT.LeftHand, JOINT.RightHand, JOINT.LeftToeBase, JOINT.RightToeBase];
+  const camBody = (k: number): CamBody | null => {
+    const d = dancer(k);
+    if (!d) return null;
+    const J = d.skeleton.world, at = (j: number): V3 => [J[j * JOINT_FLOATS], J[j * JOINT_FLOATS + 1], J[j * JOINT_FLOATS + 2]];
+    const c = chars[k];
+    return { pts: FRAMED.map(at), sight: [at(JOINT.Hips), at(JOINT.Spine1)], head: at(JOINT.HeadEnd), root: [c.root[0], c.root[1], c.root[2]], vel: [c.v[0], c.v[1], c.v[2]], air: !c.grounded };
+  };
+  rig.apexG = chars[0].phys.gravity;
+  rig.headroom = 0.5;
+  frame.tick('camera', (f: FrameCtx) => {
+    const a = camBody(0), b = camBody(1);
+    if (!a || !b) { rig.pose = null; return; }
+    // (the player turning the camera by hand: the right stick or the mouse, in the free view)
+    if (rig.mode !== 'locked' && rig.lookIdle === 0) dcam.hold(rig.yaw);
+    const [w, h] = kit.size.render;
+    rig.pose = dcam.update(f.dt, {
+      bodies: [a, b], aspect: w / Math.max(1, h), gravity: chars[0].phys.gravity, space: camSpace(), near: rig.sight.near,
+      center: arena.space.center, room: arena.camera?.maxDist ?? arena.space.radius + 6, maxDist: arena.camera?.maxDist, pad: rig.framePad,
+    });
+  }, 'duel: the free camera, side on to the pair with head room');
+  // the world's gates shut while the duel is on (a body flung through one left the arena, the camera with it; their
+  // discs sat at the edge of the shots), opened again when it stops
+  const shut = W.portals.map((p) => p.id);
+  for (const id of shut) app.gates.close(id);
 
   frame.tick('travel', (f: FrameCtx) => {
     glows.clear();
@@ -343,6 +351,11 @@ export async function startDuel(app: PlayApp) {
     castNext[0] = castNext[1] = null;
     ev.push(...powers.duelEvents);
     frameEvents = ev;
+    for (const e of ev) {
+      if (e.k === 'finale') finale.start(e.fused, bpm, [match.state.seats[0].style, match.state.seats[1].style]);
+      else if (e.k === 'set') finale.stop();
+    }
+    finale.update(f.danceDt);
     fx.update(f.danceDt, ev, match.touches, match.contact, match.state);
     powerFx.update(f.danceDt, powers);
     for (const e of powers.events) pendingPowers.push(e);
@@ -382,7 +395,9 @@ export async function startDuel(app: PlayApp) {
 
   // ---------------------------------------------------------------- bend.duel
   const api = {
-    match, arena, plane, powers,
+    match, arena, plane, finale, powers,
+    /** the free camera (camera.ts): its choice, what it framed, how clear its eye stood */
+    camera: dcam, camSpace,
     /** cast a seat's power now (slot 0 or 1; the stick as a world x, z), or the form: as its buttons would */
     cast: (k: number, slot: 0 | 1 | 'form', stick: [number, number] = [0, 0]) => { castNext[k] = { p1: slot === 0, p2: slot === 1, form: slot === 'form', stick }; },
     /** a seat's flow (0 … 1), read or set */
@@ -396,11 +411,13 @@ export async function startDuel(app: PlayApp) {
     hud: () => hudState,
     /** begin now (the human seats' devices not yet in), or from set 1 again */
     start: begin,
-    restart: () => { if (!started) begin(); else match.restart(now); },
+    restart: () => { finale.stop(); if (!started) begin(); else match.restart(now); },
     /** the duel's end: the arena off, the world's room back */
     stop: () => {
       started = false; showArena(null); field.fuse(null); powerFx.clear(); powers.clear();
       if (solidsWas) Object.defineProperty(W, 'solids', solidsWas); else delete (W as { solids?: unknown }).solids;
+      rig.pose = null; rig.apexG = 0; rig.headroom = 0;
+      app.gates.open(...W.portals.filter((p) => shut.includes(p.id)).map((p) => ({ ...p, world: W.id })));
       if (roomWas) Object.defineProperty(W, 'room', roomWas); else delete (W as { room?: number }).room;
     },
     /** a seat's brain: { style, skill, seed } for a virtual player, any Brain, or null for the seat's device */

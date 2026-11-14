@@ -35,7 +35,7 @@ export const DUEL = {
   /** a set's play, and the finale after it (the fusion when the energy's peak reached MERGE_PEAK), then the result's
    *  moment before the next set */
   SET_MS: 60000,
-  FINALE_MS: 5000,
+  FINALE_MS: 2900, // (the two's duet on the last bar, src/duel/finale.ts: at most 2.6 s, then the banner)
   DONE_MS: 4000,
   /** on the beat: within this of an 8th-note line */
   PERFECT_MS: 60,

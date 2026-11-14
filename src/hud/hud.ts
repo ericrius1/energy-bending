@@ -26,6 +26,8 @@ export interface HudStats {
   /** ms a frame by part (the mean since the last reset): what the HUD's time goes on */
   parts: Record<string, number>;
   size: [number, number]; ratio: number; compact: boolean; mode: string; visible: boolean;
+  /** the pops drawn last frame (in all, per seat, nobody's) and the most at once since the last stats reset */
+  pops: { now: { total: number; seats: number[]; centre: number }; most: { total: number; seats: number[]; centre: number } };
 }
 
 export class Hud {
@@ -183,7 +185,7 @@ export class Hud {
     this.part('beat');
     // (the banner over the pops: the last move's word rises behind it)
     if (duel) {
-      this.pops.draw(gl, st, L, r, out);
+      this.pops.draw(gl, st, L, r, out, this.centre.last);
       this.part('pops');
       this.centre.draw(gl, st, L, r, out);
       this.part('centre');
@@ -238,8 +240,9 @@ export class Hud {
       baseFrames: this.counts.base, frames: this.counts.frames,
       parts: Object.fromEntries(Object.entries(this.parts).map(([k, v]) => [k, +(v / Math.max(1, this.counts.frames)).toFixed(4)])),
       size: [this.cssW, this.cssH], ratio: +this.ratio.toFixed(3), compact: !!this.L?.compact, mode: this.state.mode, visible: this.on,
+      pops: { now: { ...this.pops.shown }, most: { ...this.pops.most } },
     };
-    if (reset) { this.cpu = []; this.counts = { base: 0, frames: 0 }; this.parts = {}; }
+    if (reset) { this.cpu = []; this.counts = { base: 0, frames: 0 }; this.parts = {}; this.pops.most = { total: 0, seats: [0, 0], centre: 0 }; }
     return s;
   }
 }
