@@ -15,7 +15,8 @@ if (Number(process.env.ROOM_GRACE_MS) > 0) SERVER_PARAMS.GRACE_MS = Number(proce
 
 const dir = process.env.SITE_DIR ?? path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'dist');
 const site = fs.existsSync(path.join(dir, 'index.html')) ? { dir, base: process.env.BASE ?? '/energybending/' } : null;
-const server = await startRooms({ port, host, site });
+// DUELS=0 turns the online duels off (no engine bundled, no duel clock)
+const server = await startRooms({ port, host, site, duels: process.env.DUELS !== '0' });
 if (site) console.log(`serving the game from ${site.dir} at ${site.base}`);
 
 function shutdown() {
