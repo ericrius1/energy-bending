@@ -17,8 +17,8 @@ import { HudDemo } from './demo';
 import { JogoBeat } from './jogo';
 import type { HudState } from './state';
 
-export type { HudState, HudPlayer, HudPop, HudRound, HudBeat, HudCharge, HudMode, PopKind } from './state';
-export { emptyHud, screenOf } from './state';
+export type { HudState, HudPlayer, HudPop, HudCombo, HudLink, HudShared, HudSet, HudBeat, HudMode, PopKind, LinkKind } from './state';
+export { emptyHud, emptyCombo, screenOf, LINK_KINDS } from './state';
 
 /** the one HUD */
 export const hud = new Hud();
@@ -45,7 +45,7 @@ const matterOf = (d: Dancer) => {
 export function installHud(c: HudCtx) {
   const q = c.query.get('hud');
   if (q === '0' || q === 'off') hud.visible = false;
-  let demo: HudDemo | null = q === 'demo' || q === 'demo2' ? new HudDemo(q === 'demo2') : null;
+  let demo: HudDemo | null = q === 'demo' || q === 'demo2' ? new HudDemo() : null;
   const jogo = new JogoBeat();
   let jogoBeat = q === 'beat';
   // the pixel ratio to draw at: the device's (at least the canvas's own), or a film's render scale
@@ -60,8 +60,10 @@ export function installHud(c: HudCtx) {
     dt = f.dt;
     if (demo) {
       const ds = c.dancers().filter((d) => d.framed).slice(0, 2);
-      const heads = ds.map((d) => d.skeleton.world.subarray(JOINT.Head * JOINT_FLOATS, JOINT.Head * JOINT_FLOATS + 3));
-      hud.set(demo.update({ dt: f.dt, beat: f.beat, heads, matters: ds.map(matterOf), viewProj: c.kit.camera.viewProj }));
+      const at = (d: Dancer, j: number) => d.skeleton.world.subarray(j * JOINT_FLOATS, j * JOINT_FLOATS + 3);
+      const heads = ds.map((d) => at(d, JOINT.Head));
+      const hands = ds.map((d) => [at(d, JOINT.LeftHand), at(d, JOINT.RightHand)]);
+      hud.set(demo.update({ dt: f.dt, beat: f.beat, heads, hands, matters: ds.map(matterOf), viewProj: c.kit.camera.viewProj }));
       return;
     }
     const s = jogo.update(jogoBeat, (globalThis as { bend?: { jogo?: Parameters<JogoBeat['update']>[1] } }).bend?.jogo);
@@ -95,8 +97,8 @@ export function installHud(c: HudCtx) {
     get jogoBeat() { return jogoBeat; },
     set jogoBeat(v: boolean) { jogoBeat = v; },
     get demo() { return demo; },
-    /** run the demo state from now (null stops it and clears the HUD) */
-    startDemo(on = true, spells = false) { demo = on ? new HudDemo(spells) : null; if (!on) hud.set({ ...hud.current, mode: 'none' }); return demo; },
+    /** run the demo state from now (false stops it and clears the HUD) */
+    startDemo(on = true) { demo = on ? new HudDemo() : null; if (!on) hud.set({ ...hud.current, mode: 'none' }); return demo; },
     stats: (reset = false) => hud.stats(reset),
   };
   return { hud, api, overlay, compose: (g: CanvasRenderingContext2D, w: number, h: number) => hud.compose(g, w, h) };

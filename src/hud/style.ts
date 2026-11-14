@@ -270,12 +270,14 @@ export function sprite(key: string, dpr: number, w: number, h: number, ox: numbe
   return ref;
 }
 
-/** stamp a sprite at x, y (its own anchor), scaled by k, at alpha a */
+/** stamp a sprite at x, y (its own anchor), scaled by k, at alpha a (times the context's) */
 export function stamp(g: Ctx, s: SpriteRef, x: number, y: number, k = 1, a = 1) {
   if (a <= 0.003) return;
-  g.globalAlpha = a;
+  // (at a times the alpha already set: a stamp inside a fading group fades with it)
+  const ga = g.globalAlpha;
+  g.globalAlpha = ga * Math.min(1, a);
   g.drawImage(s.c, s.sx, s.sy, s.sw, s.sh, x - s.ox * k, y - s.oy * k, s.w * k, s.h * k);
-  g.globalAlpha = 1;
+  g.globalAlpha = ga;
 }
 
 /** a soft round glow of colour c, radius r (CSS px) */
@@ -296,3 +298,58 @@ export const easeOut = (x: number) => 1 - Math.pow(1 - clamp01(x), 3);
 export const easeOutBack = (x: number) => { x = clamp01(x); const c = 1.7; return 1 + (c + 1) * Math.pow(x - 1, 3) + c * Math.pow(x - 1, 2); };
 /** a value eased toward a target at rate k per second (frame-rate free) */
 export const approach = (v: number, to: number, k: number, dt: number) => v + (to - v) * (1 - Math.exp(-k * dt));
+
+// ---------------------------------------------------------------- words as sprites
+// Text drawn each frame costs (a stroke for the halo and a fill, at a size): what the HUD redraws often (the style as
+// it rolls, the combo's count, the clock) is stamped from sprites instead, one per text (a number is stamped digit by
+// digit, so a rolling score needs only eleven).
+let measurer: Ctx | null = null;
+const widths = new Map<string, number>();
+
+export interface Label { ref: SpriteRef; w: number }
+/** `text` at `size` (CSS px), weight, tracking (em), its colour and a dark halo (alpha, width px), as a sprite whose
+ *  anchor is the start of its baseline; `w` is the text's advance */
+/** the advance of `text` at a size, weight and tracking (em), measured once */
+export function measure(text: string, size: number, weight: number | string, track: number) {
+  const font = `${weight} ${size.toFixed(2)}px ${FONT}`, ls = `${(size * track).toFixed(2)}px`;
+  const mk = `${font}|${ls}|${text}`;
+  let w = widths.get(mk);
+  if (w == null) {
+    measurer ??= makeCanvas(4, 4).getContext('2d') as Ctx;
+    measurer.font = font; measurer.letterSpacing = ls;
+    w = measurer.measureText(text).width;
+    widths.set(mk, w);
+    if (widths.size > 4000) widths.clear();
+  }
+  return w;
+}
+
+export function label(text: string, size: number, weight: number | string, track: number, fill: string, halo: number, haloW: number, dpr: number): Label {
+  const font = `${weight} ${size.toFixed(2)}px ${FONT}`, ls = `${(size * track).toFixed(2)}px`;
+  const mk = `${font}|${ls}|${text}`;
+  const w = measure(text, size, weight, track);
+  const pad = Math.ceil(haloW + 2), sw = w + pad * 2, sh = size * 1.45 + pad * 2, base = pad + size * 1.08;
+  const ref = sprite(`label:${mk}|${fill}|${halo}|${haloW.toFixed(2)}`, dpr, sw, sh, pad, base, (g) => {
+    g.font = font; g.letterSpacing = ls;
+    g.textAlign = 'left'; g.textBaseline = 'alphabetic';
+    if (halo > 0) haloText(g, text, pad, base, fill, halo, haloW);
+    else { g.fillStyle = fill; g.fillText(text, pad, base); }
+  });
+  return { ref, w };
+}
+
+/** a label stamped by its baseline at x, y: align 'left' (x is its start), 'right' (its end) or 'center' */
+export function stampLabel(g: Ctx, l: Label, x: number, y: number, align: 'left' | 'right' | 'center' = 'left', a = 1) {
+  stamp(g, l.ref, align === 'left' ? x : align === 'right' ? x - l.w : x - l.w / 2, y, 1, a);
+}
+
+/** a number's text stamped digit by digit (each digit a label: a rolling score costs eleven sprites); returns its width */
+export function stampDigits(g: Ctx, text: string, size: number, weight: number | string, track: number, fill: string, halo: number, haloW: number, dpr: number,
+  x: number, y: number, align: 'left' | 'right' = 'left', a = 1): number {
+  let w = 0;
+  const ls: Label[] = [];
+  for (const ch of text) { const l = label(ch, size, weight, track, fill, halo, haloW, dpr); ls.push(l); w += l.w; }
+  let cx = align === 'left' ? x : x - w;
+  for (const l of ls) { stamp(g, l.ref, cx, y, 1, a); cx += l.w; }
+  return w;
+}

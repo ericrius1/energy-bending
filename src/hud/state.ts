@@ -1,12 +1,27 @@
-// What the HUD draws: one plain object, filled by whoever runs the mode (the duel's rules, the demo, the jogo's beat)
-// and handed to `hud.set(state)` each frame. The contract is docs/design/duel.md's ("The HUD"); this file is its
-// TypeScript, plus the empty state the HUD starts from. Screen positions are fractions of the canvas, (0, 0) the top
-// left, y down, so they don't depend on the device's pixel ratio or the render scale.
+// What the HUD draws: one plain object, filled by whoever runs the mode (the contact dance's rules, the demo, the
+// jogo's beat) and handed to `hud.set(state)` each frame. The contract is docs/design/duel.md's "The HUD's state,
+// version 2" (the duel as a dance battle: style, combos, the shared energy, the link, the set on the music); this
+// file is its TypeScript, plus the empty state the HUD starts from. Screen positions are fractions of the canvas,
+// (0, 0) the top left, y down, so they don't depend on the device's pixel ratio or the render scale.
 
 export type HudMode = 'duel' | 'jogo' | 'none';
-export type PopKind = 'perfect' | 'parry' | 'ko' | 'react' | 'info';
+export type PopKind = 'catch' | 'swing' | 'fling' | 'perfect' | 'combo' | 'merge' | 'info';
+/** a combo's link: one move chained */
+export type LinkKind = 'catch' | 'swing' | 'fling' | 'lift' | 'vault' | 'walljump' | 'wallrun' | 'dash' | 'flip' | 'kick' | 'aerial';
+export const LINK_KINDS: readonly LinkKind[] = ['catch', 'swing', 'fling', 'lift', 'vault', 'walljump', 'wallrun', 'dash', 'flip', 'kick', 'aerial'];
 
-export interface HudCharge { spell: string; n: number; max: number; ready: number }
+export interface HudCombo {
+  /** moves chained */
+  n: number;
+  /** the multiplier */
+  mult: number;
+  /** the last few links (LinkKind; an unknown name draws as a plain mark), oldest first */
+  links: string[];
+  /** true while the combo is going */
+  live: boolean;
+  /** links landed on the beat (of n) */
+  perfect: number;
+}
 
 export interface HudPlayer {
   seat: 0 | 1;
@@ -15,31 +30,47 @@ export interface HudPlayer {
   color: string;
   /** 'fire' | 'water' | 'ice' | 'plasma' | 'gems' | 'steam' */
   matter: string;
-  /** hits taken this life, of hitsMax (3) */
-  hits: number;
-  hitsMax: number;
-  /** KOs scored this round */
-  kos: number;
+  /** the battle's score this set */
+  style: number;
+  combo: HudCombo;
   /** 0 … 1 ready */
   dash: number;
-  /** phase 2's spells (empty slots until then) */
-  charges: HudCharge[];
-  /** 0 … 1 */
-  superMeter: number;
-  /** 0 … 1 while the body reforms, else 0 */
+  /** in a link: this one holds (the base) / is held (the flyer) */
+  holding: boolean;
+  held: boolean;
+  /** 0 … 1 after a fall, else 0 */
   reforming: number;
   /** the player's head on screen (0 … 1), for its tag */
   screen?: [number, number];
 }
 
-export interface HudRound {
-  koTarget: number;
-  /** seconds, shown as m:ss (the duel decides whether it counts up or down) */
+export interface HudLink {
+  /** the two are joined */
+  on: boolean;
+  /** 0 … 1: the link's energy (the line of light pulses with it) */
+  energy: number;
+  /** the contact points on screen (0 … 1): from the holder's, to the held's */
+  from?: [number, number];
+  to?: [number, number];
+}
+
+export interface HudShared {
+  /** 0 … 1: the dance's intensity (rises only when the two play together) */
+  energy: number;
+  /** 0 … 1: its peak this set */
+  peak: number;
+  /** 0 … 1: the merge (fusion) charge */
+  merge: number;
+}
+
+export interface HudSet {
+  /** seconds into the set, of `length` */
   time: number;
-  phase: 'countdown' | 'play' | 'ko' | 'won';
-  /** seconds left of the countdown (3 … 0) */
+  length: number;
+  phase: 'intro' | 'play' | 'finale' | 'done';
+  /** seconds left of the intro's countdown (3 … 0) */
   countdown?: number;
-  /** the winner's seat */
+  /** the winner's seat, once done */
   winner?: number;
 }
 
@@ -56,7 +87,7 @@ export interface HudPop {
   seat?: number;
   /** where it happened, on screen (0 … 1) */
   at: [number, number];
-  /** seconds since it happened (the HUD lets it go at about 1.2 s) */
+  /** seconds since it happened (the HUD lets it go at about 1 to 1.6 s, by kind) */
   age: number;
   kind: PopKind;
 }
@@ -64,23 +95,30 @@ export interface HudPop {
 export interface HudState {
   mode: HudMode;
   players: HudPlayer[];
-  round: HudRound;
+  link: HudLink;
+  shared: HudShared;
+  set: HudSet;
   beat: HudBeat;
   pops: HudPop[];
 }
 
+export const emptyCombo = (): HudCombo => ({ n: 0, mult: 1, links: [], live: false, perfect: 0 });
+
 export const emptyHud = (): HudState => ({
   mode: 'none',
   players: [],
-  round: { koTarget: 5, time: 0, phase: 'play' },
+  link: { on: false, energy: 0 },
+  shared: { energy: 0, peak: 0, merge: 0 },
+  set: { time: 0, length: 60, phase: 'play' },
   beat: { phase: 0, bpm: 120, window: 0.055 },
   pops: [],
 });
 
 /** a world point on screen through a view-projection (column-major, as weft's Camera.viewProj), as the HUD's
- *  fractions. For whoever fills `screen`: `screenOf(bend.kit.camera.viewProj, head)`. A point out of frame lies
- *  outside 0 … 1 (the HUD holds its tag at the edge, pointing at it); a point behind the eye (the free third-person
- *  view: a player behind the camera) is put far outside on the side to turn toward, so its tag points that way too */
+ *  fractions. For whoever fills `screen` and the link's ends: `screenOf(bend.kit.camera.viewProj, p)`. A point out of
+ *  frame lies outside 0 … 1 (the HUD holds a tag at the edge, pointing at it); a point behind the eye (the free
+ *  third-person view: a player behind the camera) is put far outside on the side to turn toward, so its tag points
+ *  that way too */
 export function screenOf(viewProj: ArrayLike<number>, p: ArrayLike<number>): [number, number] {
   const m = viewProj, x = p[0], y = p[1], z = p[2];
   const cx = m[0] * x + m[4] * y + m[8] * z + m[12];
@@ -97,3 +135,7 @@ export function screenOf(viewProj: ArrayLike<number>, p: ArrayLike<number>): [nu
   const k = 4 / Math.hypot(dx, dy);
   return [0.5 + dx * k * 0.5, 0.5 - dy * k * 0.5];
 }
+
+/** true if a screen point is on the screen (with a little slack) and not one of screenOf's "behind" points */
+export const onScreen = (p: [number, number] | undefined, slack = 0.15): p is [number, number] =>
+  !!p && p[0] > -slack && p[0] < 1 + slack && p[1] > -slack && p[1] < 1 + slack;
