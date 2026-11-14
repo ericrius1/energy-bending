@@ -357,6 +357,15 @@ export class CameraRig {
   framingCount = 0;
   /** more margin (m) round what a locked view frames: the jogo stands back for a fusion */
   framePad = 0;
+  /** head room for the locked view: the gravity (m/s²) a rising body's flight is framed by (its head's apex, the frame
+   *  it leaves: the duel's launches; 0 frames only where the velocity takes it in `lockLead` seconds) and more margin
+   *  (m) above the highest point framed */
+  apexG = 0;
+  headroom = 0;
+  /** a free pose framed by someone else (the duel's camera, src/duel/camera.ts): eye, look point and lens, taken as
+   *  they are (kept above the ground and the water); the lock still eases in from it and back out to it. While it is
+   *  set the free camera's own follow, clearance and orbit wait, and its yaw and pitch track the pose's */
+  pose: { eye: V3; look: V3; fov: number } | null = null;
   /** the pose this frame (world): eye, the point looked at, field of view (degrees) */
   readonly eye: V3 = [0, 0, 0];
   readonly look: V3 = [0, 0, 0];
@@ -525,6 +534,18 @@ export class CameraRig {
 
   // ---------------------------------------------------------------- free
   private updateFree(dt: number, f: RigInput) {
+    if (this.pose) {
+      const { eye, look, fov } = this.pose, dx = eye[0] - look[0], dy = eye[1] - look[1], dz = eye[2] - look[2];
+      for (let a = 0; a < 3; a++) { this.freeEye[a] = eye[a]; this.freeLook[a] = look[a]; this.target[a] = look[a]; }
+      this.freeFov = fov;
+      // (the rig's own numbers follow it: sticks read relative to it, and leaving the pose carries on from here)
+      this.dist = Math.max(1e-3, Math.hypot(dx, dy, dz));
+      if (this.mode !== 'locked' || this.lockW < 0.98) this.yaw = Math.atan2(dx, dz);
+      this.pitch = Math.asin(Math.max(-1, Math.min(1, dy / this.dist)));
+      this.followInit = false;
+      this.lookIdle += dt;
+      return;
+    }
     if (this.follow) { this.updateFollow(dt, this.follow, f); return; }
     this.followInit = false;
     // the director's shot while idle: each value on a spring, the yaw drifting round
@@ -649,6 +670,7 @@ export class CameraRig {
    *  after a carry, the way through the disc (`passThrough`) */
   private settleEye(dt: number, f: RigInput) {
     const T = this.freeLook, E = this.freeEye, C = cameraParams, S = this.solids;
+    if (this.pose) { this.pull = 1; this.keepAbove(E, f); return; }
     // (while the eye is still behind the disc it came after its player through, the disc rules it; once it is on the
     // player's side, or was turned there, the world's solids do again)
     const behind = this.behindThrough(E);
@@ -846,12 +868,21 @@ export class CameraRig {
         const vx = w[o + 8] * C.lockLead, vy = w[o + 9] * C.lockLead, vz = w[o + 10] * C.lockLead, vl = Math.hypot(vx, vy, vz), s = vl > 1 ? 1 / vl : 1;
         add(x + vx * s, y + vy * s, z + vz * s);
       }
+      // head room: a rising head framed at the top of its flight (ballistic at apexG; its speed taken at most a
+      // launch's, 20 m/s up, and its drift on the way at most a metre and a half: a joint's velocity spikes when a
+      // contact moves a held body in one frame, and a spike framed as a flight threw the lock across the world)
+      if (this.apexG > 0) for (const w of f.dancers) {
+        const o = 19 * 12, vy = Math.min(20, w[o + 9]);
+        if (vy <= 0.5) continue;
+        const t = vy / this.apexG, dx = w[o + 8] * t, dz = w[o + 10] * t, dl = Math.hypot(dx, dz), k = dl > 1.5 ? 1.5 / dl : 1;
+        add(w[o] + dx * k, w[o + 1] + vy * t - 0.5 * this.apexG * t * t, w[o + 2] + dz * k);
+      }
     } else for (let i = 0; i < this.framingCount; i++) add(this.framing[i * 3], this.framing[i * 3 + 1], this.framing[i * 3 + 2]);
     if (!(u1 >= u0)) { u0 = -P.halfWidth; u1 = P.halfWidth; v0 = 0; v1 = P.height ?? 3; }
     // a margin round them (hands and hair beyond the joints), the floor under them, never less than a body of stage;
     // framePad (the jogo: a fusion, the results) stands back further
     const pu = this.framePad, pv = this.framePad * 0.6;
-    u0 -= 0.3 + pu; u1 += 0.3 + pu; v0 = Math.min(v0, P.ground ?? 0) - 0.25 - pv; v1 = Math.max(v1 + 0.3, v0 + 2.4) + pv;
+    u0 -= 0.3 + pu; u1 += 0.3 + pu; v0 = Math.min(v0, P.ground ?? 0) - 0.25 - pv; v1 = Math.max(v1 + 0.3 + this.headroom, v0 + 2.4) + pv;
     const X = this.lockExt;
     // (fresh, or a dancer put somewhere else in one go, a respawn: the extent jumps out with them)
     if (this.lockFresh) { X[0] = u0; X[1] = u1; X[2] = v0; X[3] = v1; }
