@@ -1,47 +1,49 @@
-// The duel's virtual player (docs/design/duel.md, "Virtual players", and the owner's correction: still a dance, 3D
-// native, the lock an option anywhere, dancing is fighting). A Brain that plays the duel through Intents only, as a
-// person on a keyboard or a pad would, free in the world or locked to the stage plane, whichever the body is in:
+// The duel's virtual player (docs/design/duel.md: the contact dance, the owner's second correction; 3D native, the lock
+// an option anywhere). A Brain that plays the dance battle through Intents only, as a person on a keyboard or a pad
+// would, free in the world or locked to the stage plane, whichever the body is in:
 //
 //   seeing     the other body as it was a reaction time ago (log-normal, a lapse now and then), carried forward by how
 //              it was moving (more of it the better the player), with an aim error that drifts between reads
-//   deciding   every so often (a fifth of a second or so): a place to be, by style (aggressive: in its face; evasive:
-//              at arm's length plus, closing only to punish; showy: close, by way of wall kicks, flips and aús), the
-//              pair circling each other as the jogo's do (both turning the same way, the sense changing every four
-//              bars), now and then a high place to jump onto or a solid to kick off
-//   fighting   a strike when the other will be in a move's reach (measured once from the move library's own capsules),
-//              timed onto the 8th-note line when the player is good; an answer to an attack it has seen start: a jump,
-//              an esquiva, a negativa, an aú or a roll away, a block, or a strike back
-//   dancing    between exchanges the ginga, and on the beat a flourish (an aú, a macaco, a spin, the pirouette): dancing
-//              well is what builds flow
-//   moving     free: toward the place, around the world's solids (a pillar is gone round; a stump, the altar, a slab
-//              is jumped onto), never off into a pit it can't come back from (a gap it can clear it jumps, running),
-//              the air jump at the top or over the void, a wall kick off a solid it falls against; locked: along the
-//              plane's floor and ledges (run-ups onto solid ledges, drops through one-way ones, gaps jumped) and off
-//              its walls. The dash (Intent.dash) where the body has one
-//   holding    a person's thumbs: the stick in eight directions, held a while once moved (no flicker), a jump
-//              committed to once pressed, one button at a time
+//   contact    it seeks the other: a lead runs in to catch it (best out of the air: it times the grab, the punch
+//              button, as the other's hand, waist or ankle comes within reach), a base keeps a little off and catches
+//              what comes at it, a flyer runs and jumps at the other to be caught or to vault off its shoulders. Holding,
+//              it pumps the swing with the stick round the contact on the beat, then lets go (the fling) when the swing
+//              carries the other toward somewhere good to land: a ledge, a stone, a wall to kick off, up and in from the
+//              edges, its stick aimed there. Held, it rides, launches off the other's hands when above them (the lift) or
+//              spins out its own way (the counter). Flown, it steers to land, kicks off a wall, flips
+//   dancing    between contacts the ginga, and on the beat a flourish (an aú, a macaco, a spin, the pirouette)
+//   moving     free: toward the place, around the world's solids (a pillar is gone round; a stump, a slab is jumped
+//              onto), never off into a pit it can't come back from, the air jump at the top or over the void, a wall
+//              kick off a solid it falls against (only toward somewhere to land); locked: along the plane's floor and
+//              ledges and off its walls. The dash (Intent.dash) to close a gap, to get away, back from the void
+//   holding    a person's thumbs: the stick in eight directions, held a while once moved (no flicker), a jump committed
+//              to once pressed, the grab held as long as the hold lasts
 //
-// The knobs: `skill` 0 … 1 (reaction time, aim error, beat accuracy, how often it answers, how far it reads ahead)
-// and `style`. Deterministic for a seed (its only randomness is its Rng, its only clock the Sight's).
+// The knobs: `skill` 0 … 1 (reaction time, aim error, beat accuracy, how well it times a catch and a fling) and `style`:
+// lead (a generous lead: catches, swings, flings), flyer (showy: runs at the other to be caught, lifts off, vaults,
+// wall kicks, flips), base (grounded: plants, catches what comes, swings it). Deterministic for a seed.
 import { Character, PHYS, type Phys } from '../dancer/character';
-import { MOVES, tempoScale } from '../dancer/moves';
+import { MOVES, J } from '../dancer/moves';
 import { ledgeY as defaultLedgeY, distTo, type Ledge, type StagePlane } from '../engine/camera';
 import { makeIntent, type Intent } from '../input/intent';
 import type { Solid } from '../worlds/solids';
-import { Rng, newHints, type Brain, type SeenMove, type Sight } from './brain';
-import { canStart, hypotheticalEvent, pressMove, stickFor } from './body';
+import { Rng, newHints, type Brain, type Sight } from './brain';
+import { canStart, pressMove, stickFor } from './body';
 import { groundUnder } from '../duel/arena';
-import { readThreat } from './read';
 
-export type DuelStyle = 'aggressive' | 'evasive' | 'showy';
-export const DUEL_STYLES: readonly DuelStyle[] = ['aggressive', 'evasive', 'showy'];
+export type DuelStyle = 'lead' | 'flyer' | 'base';
+export const DUEL_STYLES: readonly DuelStyle[] = ['lead', 'flyer', 'base'];
+/** the fight's old style names, read as the dance's */
+export const STYLE_ALIAS: Record<string, DuelStyle> = { aggressive: 'lead', showy: 'flyer', evasive: 'base' };
 
 /** what the brain may know of the duel beyond the bodies (the rules' state), and of the arena */
 export interface DuelSight {
-  /** the seats that can't be hit now (re-forming, just re-formed) and that can't move (the count-in, scattered) */
-  untouchable: [boolean, boolean];
+  /** the seats that can't move (the count-in, reforming after a fall) */
   frozen: [boolean, boolean];
-  /** below this (world y) is a KO */
+  /** the contact: who holds whom now, and who is flown (a fling in flight), or null */
+  link: { holder: number; held: number; age: number } | null;
+  flown: number | null;
+  /** below this (world y) is a fall */
   yKill: number;
   /** the play space (a circle on the ground: past it is a soft wall) */
   space: { center: [number, number, number]; radius: number };
@@ -71,12 +73,6 @@ interface Snap { t: number; x: number; y: number; z: number; vx: number; vy: num
 /** a surface of the locked plane to stand on (s along the plane; y world) */
 interface Surf { id: string; x0: number; x1: number; y: number; solid: boolean; thick: number; ground: boolean }
 
-/** an attack's reach from a standing body facing forward: where its hit capsule goes (forward f, sideways l, up y,
- *  relative to the root) while it is live, and when it is live */
-interface Reach { name: string; f0: number; f1: number; l0: number; l1: number; y0: number; y1: number; a0: number; a1: number; dur: number; air: boolean }
-
-const GROUND_ATTACKS = ['strike', 'meia-lua', 'bencao', 'martelo', 'rasteira', 'armada'] as const;
-const AIR_ATTACKS = ['martelo', 'strike'] as const;
 /** the dance between exchanges (flourishes on the beat) */
 const FLOURISHES = ['au', 'macaco', 'spin', 'pirueta', 'au', 'giro'] as const;
 
@@ -97,37 +93,6 @@ export function holdFor(h: number, P: Phys = PHYS) {
   return b;
 }
 
-/** the reach of every attack at a tempo, measured once from the library's capsules on a free body facing +z */
-const REACH = new Map<number, Reach[]>();
-function reaches(bpm: number): Reach[] {
-  const key = Math.round(bpm);
-  const hit = REACH.get(key);
-  if (hit) return hit;
-  const out: Reach[] = [];
-  const c = new Character({ seat: 0, plane: null });
-  c.reset(0, 0, 0); c.yaw = 0;
-  for (const air of [false, true]) for (const name of air ? AIR_ATTACKS : GROUND_ATTACKS) {
-    const def = MOVES[name];
-    if (!def || !def.active || !def.hit) continue;
-    const ev = hypotheticalEvent(c, name, bpm);
-    Object.assign(ev, { vx: 0, vz: 0, vy: 0, air });
-    const dur = def.dur * tempoScale(bpm), a0 = def.active[0] * dur, a1 = def.active[1] * dur;
-    const r: Reach = { name, f0: Infinity, f1: -Infinity, l0: Infinity, l1: -Infinity, y0: Infinity, y1: -Infinity, a0, a1, dur, air };
-    for (let t = a0; t <= a1 + 1e-9; t += 1 / 60) {
-      for (const cap of Character.shapesAt(ev, t)) {
-        for (const [x, y, z] of [[cap.ax, cap.ay, cap.az], [cap.bx, cap.by, cap.bz]]) {
-          r.f0 = Math.min(r.f0, z - cap.r); r.f1 = Math.max(r.f1, z + cap.r);
-          r.l0 = Math.min(r.l0, x - cap.r); r.l1 = Math.max(r.l1, x + cap.r);
-          r.y0 = Math.min(r.y0, y - cap.r); r.y1 = Math.max(r.y1, y + cap.r);
-        }
-      }
-    }
-    if (Number.isFinite(r.f0)) out.push(r);
-  }
-  REACH.set(key, out);
-  return out;
-}
-
 export class DuelBrain implements Brain {
   readonly name: string;
   readonly body = newHints();
@@ -141,8 +106,8 @@ export class DuelBrain implements Brain {
   private duel: (() => DuelSight | null) | null;
   private hist: Snap[] = [];
   private K: {
-    react: number; sigma: number; lapse: number; aimErr: number; beatSd: number; beatWait: number; answer: number; decide: number;
-    predict: number; want: number; aggro: number; punish: number; showy: number; retreat: number; dance: number;
+    react: number; sigma: number; lapse: number; aimErr: number; beatSd: number; beatWait: number; decide: number; predict: number;
+    want: number; seek: number; leap: number; showy: number; hold: number; swings: number; dance: number; catchP: number;
   };
   // the plan and the thumbs
   private nextDecide = 0;
@@ -158,26 +123,31 @@ export class DuelBrain implements Brain {
   private pending: { move: string; at: number; dir: [number, number]; why: string; tries?: number } | null = null;
   private lastPress = -1;
   private aimOff: [number, number] = [0, 0];
-  private answered = new Set<number>();
-  /** the reaction time drawn for each attack seen (by serial) */
-  private seenAt = new Map<number, number>();
+  /** the grab: pressed this frame, held until (s); the hold's plan (how long it lasts) */
+  private grabPress = false;
+  private grabUntil = -1;
+  private holdFor = 1.5;
+  private wasLinked = false;
+  private leapT = -1;
   private flipT = -1;
   private avoidSide = 1;
   private hadDash: boolean;
 
   constructor(o: DuelBrainOptions = {}) {
     this.skill = clamp(o.skill ?? 0.6, 0, 1);
-    this.style = o.style ?? 'aggressive';
+    this.style = STYLE_ALIAS[o.style as string] ?? o.style ?? 'lead';
     this.name = `duel-${this.style}`;
     this.rng = new Rng(o.seed ?? 7);
     this.duel = o.duel ?? null;
     const k = this.skill;
-    const st = { aggressive: { want: 0.85, aggro: 0.92, punish: 0.7, showy: 0.1, retreat: 0.15, dance: 0.35 },
-      evasive: { want: 2.2, aggro: 0.55, punish: 0.95, showy: 0.08, retreat: 0.85, dance: 0.5 },
-      showy: { want: 1.3, aggro: 0.7, punish: 0.6, showy: 0.75, retreat: 0.35, dance: 0.9 } }[this.style];
+    // want: how near it stays; seek: how keen to catch; leap: how keen to jump at the other to be caught; hold: how
+    // long a hold lasts (s); swings: pumps before a fling
+    const st = { lead: { want: 0.7, seek: 0.9, leap: 0.25, showy: 0.2, hold: 1.6, swings: 3, dance: 0.4 },
+      flyer: { want: 2.2, seek: 0.35, leap: 0.9, showy: 0.8, hold: 1.0, swings: 2, dance: 0.9 },
+      base: { want: 1.4, seek: 0.75, leap: 0.1, showy: 0.1, hold: 2.0, swings: 4, dance: 0.5 } }[this.style];
     this.K = {
       react: 0.33 - 0.15 * k, sigma: 0.22, lapse: 0.09 - 0.06 * k, aimErr: 0.5 - 0.38 * k, beatSd: 0.095 - 0.075 * k,
-      beatWait: 0.1 + 0.85 * k, answer: 0.18 + 0.62 * k, decide: 0.24 - 0.09 * k, predict: 0.2 + 0.7 * k, ...st,
+      beatWait: 0.1 + 0.85 * k, decide: 0.24 - 0.09 * k, predict: 0.2 + 0.7 * k, catchP: 0.25 + 0.6 * k, ...st,
     };
     this.hadDash = 'dash' in makeIntent();
     this.avoidSide = this.rng.chance(0.5) ? 1 : -1;
@@ -239,36 +209,32 @@ export class DuelBrain implements Brain {
     if (!o) return it;
     const mine = this.snap(c, t);
     const yKill = D?.yKill ?? -2.2;
-    const otherOut = (D?.untouchable[them] ?? false) || o.reforming;
+    const otherOut = (D?.frozen[them] ?? false) || o.reforming;
+    const L = D?.link ?? null, holding = L?.holder === me, held = L?.held === me;
+    if (L && !this.wasLinked) { this.holdFor = this.K.hold * this.rng.range(0.7, 1.3); this.count(holding ? 'holding' : 'held'); }
+    this.wasLinked = !!L;
 
-    this.answer(S, c, mine, t);
     if (t >= this.nextDecide) {
       if (pl) this.decideLocked(S, c, mine, o, this.surfaces(pl, S.beat), otherOut, yKill);
       else this.decideFree(S, mine, o, otherOut, D);
       this.nextDecide = t + this.K.decide * this.rng.range(0.75, 1.35);
       this.aimOff = [this.aimOff[0] * 0.4 + this.rng.normal() * this.K.aimErr * 0.6, this.aimOff[1] * 0.4 + this.rng.normal() * this.K.aimErr * 0.6];
     }
-    if (!otherOut && !this.pending) this.strike(S, c, mine, o);
-    if (!this.pending) this.dance(S, c, mine, o, otherOut);
+    if (!this.pending && !L) this.dance(S, c, mine, o, otherOut);
     if (pl) this.legsLocked(S, c, mine, this.surfaces(pl, S.beat), yKill, it, t);
     else this.legsFree(S, c, mine, D, yKill, it, t);
+    // the contact: the grab, the pump, the fling, the lift, the counter, the leap at the other (over the legs)
+    if (!otherOut) this.partner(S, c, O, mine, o, D, it, holding, held);
+    else this.grabUntil = -1;
+    it.punch = this.grabPress; it.punchHeld = this.grabPress || t <= this.grabUntil;
+    this.grabPress = false;
 
     // ---- a planned press due now
     const p = this.pending;
     if (p && t >= p.at) {
       this.pending = null;
-      let ok = MOVES[p.move] ? canStart(c, p.move) && (c.grounded || MOVES[p.move].airOk) : canStart(c, 'spin');
-      // free, a strike goes where the body faces: thrown only once it has turned to the other (else let go)
-      if (ok && !pl && MOVES[p.move]?.attack) {
-        const f = this.fwd(c), dx = O.root[0] - c.root[0], dz = O.root[2] - c.root[2], l = Math.hypot(dx, dz) || 1;
-        if ((f[0] * dx + f[1] * dz) / l < 0.75) {
-          ok = false;
-          // (still turning: a moment more, twice; then let it go)
-          if ((p.tries ?? 0) < 2) this.pending = { ...p, at: t + 0.06, tries: (p.tries ?? 0) + 1 };
-          else this.count('held');
-        }
-      }
-      if (ok) {
+      const ok = MOVES[p.move] ? canStart(c, p.move) && (c.grounded || MOVES[p.move].airOk) : canStart(c, 'spin');
+      if (ok && !holding) {
         const fl = pressMove(c, p.move, p.dir, it);
         if (fl) this.body.flourish = fl;
         this.lastPress = t; this.why = p.why; this.count(p.move);
@@ -282,17 +248,12 @@ export class DuelBrain implements Brain {
     const K = this.K;
     const rx = me.x - o.x, rz = me.z - o.z, ad = Math.hypot(rx, rz);
     let want = K.want, why = 'close';
-    if (otherOut) { want = Math.max(2.4, K.want); why = 'wait out its re-forming'; }
-    else if (this.style === 'evasive') {
-      // at the edge of its own reach, poking; backing off when crowded; in at once on an opening
-      if (O_recovering(S)) { want = 0.75; why = 'punish'; }
-      else if (ad < 1.1 && !O_attacking(S) && this.rng.chance(K.retreat * 0.6)) { want = 2.4; why = 'back off'; }
-      else { want = this.rng.range(1.0, 1.5); why = 'poke'; }
-    } else if (O_recovering(S) && ad < 3) { want = 0.7; why = 'punish'; }
+    if (otherOut) { want = 2.4; why = 'wait for it'; }
+    else if (this.style === 'flyer' && ad < 1.4) { want = 2.4; why = 'run-up'; }
     // round the other, as the jogo's pair circles: both the same way, the sense turning every four bars
     let th = ad > 1e-3 ? Math.atan2(rz, rx) : this.rng.range(-Math.PI, Math.PI);
     const sense = Math.floor(S.beat / 16) % 2 ? 1 : -1;
-    if (why !== 'punish') th += sense * this.rng.range(0.15, 0.5);
+    th += sense * this.rng.range(0.15, 0.5);
     let gx = o.x + Math.cos(th) * want, gz = o.z + Math.sin(th) * want;
     let gy = D ? groundOf(D, gx, gz, me.y, 2.5) : 0;
     if (D) {
@@ -307,7 +268,7 @@ export class DuelBrain implements Brain {
       for (let k = 0; k < 8 && edgy(gx, gz); k++) { gx += (C[0] - gx) * 0.25; gz += (C[2] - gz) * 0.25; }
       gy = groundOf(D, gx, gz, me.y, 2.5);
       // now and then: up onto something (a stump, the altar, a slab), or a solid to kick off (showy most)
-      if (!otherOut && (why === 'close' || why === 'poke') && this.rng.chance(0.06 + K.showy * 0.25)) {
+      if (!otherOut && why === 'close' && this.rng.chance(0.04 + K.showy * 0.15)) {
         const high = this.highPlace(me, D);
         if (high) { [gx, gy, gz] = high; why = 'climb'; }
       } else if (this.rng.chance(K.showy * 0.2) && ad > 2) {
@@ -393,7 +354,7 @@ export class DuelBrain implements Brain {
         } else if (land < 0) want = [0, 0];
       }
       // showy: a flip now and then when nothing presses
-      if (this.style === 'showy' && !this.pending && t - this.lastPress > 0.9 && t >= this.jumpUntil + 0.1 && this.rng.chance(0.006 * this.K.showy * 60 * S.dt)) {
+      if (this.style === 'flyer' && !this.pending && t - this.lastPress > 0.9 && t >= this.jumpUntil + 0.1 && this.rng.chance(0.006 * this.K.showy * 60 * S.dt)) {
         this.jumpNow(t, holdFor(2.2, c.phys)); this.flipT = t + 0.3; this.count('jump');
       }
     } else {
@@ -429,7 +390,7 @@ export class DuelBrain implements Brain {
       if (away && !(lands(1.6) || lands(2.6) || lands(3.6))) away = null;
       if (away && me.vy < 1.5 && t >= this.jumpUntil + 0.12) {
         // (sliding: hold into it a moment, then kick off away from it)
-        if (this.rng.chance(this.style === 'showy' || g.why === 'wall kick' ? 0.6 : 0.2 + 0.4 * this.skill)) {
+        if (this.rng.chance(this.style === 'flyer' || g.why === 'wall kick' ? 0.6 : 0.2 + 0.4 * this.skill)) {
           this.jumpNow(t, 0.3);
           want = away;
           this.airUsed = false;
@@ -452,15 +413,12 @@ export class DuelBrain implements Brain {
   }
 
   // ---------------------------------------------------------------- locked: deciding where to be, and the legs
-  private decideLocked(S: Sight, c: Character, me: Snap, o: Snap, surf: Surf[], otherOut: boolean, yKill: number) {
+  private decideLocked(_S: Sight, c: Character, me: Snap, o: Snap, surf: Surf[], otherOut: boolean, yKill: number) {
     const K = this.K, pl = c.plane!, lim = pl.halfWidth - c.phys.wallMargin - 0.1;
     const ad = Math.abs(o.s - me.s);
     let want = K.want, why = 'close';
-    if (otherOut) { want = Math.max(2.2, K.want); why = 'wait out its re-forming'; }
-    else if (this.style === 'evasive') {
-      if (ad < 1.6 && !O_attacking(S) && this.rng.chance(K.retreat)) { want = 3.2; why = 'back off'; }
-      else if (O_recovering(S)) { want = 0.7; why = 'punish'; }
-    } else if (O_recovering(S) && ad < 3) { want = 0.6; why = 'punish'; }
+    if (otherOut) { want = 2.2; why = 'wait for it'; }
+    else if (this.style === 'flyer' && ad < 1.4) { want = 2.4; why = 'run-up'; }
     let side = sgn(me.s - o.s);
     if (Math.abs(o.s + side * want) > lim) side = -side;
     let gs = clamp(o.s + side * want, -lim, lim), gy = o.y;
@@ -469,7 +427,7 @@ export class DuelBrain implements Brain {
       const ref = this.under(surf, me.s, me.y + 0.1);
       if (ref) { gs = clamp(gs, ref.x0 + 0.4, ref.x1 - 0.4); gy = ref.y; }
     } else gy = below.y;
-    if ((this.style === 'showy' || this.rng.chance(K.showy * 0.3)) && ad > 2.2 && this.rng.chance(K.showy * 0.5)) {
+    if ((this.style === 'flyer' || this.rng.chance(K.showy * 0.3)) && ad > 2.2 && this.rng.chance(K.showy * 0.5)) {
       const wall = sgn(me.s) * lim;
       if (Math.abs(wall - me.s) < 3.5) { gs = wall; why = 'wall kick'; }
     }
@@ -527,7 +485,7 @@ export class DuelBrain implements Brain {
           if ((!land || land.y < yKill + 0.6) && t > this.jumpPressAt + 0.05 && this.jumpUntil < t) want = 0;
         }
       }
-      if (this.style === 'showy' && !this.pending && t - this.lastPress > 0.9 && t >= this.jumpUntil + 0.1 && this.rng.chance(0.006 * this.K.showy * 60 * S.dt)) {
+      if (this.style === 'flyer' && !this.pending && t - this.lastPress > 0.9 && t >= this.jumpUntil + 0.1 && this.rng.chance(0.006 * this.K.showy * 60 * S.dt)) {
         this.jumpNow(t, holdFor(2.2, c.phys)); this.flipT = t + 0.3; this.count('jump');
       }
     } else if (!c.grounded) {
@@ -545,7 +503,7 @@ export class DuelBrain implements Brain {
       const nearWall = wk ? { into: wk } : c.phys.wallSlide ? null : this.wallNear(pl, me.s, me.y - pl.origin[1], c.phys);
       if (nearWall && me.vy < 0.8 && t >= this.jumpUntil + 0.12 && (want === nearWall.into || g.why === 'wall kick' || void_)) {
         want = nearWall.into;
-        if (this.rng.chance(this.style === 'showy' ? 0.5 : 0.25 + 0.5 * this.skill)) {
+        if (this.rng.chance(this.style === 'flyer' ? 0.5 : 0.25 + 0.5 * this.skill)) {
           this.jumpNow(t, 0.3); this.airUsed = false; this.count('wall-jump');
           want = -nearWall.into; this.stick = [want, 0]; this.stickSince = t;
           if (g.why === 'wall kick') this.goal = { ...g, s: clamp(-sgn(me.s) * (lim - 0.1), -lim, lim) };
@@ -576,8 +534,8 @@ export class DuelBrain implements Brain {
     if (!this.hadDash || !c.phys.dash || c.dashReady < 0.99 || this.pending || !(want[0] || want[1])) return;
     const why = void_ && this.airUsed && !c.grounded ? 'recover'
       : t - this.lastPress < 0.6 ? null
-      : dist > 3 && c.grounded && this.style !== 'evasive' && this.rng.chance(0.03) ? 'close'
-      : this.style === 'evasive' && this.goal.why === 'back off' && c.grounded && this.rng.chance(0.05) ? 'away'
+      : dist > 3 && c.grounded && this.style !== 'base' && this.rng.chance(0.03) ? 'close'
+      : this.style === 'flyer' && this.goal.why === 'run-up' && c.grounded && this.rng.chance(0.05) ? 'away'
       : null;
     if (!why) return;
     it.dash = true; this.lastPress = t; this.count(`dash-${why}`);
@@ -609,43 +567,6 @@ export class DuelBrain implements Brain {
     return c.plane ? [c.plane.right[0] * c.dir, c.plane.right[2] * c.dir] : [Math.sin(c.yaw), Math.cos(c.yaw)];
   }
 
-  /** a strike if the other will be in reach when it lands */
-  private strike(S: Sight, c: Character, me: Snap, o: Snap) {
-    const K = this.K, t = S.t;
-    if (t - this.lastPress < 0.14 + (1 - this.skill) * 0.12) return;
-    if (!canStart(c, 'strike') && !canStart(c, 'martelo')) return;
-    const f0 = this.fwd(c), pl = c.plane;
-    // (locked, it can turn on the ground to face the other; free, it strikes where it faces: it turns to face the other
-    // when it stands, and runs at it otherwise)
-    let fx = f0[0], fz = f0[1];
-    if (pl && c.grounded) { const d = sgn(o.s - me.s); fx = pl.right[0] * d; fz = pl.right[2] * d; }
-    const cands: { r: Reach; w: number }[] = [];
-    for (const r of reaches(S.bpm)) {
-      if (r.air === c.grounded || !canStart(c, r.name)) continue;
-      const tm = (r.a0 + r.a1) / 2, k = K.predict * tm;
-      const ox = o.x + o.vx * k, oz = o.z + o.vz * k, oy = o.y + (o.grounded ? 0 : (o.vy * tm - 0.5 * c.phys.gravity * tm * tm) * K.predict);
-      const rx = ox - me.x, rz = oz - me.z;
-      const f = rx * fx + rz * fz, l = pl ? 0 : -rx * fz + rz * fx, h = oy - me.y;
-      if (f + 0.18 < r.f0 || f - 0.18 > r.f1 || f < 0.2) continue;
-      if (l + 0.18 < r.l0 || l - 0.18 > r.l1 || Math.abs(l) > 0.6) continue;
-      if (h + 1.6 < r.y0 || h + 0.05 > r.y1) continue;
-      let w = 1 / (0.25 + r.a0);
-      if (this.style === 'showy' && (r.name === 'armada' || r.name === 'martelo')) w *= 2.2;
-      if (this.style === 'aggressive' && (r.name === 'meia-lua' || r.name === 'bencao')) w *= 1.6;
-      if (this.style === 'evasive' && (r.name === 'strike' || r.name === 'bencao')) w *= 1.8;
-      if (r.name === 'rasteira' && o.grounded) w *= 0.8;
-      if (r.name === 'armada') w *= 0.3;
-      cands.push({ r, w });
-    }
-    if (!cands.length) return;
-    const p = O_recovering(S) ? Math.max(K.aggro, K.punish) : K.aggro;
-    if (!this.rng.chance(p * 0.35 + 0.05)) return;
-    const pick = this.rng.weighted(cands, (x) => x.w)!.r;
-    // (free and moving: a moment to stand and turn to it first)
-    const settle = !pl && c.grounded && (Math.hypot(c.v[0], c.v[2]) > 0.7 || (o.x - me.x) * fx + (o.z - me.z) * fz < 0.8 * Math.hypot(o.x - me.x, o.z - me.z)) ? 0.18 : 0;
-    this.pending = { move: pick.name, at: Math.max(t + settle, this.onBeatAt(S, 0.16 + settle)), dir: [fx, fz], why: `strike ${pick.name}` };
-  }
-
   /** when to press so the move lands on the next 8th-note line (a good player waits for it when it comes soon) */
   private onBeatAt(S: Sight, maxWait: number) {
     const t = S.t;
@@ -672,74 +593,92 @@ export class DuelBrain implements Brain {
     this.pending = { move, at: this.onBeatAt(S, 0.3), dir: side, why: `dance ${move}` };
   }
 
-  /** an attack seen starting (its start event, a reaction time old): jump it, dodge it (esquiva, negativa, aú, a roll
-   *  away), block it or strike back */
-  private answer(S: Sight, c: Character, me: Snap, t: number) {
-    const K = this.K;
-    const moves = S.partner?.moves ?? [];
-    for (const m of moves as SeenMove[]) {
-      if (!m.attack || this.answered.has(m.serial)) continue;
-      let lag = this.seenAt.get(m.serial);
-      if (lag == null) { lag = this.rng.reaction(K.react, K.sigma, K.lapse); this.seenAt.set(m.serial, lag); }
-      if (m.age < lag) continue;
-      this.answered.add(m.serial);
-      if (this.seenAt.size > 64) { const k = this.seenAt.keys().next().value!; this.seenAt.delete(k); }
-      if (this.answered.size > 64) { const k = this.answered.values().next().value!; this.answered.delete(k); }
-      const def = MOVES[m.name];
-      if (!def?.active) continue;
-      const dur = def.dur * tempoScale(m.ev.bpm || S.bpm), a1 = def.active[1] * dur, a0 = def.active[0] * dur;
-      if (m.age > a1) continue;
-      // will it reach me where I stand? (from where it started, along the way it travels)
-      const fd = (m.ev.fdir as number[] | undefined) ?? [1, 0], fl = Math.hypot(fd[0], fd[1]) || 1;
-      const rx = me.x - m.ev.x, rz = me.z - (m.ev.z ?? 0), along = (rx * fd[0] + rz * fd[1]) / fl, lat = Math.abs(-rx * fd[1] + rz * fd[0]) / fl;
-      if (along < -0.3 || Math.hypot(rx, rz) > 2.2 || (!c.plane && lat > 0.9)) continue;
-      if (!this.rng.chance(K.answer)) { this.count('missed'); continue; }
-      // read it (src/ai/read.ts: the attack replayed against this body's own hurt shapes where it stands): one that will
-      // miss is let go by (and punished in its recovery: deciding sees the opening) rather than answered; a weaker player
-      // misreads some and answers those anyway
-      const th = readThreat(m.ev, c.hurtShapes(), c.plane, m.age);
-      if (th && th.first == null && this.rng.chance(0.3 + 0.7 * this.skill)) { this.count('read-miss'); this.nextDecide = Math.min(this.nextDecide, t + 0.1); continue; }
-      const left = Math.max(0, (th?.first ?? a0) - m.age);
-      const rl = Math.hypot(rx, rz) || 1, away: [number, number] = [rx / rl, rz / rl], toward: [number, number] = [-away[0], -away[1]];
-      // the answers that work: an evasion whose i-frames, started now, cover the attack's live window; a jump over a
-      // low one; a roll or an aú away; a block; a strike back if there is time. A good player takes the best; a weaker
-      // one any that comes to mind
-      const win = (th?.last ?? a1) - Math.max(th?.first ?? a0, m.age), bpm = S.bpm;
-      const covers = (name: string) => {
-        const d = MOVES[name];
-        if (!d?.iframes || !canStart(c, name)) return false;
-        const dd = d.dur * tempoScale(bpm);
-        return left >= d.iframes[0] * dd - 0.01 && left + win <= d.iframes[1] * dd + 0.02;
-      };
-      const low = m.name === 'rasteira' || m.name === 'meia-lua';
-      const opts: { k: string; w: number }[] = [];
-      if (c.grounded) {
-        if (covers('esquiva') && !low) opts.push({ k: 'esquiva', w: 3 });
-        if (MOVES.negativa && covers('negativa') && !low) opts.push({ k: 'negativa', w: 2.5 });
-        if (covers('role')) opts.push({ k: 'role', w: 1.5 });
-        if (canStart(c, 'jump')) opts.push({ k: 'jump', w: low ? 3.5 : 0.8 });
-        opts.push({ k: 'au', w: 0.8 }, { k: 'block', w: 0.9 });
+  // ---------------------------------------------------------------- the contact
+  /** the nearest of my hands to the other's hands, waist and ankles (m) */
+  private reachTo(c: Character, O: Character) {
+    const P = O.pose, mine = [J.LW, J.RW].map((j) => [c.pose[3 * j], c.pose[3 * j + 1], c.pose[3 * j + 2]]);
+    const waist = [(P[3 * J.LH] + P[3 * J.RH]) / 2, (P[3 * J.LH + 1] + P[3 * J.RH + 1]) / 2, (P[3 * J.LH + 2] + P[3 * J.RH + 2]) / 2];
+    const theirs = [J.LW, J.RW, J.LA, J.RA].map((j) => [P[3 * j], P[3 * j + 1], P[3 * j + 2]]).concat([waist]);
+    let best = Infinity;
+    for (const a of mine) for (const b of theirs) best = Math.min(best, Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]));
+    return best;
+  }
+
+  /** where a fling should put the other: somewhere to land a little above it (a stone, a ledge), a wall to kick off,
+   *  or up and in from the edges (the space's middle) */
+  private flingTarget(c: Character, O: Character, D: DuelSight | null): [number, number] {
+    const at: Snap = { ...this.snap(O, 0) };
+    if (D && !c.plane) {
+      const hi = this.highPlace({ ...at, y: at.y - 0.5 }, D);
+      if (hi) return [hi[0] - O.root[0], hi[2] - O.root[2]];
+      if (this.rng.chance(this.K.showy)) { const w = this.wallNear3(at, D, 5); if (w) return [w[0] - O.root[0], w[2] - O.root[2]]; }
+      const C = D.space.center;
+      return [C[0] - O.root[0], C[2] - O.root[2]];
+    }
+    // locked: in toward the stage's middle, or onto a ledge
+    const pl = c.plane;
+    if (pl) { const s = -Math.sign(O.s) || 1; return [pl.right[0] * s, pl.right[2] * s]; }
+    return [0, 1];
+  }
+
+  /** the contact: the catch, the pump and the fling while holding, the lift or the counter while held, the leap at the
+   *  other to be caught */
+  private swingSense = 1;
+  private partner(S: Sight, c: Character, O: Character, me: Snap, o: Snap, D: DuelSight | null, it: Intent, holding: boolean, held: boolean) {
+    const t = S.t, K = this.K, pl = c.plane, L = D?.link ?? null;
+    if (holding && L) {
+      const hold = L.age;
+      this.grabUntil = t + 0.05;
+      // the pump: the stick round the contact, the way the held body already goes round (or the brain's sense)
+      const px = O.root[0] - c.root[0], pz = O.root[2] - c.root[2];
+      let tx: number, tz: number;
+      if (pl) {
+        const vs = O.v[0] * pl.right[0] + O.v[2] * pl.right[2], side = px * pl.right[0] + pz * pl.right[2];
+        const sg = Math.abs(vs) > 0.5 ? Math.sign(vs) : -(Math.sign(side) || 1);
+        tx = pl.right[0] * sg; tz = pl.right[2] * sg;
+      } else {
+        const l = Math.hypot(px, pz) || 1;
+        tx = (-pz / l) * this.swingSense; tz = (px / l) * this.swingSense;
+        if (O.v[0] * tx + O.v[2] * tz < -1.2) { this.swingSense = -this.swingSense; tx = -tx; tz = -tz; }
       }
-      if (left > 0.12 && rl < 1.0 && canStart(c, 'strike')) opts.push({ k: 'strike', w: 0.9 });
-      if (!opts.length) continue;
-      const pick = this.rng.chance(this.skill) ? opts.reduce((p, q) => (q.w > p.w ? q : p)).k : this.rng.pick(opts).k;
-      if (pick === 'jump') {
-        this.jumpNow(t, 0.42); this.stick = c.plane ? [sgn(away[0] * c.plane.right[0] + away[1] * c.plane.right[2]), 0] : this.stick; this.stickSince = t;
-        this.why = `jump ${m.name}`; this.count('jump-dodge');
-      } else this.pending = { move: pick, at: t, dir: pick === 'role' || pick === 'au' ? away : toward, why: `${pick} for ${m.name}` };
-      this.nextDecide = Math.min(this.nextDecide, t + 0.3);
+      // the fling: once the hold has lasted, when the swing carries the other toward where it should land (or soon after
+      // regardless); the stick aimed there
+      const aim = this.flingTarget(c, O, D), al = Math.hypot(aim[0], aim[1]) || 1;
+      const vl = Math.hypot(O.v[0], O.v[2]) || 1, toward = (O.v[0] * aim[0] + O.v[2] * aim[1]) / (vl * al);
+      if (hold > this.holdFor && (toward > 0.55 - 0.3 * (1 - this.skill) || hold > this.holdFor + 0.9)) {
+        this.grabUntil = -1;
+        stickFor(c, aim[0] / al, aim[1] / al, 1, it);
+        this.count('fling'); this.why = 'fling';
+        return;
+      }
+      // pumped on the beat (a good player only near the 8th lines; a weaker one all the time)
+      const ph = Math.abs(S.beat * 2 - Math.round(S.beat * 2));
+      const pump = this.rng.chance(this.skill) ? ph < 0.22 : true;
+      if (pump) stickFor(c, tx, tz, 1, it); else { it.moveX = 0; it.moveZ = 0; }
+      this.why = 'swing';
+      return;
+    }
+    if (held && L) {
+      this.grabUntil = -1;
+      const hold = L.age, above = c.root[1] > O.root[1] + 0.9;
+      if (above && hold > 0.25 && this.rng.chance(K.leap * 0.08 * 60 * S.dt)) { it.jump = true; this.count('lift'); this.why = 'lift'; }
+      else if (hold > 1.6 && this.rng.chance((0.3 + K.showy) * 0.02 * 60 * S.dt)) {
+        it.dodge = true; this.count('counter'); this.why = 'counter';
+        if (D && !pl) { const C = D.space.center; stickFor(c, C[0] - c.root[0], C[2] - c.root[2], 1, it); }
+      }
+      return;
+    }
+    // not joined: a catch when a hand comes within reach of the other's hand, waist or ankle (out of the air most)
+    const d = this.reachTo(c, O), reach = (c.grounded && O.grounded ? 0.55 : 0.75) + 0.15;
+    if (d < reach && t > this.grabUntil + 0.2 && this.rng.chance((K.catchP * K.seek + (O.grounded ? 0 : 0.25)) * 0.35 * 60 * S.dt)) {
+      this.grabPress = true; this.grabUntil = t + 0.3; this.count(O.grounded ? 'grab' : 'grab-air'); this.why = 'grab';
+    }
+    // the leap: run at the other and jump at its hands, to be caught (or to land on its shoulders)
+    const dist = pl ? Math.abs(o.s - me.s) : Math.hypot(o.x - me.x, o.z - me.z);
+    if (c.grounded && dist > 1.3 && dist < 3.4 && t >= this.jumpUntil + 0.3 && t - this.leapT > 1.4 && this.rng.chance(K.leap * 0.05 * 60 * S.dt)) {
+      this.leapT = t; this.jumpNow(t, holdFor(1.3 + this.rng.range(0, 0.6), c.phys));
+      this.goal = { x: o.x, y: o.y, z: o.z, s: o.s, why: 'leap' }; this.nextDecide = t + 0.8;
+      this.count('leap'); this.why = 'leap';
     }
   }
-}
-
-/** is the other in an attack's recovery (an opening)? */
-function O_recovering(S: Sight) {
-  const m = S.partner?.character?.move;
-  if (!m || !m.def.attack || !m.def.active) return false;
-  return m.t / m.dur > m.def.active[1];
-}
-/** is the other's attack live or winding up? */
-function O_attacking(S: Sight) {
-  const m = S.partner?.character?.move;
-  return !!(m && m.def.attack && m.def.active && m.t / m.dur <= m.def.active[1]);
 }

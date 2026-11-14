@@ -1,16 +1,48 @@
-// What the duel tells the HUD each frame (docs/design/duel.md, "The HUD"): one plain object, built here from the
-// duel's state, the two bodies and the beat, and handed to `bend.hud.set(state)` when the HUD is on the page (src/hud
-// draws it; the duel draws no HUD of its own). The pops (PERFECT, KO, BEND, …) are kept here: events push them, they
-// age and go.
+// What the duel tells the HUD each frame: the HudState, version 2 (docs/design/duel.md, "The HUD's state, version 2":
+// the contact dance's), built from the rules' state, the contact, the two bodies and the beat, and handed to
+// `bend.hud.set(state)` (src/hud draws it; the duel draws no HUD of its own). The pops (CATCH, SWING, FLING ×n,
+// PERFECT, COMBO ×n, MERGE, BEND, …) are kept here: the events push them, they age and go.
 //
-// (The HUD is src/hud's: its HudState is the contract's, docs/design/duel.md.)
+// (The v2 types are the contract's, copied as written there: src/hud is being redrawn to them in step. Until it lands,
+// src/hud's own state is v1, so the object is handed over as it is, through bend.hud.)
 import { DUEL, type DuelEvent, type DuelState } from '../../shared/duel.ts';
-import type { HudPlayer, HudPop, HudState } from '../hud/state';
+import type { ContactEvent } from './contact';
 
-export type { HudState };
+export type PopKind = 'catch' | 'swing' | 'fling' | 'perfect' | 'combo' | 'merge' | 'info';
+export interface HudPlayer {
+  seat: 0 | 1; name: string; color: string; matter: string;
+  /** the battle's score this set */
+  style: number;
+  /** n moves chained, the multiplier, the last few links, live while the combo is going, links on the beat */
+  combo: { n: number; mult: number; links: string[]; live: boolean; perfect: number };
+  dash: number;
+  /** in a link: this one holds (the base) / is held (the flyer) */
+  holding: boolean; held: boolean;
+  /** 0 … 1 after a fall, else 0 */
+  reforming: number;
+  screen?: [number, number];
+}
+export interface HudPop { text: string; seat?: number; at: [number, number]; age: number; kind: PopKind }
+export interface HudState {
+  mode: 'duel' | 'jogo' | 'none';
+  players: HudPlayer[];
+  /** the two joined, on screen */
+  link: { on: boolean; energy: number; from?: [number, number]; to?: [number, number] };
+  /** 0 … 1: the dance's intensity, its peak this set, the merge (fusion) charge */
+  shared: { energy: number; peak: number; merge: number };
+  set: { time: number; length: number; phase: 'intro' | 'play' | 'finale' | 'done'; countdown?: number; winner?: number };
+  beat: { phase: number; bpm: number; window: number };
+  pops: HudPop[];
+}
+
+/** each matter's colour on the HUD (CSS) */
+export const MATTER_CSS: Record<string, string> = {
+  fire: '#ff9a3c', plasma: '#c27bff', water: '#4cc3ff', ice: '#b8ecff', gems: '#e2a6ff', steam: '#e8eef2',
+};
 
 /** a world point on screen (0 … 1, past it when out of frame or behind: the HUD's edge arrow), as src/hud/state.ts's
- *  screenOf, copied: a value imported from src/hud would be in main.ts's chunk (see index.ts's imports) */
+ *  screenOf, copied: a value imported from src/hud would be in main.ts's chunk, and the duel's chunk importing it waits
+ *  for main.ts to finish evaluating, which awaits the duel at the top level (a production build hung, never ready) */
 export function screenOf(viewProj: ArrayLike<number>, p: ArrayLike<number>): [number, number] {
   const m = viewProj, x = p[0], y = p[1], z = p[2];
   const cx = m[0] * x + m[4] * y + m[8] * z + m[12], cy = m[1] * x + m[5] * y + m[9] * z + m[13], cw = m[3] * x + m[7] * y + m[11] * z + m[15];
@@ -23,64 +55,73 @@ export function screenOf(viewProj: ArrayLike<number>, p: ArrayLike<number>): [nu
   return [0.5 + dx * k * 0.5, 0.5 - dy * k * 0.5];
 }
 
-/** each matter's colour on the HUD (CSS), the duel's tag colours */
-export const MATTER_CSS: Record<string, string> = {
-  fire: '#ff9a3c', plasma: '#c27bff', water: '#4cc3ff', ice: '#b8ecff', gems: '#e2a6ff', steam: '#e8eef2',
-};
-
 /** a seat as the HUD builder needs it */
 export interface HudSeat {
   name: string;
   matter: string;
-  /** the head, on screen 0 … 1 (null: off screen) */
+  /** the head on screen (0 … 1) */
   screen: [number, number] | null;
-  /** the dash's readiness 0 … 1 (1 where the body has no dash yet) */
+  /** the dash's readiness 0 … 1 */
   dash: number;
-  /** its flow 0 … 1 (what dancing well built: the super meter until phase 2's super spends it) */
-  flow: number;
+  holding: boolean;
+  held: boolean;
 }
 
 const POP_LIFE = 1.1;
+const NAME: Record<string, [string, PopKind]> = {
+  catch: ['CATCH', 'catch'], aerial: ['AIR CATCH', 'catch'], swing: ['SWING', 'swing'], fling: ['FLING', 'fling'],
+  lift: ['LIFT', 'info'], vault: ['VAULT', 'info'], counter: ['COUNTER', 'info'],
+};
 
 export class DuelHud {
   readonly pops: HudPop[] = [];
-  /** the last state built */
   state: HudState | null = null;
+  private flings = [0, 0];
 
-  /** the duel's events this frame as pops, at the bodies' screen places (or the screen's middle) */
-  events(ev: readonly DuelEvent[], seats: readonly HudSeat[]) {
+  /** the frame's events as pops, at the bodies' screen places (or the screen's middle) */
+  events(ev: readonly DuelEvent[], touches: readonly ContactEvent[], seats: readonly HudSeat[], linkAt: [number, number] | null) {
     const at = (s: number | undefined): [number, number] => { const p = s != null ? seats[s]?.screen : null; return p ? [p[0], Math.max(0.08, p[1] - 0.08)] : [0.5, 0.42]; };
+    const pop = (text: string, kind: PopKind, seat?: number, where?: [number, number]) => this.pops.push({ text, seat, at: where ?? at(seat), age: 0, kind });
+    for (const t of touches) {
+      const n = NAME[t.kind];
+      if (!n) continue;
+      if (t.kind === 'fling') { this.flings[t.seat]++; pop(this.flings[t.seat] > 1 ? `FLING ×${this.flings[t.seat]}` : 'FLING', 'fling', t.seat, linkAt ?? undefined); }
+      else if (t.kind === 'swing') pop('SWING', 'swing', t.seat, linkAt ?? undefined);
+      else pop(n[0], n[1], t.seat, t.kind === 'catch' || t.kind === 'aerial' ? linkAt ?? undefined : undefined);
+      if (t.perfect && t.kind !== 'swing') pop('PERFECT', 'perfect', t.seat);
+    }
     for (const e of ev) {
       switch (e.k) {
-        case 'go': this.pops.push({ text: 'BEND', at: [0.5, 0.42], age: 0, kind: 'info' }); break;
-        case 'hit': if (e.perfect) this.pops.push({ text: 'PERFECT', seat: e.by, at: at(e.target), age: 0, kind: 'perfect' }); break;
-        case 'ko': this.pops.push({ text: e.how === 'fall' ? 'FELL' : 'KO', seat: 1 - e.target, at: at(e.target), age: 0, kind: 'ko' }); break;
-        case 'block': this.pops.push({ text: 'BLOCK', seat: e.target, at: at(e.target), age: 0, kind: 'info' }); break;
-        case 'clash': this.pops.push({ text: 'CLASH', at: at(undefined), age: 0, kind: 'react' }); break;
-        case 'won': this.pops.push({ text: `P${e.winner + 1} WINS`, seat: e.winner, at: [0.5, 0.38], age: 0, kind: 'info' }); break;
+        case 'go': pop('BEND', 'info', undefined, [0.5, 0.42]); break;
+        case 'combo': if (e.why !== 'fall') { this.flings[e.seat] = 0; if (e.n >= 4) pop(`COMBO ×${e.n}`, 'combo', e.seat); } else this.flings[e.seat] = 0; break;
+        case 'merge': pop('MERGE', 'merge', undefined, linkAt ?? [0.5, 0.4]); break;
+        case 'fall': pop('FELL', 'info', e.seat); break;
+        case 'finale': pop(e.fused ? 'FUSION' : 'FINALE', e.fused ? 'merge' : 'info', undefined, [0.5, 0.38]); break;
+        case 'done': pop(`P${e.winner + 1} WINS`, 'info', e.winner, [0.5, 0.38]); break;
       }
     }
   }
 
   /** this frame's HudState */
-  build(d: DuelState, now: number, dt: number, seats: readonly HudSeat[], beat: number, bpm: number): HudState {
+  build(d: DuelState, now: number, dt: number, seats: readonly HudSeat[], beat: number, bpm: number, setMs: number, link: { on: boolean; from?: [number, number]; to?: [number, number] }): HudState {
     for (const p of this.pops) p.age += dt;
     for (let i = this.pops.length - 1; i >= 0; i--) if (this.pops[i].age > POP_LIFE) this.pops.splice(i, 1);
     const players: HudPlayer[] = [0, 1].map((k) => {
-      const S = d.seats[k], s = seats[k];
-      const reforming = S.life === 'alive' ? 0 : Math.min(1, (now - S.since) / DUEL.REFORM_MS);
+      const S = d.seats[k], s = seats[k], C = S.combo;
       return {
         seat: k as 0 | 1, name: s?.name ?? `P${k + 1}`, color: MATTER_CSS[s?.matter ?? 'gems'] ?? '#ffffff', matter: s?.matter ?? 'gems',
-        hits: S.hits, hitsMax: DUEL.HITS_MAX, kos: S.kos, dash: s?.dash ?? 1, charges: [], superMeter: s?.flow ?? 0, reforming,
+        style: Math.round(S.style), combo: { n: C.n, mult: +C.mult.toFixed(2), links: C.links.slice(-6), live: C.live, perfect: C.perfect },
+        dash: s?.dash ?? 1, holding: !!s?.holding, held: !!s?.held,
+        reforming: S.fellAt >= 0 ? Math.min(1, (now - S.fellAt) / DUEL.REFORM_MS) : 0,
         ...(s?.screen ? { screen: s.screen } : {}),
       };
     });
-    const anyOut = d.seats.some((S) => S.life !== 'alive');
-    const phase = d.phase === 'play' ? (anyOut ? 'ko' : 'play') : d.phase === 'countdown' ? 'countdown' : d.round === 0 ? 'countdown' : 'won';
-    const time = d.phase === 'countdown' ? 0 : ((d.phase === 'won' ? d.since : now) - d.playFrom) / 1000;
+    const time = d.phase === 'intro' ? 0 : Math.min(setMs, (d.phase === 'play' ? now : d.playFrom + setMs) - d.playFrom) / 1000;
     const st: HudState = {
       mode: 'duel', players,
-      round: { koTarget: DUEL.KO_TARGET, time: Math.max(0, time), phase, ...(phase === 'countdown' ? { countdown: d.count } : {}), ...(d.winner != null ? { winner: d.winner } : {}) },
+      link: { on: link.on, energy: d.energy, ...(link.from ? { from: link.from } : {}), ...(link.to ? { to: link.to } : {}) },
+      shared: { energy: d.energy, peak: d.peak, merge: d.merge },
+      set: { time: Math.max(0, time), length: setMs / 1000, phase: d.phase, ...(d.phase === 'intro' ? { countdown: d.count } : {}), ...(d.winner != null ? { winner: d.winner } : {}) },
       beat: { phase: beat - Math.floor(beat), bpm, window: DUEL.PERFECT_MS / 1000 },
       pops: this.pops.map((p) => ({ ...p, at: [p.at[0], p.at[1]] })),
     };

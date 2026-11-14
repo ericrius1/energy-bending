@@ -1,297 +1,272 @@
-// The duel's rules (shared/duel.ts) on plain data, then joined to real bodies (match.ts) free in 3D and locked, then
-// two virtual players dueling in Node (sim.ts), free and locked. Run by scripts/test-ts.mjs (npm test).
+// The dance battle: its rules (shared/duel.ts) on plain data, the contact physics (contact.ts) on real bodies free in
+// 3D and locked, and two virtual players dancing it in Node (sim.ts), free and locked. Run by scripts/test-ts.mjs.
 import { test, assert, near, done } from '../../dancer/test/check';
-import { DUEL, newDuel, duelStep, duelMove, frozen, untouchable, onBeat, type DuelBody, type DuelEvent, type DuelState } from '../../../shared/duel.ts';
+import { DUEL, newDuel, duelStep, duelLink, duelContact, duelFlingLanded, frozen, onBeat, type DuelBody, type DuelEvent, type DuelState } from '../../../shared/duel.ts';
 import { Character, DUEL_PHYS } from '../../dancer/character';
+import { Contact, CONTACT, noInput, splitIntent, type ContactEvent, type ContactInput } from '../contact';
 import { DuelMatch, duelPlane } from '../match';
 import { simulateDuel, makeBrains, nodeArena } from '../sim';
 import { DuelBrain, holdFor, jumpHeight } from '../../ai/duel-brain';
+import { makeIntent } from '../../input/intent';
 
-const arena = { spawns: [[-2, 0, 0], [2, 0, 0], [-4, 0, 0], [4, 0, 0], [0, 1.1, 0]] as [number, number, number][], yKill: -2.2, bpm: 120 };
-/** a standing body at x (z 0 unless given): a column for its hurt shape, and a strike reaching `reach` along its facing
- *  (±x) when given */
-const body = (x: number, o: Partial<DuelBody> & { reach?: number; facing?: number; y?: number; z?: number } = {}): DuelBody => {
-  const f = o.facing ?? 1, reach = o.reach ?? 0, y = o.y ?? 0, z = o.z ?? 0;
-  const { reach: _r, facing: _f, y: _y, z: _z, ...rest } = o;
-  return {
-    p: [x, y, z], fwd: [f, 0], hurt: [{ ax: x, ay: y + 0.2, az: z, bx: x, by: y + 1.5, bz: z, r: 0.18 }],
-    hit: reach ? [{ ax: x + f * 0.3, ay: y + 1.1, az: z, bx: x + f * reach, by: y + 1.1, bz: z, r: 0.05 }] : [],
-    move: reach ? 'strike' : null, serial: 0, moveBeat: null, invulnerable: false, blocking: false, ...rest,
-  };
-};
-/** a duel already in play at t (the count-in run through) */
+const arena = { yKill: -2.2, bpm: 120, setMs: 30000 };
+const stand: [DuelBody, DuelBody] = [{ y: 0, grounded: true }, { y: 0, grounded: true }];
+const air: [DuelBody, DuelBody] = [{ y: 1, grounded: false }, { y: 1, grounded: false }];
+/** a duel in play at t (the count-in run through) */
 function playing(): { d: DuelState; t: number } {
   const d = newDuel(0, arena.bpm);
   let t = 0;
-  for (; d.phase !== 'play' && t < 10000; t += 16) duelStep(d, t, [body(-2), body(2, { facing: -1 })], arena);
+  for (; d.phase !== 'play' && t < 10000; t += 16) duelStep(d, t, 16, stand, arena);
   return { d, t };
 }
 const kinds = (ev: DuelEvent[]) => ev.map((e) => e.k);
 
-test('a duel counts in 3, 2, 1, then BEND; the seats are held until then', () => {
+// ---------------------------------------------------------------- the rules
+test('a set counts in 3, 2, 1, then BEND; the seats are held until then', () => {
   const d = newDuel(0, 120), seen: DuelEvent[] = [];
   for (let t = 0; t < 3000; t += 10) {
-    seen.push(...duelStep(d, t, [body(-2), body(2, { facing: -1 })], arena));
-    if (d.phase === 'countdown') assert(frozen(d, 0) && frozen(d, 1), 'held in the count-in');
+    seen.push(...duelStep(d, t, 10, stand, arena));
+    if (d.phase === 'intro') assert(frozen(d, 0) && frozen(d, 1), 'held in the count-in');
   }
-  const ks = kinds(seen);
-  assert(ks[0] === 'round', `starts a round: ${ks.join(',')}`);
+  assert(kinds(seen)[0] === 'set', `starts a set: ${kinds(seen).join(',')}`);
   assert(seen.filter((e) => e.k === 'count').map((e) => (e as { n: number }).n).join() === '3,2,1', 'counts 3, 2, 1');
-  assert(ks.includes('go') && d.phase === 'play' && !frozen(d, 0), 'then play');
-  return `play from ${d.playFrom} ms`;
+  assert(kinds(seen).includes('go') && d.phase === 'play' && !frozen(d, 0), 'then play');
 });
 
-test('a strike that meets the body hits once; three hits are a KO', () => {
+test('a combo: each link adds to it and its multiplier; on the beat double, the same link a third time little; banked into style on the ground', () => {
   const { d, t } = playing();
-  let ev = duelStep(d, t, [body(-0.6, { reach: 0.9, serial: 5 }), body(0.2, { facing: -1 })], arena);
-  const h = ev.find((e) => e.k === 'hit') as Extract<DuelEvent, { k: 'hit' }>;
-  assert(h && h.by === 0 && h.target === 1 && h.hits === 1, `a hit: ${kinds(ev)}`);
-  assert(h.knock.dir[0] > 0.99 && h.knock.along > 0, 'knocked away from the attacker');
-  ev = duelStep(d, t + 16, [body(-0.6, { reach: 0.9, serial: 5 }), body(0.2, { facing: -1 })], arena);
-  assert(!ev.some((e) => e.k === 'hit'), 'the same attack lands once');
-  duelStep(d, t + 300, [body(-0.6, { reach: 0.9, serial: 6 }), body(0.2, { facing: -1 })], arena);
-  ev = duelStep(d, t + 600, [body(-0.6, { reach: 0.9, serial: 7 }), body(0.2, { facing: -1 })], arena);
-  const ko = ev.find((e) => e.k === 'ko') as Extract<DuelEvent, { k: 'ko' }>;
-  assert(ko && ko.target === 1 && ko.by === 0 && ko.how === 'hits' && d.seats[0].kos === 1, `the third is a KO: ${kinds(ev)}`);
-  assert(frozen(d, 1) && untouchable(d, 1, t + 600), 'scattered: held and untouchable');
+  const v = (kind: Parameters<typeof duelLink>[2], perfect: boolean, u: number) => (duelLink(d, 0, kind, perfect, u).find((e) => e.k === 'link') as Extract<DuelEvent, { k: 'link' }>).value;
+  duelStep(d, t, 16, air, arena);
+  const a = v('walljump', false, t), b = v('walljump', true, t + 100), c = v('walljump', false, t + 200);
+  near(b, a * DUEL.PERFECT_MUL, 1e-9, 'on the beat');
+  near(c, a * DUEL.REPEAT, 1e-9, 'a third the same');
+  const C = d.seats[0].combo;
+  assert(C.n === 3 && C.live && near(C.mult, 1 + 3 * DUEL.MULT_STEP, 1e-9) === undefined, `n ${C.n} mult ${C.mult}`);
+  const score = C.score, mult = C.mult;
+  // on the ground long enough: banked
+  let banked: Extract<DuelEvent, { k: 'combo' }> | null = null;
+  for (let u = t + 300; u < t + 300 + DUEL.COMBO_GROUND_MS + 100; u += 16) for (const e of duelStep(d, u, 16, stand, arena)) if (e.k === 'combo') banked = e;
+  assert(banked && banked.banked === Math.round(score * mult) && d.seats[0].style === banked.banked, `banked ${banked?.banked}`);
+  assert(!d.seats[0].combo.live, 'the combo ended');
+  return `three links ${(score).toFixed(1)} × ${mult} → ${banked!.banked} style`;
 });
 
-test('in 3D a strike meets only what is in front of it, and knocks along the ground in its direction', () => {
+test('leading earns style: a catch, a catch out of the air, a fling the other lands', () => {
   const { d, t } = playing();
-  // facing +x, the other a metre off to the side (z): no touch
-  let ev = duelStep(d, t, [body(-0.6, { reach: 0.9, serial: 3 }), body(0.2, { z: 1.0, facing: -1 })], arena);
-  assert(!ev.some((e) => e.k === 'hit'), 'beside it: missed');
-  // a strike along a diagonal, the other on it: knocked that way
-  const a = body(0, { serial: 4 }), s = Math.SQRT1_2;
-  a.fwd = [s, s]; a.move = 'strike';
-  a.hit = [{ ax: 0.2 * s, ay: 1.1, az: 0.2 * s, bx: 0.9 * s, by: 1.1, bz: 0.9 * s, r: 0.05 }];
-  ev = duelStep(d, t + 16, [a, body(0.6 * s * 1.2, { z: 0.6 * s * 1.2, facing: -1 })], arena);
-  const h = ev.find((e) => e.k === 'hit') as Extract<DuelEvent, { k: 'hit' }>;
-  assert(h, `diagonal hit: ${kinds(ev)}`);
-  near(h.knock.dir[0], s, 1e-6, 'x'); near(h.knock.dir[1], s, 1e-6, 'z');
+  duelLink(d, 0, 'catch', false, t);
+  duelLink(d, 1, 'aerial', false, t);
+  duelFlingLanded(d, 0);
+  assert(d.seats[0].style === DUEL.LEAD_CATCH + DUEL.LEAD_FLING_LANDED, `seat 0 ${d.seats[0].style}`);
+  assert(d.seats[1].style === DUEL.LEAD_AERIAL, `seat 1 ${d.seats[1].style}`);
 });
 
-test('a KO re-forms at the spawn farthest from the other, then is untouchable for a second', () => {
+test('the shared energy rises only together, ebbs apart; held high while joined it charges the merge', () => {
   const { d, t } = playing();
-  for (let k = 0; k < 3; k++) duelStep(d, t + k * 100, [body(3.4, { reach: 0.9, serial: 10 + k }), body(4.2, { facing: -1 })], arena);
-  assert(d.seats[1].life === 'scattered', 'KO');
-  let at: number[] | null = null, ready = -1;
-  for (let u = t + 200; u < t + 4000; u += 16) {
-    for (const e of duelStep(d, u, [body(3.4), body(4.2, { facing: -1 })], arena)) {
-      if (e.k === 'reform') at = e.at;
-      if (e.k === 'ready') ready = u;
-    }
-  }
-  assert(at && at[0] === -4, `farthest from the attacker at 3.4: ${at}`);
-  near(ready - (t + 200), DUEL.REFORM_MS, 40, 'back after REFORM_MS');
-  const ev = duelStep(d, ready + 200, [body(-4.6, { reach: 0.9, serial: 99 }), body(-4, { facing: -1 })], arena);
-  assert(!ev.some((e) => e.k === 'hit'), 'untouchable just after');
-  const ev2 = duelStep(d, ready + DUEL.INVULN_MS + 50, [body(-4.6, { reach: 0.9, serial: 100 }), body(-4, { facing: -1 })], arena);
-  assert(ev2.some((e) => e.k === 'hit'), 'then it can be hit');
+  duelLink(d, 0, 'walljump', false, t);
+  assert(d.energy === 0, 'alone: nothing');
+  duelLink(d, 1, 'walljump', false, t);
+  assert(d.energy > 0, 'both in a combo: together');
+  let u = t, merged = false;
+  duelContact(d, true, u);
+  for (; u < t + 20000 && !merged; u += 16) for (const e of duelStep(d, u, 16, air, arena)) if (e.k === 'merge') merged = true;
+  assert(merged && d.energy > DUEL.MERGE_AT, `merged after ${((u - t) / 1000).toFixed(1)} s joined`);
+  const e0 = d.energy;
+  duelContact(d, false, u);
+  for (let w = u; w < u + 3000; w += 16) duelStep(d, w, 16, stand, arena);
+  assert(d.energy < e0, 'apart: it ebbs');
+  return `merged after ${((u - t) / 1000).toFixed(1)} s joined`;
 });
 
-test('on the beat the knockback doubles', () => {
-  assert(onBeat(4.5, 120) && onBeat(4.5 + 0.1, 120) && !onBeat(4.5 + 0.2, 120), 'the 8th-note window (±60 ms at 120 bpm: ±0.12 beat)');
-  const a = playing(), b = playing();
-  const h1 = duelStep(a.d, a.t, [body(-0.6, { reach: 0.9, serial: 3, moveBeat: 8.22 }), body(0.2, { facing: -1 })], arena).find((e) => e.k === 'hit') as Extract<DuelEvent, { k: 'hit' }>;
-  const h2 = duelStep(b.d, b.t, [body(-0.6, { reach: 0.9, serial: 3, moveBeat: 8.02 }), body(0.2, { facing: -1 })], arena).find((e) => e.k === 'hit') as Extract<DuelEvent, { k: 'hit' }>;
-  assert(!h1.perfect && h2.perfect, 'off, then on the beat');
-  near(h2.knock.along, h1.knock.along * DUEL.PERFECT_KNOCK, 1e-9, 'double');
-});
-
-test('dancing well builds flow: on the beat more, varied more, a hit costs it', () => {
-  const on = playing(), off = playing(), same = playing();
-  for (const m of ['meia-lua', 'au', 'armada', 'macaco']) { duelMove(on.d, 0, m, true); duelMove(off.d, 0, m, false); }
-  for (let i = 0; i < 4; i++) duelMove(same.d, 0, 'meia-lua', true);
-  const a = on.d.seats[0].flow, b = off.d.seats[0].flow, c = same.d.seats[0].flow;
-  assert(a > b * 1.5, `on the beat ${a.toFixed(1)} > off ${b.toFixed(1)}`);
-  assert(a > c, `varied ${a.toFixed(1)} > the same kick four times ${c.toFixed(1)}`);
-  assert(on.d.seats[0].streak === 4, 'a streak of four');
-  duelStep(on.d, on.t, [body(0.2, { facing: -1 }), body(-0.6, { reach: 0.9, serial: 9 })], arena);
-  assert(on.d.seats[0].flow < a && (on.d.seats[0].streak as number) === 0, `hit: flow ${a.toFixed(1)} → ${on.d.seats[0].flow.toFixed(1)}`);
-  return `four varied on the beat ${a.toFixed(1)}, off ${b.toFixed(1)}, one kick ×4 ${c.toFixed(1)}`;
-});
-
-test('falling below the kill floor is a KO for the other seat (the hitter, if it was hit lately)', () => {
+test('a fall costs a little style and the combo, never a KO: back in a moment', () => {
   const { d, t } = playing();
-  duelStep(d, t, [body(-0.6, { reach: 0.9, serial: 3 }), body(0.2, { facing: -1 })], arena);
-  const ev = duelStep(d, t + 900, [body(-0.6), body(1, { y: -2.5, facing: -1 })], arena);
-  const ko = ev.find((e) => e.k === 'ko') as Extract<DuelEvent, { k: 'ko' }>;
-  assert(ko && ko.how === 'fall' && ko.by === 0 && d.seats[0].kos === 1, `a fall: ${kinds(ev)}`);
-  const { d: d2, t: t2 } = playing();
-  const ko2 = duelStep(d2, t2, [body(-0.6, { y: -3 }), body(1, { facing: -1 })], arena).find((e) => e.k === 'ko') as Extract<DuelEvent, { k: 'ko' }>;
-  assert(ko2.by === -1 && d2.seats[1].kos === 1, 'nobody pushed it: still the other seat\'s point');
+  d.seats[1].style = 30;
+  duelLink(d, 1, 'flip', false, t);
+  const ev = duelStep(d, t + 16, 16, [{ y: 0, grounded: true }, { y: -3, grounded: false }], arena);
+  assert(ev.some((e) => e.k === 'fall') && d.seats[1].style === 30 - DUEL.FALL_COST && !d.seats[1].combo.live, `fell: ${kinds(ev)}`);
+  assert(frozen(d, 1), 'reforming');
+  let ready = -1;
+  for (let u = t + 32; u < t + 3000 && ready < 0; u += 16) if (duelStep(d, u, 16, stand, arena).some((e) => e.k === 'ready')) ready = u;
+  near(ready - (t + 16), DUEL.REFORM_MS, 20, 'back after REFORM_MS');
 });
 
-test('a block takes a push and no hit; a dodge\'s i-frames pass through; two strikes clash', () => {
-  let { d, t } = playing();
-  let ev = duelStep(d, t, [body(-0.6, { reach: 0.9, serial: 3 }), body(0.2, { facing: -1, blocking: true })], arena);
-  assert(ev.some((e) => e.k === 'block') && d.seats[1].hits === 0, `block: ${kinds(ev)}`);
-  ({ d, t } = playing());
-  ev = duelStep(d, t, [body(-0.6, { reach: 0.9, serial: 3 }), body(0.2, { facing: -1, invulnerable: true })], arena);
-  assert(ev.some((e) => e.k === 'dodge') && d.seats[1].hits === 0, `dodge: ${kinds(ev)}`);
-  ({ d, t } = playing());
-  ev = duelStep(d, t, [body(-0.6, { reach: 0.9, serial: 3 }), body(0.6, { reach: 0.9, serial: 4, facing: -1 })], arena);
-  assert(ev.some((e) => e.k === 'clash') && !ev.some((e) => e.k === 'hit'), `clash: ${kinds(ev)}`);
-});
-
-test('five KOs win the round; after a moment the next round counts in from nothing', () => {
+test('a set on the music: play, the finale (fused when the energy peaked high), the higher style wins, the next set', () => {
   const { d, t } = playing();
-  let u = t, serial = 1, won: Extract<DuelEvent, { k: 'won' }> | null = null;
-  while (!won && u < t + 120000) {
-    for (const e of duelStep(d, u, [body(-0.6, { reach: 0.9, serial: serial++ }), body(0.2, { facing: -1 })], arena)) if (e.k === 'won') won = e;
-    u += 250;
-  }
-  assert(won && won.winner === 0 && won.kos[0] === DUEL.KO_TARGET, 'seat 0 won 5-0');
-  const later = duelStep(d, u + DUEL.WON_MS + 10, [body(-0.6), body(0.2, { facing: -1 })], arena);
-  assert(later.some((e) => e.k === 'round') && d.round === 2 && d.seats[0].kos === 0 && (d.phase as string) === 'countdown', 'round 2');
-  return `round 1 lasted ${(won.ms / 1000).toFixed(1)} s`;
+  d.seats[0].style = 50; d.seats[1].style = 80; d.peak = 0.9;
+  const seen: DuelEvent[] = [];
+  for (let u = t; u < t + arena.setMs + DUEL.FINALE_MS + DUEL.DONE_MS + 200; u += 50) seen.push(...duelStep(d, u, 50, stand, arena));
+  const fin = seen.find((e) => e.k === 'finale') as Extract<DuelEvent, { k: 'finale' }>, dn = seen.find((e) => e.k === 'done') as Extract<DuelEvent, { k: 'done' }>;
+  assert(fin && fin.fused, 'the finale fused');
+  assert(dn && dn.winner === 1, 'the higher style won');
+  assert(seen.filter((e) => e.k === 'set').length === 1 && d.set === 2, 'the next set');
+  assert(onBeat(4.5, 120) && !onBeat(4.5 + 0.2, 120), 'the 8th-note window');
 });
 
-// ---------------------------------------------------------------- real bodies
-const T = nodeArena('temple'), F = nodeArena('forge');
+// ---------------------------------------------------------------- the contact, on real bodies
+const T = nodeArena('temple');
 
-test('the fallback arenas: a space, four spawns or more clear of the solids, a kill floor, the solid ledges as walls', () => {
-  for (const { arena: a } of [T, F]) {
-    assert(a.spawns.length >= 4, `${a.world}: ${a.spawns.length} spawns`);
-    assert(a.space.radius >= 4 && a.space.yKill < 0, `${a.world} space`);
-    assert(((a.plane as { walls?: unknown[] }).walls ?? []).length >= 2, `${a.world} walls`);
-  }
-  return `temple ${T.arena.spawns.length} spawns in ${T.arena.space.radius} m, forge ${F.arena.spawns.length}, forge kills below ${F.arena.space.yKill}`;
-});
-
-/** two Characters and a match in play, free or locked, stepped together */
-function bodies(locked: boolean) {
-  const A = T.arena, plane = duelPlane(A);
-  const terrain = { groundAt: T.world.groundAt, solids: T.world.solids };
+/** two Characters on the duel's profile, facing each other `gap` apart, free (or locked), and a Contact */
+function pair(gap: number, locked = false) {
+  const plane = { ...duelPlane(T.arena), id: 'test', origin: [0, 0, 0] as [number, number, number], right: [1, 0, 0] as [number, number, number], halfWidth: 6, ground: 0, ledges: [], walls: [], spawns: [[-1, 0], [1, 0]] as [number, number][] };
+  const terrain = { groundAt: () => 0, solids: [] };
   const a = new Character({ seat: 0, plane: locked ? plane : null, terrain }), b = new Character({ seat: 1, plane: locked ? plane : null, terrain });
   a.setProfile('duel'); b.setProfile('duel');
-  const m = new DuelMatch([a, b], A, plane, 0, 112);
-  let now = 0;
-  const step = (n: number, f?: () => void) => {
+  if (locked) { a.reset(-gap / 2, 0); b.reset(gap / 2, 0); } else { a.reset(-gap / 2, 0, 0); b.reset(gap / 2, 0, 0); }
+  a.lookAt = b.root; b.lookAt = a.root;
+  const con = new Contact([a, b]);
+  let t = 0;
+  const step = (n: number, ins: (i: number) => [ContactInput, ContactInput] = () => [noInput(), noInput()], beatOn = false, its: [Partial<ReturnType<typeof makeIntent>>, Partial<ReturnType<typeof makeIntent>>] = [{}, {}]) => {
+    const ev: ContactEvent[] = [];
     for (let i = 0; i < n; i++) {
-      now += 1000 / 60; const beat = (now * 112) / 60000; f?.();
-      a.lookAt = b.root; b.lookAt = a.root;
-      a.update(1 / 60, null, { beats: beat, bpm: 112 }); b.update(1 / 60, null, { beats: beat, bpm: 112 });
-      m.step(now, beat, 112);
+      t += 1 / 60;
+      a.update(1 / 60, its[0], { beats: t * 2, bpm: 120 }); b.update(1 / 60, its[1], { beats: t * 2, bpm: 120 });
+      ev.push(...con.step(ins(i), 1 / 60, beatOn));
+      con.pose(0); con.pose(1);
     }
+    return ev;
   };
-  step(Math.ceil(((DUEL.COUNT_FROM + 1) * 60000 / 112) / (1000 / 60)) + 70);
-  return { a, b, m, step };
+  step(20);
+  return { a, b, con, step };
 }
+const grab = (edge: boolean, stick: [number, number] = [0, 0]): ContactInput => ({ ...noInput(), grab: true, grabEdge: edge, stick });
 
-test('a real strike lands free in 3D, and knocks the other away along the ground in its direction', () => {
-  const { a, b, m, step } = bodies(false);
-  assert(m.state.phase === 'play' && !m.locked, `in play, free (${m.state.phase})`);
-  // the two on a diagonal across the court, the attacker facing the other
-  a.reset(-3, undefined, -1.5); b.reset(-2.45, undefined, -1.05);
-  step(12);
-  const x0 = b.root[0], z0 = b.root[2];
-  a.startMove('strike');
-  let hit: Extract<DuelEvent, { k: 'hit' }> | null = null;
-  step(40, () => { for (const e of m.events) if (e.k === 'hit') hit = e; });
-  assert(hit, 'the strike landed');
-  const h = hit as unknown as Extract<DuelEvent, { k: 'hit' }>;
-  const dx = b.root[0] - x0, dz = b.root[2] - z0;
-  assert(h.knock.dir[0] > 0.3 && h.knock.dir[1] > 0.3, `knocked along the diagonal: ${h.knock.dir.map((v) => v.toFixed(2))}`);
-  assert(dx > 0.2 && dz > 0.1, `moved away: ${dx.toFixed(2)}, ${dz.toFixed(2)}`);
-  return `knock ${h.knock.dir.map((v) => v.toFixed(2))} × ${h.knock.along}`;
+test('a catch: a grab with a hand in reach of the other joins them, the grabber the base; out of reach nothing', () => {
+  const far = pair(2.2);
+  assert(!far.step(5, (i) => [grab(i === 0), noInput()]).length && !far.con.link, 'out of reach');
+  const { con, step } = pair(0.8);
+  const ev = step(3, (i) => [grab(i === 0), noInput()]);
+  const c = ev.find((e) => e.kind === 'catch');
+  assert(c && con.link && con.link.holder === 0 && con.link.held === 1, `caught: ${ev.map((e) => e.kind)}`);
+  return `part ${con.link!.part}, rope ${con.link!.rest.toFixed(2)} m`;
 });
 
-test('a real strike lands locked, along the plane', () => {
-  const { a, b, m, step } = bodies(true);
-  assert(m.locked, 'locked');
-  a.reset(-3.2); b.reset(-2.6);
-  step(2);
-  const s0 = b.s;
-  a.startMove('strike');
-  step(40);
-  assert(m.history.some((h) => h.e.k === 'hit'), 'the strike landed');
-  assert(b.s > s0 + 0.2, `knocked along +s: ${s0.toFixed(2)} → ${b.s.toFixed(2)}`);
+test('caught out of the air: an aerial, the base the one on the ground', () => {
+  const { b, con, step } = pair(0.85);
+  // in the air beside the other, its hands at the other's
+  b.root[1] = 0.45; b.v = [0, -0.5, 0]; b.grounded = false; b.support = null;
+  const ev = step(1, () => [grab(true), noInput()]);
+  const c = ev.find((e) => e.kind === 'aerial' || e.kind === 'catch');
+  assert(c && c.kind === 'aerial' && con.link, `caught out of the air: ${ev.map((e) => e.kind)}`);
+  assert(con.link!.holder === 0 && c!.seat === 0, `the grounded grabber is the base (holder ${con.link!.holder})`);
+  return c!.kind;
 });
 
-test('free, a body that leaves the space sideways meets a soft wall', () => {
-  const { a, step } = bodies(false);
-  const C = T.arena.space.center, R = T.arena.space.radius;
-  a.reset(C[0] + R - 0.3, undefined, C[2]);
-  let most = 0;
-  step(150, () => { most = Math.max(most, Math.hypot(a.root[0] - C[0], a.root[2] - C[2])); a.v = [6, a.v[1], 0]; });
-  assert(most < R + 0.9, `held within ${(most - R).toFixed(2)} m past the edge`);
-  return `${(most - R).toFixed(2)} m past at most`;
+test('the swing: the rope holds the held body at its length; the pump spins it round, harder on the beat; a swing link per arc', () => {
+  const run = (beatOn: boolean) => {
+    const { b, con, step } = pair(0.8);
+    step(2, (i) => [grab(i === 0), noInput()]);
+    assert(con.link, 'joined');
+    let most = 0, speed = 0, swings = 0;
+    const ev = step(90, () => [grab(false, [0, 1]), noInput()], beatOn);
+    swings = ev.filter((e) => e.kind === 'swing').length;
+    const L = con.link!;
+    most = Math.hypot(b.root[0] - con['chars'][0].root[0], b.root[2] - con['chars'][0].root[2]);
+    speed = Math.hypot(b.v[0], b.v[1], b.v[2]);
+    return { most, speed, swings, rest: L.rest, air: !b.grounded };
+  };
+  const off = run(false), on = run(true);
+  assert(off.air && off.most < off.rest + 0.6, `carried off its feet on the rope (${off.most.toFixed(2)} m out, rope ${off.rest.toFixed(2)})`);
+  assert(off.speed > 3 && off.swings >= 1, `swung round (${off.speed.toFixed(1)} m/s, ${off.swings} swings)`);
+  assert(on.speed > off.speed, `harder on the beat (${on.speed.toFixed(1)} > ${off.speed.toFixed(1)})`);
+  return `${off.speed.toFixed(1)} m/s off the beat, ${on.speed.toFixed(1)} on; ${off.swings} swings in 1.5 s`;
 });
 
-test('jump height: the brain\'s model of the body\'s jump', () => {
-  near(jumpHeight(10, DUEL_PHYS), 2.2, 0.06, 'the duel\'s full jump');
+test('the fling: let go mid-swing and the held body leaves faster, aimed by the stick; flown until it lands, the flinger credited', () => {
+  const { b, con, step } = pair(0.8);
+  step(2, (i) => [grab(i === 0), noInput()]);
+  step(60, () => [grab(false, [0, 1]), noInput()]);
+  const before = Math.hypot(b.v[0], b.v[1], b.v[2]);
+  const ev = step(1, () => [{ ...noInput(), stick: [1, 0] }, noInput()]);
+  const fl = ev.find((e) => e.kind === 'fling');
+  assert(fl && !con.link && ev.some((e) => e.kind === 'flown'), `flung: ${ev.map((e) => e.kind)}`);
+  const after = Math.hypot(b.v[0], b.v[1], b.v[2]);
+  assert(after > before * 1.2, `faster: ${before.toFixed(1)} → ${after.toFixed(1)} m/s`);
+  let landed = false;
+  for (let i = 0; i < 240 && !landed; i++) landed = step(1).some((e) => e.kind === 'landed');
+  assert(landed, 'landed (the flinger credited)');
+  return `${before.toFixed(1)} → ${after.toFixed(1)} m/s`;
+});
+
+test('the lift: held above the base, a jump launches off its hands higher than any jump; a counter spins out', () => {
+  const { a, b, con, step } = pair(0.8);
+  step(2, (i) => [grab(i === 0), noInput()]);
+  // held up above the base's head
+  b.root[1] = a.root[1] + 1.7; b.grounded = false; b.support = null; b.v = [0, 0, 0];
+  const ev = step(1, () => [grab(false), { ...noInput(), jump: true }]);
+  assert(ev.some((e) => e.kind === 'lift') && !con.link, `lift: ${ev.map((e) => e.kind)}`);
+  assert(b.v[1] >= CONTACT.LAUNCH - 1 && CONTACT.LAUNCH > DUEL_PHYS.jumpV, `launched at ${b.v[1].toFixed(1)} m/s (a jump is ${DUEL_PHYS.jumpV})`);
+  let top = b.root[1];
+  for (let i = 0; i < 60; i++) { step(1, undefined, false, [{}, { jumpHeld: true }]); top = Math.max(top, b.root[1]); }
+  assert(top - (a.root[1] + 1.7) > jumpHeight(10, DUEL_PHYS), `rose ${(top - a.root[1] - 1.7).toFixed(2)} m over the lift point`);
+  const p2 = pair(0.8);
+  p2.step(2, (i) => [grab(i === 0), noInput()]);
+  const ev2 = p2.step(1, () => [grab(false), { ...noInput(), dodge: true, stick: [0, 1] }]);
+  assert(ev2.some((e) => e.kind === 'counter') && !p2.con.link, 'a counter spins out');
+});
+
+test('the vault: a body falling onto the other\'s shoulders bounces off them', () => {
+  const { a, b, step } = pair(0.8);
+  a.root = [b.root[0] + 0.1, b.root[1] + 1.6, b.root[2]]; a.grounded = false; a.support = null; a.v = [0, -3, 0];
+  const ev = step(1);
+  assert(ev.some((e) => e.kind === 'vault') && a.v[1] > 10, `vault: ${ev.map((e) => e.kind)}, ${a.v[1].toFixed(1)} m/s up`);
+});
+
+test('locked: the contact stays in the stage plane', () => {
+  const { a, b, con, step } = pair(0.8, true);
+  step(2, (i) => [grab(i === 0), noInput()]);
+  assert(con.link, 'joined locked');
+  step(60, () => [grab(false, [1, 0]), noInput()]);
+  step(1, () => [noInput(), noInput()]);
+  const n = (c: Character) => Math.abs((c.root[2] - c.plane!.origin[2]));
+  assert(n(a) < 0.05 && n(b) < 0.05 && Math.abs(b.v[2]) < 1e-6, `on the plane: ${n(a).toFixed(3)}, ${n(b).toFixed(3)}`);
+});
+
+test('the grab is the punch button: taken from the body; a base holding braces, a held body\'s jump is the contact\'s', () => {
+  const c = new Character({ seat: 0, plane: null });
+  const it = { ...makeIntent(), punch: true, punchHeld: true, moveX: 1, jump: true, jumpHeld: true };
+  const ci = splitIntent(c, it, true, false);
+  assert(ci.grab && ci.grabEdge && !it.punch && !it.punchHeld, 'the grab');
+  assert(it.moveX === 0 && !it.jump && Math.hypot(ci.stick[0], ci.stick[1]) > 0.9, 'braced, the stick the pump');
+  const it2 = { ...makeIntent(), jump: true };
+  const ci2 = splitIntent(c, it2, false, true);
+  assert(ci2.jump && !it2.jump, 'held: the jump the contact\'s');
+});
+
+// ---------------------------------------------------------------- the virtual players
+test('jump height: the brain\'s model of the body\'s jump (the duel\'s profile)', () => {
+  near(jumpHeight(10, DUEL_PHYS), 2.2, 0.06, 'the full jump');
   const h = holdFor(1.0, DUEL_PHYS);
   near(jumpHeight(h, DUEL_PHYS), 1.0, 0.02, 'a held hop');
-  const c = new Character({ seat: 0, plane: duelPlane(T.arena) });
-  c.setProfile('duel');
-  c.reset(-3);
-  let top = 0, t = 0;
-  for (let i = 0; i < 90; i++) { t += 1 / 60; c.update(1 / 60, { jump: i === 0, jumpHeld: t <= h + 1e-9 }, null); top = Math.max(top, c.root[1]); }
-  near(top, 1.0, 0.12, 'the body rose about as planned');
-  return `hold ${h.toFixed(3)} s for 1 m, rose ${top.toFixed(2)} m`;
 });
 
-test('two virtual players finish a round in each arena, free and locked, deterministically, moving, jumping and dancing', () => {
+test('two virtual players dance a set in the temple and the forge, free and locked, deterministically: catches, swings, flings, combos', () => {
   const out: string[] = [];
-  for (const { arena: A, world: W } of [T, F]) for (const locked of [false, true]) {
-    const run = () => simulateDuel({ arena: A, world: W, locked, brains: makeBrains(['aggressive', 'evasive'], [0.7, 0.7], [3, 9]), rounds: 1, seconds: 400 });
+  for (const w of ['temple', 'forge']) for (const locked of [false, true]) {
+    const { arena: A, world: W } = nodeArena(w);
+    const run = () => simulateDuel({ arena: A, world: W, locked, brains: makeBrains(['lead', 'flyer'], [0.7, 0.7], [3, 9]), sets: 1, setMs: 30000, seconds: 60 });
     const r1 = run(), r2 = run();
-    const tag = `${A.world} ${locked ? 'locked' : 'free'}`;
-    assert(r1.rounds.length === 1, `${tag}: a round finished in ${r1.seconds.toFixed(0)} s`);
-    assert(r1.rounds[0].ms === r2.rounds[0].ms && r1.stats.hits === r2.stats.hits, `${tag}: the same seeds play the same duel`);
-    for (const s of r1.seats) {
-      assert(Object.keys(s.moves).length >= 4, `${tag}: each uses moves (${Object.keys(s.moves).length})`);
-      assert(s.flowMax > 30, `${tag}: dancing built flow (${s.flowMax.toFixed(0)})`);
-    }
-    const jumps = r1.seats.reduce((a, s) => a + s.jumps + s.airJumps + s.wallJumps, 0);
-    assert(jumps >= 4, `${tag}: they jump (${jumps})`);
-    out.push(`${tag} ${(r1.rounds[0].ms / 1000).toFixed(0)} s ${r1.rounds[0].kos.join('-')}`);
+    const tag = `${w} ${locked ? 'locked' : 'free'}`;
+    assert(r1.sets.length === 1, `${tag}: a set finished`);
+    assert(r1.sets[0].style[0] === r2.sets[0].style[0] && r1.stats.links === r2.stats.links, `${tag}: the same seeds dance the same set`);
+    const S = r1.stats;
+    assert(S.catches + S.aerials >= 4 && S.flings >= 2 && S.swings >= 2, `${tag}: contact (${S.catches} catches, ${S.aerials} aerial, ${S.swings} swings, ${S.flings} flings)`);
+    assert(r1.seats.every((s) => s.combos >= 2), `${tag}: combos`);
+    assert(S.falls <= 6, `${tag}: few falls (${S.falls})`);
+    out.push(`${tag} ${S.catches + S.aerials} catches, ${S.flings} flings, longest combo ${Math.max(r1.seats[0].longest, r1.seats[1].longest)}`);
   }
-  return out.join(', ');
-});
-
-test('free, the virtual players dance between exchanges: flourishes on the beat, and a fight in 3D (not on a line)', () => {
-  const r = simulateDuel({ arena: T.arena, world: T.world, brains: makeBrains(['showy', 'aggressive'], [0.7, 0.7], [4, 12]), rounds: 1, seconds: 300 });
-  const fl = ['au', 'macaco', 'spin'].reduce((a, k) => a + (r.seats[0].moves[k] ?? 0) + (r.seats[1].moves[k] ?? 0), 0);
-  assert(fl >= 6, `${fl} flourishes`);
-  let zs = 0;
-  const C = T.arena.space.center;
-  simulateDuel({ arena: T.arena, world: T.world, brains: makeBrains(['showy', 'aggressive'], [0.7, 0.7], [4, 12]), rounds: 1, seconds: 60, each: (f) => { zs = Math.max(zs, Math.abs(f.bodies[0].root[2] - C[2]), Math.abs(f.bodies[1].root[2] - C[2])); } });
-  assert(zs > 1.0, `off the stage's line: ${zs.toFixed(2)} m`);
-  return `${fl} flourishes; ${zs.toFixed(1)} m off the line`;
-});
-
-// (a weak edge, measured and reported in docs/reports/11-duel.md: skill 1 against 0 wins about 55 to 60% of rounds;
-// this keeps it from turning the wrong way)
-test('skill: the better player is not the worse one (free and locked, together)', () => {
-  let good = 0, kos = 0, all = 0, n = 0;
-  const by: string[] = [];
-  for (const locked of [false, true]) {
-    let g = 0;
-    for (let k = 0; k < 8; k++) {
-      const r = simulateDuel({ arena: T.arena, world: T.world, locked, brains: makeBrains(['aggressive', 'aggressive'], [1, 0], [11 + k, 31 + k]), rounds: 1, seconds: 400 });
-      n++;
-      if (r.rounds[0]?.winner === 0) { good++; g++; }
-      if (r.rounds[0]) { kos += r.rounds[0].kos[0]; all += r.rounds[0].kos[0] + r.rounds[0].kos[1]; }
-    }
-    by.push(`${locked ? 'locked' : 'free'} ${g} of 8`);
-  }
-  assert(good >= n / 2 && kos >= all * 0.48, `the good one won ${good} of ${n} (${by.join(', ')}; ${kos} of ${all} KOs)`);
-  return `${good} of ${n} rounds (${by.join(', ')}), ${kos} of ${all} KOs`;
+  return out.join('; ');
 });
 
 test('the brain holds its stick like a thumb: no flicker frame to frame', () => {
   let flips = 0, frames = 0, prev = '0,0';
   simulateDuel({
-    arena: T.arena, world: T.world, brains: makeBrains(['showy', 'aggressive'], [0.6, 0.6], [5, 6]), rounds: 1, seconds: 60,
+    arena: T.arena, world: T.world, brains: makeBrains(['flyer', 'lead'], [0.6, 0.6], [5, 6]), sets: 1, setMs: 30000, seconds: 40,
     each: (f) => { const s = `${f.intents[0].moveX},${f.intents[0].moveZ}`; if (s !== prev && prev !== '0,0' && s !== '0,0') flips++; prev = s; frames++; },
   });
   const perMin = flips / (frames / 3600);
   assert(perMin < 240, `${perMin.toFixed(0)} changes a minute`);
-  assert(new DuelBrain().name.startsWith('duel'), 'named');
-  return `${perMin.toFixed(0)} stick changes a minute (eight-way, moving to moving)`;
+  assert(new DuelBrain({ style: 'base' }).name === 'duel-base', 'named');
+  return `${perMin.toFixed(0)} stick changes a minute`;
 });
 
+void DuelMatch;
 done();
