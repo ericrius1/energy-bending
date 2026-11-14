@@ -2,7 +2,7 @@
 // synthetic landmark streams, and the hub's joining and keyboard split. The prototype's dev/test-input.mjs, ported,
 // with the 3D body (limbs) in place of its pose3 and the hub added.
 import { makeIntent, mergeIntents, radialDeadzone, Hysteresis, PeakDetector, type Intent } from '../intent';
-import { KeyboardSource } from '../keyboard';
+import { KeyboardSource, LAYOUTS, keysOf } from '../keyboard';
 import { GamepadSource, GamepadHub, type PadLike } from '../gamepad';
 import { TouchSource, BotSource } from '../touch';
 import { CameraSource, type TrackerLike } from '../camera';
@@ -109,12 +109,12 @@ test('touch: stick where the thumb lands, right-half drag = hand / camera, butto
   t.mode = 'free'; t.move(2, 760, 210); i = t.update(1 / 60); assert(!i.aimActive && i.camX > 0, 'free: drag = camera');
   t.press('hand'); t.move(2, 770, 200); i = t.update(); assert(i.aimActive, "free: 'hand' held");
   t.up(1); t.up(2); i = t.update(); assert(i.moveX === 0 && !i.aimActive, 'released');
-  // (the duel's 'dash' joined the list, shown only in the duel's scheme)
-  assert(t.buttons.map((b) => b.name).join() === 'jump,strike,kick,spin,dash,dodge,form,merge,lock,interact,hand', 'descriptors');
+  // (the duel's 'dash' and two powers joined the list, shown only in the duel's scheme)
+  assert(t.buttons.map((b) => b.name).join() === 'jump,strike,kick,spin,dash,power1,power2,dodge,form,merge,lock,interact,hand', 'descriptors');
   assert(t.buttons.find((b) => b.name === 'dash')!.duelOnly === true, 'dash: the duel only');
 });
 
-test('the duel scheme: dash on Shift or K / RT or B / a swipe or the dash button; the moves it displaced move over', () => {
+test('the duel scheme: dash on Shift or K / B / a swipe or the dash button; the moves it displaced move over', () => {
   // keyboard (solo): the jogo's Shift is dodge, K kick, and no dash
   const k = new KeyboardSource('solo', { target: null });
   k.keyDown('ShiftLeft'); let i = k.update(); assert(i.dodge && !i.dash, 'jogo: Shift dodges'); k.keyUp('ShiftLeft');
@@ -138,7 +138,7 @@ test('the duel scheme: dash on Shift or K / RT or B / a swipe or the dash button
   i = g.update(); assert(i.kick && !i.dash, 'jogo: B kicks');
   g.scheme = 'duel'; pads = [{ id: 'x', axes: [0, 0, 0, 0], buttons: btns([]) }]; g.update();
   pads = [{ id: 'x', axes: [0, 0, 0, 0], buttons: btns([1]) }]; i = g.update(); assert(i.dash && !i.kick, 'duel: B dashes');
-  pads = [{ id: 'x', axes: [0, 0, 0, 0], buttons: btns([7]) }]; i = g.update(); assert(i.dash && !i.dodge, 'duel: RT dashes');
+  pads = [{ id: 'x', axes: [0, 0, 0, 0], buttons: btns([7]) }]; i = g.update(); assert(!i.dash && !i.dodge && i.power1, 'duel: RT is power 1');
   pads = [{ id: 'x', axes: [0, 0, 0, 0], buttons: btns([3, 5]) }]; i = g.update(); assert(i.kick && i.dodge && i.dodgeHeld, 'duel: Y kicks, RB dodges');
   // touch: a swipe past the rim, quickly, dashes; a slow push doesn't; the dash button
   const t = new TouchSource(null, { rect: () => ({ left: 0, top: 0, width: 1000, height: 500 }), stickRadius: 50 });
@@ -152,6 +152,47 @@ test('the duel scheme: dash on Shift or K / RT or B / a swipe or the dash button
   const hub = new InputHub({ target: null }); hub.scheme = 'duel'; hub.key('KeyA');
   assert(hub.players[0].source.scheme === 'duel', 'hub: seated in the duel scheme');
   hub.scheme = 'jogo'; assert((hub.players[0].source.scheme as string) === 'jogo', 'hub: and back');
+});
+
+test('the duel powers: U and H (solo, left), P and [ (right), RT and LT, two touch buttons; the form E, Enter, both sticks', () => {
+  const k = new KeyboardSource('solo', { target: null });
+  k.keyDown('KeyU'); let i = k.update(); assert(!i.power1 && !i.power2, 'jogo: U is nothing'); k.keyUp('KeyU');
+  k.scheme = 'duel';
+  k.keyDown('KeyU'); i = k.update(); assert(i.power1 && !i.power2, 'duel: U power 1'); assert(!k.update().power1, 'an edge'); k.keyUp('KeyU');
+  k.keyDown('KeyH'); k.keyDown('KeyD'); i = k.update(); assert(i.power2 && i.moveX === 1, 'duel: H power 2 along the stick'); k.keyUp('KeyH'); k.keyUp('KeyD');
+  k.keyDown('KeyE'); assert(k.update().form, 'E the form');
+  const l = new KeyboardSource('left', { target: null }); l.scheme = 'duel';
+  l.keyDown('KeyU'); assert(l.update().power1, 'left: U');
+  const r = new KeyboardSource('right', { target: null }); r.scheme = 'duel';
+  r.keyDown('KeyP'); i = r.update(); assert(i.power1 && !i.power2, 'right: P power 1'); r.keyUp('KeyP');
+  r.keyDown('BracketLeft'); assert(r.update().power2, 'right: [ power 2'); r.keyUp('BracketLeft');
+  r.keyDown('Enter'); assert(r.update().form, 'right: Enter the form');
+  // no key of one layout's powers is another's, or the page's own (space, n, w, l, y, f, c, /)
+  const all = (['solo', 'right'] as const).map((x) => [...LAYOUTS[x].duel.power1, ...LAYOUTS[x].duel.power2]);
+  for (const key of all[0]) assert(!keysOf('right').has(key), `${key}: the left half's only`);
+  for (const key of all[1]) assert(!keysOf('solo').has(key), `${key}: the right half's only`);
+  for (const key of all.flat()) assert(!['Space', 'KeyN', 'KeyW', 'KeyL', 'KeyY', 'KeyF', 'KeyC', 'Slash'].includes(key), `${key}: not the page's`);
+  // the duel's other keys stay as they were
+  for (const x of ['solo', 'left', 'right'] as const) {
+    const D = LAYOUTS[x].duel, used = [D.dash, D.kick, D.spin, D.dodge, LAYOUTS[x].punch, LAYOUTS[x].form, LAYOUTS[x].lock].flat();
+    for (const key of [...D.power1, ...D.power2]) assert(!used.includes(key), `${x}: ${key} is free`);
+  }
+  // the hub splits the keyboard on the right half's power keys too
+  const hub = new InputHub({ target: null }); hub.key('KeyU'); hub.key('KeyP');
+  assert(hub.players.length === 2 && hub.players[1].slot === 'right', 'P seats the right half');
+  // gamepad
+  let pads: PadLike[] = [];
+  const btns = (on: number[]) => Array.from({ length: 17 }, (_, j) => ({ pressed: on.includes(j), value: on.includes(j) ? 1 : 0 }));
+  const g = new GamepadSource(0, { getPads: () => pads }); g.scheme = 'duel';
+  pads = [{ id: 'x', axes: [0, 0, 0, 0], buttons: btns([]) }]; g.update();
+  pads = [{ id: 'x', axes: [0, 0, 0, 0], buttons: btns([7]) }]; i = g.update(); assert(i.power1 && !i.power2 && !i.dash, 'RT power 1');
+  pads = [{ id: 'x', axes: [0, 0, 0, 0], buttons: btns([6]) }]; i = g.update(); assert(i.power2 && !i.form, 'LT power 2 (not the form)');
+  pads = [{ id: 'x', axes: [0, 0, 0, 0], buttons: btns([10, 11]) }]; i = g.update(); assert(i.form && !i.merge, 'both sticks: the form');
+  // touch
+  const t = new TouchSource(null, { rect: () => ({ left: 0, top: 0, width: 1000, height: 500 }) });
+  t.press('power1'); assert(!t.update().power1, 'jogo: no powers'); t.release('power1');
+  t.scheme = 'duel'; t.press('power2'); i = t.update(); assert(i.power2 && !i.power1, 'duel: the power 2 button'); t.release('power2');
+  assert(t.buttons.filter((b) => b.name.startsWith('power')).every((b) => b.duelOnly), 'power buttons: the duel only');
 });
 
 test('bot source and merging devices', () => {

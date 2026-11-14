@@ -5,9 +5,13 @@
 //           = merge, View = lock, d-pad up = interact.
 //   free:   left stick = moveX/moveZ, d-pad down = crouch, right stick = camera unless LB is held (then it is the
 //           bending hand); everything else as locked.
-//   the duel's scheme (`scheme = 'duel'`, docs/design/duel.md): RT or B dash (the left stick's way), Y kick, LB spin
-//           (an aú when the stick is pushed), RB dodge/block (held: it holds); merge only on both stick clicks.
+//   the duel's scheme (`scheme = 'duel'`, docs/design/duel.md): B dash (the left stick's way), Y kick, LB spin (an aú
+//           when the stick is pushed), RB dodge/block (held: it holds); RT power 1 and LT power 2 (aimed by the left
+//           stick), both stick clicks the power form (at full flow); the jogo's LT form and merge are not the duel's.
 import { Buttons, Hysteresis, makeIntent, radialDeadzone, hasDOM, type Intent, type IntentSource, type InputMode, type Scheme } from './intent';
+
+/** the buttons the duel's powers and power form are on, as the HUD names them */
+export const POWER_BUTTONS: [string, string, string] = ['RT', 'LT', 'L3+R3'];
 
 export const BTN = { A: 0, B: 1, X: 2, Y: 3, LB: 4, RB: 5, LT: 6, RT: 7, VIEW: 8, MENU: 9, LS: 10, RS: 11, UP: 12, DOWN: 13, LEFT: 14, RIGHT: 15 } as const;
 
@@ -83,7 +87,8 @@ export class GamepadSource implements IntentSource {
     else { o.moveX = dpx || lx; o.moveY = (b(BTN.DOWN) ? -1 : 0) || ly; }
     o.jump = B.took('A'); o.jumpHeld = B.held('A');
     if (this.scheme === 'duel') {
-      o.dash = B.took('RT') || B.took('B');
+      o.dash = B.took('B');
+      o.power1 = B.took('RT'); o.power2 = B.took('LT');
       o.kick = B.took('Y');
       o.spin = B.took('LB');
       o.dodge = B.took('RB'); o.dodgeHeld = B.held('RB');
@@ -95,8 +100,8 @@ export class GamepadSource implements IntentSource {
       o.dodge = B.took('RT'); o.dodgeHeld = B.held('RT');
       this.yHeldT = B.held('Y') ? this.yHeldT + dt : 0;
     }
-    o.form = B.took('LT');
-    o.merge = B.held('LSRS') || this.yHeldT >= 0.6;
+    o.form = this.scheme === 'duel' ? B.took('LSRS') : B.took('LT');
+    o.merge = this.scheme === 'duel' ? false : B.held('LSRS') || this.yHeldT >= 0.6;
     o.lock = B.took('VIEW'); o.interact = B.took('UP');
     // right stick: the bending hand, or the camera
     const rx = ax(2), ry = -ax(3);

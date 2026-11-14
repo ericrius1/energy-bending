@@ -9,6 +9,8 @@
 //   jump (edge) jumpHeld   punch (edge) kick (edge) spin (edge) dodge (edge) form (edge) merge (held)
 //   dash (edge)  the duel's burst (docs/design/duel.md): its direction is the move stick (8-way; none: the facing).
 //               Only a body on the duel's profile dashes (Character.phys.dash); the jogo's ignores it
+//   power1, power2 (edges, optional)  the duel's two powers (shared/powers.ts, by the body's matter), aimed by the move
+//               stick (none: the facing); the duel's `form` edge is its power form (at full flow)
 //   aimX, aimY  the bending hand: direction and reach (length 0..1) in the screen plane, relative to the dancer's
 //               shoulder; aimActive  whether the hand is being played
 //   camX, camY  free-camera look rate (-1..1 for a stick; a fast mouse drag may exceed 1)
@@ -32,6 +34,9 @@ export interface Intent {
   punch: boolean; kick: boolean; spin: boolean; dodge: boolean; form: boolean; merge: boolean;
   /** the duel's dash (edge) */
   dash: boolean;
+  /** the duel's two powers (edges; the duel's scheme only) */
+  power1?: boolean;
+  power2?: boolean;
   aimX: number; aimY: number; aimActive: boolean;
   camX: number; camY: number;
   lock: boolean; interact: boolean;
@@ -69,7 +74,7 @@ export function makeIntent(): Intent {
   };
 }
 
-export const EDGES = ['jump', 'punch', 'kick', 'spin', 'dodge', 'dash', 'form', 'lock', 'interact'] as const;
+export const EDGES = ['jump', 'punch', 'kick', 'spin', 'dodge', 'dash', 'form', 'lock', 'interact', 'power1', 'power2'] as const;
 export const HELDS = ['jumpHeld', 'merge', 'dodgeHeld', 'punchHeld', 'aimActive'] as const;
 const AXES = ['moveX', 'moveY', 'moveZ', 'camX', 'camY'] as const;
 

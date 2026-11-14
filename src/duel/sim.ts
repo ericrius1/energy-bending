@@ -3,7 +3,8 @@
 // or locked to the arena's stage plane, the contact physics and the rules (match.ts), at a fixed step on a virtual music
 // clock. The tests run it; scripts/duel-sim.mjs prints what it measures over many seeded sets: combos a minute, the
 // longest combo, catches (and out of the air), swings, flings, lifts, vaults, counters, time in the air, falls, style,
-// the shared energy's peak and the merges. Deterministic: the same brains, seeds, arena and view play the same set.
+// the shared energy's peak and the merges; and the powers (powers.ts: flow, casts, the power form, reactions) for the
+// two seats' matters (`dress`). Deterministic: the same brains, seeds, arena and view play the same set.
 import { Character } from '../dancer/character';
 import { makeIntent, type Intent } from '../input/intent';
 import type { Brain, StageView } from '../ai/brain';
@@ -15,8 +16,10 @@ import { splitIntent, noInput, type ContactInput } from './contact';
 import type { Arena } from './arena';
 import type { WorldLike } from './fallback';
 import { worldFor } from './stages';
-import type { DuelEvent } from '../../shared/duel.ts';
+import { onBeat, type DuelEvent } from '../../shared/duel.ts';
+import { matterOf, type PowerEvent } from '../../shared/powers.ts';
 import type { Solid } from '../worlds/solids';
+import { DuelPowers, noPower, type PowerInput } from './powers';
 
 export interface DuelSimOptions {
   arena: Arena;
@@ -32,7 +35,10 @@ export interface DuelSimOptions {
   setMs?: number;
   dt?: number;
   bpm?: number;
-  each?: (f: { t: number; beat: number; match: DuelMatch; bodies: readonly Character[]; intents: Intent[]; events: DuelEvent[] }) => void;
+  /** the two seats' matters (default fire and water): their powers; `powers: false` plays without any */
+  dress?: [string, string];
+  powers?: boolean;
+  each?: (f: { t: number; beat: number; match: DuelMatch; powers: DuelPowers | null; bodies: readonly Character[]; intents: Intent[]; events: DuelEvent[] }) => void;
 }
 
 export interface SeatStats {
@@ -60,6 +66,8 @@ export interface DuelSimResult {
   /** how the holds ended: fling, release (stretched or too long), lift, counter */
   ends: Record<string, number>;
   match: DuelMatch;
+  /** the powers: each seat's casts by power and forms, the reactions, what the bodies felt, every power event */
+  powers: { casts: [Record<string, number>, Record<string, number>]; forms: [number, number]; reactions: Record<string, number>; felt: DuelPowers['felt']; events: { t: number; e: PowerEvent }[] } | null;
 }
 
 /** the arena and the world a world id duels in, in Node: the world's own arena (worlds/<id>/arena.ts), shown */
@@ -89,12 +97,15 @@ export function simulateDuel(o: DuelSimOptions): DuelSimResult {
     return c;
   }) as [Character, Character];
   const match = new DuelMatch(chars, A, plane, 0, bpm, { solids: () => solids, setMs: o.setMs });
+  const dress = o.dress ?? ['fire', 'water'];
+  const powers = o.powers === false ? null : new DuelPowers(chars, match, { matter: [matterOf(dress[0]), matterOf(dress[1])], sink: solids, groundAt: terrain.groundAt, yKill: A.space.yKill });
   const sight = (): DuelSight => {
     const L = match.contact.link;
     return {
       frozen: [match.frozen(0), match.frozen(1)], link: L ? { holder: L.holder, held: L.held, age: match.contact.age } : null,
       flown: match.contact.flown?.flyer ?? null,
       yKill: A.space.yKill, space: A.space, spawns: A.spawns, solids, groundAt: terrain.groundAt,
+      ...(powers ? { powers: powers.sight(), bends: powers.liveSight() } : {}),
     };
   };
   const brains = typeof o.brains === 'function' ? o.brains(sight) : o.brains;
@@ -104,7 +115,8 @@ export function simulateDuel(o: DuelSimOptions): DuelSimResult {
   const stage: StageView = { plane: o.locked ? plane : null, stage: plane, terrain, gates: [], room: A.space.radius, solids };
   const drivers = brains.map((b, k) => (b ? new BrainDriver(b, bodies[k], scene, () => stage) : null));
   const seats: [SeatStats, SeatStats] = [blankStats(), blankStats()];
-  const res: DuelSimResult = { seconds: 0, play: 0, sets: [], seats, stats: match.state.stats, holds: [], spread: [], ends: {}, match };
+  const res: DuelSimResult = { seconds: 0, play: 0, sets: [], seats, stats: match.state.stats, holds: [], spread: [], ends: {}, match, powers: null };
+  const powerEvents: { t: number; e: PowerEvent }[] = [];
   const maxT = o.seconds ?? 3600, maxSets = o.sets ?? 1;
   const frames = Math.round(maxT / dt);
   let holdFrom = -1;
@@ -112,17 +124,24 @@ export function simulateDuel(o: DuelSimOptions): DuelSimResult {
     const t = i * dt, now = t * 1000, beat = (now * bpm) / 60000;
     scene.update({ t, dt, beat, bpm, music: { level: 0.7, breakdown: false }, rules: null });
     chars[0].lookAt = chars[1].root; chars[1].lookAt = chars[0].root;
-    const intents: Intent[] = [], ins: ContactInput[] = [];
+    const intents: Intent[] = [], ins: ContactInput[] = [], pins: PowerInput[] = [];
     for (let k = 0; k < 2; k++) {
       const d = drivers[k];
       let it = d ? d.think() : makeIntent();
       if (match.frozen(k)) it = makeIntent();
       ins.push(match.frozen(k) ? noInput() : splitIntent(chars[k], it, match.contact.holding(k), match.contact.held(k)));
+      pins.push(match.frozen(k) ? noPower() : { p1: !!it.power1, p2: !!it.power2, form: !!it.form, stick: ins[k].stick });
       intents.push(it);
       chars[k].update(dt, it, { beats: beat, bpm });
       if (!chars[k].grounded && !chars[k].reforming && !match.frozen(k)) seats[k].airTime += dt;
     }
+    powers?.gripInputs(ins);
     const ev = match.step(now, beat, bpm, dt * 1000, [ins[0], ins[1]]);
+    if (powers) {
+      powers.step(now, dt * 1000, pins, ev, onBeat(beat, bpm));
+      ev.push(...powers.duelEvents);
+      for (const e of powers.events) powerEvents.push({ t: Math.round(now), e });
+    }
     if (match.state.phase === 'play') res.play += dt;
     const L = match.contact.link;
     if (L && holdFrom < 0) holdFrom = t;
@@ -135,10 +154,15 @@ export function simulateDuel(o: DuelSimOptions): DuelSimResult {
       else if (e.k === 'done') { res.sets.push({ winner: e.winner, style: e.style, peak: match.state.peak, fused: match.state.fused }); for (let k = 0; k < 2; k++) seats[k].style += e.style[k]; }
     }
     if (i % 60 === 0) res.spread.push(Math.hypot(chars[0].root[0] - chars[1].root[0], chars[0].root[2] - chars[1].root[2]));
-    o.each?.({ t, beat, match, bodies: chars, intents, events: ev });
+    o.each?.({ t, beat, match, powers, bodies: chars, intents, events: ev });
     res.seconds = t;
     if (res.sets.length >= maxSets) break;
   }
   for (let k = 0; k < 2; k++) { const b = brains[k] as DuelBrain | null; if (b && 'counts' in b) seats[k].brain = { ...b.counts }; }
+  if (powers) {
+    const casts: [Record<string, number>, Record<string, number>] = [{}, {}];
+    for (const { e } of powerEvents) if (e.k === 'cast') casts[e.seat][e.power] = (casts[e.seat][e.power] ?? 0) + 1;
+    res.powers = { casts, forms: [powers.rules.seats[0].forms, powers.rules.seats[1].forms], reactions: { ...powers.rules.reactions }, felt: { ...powers.felt }, events: powerEvents };
+  }
   return res;
 }
