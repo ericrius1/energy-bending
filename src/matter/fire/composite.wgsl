@@ -113,10 +113,10 @@ fn fusionLook(K: u32, Tc: f32, Td: f32, n: f32, side: f32, fil: f32, w: vec2f, y
   let bil = vnoise2(w * vec2f(1.9, 1.1) + vec2f(n * 0.9, -t * 0.4));
   let Ts = clamp(Td * (0.55 + 0.9 * bil), 0.0, 3.6);
   // (a power ramp, as fire's is: steep enough that the noise's lanes read as contours, not as a texture on white)
-  let lum = 1.25 * pow(Ts / 3.0, 1.7);
+  let lum = 1.05 * pow(Ts / 3.0, 1.9);
   let hue = mix(vec3f(0.55, 0.66, 0.84), vec3f(1.0, 0.93, 0.82), smoothstep(0.9, 2.5, Ts));
   let body = hue * lum;
-  let core = vec3f(1.0, 0.72, 0.38) * smoothstep(2.6, 3.6, Ts) * 0.35;
+  let core = vec3f(1.0, 0.72, 0.38) * smoothstep(2.6, 3.6, Ts) * 0.3;
   let thin = smoothstep(0.02, 0.2, Td) * (1.0 - smoothstep(0.3, 1.0, Td));
   let tint = mix(vec3f(1.0, 0.42, 0.12), vec3f(0.2, 0.72, 1.0), smoothstep(0.3, 0.7, side));
   let lick = tint * thin * smoothstep(0.4, 0.75, n) * 1.6;
