@@ -191,7 +191,8 @@ async function install() {
       if (!api) { location.assign(href); return; }
       history.replaceState(null, '', href);
       if (!duel) teach(api);
-      if (veil) { await frames(3); veilOff(veil); }
+      // (the veil lifts once the new game's camera has had a moment to find its players)
+      if (veil) { await frames(24); veilOff(veil); }
     } catch (err) {
       console.warn('front: the game could not begin in the page; opening its address', err);
       location.assign(href);
