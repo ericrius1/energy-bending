@@ -350,7 +350,9 @@ node scripts/shot.mjs shots/one --query pip                    # the default two
 node scripts/film.mjs docs/reports/media/film --seconds 10     # a film (no text), score muxed in
 ```
 
-Both take the shared render lock (`C:/Users/ericr/render-lock`, a directory) and release it on exit; both run headless
+Only a master film (film.mjs without `--preview`) takes the shared render lock (`C:/Users/ericr/render-lock`, a
+directory) and releases it on exit: stills, test captures and previews run alongside other agents' (docs/PLAN.md
+"Shared habits"; `RENDER_LOCK_ALL=1` makes them take it). They all run headless
 Chrome on the real GPU (on Windows no ANGLE flag is needed: `--enable-unsafe-webgpu --ignore-gpu-blocklist
 --enable-gpu`) and print the adapter. Headless Chrome doesn't composite WebGPU into page screenshots, so stills come
 from `bend.grab()` (weft's Capture reads the canvas back). In a page: `bend.kit.profiler.force = true`, step, then
