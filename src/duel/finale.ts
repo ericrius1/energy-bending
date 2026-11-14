@@ -24,6 +24,8 @@ export const FINALE = {
   /** the flyer's feet over the base's at the top of the lift (m), and how far in front of the base it is taken (m) */
   TOP: 1.2,
   TAKE: 0.55,
+  /** the lift reaches its top at this much of the duet (the path's rise ends there: `path`) */
+  TOP_AT: 0.55,
   /** where it lands, in front of the base (m) */
   LAND: 0.85,
   /** the base's reach from the shoulder (m) */
@@ -100,8 +102,16 @@ export class Finale {
   /** the next set counts in: the bodies are let go */
   stop() { this.active = false; }
 
-  /** each frame (the duel's clock) */
-  update(dt: number) { if (this.active) this.t += dt; }
+  /** each frame (the duel's clock). True on the frame a fused lift reaches its top (the flyer raised overhead: the
+   *  duel holds the moment, weight.ts's 'lift') */
+  update(dt: number): boolean {
+    if (!this.active) return false;
+    const was = this.t / this.len;
+    this.t += dt;
+    return this.fused && was < FINALE.TOP_AT && this.t / this.len >= FINALE.TOP_AT;
+  }
+  /** where the lift's top is (the flyer's chest) */
+  topAt(): V3 { const r = this.chars[this.flyer].root; return [r[0], r[1] + 1.1, r[2]]; }
 
   /** what fx.ts draws from */
   look(): FinaleLook | null {
