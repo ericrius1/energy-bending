@@ -12,7 +12,7 @@ deployed.
 ## The address, as built
 
 ```
-?duel&net=ROOM[&world=temple|geode|pool][&dress=a,b][&lock | &free][&set=S][&server=wss://…/ws][&bot][&lag=&jitter=&loss=]
+?duel&net=ROOM[&world=temple|geode|redwoods|pool][&dress=a,b][&lock | &free][&set=S][&server=wss://…/ws][&bot][&lag=&jitter=&loss=]
 ```
 
 - `ROOM`: 3 to 8 letters or digits, any case (the front's `FERN42` works). The first page to come makes the room.
@@ -225,3 +225,53 @@ What the numbers say:
 - No change to `shared/duel.ts`, `contact.ts`, `match.ts`, `sim.ts`, the hazards or the powers. The authority reads a few private
   fields of `Contact`, `DuelPowers` and `Character` by name: the judged catch makes its link as `Contact` does, as
   `DuelPowers.join` already did.
+
+## Follow-up: the tide's prediction error found, the redwoods online, esbuild a dependency
+
+**The browsers' prediction error with the tide (p95 0.1 to 0.8 m at 80 and 200 ms) had two causes.**
+
+- **The main one: the arenas are made once per process.** `templeDuel()` and the others are cached, so every room on
+  one server shared one hazard object. Each room stepped that hazard's clock (`Hazard.beat`, which the tide's water
+  height is read from) with its own beat. The browser runs open a fresh room for each lag, and the previous room lives
+  on for the 20 s grace. So at 80 and 200 ms the server's tide was the old room's half the time: the predicted body
+  floated on water 0.1 to 0.2 m up while the server's stood on the court floor under it.
+  - The probe's new `worst` list (the worst steady errors, with the kit fields that differed) showed exactly that:
+    `groundY` 0.2 against 0, velocities equal.
+  - The 0 ms run was fine because it had no older room. The Node test was fine because its grace is 1.5 s.
+  - The fix: before each tick the authority puts its own beat and the Pool's stones back on the shared hazard
+    (`poseHazard` in `src/net/duel-body.ts`). The page's prediction does the same before each predicted tick.
+- **The second: the page's predicted body stood in the page's world**, while the server's stood in Node's build of it.
+  The page's World.solids is the page's to draw and frame with, and any solid one has and the other lacks pushes the
+  predicted body out of it every tick. The prediction now uses the server's own description (`worldFor`, the same pure
+  layouts) with the server's power solids.
+
+Re-measured in two headless Chromes (`&bot` on both, 20 s after 6 s of play, jitter a fifth of the lag). Prediction
+error at each acknowledged input in steady play, p50 / p95 / max in mm, per page, and the corrections a second:
+
+| world | lag | page a | page b | events alike |
+|---|---|---|---|---|
+| temple, with the tide | 0 | 0.5 / 1.2 / 40, 0.65/s | 0.6 / 1.0 / 64, 0.65/s | 73 of 73 |
+| | 80 | 0.6 / 3.0 / 36, 1.05/s | 0.5 / 151 / 978, 1.45/s | 78 of 78 |
+| | 200 | 0.7 / 12 / 105, 0.7/s | 2.1 / 5.3 / 88, 1.35/s | 71 of 71 |
+| the Pool, with the swell | 0 | 0.9 / 6.7 / 707, 0.6/s | 0.5 / 9.1 / 88, 1.1/s | 68 of 68 |
+| | 80 | 0.6 / 5.0 / 76, 0.9/s | 0.5 / 4.0 / 31, 0.8/s | 84 of 84 |
+| | 200 | 0.7 / 6.8 / 227, 0.55/s | 0.6 / 8.4 / 56, 0.95/s | 70 of 70 |
+| the redwoods, with the wind | 0 | 0.6 / 6.1 / 40, 1.15/s | 0.7 / 12.8 / 13, 0.85/s | 81 of 81 |
+| | 200 | 0.6 / 10.5 / 631, 0.75/s | 0.9 / 10.6 / 88, 0.6/s | 75 of 75 |
+
+- **Eleven of the twelve pages are at a few millimetres to 13 mm p95.** The temple at 80 ms, page b, still had a
+  p95 of 151 mm.
+- **Its worst errors are of other kinds:** a jump or a launch on the server that the page didn't predict (`grounded`
+  differs, a vertical speed of 3 to 12 m/s), and one stretch at the start of the set 0.3 m sideways with standing
+  heights different. Those are the next to chase with the `worst` list. The rare 0.6 to 1 m maxima elsewhere look the
+  same.
+- Bytes: 11.3 to 13.3 KB/s down and 4.1 KB/s up a page. The server's tick: 0.37 to 0.56 ms mean, 0.59 to 0.95 ms p99.
+- Stills: `docs/reports/media/duel-net-pool-80-a.jpg`, `duel-net-redwoods-200-a.jpg`.
+
+**The redwoods online.** The arenas' work put the redwoods in the Node harness (`src/duel/stages.ts`), so the
+authority's online worlds are now `NODE_WORLDS`, all four. The front's online option needs no change: every world it
+offers runs.
+
+**Railway.** `esbuild` is in `dependencies` (`^0.28.2`, the version already installed: Vite's). The lock was updated
+with `npm install esbuild@0.28.2 --package-lock-only`. Its only changes are esbuild's own entry in the root's
+dependencies and the `dev` flag dropped from the 26 `@esbuild/*` platform packages; no version changed.

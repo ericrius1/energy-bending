@@ -78,6 +78,7 @@ try {
     let same = 0; while (same < n && la[same] === lb[same]) same++;
     for (const [name, r] of Object.entries(runs)) {
       console.log(`[${name}] seat ${r.seat}, ${r.phase}; in ${r.inKBs} KB/s (events ${r.devKBs}), out ${r.outKBs} KB/s; error at the ack rms ${r.err.rmsMm} mm, p50 ${r.err.p50Mm}, p95 ${r.err.p95Mm}, max ${r.err.maxMm} (${r.err.n}); moved by the other or a power ${r.errAfter.n} at most ${r.errAfter.maxMm} mm; corrections ${r.corrections} (${r.perSecond}/s), cuts ${r.cuts}; catches felt ${r.catches.felt} confirmed ${r.catches.confirmed} mutual ${r.catches.mutual} denied ${r.catches.denied}; delay ${r.delay} ms, rtt ${r.rtt} ms, queue ${r.queue}; fps ${r.fps}`);
+      for (const w of r.worst ?? []) console.log(`    worst ${JSON.stringify(w)}`);
       delete r.log;
     }
     console.log(`server: a tick ${srv?.tickMs.mean.toFixed(3)} ms mean, ${srv?.tickMs.p99.toFixed(3)} p99, ${srv?.tickMs.max.toFixed(2)} max; ${srv?.sentKBs} KB/s for the room; rewound catches ${srv?.rewound} (${JSON.stringify(srv?.refused)}); events alike ${same} of ${n} (${la.length} / ${lb.length})`);

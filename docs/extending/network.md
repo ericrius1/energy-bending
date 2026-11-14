@@ -106,8 +106,13 @@ dresses, lock and set length are the room's; a page opened on another world goes
 duel room runs a `DuelAuthority`: the game's own `Character`s on the duel's profile in the world's arena, `DuelMatch`
 (the contact and the rules), `DuelPowers` and the finale's `Finale`, stepped at 60 Hz on the room's clock (tick n is
 server time t0 + n × 16.7 ms; the music's epoch is t0 at the world's tempo, so both pages hear the same bar). Online
-worlds are those Node can build (`src/duel/stages.ts`: the temple, the geode, the pool); the redwoods are refused
-with a clear reason. The time warp (`match.warp`, the weight of contact) is the page's own and is off online.
+worlds are those Node can build (`src/duel/stages.ts` NODE_WORLDS: all four); another is refused with a clear reason.
+The arena's gentle hazard (the tide, the wind, the swell, the hum) runs on the server after the powers, and each page's
+prediction runs it on its own body. The arenas are made once per process and shared, so before a room steps it puts
+its own beat and the Pool's stones back on the hazard (`poseHazard`), and a page predicts in the server's own world
+(`worldFor`, not the page's World.solids, which is the page's to draw with). The time warp (`match.warp`, the weight of
+contact) is the page's own and is off online. `esbuild` is a dependency (not only Vite's) because the server bundles
+with it at run time.
 
 **Inputs** (binary, `I`): each tick a page samples its Intent into a numbered input (sticks, buttons as bits, the
 camera's yaw, and `view`: the server tick its screen showed the other body at) and sends it with the three before it,

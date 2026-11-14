@@ -20,13 +20,13 @@ import { Finale } from '../duel/finale';
 import { DuelHazards } from '../duel/hazards';
 import type { Arena } from '../duel/arena';
 import type { WorldLike } from '../duel/fallback';
-import { worldFor } from '../duel/stages';
+import { worldFor, NODE_WORLDS } from '../duel/stages';
 import type { Solid } from '../worlds/solids';
 import { onBeat, duelLink, duelFlingLanded, DUEL, type DuelEvent, type DuelState } from '../../shared/duel.ts';
 import { matterOf, type PowerEvent, type PowersState } from '../../shared/powers.ts';
 import { tempoOf, RULES } from '../../shared/rules.ts';
 import { DUEL_NET, DUEL_FLAG, encodeDuelSnap, type DuelHello, type DuelInput, type DuelWelcome, type MusicClock } from '../../shared/protocol.ts';
-import { bodySnap, intentOf, kitOf, EDGE_BITS } from './duel-body';
+import { bodySnap, intentOf, kitOf, poseHazard, EDGE_BITS } from './duel-body';
 
 type V3 = [number, number, number];
 
@@ -35,7 +35,8 @@ export function duelWorld(id: string): { arena: Arena; world: WorldLike } | null
   const w = worldFor(id);
   return w ? { arena: w.arena, world: w } : null;
 }
-export const ONLINE_WORLDS = ['temple', 'geode', 'pool'] as const;
+/** the worlds a duel can be played in online: every world the duel's Node harness builds */
+export const ONLINE_WORLDS = NODE_WORLDS;
 
 /** a seat's inputs at the server */
 interface SeatIn {
@@ -197,6 +198,10 @@ export class DuelAuthority {
     this.tick++;
     const now = this.now, dt = this.tickMs / 1000, bpm = this.bpm, beat = (now * bpm) / 60000;
     const C = this.chars, M = this.match, P = this.powers;
+    // (the arena's hazard is one object every room in this process shares: the worlds' layouts are made once. Put this
+    // room's beat and its stones back on it before its bodies step; another room stepped it with its own)
+    const H = this.arena.hazard;
+    if (H) { H.on = true; poseHazard(H, ((this.tick - 1) * this.tickMs * bpm) / 60000); }
     C[0].lookAt = C[1].root; C[1].lookAt = C[0].root;
     const ins: ContactInput[] = [], pins: PowerInput[] = [], grabs: (DuelInput | null)[] = [null, null];
     for (let k = 0; k < 2; k++) {

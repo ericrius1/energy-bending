@@ -185,7 +185,7 @@ try {
       const d = decodeDuelSnap(snap)!;
       assert.equal(d.ack, -1); assert.equal(d.bodies.length, 2); assert.equal((d.x as Any).k, undefined);
       await assert.rejects(new Net(WS).connect({ room }), (e: Any) => e.code === 'mode');
-      await assert.rejects(new Net(WS).connect({ room: 'ZQXJ', create: true, duel: { ...HELLO, world: 'redwoods' } }), (e: Any) => e.code === 'duel');
+      await assert.rejects(new Net(WS).connect({ room: 'ZQXJ', create: true, duel: { ...HELLO, world: 'forge' } }), (e: Any) => e.code === 'duel');
       const dr = await waitFor(a, 'droom', null, 3000).catch(() => null);
       void dr;
       for (const n of [a, b, w]) n.close();
