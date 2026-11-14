@@ -368,8 +368,8 @@ export class SetMusic {
   private driftMs = 0;
   /** how much faster the set's clock may run to catch the music up (its own holds and hitches made up unheard). The
    *  weight's holds (src/duel/weight.ts: a catch's few frames, a pair tier's beat of slow motion) hold the set's clock
-   *  with the bodies, about 4 s a set: 8 % makes that up within the set, so its finale still lands on its line */
-  slew = 0.08;
+   *  with the bodies, 3 to 5 s a set (measured): 12 % makes that up within the set, so its finale lands near its line */
+  slew = 0.12;
   /** a drift past this (beats) puts the music back where the set is: in play (and the finale) only a big one (a
    *  context woken late, a tab back: the deck crossfades half a second), in the count-in and the banner a small one */
   driftBeats = { play: 2, between: 0.12 };
@@ -406,7 +406,7 @@ export class SetMusic {
   }
 
   /** what to add to the set's clock this frame (ms; index.ts adds it to the duel's `now`): the drift made up a few
-   *  percent at a time, so the finale lands on its line. Not while the set is held or slowed on purpose (the weight's
+   *  percent at a time, so the finale lands near its line. Not while the set is held or slowed on purpose (the weight's
    *  hit-stop, slow motion: its dance time runs slower than the frame's): it catches up after */
   nudge(dt: number, danceDt: number) {
     const M = this.music;

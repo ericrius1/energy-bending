@@ -183,7 +183,7 @@ export const tests: Tests = {
     // a small drift (a hold, a hitch) is the set's clock's to make up: a few percent a frame, never more
     S.follow(duel + 5000 - 600, 'play');
     check(S.counts.follows === 1, 'a 600 ms drift is not a jump');
-    close(S.nudge(1 / 60, 1 / 60), 0.08 * 1000 / 60, 1e-9, 'nudged by at most 8%');
+    close(S.nudge(1 / 60, 1 / 60), 0.12 * 1000 / 60, 1e-9, 'nudged by at most 12%');
     // held (a hit-stop, slow motion): not pulled back while it lasts
     check(S.nudge(1 / 60, 0.06 / 60) === 0, 'nothing while the bodies are held');
     // a film: nothing moves
