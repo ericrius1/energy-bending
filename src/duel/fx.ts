@@ -18,12 +18,13 @@
 import type { Dancer } from '../dancer/dancer';
 import type { Character } from '../dancer/character';
 import { JOINT, JOINT_FLOATS } from '../skeleton/rig';
-import { COLOURS, mixRGB } from '../play/feel';
+import { mixRGB } from '../play/feel';
 import type { Element } from '../play/jogo';
 import type { Glows, RGB } from '../play/glow';
 import type { DuelEvent, DuelState } from '../../shared/duel.ts';
 import type { Contact, ContactEvent } from './contact';
 import type { FinaleLook } from './finale';
+import { seatHalo, seatRGB, splitRing } from './seat';
 
 type V3 = [number, number, number];
 
@@ -45,6 +46,9 @@ export interface DuelFxCtx {
   burst?: Float32Array | number[] | null;
   /** the finale's duet as it stands this frame (finale.ts), or null */
   finale?: () => FinaleLook | null;
+  /** where the eye is (the contact's ring faces it), and a seat's power form (0 … 1: its halo is stronger in it) */
+  eye?: () => V3 | null;
+  form?: (seat: number) => number;
 }
 
 /** a flown body's streak: its chest's path since the fling, in the thrower's colour */
@@ -59,6 +63,7 @@ export class DuelFx {
   private fx: Fx[] = [];
   private t = 0;
   private streaks: Streak[] = [];
+  private halo = [1, 1];
 
   constructor(private ctx: DuelFxCtx) {}
 
@@ -67,7 +72,8 @@ export class DuelFx {
     if (d) { const W = d.skeleton.world, o = JOINT.Spine1 * JOINT_FLOATS; return [W[o], W[o + 1], W[o + 2]]; }
     const c = this.ctx.character(k); return [c.root[0], c.root[1] + 1.1, c.root[2]];
   }
-  private col(k: number): RGB { return COLOURS[this.ctx.element(k)]; }
+  /** a seat's colour (seat.ts: rose, fern), whatever its matter and its form: who is who */
+  private col(k: number): RGB { return seatRGB(k); }
   private add(life: number, draw: (u: number, age: number) => void) { this.fx.push({ t: this.t, life, draw }); }
   private sfx(name: string, p: V3 | null, o: Record<string, unknown> = {}) {
     const e = p && this.ctx.ear ? this.ctx.ear(p) : { pan: 0, dist: 0 };
@@ -121,6 +127,12 @@ export class DuelFx {
     if (fin) this.finaleLook(fin);
     // a flown body's streak, in the thrower's colour
     this.streak(contact);
+    // each body's halo in its seat's colour (seat.ts), stronger in the power form; gone while it reforms
+    for (let k = 0; k < 2; k++) {
+      const dn = this.ctx.dancer(k), c = this.ctx.character(k);
+      this.halo[k] += ((c.reforming ? 0 : 1) - this.halo[k]) * (1 - Math.exp(-dt * 6));
+      if (dn) seatHalo(this.ctx.glows, dn.skeleton.world, k, this.halo[k], this.ctx.form?.(k) ?? dn.form, this.ctx.element(k));
+    }
     this.fx = this.fx.filter((f) => { const age = this.t - f.t, u = age / f.life; if (u >= 1) return false; f.draw(u, age); return true; });
   }
 
@@ -133,7 +145,9 @@ export class DuelFx {
         for (const k of [e.seat, e.other]) this.ctx.rumble?.(k, 0.45 * big, 110);
         this.add(0.6, (u) => {
           G.dot(p, 0.12 * big * (1 - u), WHITE, 2.4 * Math.pow(1 - u, 3), 'spark');
-          G.dot(p, (0.15 + u * 0.55) * big, ca, 0.9 * (1 - u) * (1 - u), 'ring');
+          // (the ring in two halves: each dancer's in its own colour, on its own side)
+          const R = (0.15 + u * 0.55) * big;
+          splitRing(G, p, R, 0.012 + 0.03 * R, this.ctx.eye?.() ?? null, this.chest(e.seat), this.chest(e.other), e.seat, e.other, 0.8 * (1 - u) * (1 - u));
         });
         break;
       }
@@ -186,7 +200,7 @@ export class DuelFx {
     }
     // the cuff: a small bright ring closed round the caught part, and the hand's glow
     G.dot(hand, 0.07, hot, 1.6 + E, 'spark');
-    G.dot(at, 0.13, col, 0.8 + 0.4 * E, 'ring');
+    splitRing(G, at, 0.13, 0.016, this.ctx.eye?.() ?? null, this.chest(holder), this.chest(held), holder, held, 0.6 + 0.35 * E);
     // the rope on to the held body, the holder's colour, thinning
     const to = this.chest(held), mid = lerp(at, to, 0.5);
     G.seg(at, mid, 0.022, col, 0.7 + 0.5 * E, 'soft');

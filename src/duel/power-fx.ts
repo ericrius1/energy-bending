@@ -28,7 +28,7 @@ import type { Glows, RGB } from '../play/glow';
 import { COLOURS, mixRGB } from '../play/feel';
 import type { Element } from '../play/jogo';
 import type { DuelPowers, Live, PowerFx } from './powers';
-import type { Matter } from '../../shared/powers.ts';
+import { formLook, type Matter } from '../../shared/powers.ts';
 
 type V3 = [number, number, number];
 
@@ -125,7 +125,7 @@ export class PowerFxDraw {
     for (let k = 0; k < 2; k++) {
       const on = P.inForm(k) ? 1 : 0, d = this.ctx.dancer(k);
       this.formShown[k] += (on - this.formShown[k]) * (1 - Math.exp(-dt / (on ? 0.25 : 0.5)));
-      if (d && (Math.abs(this.formShown[k] - this.formWas[k]) > 1e-4 || on)) d.form = this.formShown[k];
+      if (d && (Math.abs(this.formShown[k] - this.formWas[k]) > 1e-4 || on)) d.form = this.formShown[k] * formLook(this.matter(k), this.matter(1 - k)).depth;
       this.formWas[k] = this.formShown[k];
       if (on) {
         const c = P.chars[k], col = mixRGB(this.col(k), GOLDEN, 0.35);

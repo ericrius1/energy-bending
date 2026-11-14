@@ -26,6 +26,23 @@ export const POWERS: Record<Matter, { powers: [PowerId, PowerId]; form: string }
   plasma: { powers: ['blink', 'arc'], form: 'storm' },
   gems: { powers: ['pillar', 'prism'], form: 'heart of stone' },
 };
+/** what a power form does to the body's look (Dancer.form: 0 its own matter … 1 its other one): fire goes toward plasma
+ *  and water toward ice; the others keep their matter (plasma, ice and gems are their other forms already) */
+export const FORM_TOWARD: Partial<Record<Matter, Matter>> = { fire: 'plasma', water: 'ice' };
+/** the form a matter takes instead where its usual one would be its partner's matter: water beside ice stays water, a
+ *  tide (who is who: two ice bodies read as one, report 13 issue 5), fire beside plasma stays fire, a sunfire. Its body
+ *  turns only `depth` of the way (a breath of frost, a white heart) and its seat's colour carries it */
+export const FORM_INSTEAD: Partial<Record<Matter, { name: string; depth: number }>> = {
+  water: { name: 'tide', depth: 0.15 },
+  fire: { name: 'sunfire', depth: 0.15 },
+};
+/** a seat's power form beside its partner: its name, and how far its body turns toward its other matter (0 … 1; what
+ *  power-fx.ts sets Dancer.form to, at the form's height). Never the partner's own matter */
+export function formLook(matter: Matter, partner: Matter | null): { name: string; depth: number } {
+  const to = FORM_TOWARD[matter], instead = FORM_INSTEAD[matter];
+  if (to && partner === to && instead) return instead;
+  return { name: POWERS[matter].form, depth: 1 };
+}
 export const POWER_NAME: Record<PowerId, string> = {
   flare: 'Flare', ribbon: 'Ribbon', whip: 'Whip', wave: 'Wave', step: 'Step', slide: 'Slide', blink: 'Blink', arc: 'Arc', pillar: 'Pillar', prism: 'Prism',
 };

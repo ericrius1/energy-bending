@@ -132,7 +132,7 @@ export const DUEL_CAM = {
  *  point (m down, the weight arriving; negative: up) and a sway across (m) at a period (s). Every one starts and ends
  *  at rest with no step in its speed or its acceleration (u³(1 − u)⁴): an ease and a settle, never a jolt */
 export const IMPULSE: Record<CamImpulseKind, { lean: number; push: number; len: number; settle: number; sway: number; period: number }> = {
-  catch: { lean: 0.22, push: 0.07, len: 1.0, settle: 0.05, sway: 0, period: 0.8 },
+  catch: { lean: 0.22, push: 0.07, len: 1.2, settle: 0.05, sway: 0, period: 0.8 },
   fling: { lean: 0.12, push: -0.04, len: 1.2, settle: 0, sway: 0.06, period: 1.1 },
   tier: { lean: 0.1, push: 0.05, len: 1.5, settle: 0.03, sway: 0, period: 1.5 },
   lift: { lean: 0.15, push: 0.03, len: 1.3, settle: -0.06, sway: 0, period: 1.3 },
