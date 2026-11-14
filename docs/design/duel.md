@@ -67,6 +67,12 @@
 >           kind: 'catch' | 'swing' | 'fling' | 'perfect' | 'combo' | 'merge' | 'info' }[];
 > }
 > ```
+> Optional fields, adopted after the HUD's first build. When the game fills them, the HUD stops guessing:
+> `combo.beats?: boolean[]` (aligned with `links`: which were on the beat), `combo.ended?: 'cashed' | 'dropped'`
+> and `combo.cashed?: number` (set for the frame a combo ends), `players[].lead?: number` (0..1: how much of the
+> set this dancer led), `players[].best?: number` (the best combo this set, for the banner), `pops[].id?: number`
+> and `pops[].dir?: [number, number]` (a fling's direction on screen). `link.from` is the holder's contact point and
+> `link.to` the held's.
 
 > **Correction from the owner (13 Nov 2026), which overrides anything below that reads otherwise.**
 > It is still a dance, and it is **3D native**. It is not a 2D arena brawler.
