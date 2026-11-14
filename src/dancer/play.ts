@@ -52,6 +52,8 @@ export interface PlayCtx {
    *  after its player, so a player walking back from the forge into the hub stood on the forge's floor at hub
    *  coordinates for that second: no column there, and they fell through the hub and re-formed: 9-stage.md) */
   worldOf?: (d: Dancer) => World;
+  /** the plane locking uses, in place of the world's own stage (the duel's arena: src/duel) */
+  stage?: () => StagePlane | null;
 }
 
 export const playParams = defineParams('play', {
@@ -194,7 +196,7 @@ export async function playDemo(ctx: PlayCtx): Promise<PlayHandle> {
   const planeOf = (): StagePlane | null => {
     // the world's own stage, as it is (the pool's has no ledges on purpose: the pure stage); a test plane only where a
     // world has none
-    return ctx.world().stages[0] ?? TEST_PLANE;
+    return ctx.stage?.() ?? ctx.world().stages[0] ?? TEST_PLANE;
   };
   const setLock = (plane: StagePlane | null) => {
     lockedPlane = plane;

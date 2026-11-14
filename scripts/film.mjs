@@ -119,6 +119,18 @@ function pageQuery(s) {
     // a hold before the jogo's room starts (src/play/index.ts &hold): the dancers asleep in their heaps until then
     if (s.hold != null) q.set('hold', String(s.hold));
   } else if (s.mode === 'play') { q.set('play', ''); q.set('two', ''); }
+  else if (s.mode === 'duel') {
+    // the duel (src/duel): each seat a virtual player (a cast member with a style, a skill or a brain) or a human seat
+    // the cues drive; the shot's seed seeds the brains; the duel starts on the first frame
+    q.set('duel', '');
+    const cast = [0, 1].map((k) => s.cast?.[k] ?? { brain: 'duel' });
+    const bot = (c) => !!(c.brain || c.style || c.skill != null);
+    q.set('p1', bot(cast[0]) ? 'bot' : 'human'); q.set('p2', bot(cast[1]) ? 'bot' : 'human');
+    q.set('style', cast.map((c, k) => c.style ?? (['aggressive', 'showy'][k])).join(','));
+    q.set('skill', cast.map((c) => String(c.skill ?? 0.7)).join(','));
+    q.set('seed', String(s.seed ?? 5));
+    q.set('go', '');
+  }
   // (mode 'show': the plain page, Gem Dancers' programme: its dancers in heaps until they wake)
   q.set('world', s.world ?? 'redwoods');
   const dress = (s.cast ?? []).map((c) => c?.dress ?? 'fire');
