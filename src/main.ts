@@ -138,7 +138,7 @@ if (query.has('play') || query.has('roda') || query.has('teach')) {
 if (query.has('npcs') && !query.has('play')) await (await import('./ai/demo')).npcsDemo({ query, frame, show, music: music!, world: () => worldOf(main.world), worldOf, motion, travel: travelling, lock, wake }, Number(query.get('npcs') || 5));
 gatesDebug(gates, frame, query, () => show.dancers);
 // the jogo, its modes and menus (src/play): ?jogo=…, or the front of the game on a plain page
-await (await import('./play')).registerPlay({ kit, frame, show, rig, gates, music, field, kinds, main, query, canvas, motion, travel: travelling, coarse, film: FILM, wake, worldOf, setWorld });
+await (await import('./play')).registerPlay({ kit, frame, show, rig, gates, music, field, kinds, main, query, canvas, motion, travel: travelling, coarse, film: FILM, wake, worldOf, setWorld, hand });
 // ?arena=<world>: a duel arena on its own, the camera locked to it; ?play&duel: the world's arena shown under the
 // players (src/duel/arena-view.ts)
 if (query.has('arena') && !query.has('play')) await (await import('./duel/arena-view')).arenaView({ query, show, rig, worldOf, setWorld });

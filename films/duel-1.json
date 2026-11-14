@@ -1,0 +1,70 @@
+{
+  "name": "duel-1",
+  "title": "The duel, the contact dance: two virtual players running at each other, catching, swinging and flinging each other, launching off and landing on each other, free in third person with the HUD, a few seconds locked to show the option; the temple, then the forge. Each shot is the duel from its first frame (the count-in, then play), the brains seeded, deterministic.",
+  "audio": {
+    "track": "forge"
+  },
+  "size": "1280x720",
+  "fps": 60,
+  "fadeIn": 0.5,
+  "fadeOut": 1.5,
+  "shots": [
+    {
+      "id": "temple",
+      "note": "the temple's court, its arena (drums, lintels, drops): fire, a flyer (leaps at the other to be caught, lifts off its hands, wall kicks, flips), with water, a lead (catches, swings, flings); free from the count-in, then at 11 s the lock (the stage plane through the court) for the last five seconds",
+      "mode": "duel",
+      "world": "temple",
+      "cast": [
+        {
+          "dress": "fire",
+          "style": "flyer",
+          "skill": 0.85
+        },
+        {
+          "dress": "water",
+          "style": "lead",
+          "skill": 0.8
+        }
+      ],
+      "seed": 3,
+      "from": "start",
+      "preroll": 1.2,
+      "seconds": 16,
+      "hud": true,
+      "set": {
+        "temple": {
+          "tideHold": 0.42
+        }
+      },
+      "cues": [
+        {
+          "at": 11,
+          "rig": "lock"
+        }
+      ]
+    },
+    {
+      "id": "forge",
+      "note": "the sky forge's floating stones over the void (a fall reforms in a moment): water, a base (plants, catches what comes, swings it), with fire, a flyer",
+      "mode": "duel",
+      "world": "forge",
+      "cast": [
+        {
+          "dress": "water",
+          "style": "base",
+          "skill": 0.85
+        },
+        {
+          "dress": "fire",
+          "style": "flyer",
+          "skill": 0.85
+        }
+      ],
+      "seed": 8,
+      "from": "start",
+      "preroll": 1.2,
+      "seconds": 13,
+      "hud": true
+    }
+  ]
+}

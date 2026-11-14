@@ -79,6 +79,8 @@ export interface PlayApp {
   worldOf(id: string): World;
   /** move the main view to a world (a script's own world, when the address names none) */
   setWorld?(id: string): Promise<void>;
+  /** the hand (its one-frame blast throws matter off a body: the duel's KO) */
+  hand?: { burst: Float32Array | number[] };
 }
 
 /** the scripted jogos shipped with the game (src/play/scripts/*.json) */
@@ -101,6 +103,8 @@ const jointOf = (d: Dancer, j: number): V3 => { const W = d.skeleton.world, o = 
 
 export async function registerPlay(app: PlayApp) {
   const q = app.query;
+  // ?duel: the fast two-player arena mode beside the jogo (src/duel)
+  if (q.has('duel')) return (await import('../duel')).startDuel(app);
   const mode = q.get('jogo');
   if (mode == null) {
     // the plain page: the front of the game over the show (never in a film, or with any of the debug demos)

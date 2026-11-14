@@ -46,7 +46,9 @@ export interface ShotCue {
 }
 export interface ShotSpec {
   id: string;
-  mode: 'jogo' | 'play' | 'show';
+  /** jogo (a scripted jogo, src/play), play (?play&two), show (the programme), duel (?duel: src/duel, its seats'
+   *  brains from the cast) */
+  mode: 'jogo' | 'play' | 'show' | 'duel';
   bpm: number;
   seconds: number;
   /** the in-point: "start" (the page's first frames, plus `preroll`), or a place on the jogo's grid (default "1.1") */
