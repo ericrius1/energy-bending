@@ -40,6 +40,9 @@ export interface ShotCue {
   // the film's
   form?: number; fuse?: boolean; walk?: [number, number]; speed?: number; on?: number; dress?: string; wake?: boolean;
   rig?: 'lock' | 'free'; shot?: string;
+  /** the game's rate from now (1 normal, 0.3 a slow motion), eased over `ramp` seconds of film (default 0.2): the page
+   *  steps rate / 60 s a frame while the film keeps 60 frames a second (the track under it plays on at its own pace) */
+  rate?: number; ramp?: number;
   music?: { level?: number; drop?: boolean; fusion?: string; release?: boolean; key?: number; tension?: number; mood?: string };
   set?: Record<string, Record<string, unknown>>;
   js?: string;
@@ -108,7 +111,14 @@ async function run(api: FilmApi, recorder: Recorder, shot: ShotSpec, plan: ShotP
   const jogo = shot.mode === 'jogo';
   const fromStart = shot.from === 'start' || !jogo;
   const B0 = fromStart ? 0 : gridBeat(shot.from ?? '1.1') ?? 0;
-  const prerollFrames = fromStart ? Math.max(1, Math.round((shot.preroll ?? 0.5) / dt)) : 0;
+  // a duel on a track: its dance depends on where the beats fall from its first frame (the brains wait for the 8th
+  // lines and turn their swings every 16 beats, the forge's slabs bob by the beat), so the music's clock is anchored
+  // there, the same whatever the in-point: the page's beat 0 two frames after the first, and the pre-roll snapped to a
+  // whole beat of it, so the in-point falls on a beat of the track (whose chords follow by trackBeat0). Moving a duel
+  // shot's in-point (its pre-roll) then leaves its dance as it was: scout a whole set once, then cut into it
+  const duelClock = shot.mode === 'duel' && !!plan.track;
+  const preBeats = duelClock ? Math.max(0, Math.round((shot.preroll ?? 0.5) / spb)) : 0;
+  const prerollFrames = fromStart ? (duelClock ? 1 + Math.round((preBeats * spb) / dt) : Math.max(1, Math.round((shot.preroll ?? 0.5) / dt))) : 0;
   /** where the jogo's grid starts on the shot's clock: known at once for a shot that starts on it; for one that starts
    *  before play (the intro's rise), once play begins (until then a time on the grid is somewhere far ahead) */
   let gridT0: number | null = jogo && fromStart ? null : -B0 * spb;
@@ -139,13 +149,14 @@ async function run(api: FilmApi, recorder: Recorder, shot: ShotSpec, plan: ShotP
     M.engine.setTrack(track, true);
     if (!jogo) {
       trackBeatAtGrid = beatAtGrid(0); trackBeatAtIn = trackBeatAtGrid; gridScore = inTimeOf();
-      M.engine.trackBeat0 = 0;
-      M.clock.anchor(gridScore, trackBeatAtGrid, M.filmClock);
+      if (duelClock) { M.engine.trackBeat0 = preBeats - trackBeatAtIn; M.clock.anchor(2 * dt, 0, M.filmClock); }
+      else { M.engine.trackBeat0 = 0; M.clock.anchor(gridScore, trackBeatAtGrid, M.filmClock); }
     } else M.engine.trackBeat0 = NaN;
   }
   const flashBase = B.params?.post?.exposure ?? 1.08;
   // the first frame: the jogo's room starts on it (a script waits for the first stepped frame) and bend.jogo appears
   await B.step(1, dt);
+  const duelNow0 = B.duel?.now?.() ?? null;
   let i = 1;
   const J = jogo ? B.jogo : null;
   if (jogo && !J) throw new Error('film: a jogo shot, but the page has no jogo (?jogo=script)');
@@ -262,6 +273,8 @@ async function run(api: FilmApi, recorder: Recorder, shot: ShotSpec, plan: ShotP
 
   // ---------------------------------------------------------------- what the film does each frame
   const releases: { t: number; seat: number; keys: string[] }[] = [];
+  // the game's rate (a slow motion): eased from rateFrom to rateTo over rateRamp s of film from rateAt
+  let rateNow = 1, rateFrom = 1, rateTo = 1, rateAt = 0, rateRamp = 1e-3, slowed = false;
   const walks: ({ x: number; z: number; speed: number; world?: string; on?: number } | null)[] = [null, null];
   const timedCurves = () => Object.entries(shot.curves ?? {}).map(([name, ks]) => {
     const [g, k] = name.split('.');
@@ -282,6 +295,7 @@ async function run(api: FilmApi, recorder: Recorder, shot: ShotSpec, plan: ShotP
       if (m.mood) M.engine.setMood(moodIndex(m.mood));
     }
     if (c.rig) B.lock(c.rig === 'lock');
+    if (c.rate != null) { rateFrom = rateNow; rateTo = Math.max(0.02, c.rate); rateAt = tau; rateRamp = Math.max(1e-3, c.ramp ?? 0.2); slowed ||= c.rate < 0.999; }
     if (c.shot) B.shoot(c.shot);
     if (c.wake) B.wake();
     if (c.fuse) { const S = session(); if (S) { S.tension = 100; S.mergeReady = true; S.changed = true; } }
@@ -383,6 +397,7 @@ async function run(api: FilmApi, recorder: Recorder, shot: ShotSpec, plan: ShotP
   /** the kept frame index a page frame would be, or -1 (before the in-point, or between a preview's frames) */
   const keptOf = (f: number) => (inPoint < 0 || (f - inPoint) % every ? -1 : (f - inPoint) / every);
   let k = -1, t0 = performance.now();
+  const duelLog: Record<string, unknown>[] = [];
   for (; ; i++) {
     // the shot's clock for the frame about to be made
     if (fromStart) tau = (i - prerollFrames) * dt;
@@ -400,7 +415,14 @@ async function run(api: FilmApi, recorder: Recorder, shot: ShotSpec, plan: ShotP
       const b = M.clock.beatAt(M.filmClock + dt) - M.engine.trackBeat0, ph = b - Math.floor(b);
       B.set('post', { exposure: Number.isFinite(b) && (ph < 0.06 || ph > 0.985) ? flashBase * 4 : flashBase });
     }
-    await B.step(1, dt);
+    if (rateTo !== rateNow || rateFrom !== rateTo) {
+      const u = Math.min(1, Math.max(0, (tau - rateAt) / rateRamp));
+      rateNow = rateFrom + (rateTo - rateFrom) * u * u * (3 - 2 * u);
+      if (u >= 1) rateFrom = rateNow = rateTo;
+    }
+    await B.step(1, dt * rateNow);
+    // (a duel's events on the shot's clock: info.json's duel.log, the moments to cut on)
+    if (B.duel) for (const e of B.duel.events() as Record<string, unknown>[]) duelLog.push({ t: +tau.toFixed(3), d: +(B.duel.now() / 1000).toFixed(3), ...e });
     if (track && jogo && gridScore == null) {
       const b = J.beat() as number | null;
       if (b != null) gridScore = M.filmClock - b * spb;
@@ -437,7 +459,9 @@ async function run(api: FilmApi, recorder: Recorder, shot: ShotSpec, plan: ShotP
     if (k + 1 >= plan.end) { i++; break; }
   }
   const info = {
-    shot: shot.id, inPoint, inTime: (inPoint + 1) * dt, pageFrames: i, pageTime: i * dt, width: kit.size.render[0], height: kit.size.render[1], jogo: J?.stats?.() ?? null,
+    shot: shot.id, inPoint, inTime: (inPoint + 1) * dt, slowed, pageFrames: i, pageTime: i * dt, width: kit.size.render[0], height: kit.size.render[1], jogo: J?.stats?.() ?? null,
+    // (a duel's state at the end and what happened when, in its own ms: the moments to cut on, for working on a timeline)
+    duel: B.duel ? { now0: duelNow0, beat0: B.music.clock.beatAt(dt), stats: B.duel.stats(), log: duelLog } : null,
     track: track ? { id: track.id, bpm: track.bpm, gridTime: gridScore, trackBeatAtGrid, trackBeatAtIn, trackBeat0: M.engine.trackBeat0, clockBpm: M.clock.bpm } : null,
   };
   await post('/end', JSON.stringify(info));   // the sink releases the lock before it answers
