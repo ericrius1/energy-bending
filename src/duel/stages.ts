@@ -16,6 +16,7 @@ import { layoutStage, solidsOfStage } from '../worlds/redwoods/stage';
 import { redwoodsDuel } from '../worlds/redwoods/arena';
 import { toPlane } from '../worlds/stage';
 import { inDrop, type Arena } from './arena';
+import { waterFloor } from './hazards';
 import type { WorldLike } from './fallback';
 
 export const NODE_WORLDS = ['temple', 'geode', 'redwoods', 'pool'] as const;
@@ -30,9 +31,11 @@ export function worldFor(id: string): NodeWorld | null {
       return {
         id, room: A.camera?.maxDist ?? 16, arena: A, solids: [...solidsOf(L.stones), ...(A.pieces ?? [])],
         groundAt: (x, z) => {
-          if (inDrop(A.plane, A.drops ?? [], x, z)) return -2.6;
-          for (const [x0, x1, z0, z1, top] of L.tops) if (x >= x0 && x <= x1 && z >= z0 && z <= z1) return top;
-          return 0;
+          // (and the tide over it, a floor to float on: hazards.ts)
+          const w = waterFloor(A.hazard, x, z);
+          if (inDrop(A.plane, A.drops ?? [], x, z)) return Math.max(-2.6, w);
+          for (const [x0, x1, z0, z1, top] of L.tops) if (x >= x0 && x <= x1 && z >= z0 && z <= z1) return Math.max(top, w);
+          return Math.max(0, w);
         },
         stage: stagePlane({ id: 'court', origin: [0, 0, STAGE_Z], right: [1, 0, 0], halfWidth: 5.75, ground: 0, ledges: L.ledges, spawns: [[-2.0, 0], [2.05, 0]], lens: 19, yaw: 0.14, pitch: 0 }),
       };

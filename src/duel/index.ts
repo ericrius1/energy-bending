@@ -49,6 +49,8 @@ import { noInput, splitIntent, type ContactInput, type ContactEvent } from './co
 import { DuelFx, type DuelFxCtx } from './fx';
 import { DuelPowers, noPower, type PowerInput } from './powers';
 import { PowerFxDraw } from './power-fx';
+import { DuelHazards } from './hazards';
+import { HazardFxDraw } from './hazards-fx';
 import { matterOf, POWER_NAME } from '../../shared/powers.ts';
 import { onBeat } from '../../shared/duel.ts';
 import { POWER_KEYS, type KeyLayout } from '../input/keyboard';
@@ -154,6 +156,8 @@ export async function startDuel(app: PlayApp) {
   const kindOf = (k: number) => { const d = play.dancers[k]; let best = show.dress[k], share = -1; if (d) for (const l of d.loadout.layers) if (l.share > share) { share = l.share; best = l.kind; } return matterOf(best); };
   const powers = new DuelPowers(chars, match, { matter: [kindOf(0), kindOf(1)], sink: powerSolids, groundAt: (x, z) => world().groundAt(x, z), yKill: arena.space.yKill });
   powersVersion = () => powers.version;
+  // the arena's gentle hazard (hazards.ts: the tide, the wind, the swell, the hum), after the powers; &hazards=0 off
+  const hazards = new DuelHazards(chars, match, arena, { on: q.get('hazards') !== '0' });
   // the finale's duet (finale.ts): it holds both seats and moves the bodies for its length
   const finale = new Finale(chars);
   const sight = (): DuelSight => {
@@ -162,7 +166,7 @@ export async function startDuel(app: PlayApp) {
       frozen: [match.frozen(0), match.frozen(1)], link: L ? { holder: L.holder, held: L.held, age: match.contact.age } : null,
       flown: match.contact.flown?.flyer ?? null,
       yKill: arena.space.yKill, space: arena.space, spawns: arena.spawns, solids: solids(), groundAt: (x, z) => world().groundAt(x, z),
-      powers: powers.sight(), bends: powers.liveSight(),
+      powers: powers.sight(), bends: powers.liveSight(), hazard: hazards.sight(),
     };
   };
 
@@ -248,6 +252,7 @@ export async function startDuel(app: PlayApp) {
     sfx: (name, o) => { music.sfx(name as Parameters<Music['sfx']>[0], o); }, ear,
     rumble: (k, s, ms) => { const i = humanSeats.indexOf(k); if (i >= 0) hub.rumble(i, s, ms); },
   }, (k) => powers.rules.seats[k].matter);
+  const hazardFx = new HazardFxDraw({ glows, eye: () => cam.position, field: field as unknown as ConstructorParameters<typeof HazardFxDraw>[0]['field'], ripple: (x, z, s, r) => { (world() as unknown as { ripple?: (x: number, z: number, s: number, r: number) => void }).ripple?.(x, z, s, r); } });
   const duelHud = new DuelHud();
   /** the keys a seat's powers are on (its device's), for the HUD */
   const powerKeys = (k: number): [string, string, string] | null => {
@@ -354,6 +359,7 @@ export async function startDuel(app: PlayApp) {
     // the powers after the contact (a catch at range joins the two through it), their effects drawn
     powers.step(now, f.danceDt * 1000, [0, 1].map((k) => castNext[k] ?? gates[k].power), ev, onBeat(beat, bpm));
     castNext[0] = castNext[1] = null;
+    hazards.step(beat, f.danceDt * 1000);
     ev.push(...powers.duelEvents);
     frameEvents = ev;
     for (const e of ev) {
@@ -363,6 +369,7 @@ export async function startDuel(app: PlayApp) {
     finale.update(f.danceDt);
     fx.update(f.danceDt, ev, match.touches, match.contact, match.state);
     powerFx.update(f.danceDt, powers);
+    hazardFx.update(f.danceDt, hazards);
     for (const e of powers.events) pendingPowers.push(e);
     for (const x of powers.fx) if (x.k === 'react') reactAt.set(x.kind, project(x.at));
     pendingHud.push(...ev); pendingTouches.push(...match.touches);
@@ -400,7 +407,7 @@ export async function startDuel(app: PlayApp) {
 
   // ---------------------------------------------------------------- bend.duel
   const api = {
-    match, arena, plane, finale, powers,
+    match, arena, plane, finale, powers, hazards,
     /** the free camera (camera.ts): its choice, what it framed, how clear its eye stood */
     camera: dcam, camSpace,
     /** cast a seat's power now (slot 0 or 1; the stick as a world x, z), or the form: as its buttons would */
@@ -419,7 +426,7 @@ export async function startDuel(app: PlayApp) {
     restart: () => { finale.stop(); if (!started) begin(); else match.restart(now); },
     /** the duel's end: the arena off, the world's room back */
     stop: () => {
-      started = false; showArena(null); field.fuse(null); powerFx.clear(); powers.clear();
+      started = false; showArena(null); field.fuse(null); powerFx.clear(); powers.clear(); hazardFx.clear();
       if (solidsWas) Object.defineProperty(W, 'solids', solidsWas); else delete (W as { solids?: unknown }).solids;
       rig.pose = null; rig.apexG = 0; rig.headroom = 0;
       app.gates.open(...W.portals.filter((p) => shut.includes(p.id)).map((p) => ({ ...p, world: W.id })));

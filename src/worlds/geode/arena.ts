@@ -14,6 +14,7 @@ import { arenas, floorWithDrops, mergeWalls, sides, type Arena, type Drop } from
 import { layoutShelves, packBlades, solidsOfShelves, type Blade } from './shelves';
 import { HUB_GATES } from './gates';
 import { boxOn, type Solid } from '../solids';
+import { humHazard } from '../../duel/hazards';
 
 type V3 = [number, number, number];
 
@@ -151,6 +152,9 @@ function build(): GeodeDuel {
     camera: { minDist: 6, maxDist: 10.5, lens: 40, low: -0.6 },
     // (the selenite's honey light)
     rim: [1.0, 0.78, 0.5],
+    // the hazard: the crystals' hum, a phrase each in turn, where the hollow stands open overhead (no shelf over it for
+    // 6.8 m) and no drop within 1.7 m: behind each drop, and in front of the middle and of the right beam (hazards.ts)
+    hazard: humHazard({ spots: [[-2.25, 0, -2.75], [0, 0, 2.2], [2.25, 0, -2.75], [4.5, 0, 3.4]], r: 1.25, h: 4.2 }),
   };
   // (the gates stand clear: none within 2 m of the plane between the ends, nor of a piece)
   for (const [w, [x, z]] of Object.entries(HUB_GATES)) {

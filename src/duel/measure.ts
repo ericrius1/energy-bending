@@ -94,5 +94,10 @@ for (const world of worlds) {
   console.log(`  reactions ${f2(line.reactionsPerSet)} a set ${JSON.stringify(reacts)}; the ice step as a ledge: ${ledge.stands} stands (${f2(line.ledge.perSet)} a set), ${f1(ledge.s)} s`);
   console.log(`  hazards ridden: ${Object.entries(rideOut).map(([k, v]) => `${k} ${v.n} (${v.perSet} a set, ${v.s} s)`).join(', ') || 'none'}; ${line.waterS} s a set in water`);
   console.log(`  peak ${f2(line.peak)}, ${fused} fused, ${merges} merges`);
+  if (argv.includes('-v')) {
+    const B: Record<string, number> = {};
+    for (const r of all) for (const s of r.seats) for (const [k, v] of Object.entries(s.brain)) B[k] = (B[k] ?? 0) + v;
+    console.log(`  brains: ${Object.entries(B).sort((a, b) => b[1] - a[1]).map(([k, v]) => `${k} ${v}`).join(', ')}`);
+  }
 }
 if (jsonOut) { const fs = await import('node:fs'); fs.writeFileSync(jsonOut, JSON.stringify(report, null, 1)); console.log(`\nwrote ${jsonOut}`); }

@@ -21,6 +21,7 @@ import { matterOf, type PowerEvent } from '../../shared/powers.ts';
 import { DuelHud, type HudSeat } from './hud-state';
 import type { Solid } from '../worlds/solids';
 import { DuelPowers, noPower, type PowerInput } from './powers';
+import { DuelHazards } from './hazards';
 
 export interface DuelSimOptions {
   arena: Arena;
@@ -112,6 +113,7 @@ export function simulateDuel(o: DuelSimOptions): DuelSimResult {
   const match = new DuelMatch(chars, A, plane, 0, bpm, { solids: () => solids, setMs: o.setMs });
   const dress = o.dress ?? ['fire', 'water'];
   const powers = o.powers === false ? null : new DuelPowers(chars, match, { matter: [matterOf(dress[0]), matterOf(dress[1])], sink: solids, groundAt: terrain.groundAt, yKill: A.space.yKill });
+  const hazards = A.hazard ? new DuelHazards(chars, match, A, { on: o.hazards ?? true }) : null;
   const sight = (): DuelSight => {
     const L = match.contact.link;
     return {
@@ -119,6 +121,7 @@ export function simulateDuel(o: DuelSimOptions): DuelSimResult {
       flown: match.contact.flown?.flyer ?? null,
       yKill: A.space.yKill, space: A.space, spawns: A.spawns, solids, groundAt: terrain.groundAt,
       ...(powers ? { powers: powers.sight(), bends: powers.liveSight() } : {}),
+      hazard: hazards?.sight() ?? null,
     };
   };
   const brains = typeof o.brains === 'function' ? o.brains(sight) : o.brains;
@@ -158,6 +161,7 @@ export function simulateDuel(o: DuelSimOptions): DuelSimResult {
       ev.push(...powers.duelEvents);
       for (const e of powers.events) powerEvents.push({ t: Math.round(now), e });
     }
+    hazards?.step(beat, dt * 1000);
     if (match.state.phase === 'play') res.play += dt;
     const L = match.contact.link;
     if (L && holdFrom < 0) holdFrom = t;
@@ -195,5 +199,6 @@ export function simulateDuel(o: DuelSimOptions): DuelSimResult {
     for (const { e } of powerEvents) if (e.k === 'cast') casts[e.seat][e.power] = (casts[e.seat][e.power] ?? 0) + 1;
     res.powers = { casts, forms: [powers.rules.seats[0].forms, powers.rules.seats[1].forms], reactions: { ...powers.rules.reactions }, felt: { ...powers.felt }, events: powerEvents };
   }
+  if (hazards?.on) res.hazards = { rides: Object.fromEntries(Object.entries(hazards.rides).map(([k, v]) => [k, { ...v }])), waterS: hazards.waterS };
   return res;
 }

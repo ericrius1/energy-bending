@@ -35,6 +35,7 @@ import type { Solid } from '../worlds/solids';
 import { Rng, newHints, type Brain, type Sight } from './brain';
 import { canStart, pressMove, stickFor } from './body';
 import { groundUnder } from '../duel/arena';
+import type { HazardSight } from '../duel/hazards';
 
 export type DuelStyle = 'lead' | 'flyer' | 'base';
 export const DUEL_STYLES: readonly DuelStyle[] = ['lead', 'flyer', 'base'];
@@ -62,6 +63,9 @@ export interface DuelSight {
   powers?: { flow: number; form: number; ids: [string, string]; ready: [boolean, boolean]; matter: string }[];
   /** the powers' effects standing now (powers.ts liveSight): a wave's crest, a step's or a pillar's top, a geyser */
   bends?: { kind: string; seat: number; at: [number, number, number] }[];
+  /** the arena's hazard as it stands now (src/duel/hazards.ts sight()): its water, the wind, the hum's columns, the
+   *  swell; absent or null: none */
+  hazard?: HazardSight | null;
 }
 
 export interface DuelBrainOptions {
@@ -147,6 +151,9 @@ export class DuelBrain implements Brain {
   private prng: Rng;
   private nextCast = 0;
   private formAt = -1;
+  /** casts of each slot this duel (the less cast is reached for), and when a step was set to run up onto */
+  private castN = [0, 0];
+  private stepGoal = -1;
 
   constructor(o: DuelBrainOptions = {}) {
     this.skill = clamp(o.skill ?? 0.6, 0, 1);
@@ -237,6 +244,7 @@ export class DuelBrain implements Brain {
       this.aimOff = [this.aimOff[0] * 0.4 + this.rng.normal() * this.K.aimErr * 0.6, this.aimOff[1] * 0.4 + this.rng.normal() * this.K.aimErr * 0.6];
     }
     if (!this.pending && !L) this.dance(S, c, mine, o, otherOut);
+    if (!L && !otherOut && D) this.ride(S, c, mine, o, D, it);
     if (pl) this.legsLocked(S, c, mine, this.surfaces(pl, S.beat), yKill, it, t);
     else this.legsFree(S, c, mine, D, yKill, it, t);
     // the contact: the grab, the pump, the fling, the lift, the counter, the leap at the other (over the legs)
@@ -264,9 +272,11 @@ export class DuelBrain implements Brain {
   private decideFree(S: Sight, me: Snap, o: Snap, otherOut: boolean, D: DuelSight | null) {
     const K = this.K;
     const rx = me.x - o.x, rz = me.z - o.z, ad = Math.hypot(rx, rz);
-    let want = K.want, why = 'close';
+    // (in the Pool, nearer: across water the run-up is a swim)
+    const near = D?.hazard?.kind === 'swell' ? 0.65 : 1;
+    let want = K.want * near, why = 'close';
     if (otherOut) { want = 2.4; why = 'wait for it'; }
-    else if (this.style === 'flyer' && ad < 1.4) { want = 2.4; why = 'run-up'; }
+    else if (this.style === 'flyer' && ad < 1.4) { want = 2.4 * near; why = 'run-up'; }
     // round the other, as the jogo's pair circles: both the same way, the sense turning every four bars
     let th = ad > 1e-3 ? Math.atan2(rz, rx) : this.rng.range(-Math.PI, Math.PI);
     const sense = Math.floor(S.beat / 16) % 2 ? 1 : -1;
@@ -284,6 +294,9 @@ export class DuelBrain implements Brain {
       };
       for (let k = 0; k < 8 && edgy(gx, gz); k++) { gx += (C[0] - gx) * 0.25; gz += (C[2] - gz) * 0.25; }
       gy = groundOf(D, gx, gz, me.y, 2.5);
+      // the hazard's places and the ice steps: a step to run up onto, the hum's column, a stone out of the water
+      const place = otherOut ? null : this.placeFor(S, me, o, D, gx, gz);
+      if (place) { this.goal = { ...place, s: 0 }; return; }
       // now and then: up onto something (a stump, the altar, a slab), or a solid to kick off (showy most)
       if (!otherOut && why === 'close' && this.rng.chance(0.04 + K.showy * 0.15)) {
         const high = this.highPlace(me, D);
@@ -323,13 +336,17 @@ export class DuelBrain implements Brain {
 
   // ---------------------------------------------------------------- free: the legs
   private legsFree(S: Sight, c: Character, me: Snap, D: DuelSight | null, yKill: number, it: Intent, t: number) {
-    const g = this.goal, minHold = 0.13 + (1 - this.skill) * 0.08;
+    const g = this.goal;
+    // (a small top to land on, an ice step or a stone: in the air over it the thumbs settle at once, and it is aimed
+    // at more closely)
+    const small = g.why === 'step' || g.why === 'stone';
+    const minHold = small && !c.grounded ? 0 : 0.13 + (1 - this.skill) * 0.08;
     const ground = (x: number, z: number, up = 0.4) => (D ? groundOf(D, x, z, me.y, up) : 0);
     const solids = D?.solids ?? [];
     if (c.grounded) this.airUsed = false;
     let dx = g.x - me.x, dz = g.z - me.z;
     const dist = Math.hypot(dx, dz);
-    let want: [number, number] = dist < 0.35 ? [0, 0] : [dx / dist, dz / dist];
+    let want: [number, number] = dist < (small && !c.grounded ? 0.25 : 0.35) ? [0, 0] : [dx / dist, dz / dist];
     // a strike planned: stand to throw it (a body that stands turns to face the other; one that runs faces its way)
     if (this.pending && MOVES[this.pending.move]?.attack && c.grounded) want = [0, 0];
     // a pillar in the way: round it (a stump or a slab low enough is jumped onto instead)
@@ -704,7 +721,10 @@ export class DuelBrain implements Brain {
 
   // ---------------------------------------------------------------- the powers
   /** a power when it makes contact happen (each power's moment below), at most one every few seconds (sooner in the
-   *  power form, when they are free); the form a moment after the bar fills */
+   *  power form, when they are free); the form a moment after the bar fills. Each matter's two powers about as often
+   *  as each other (the one cast less lately is reached for more), and the reactions set up: water rolls its wave to a
+   *  fire partner, ice sets a step for a water partner's lash or a fire partner's flare, and the other answers at once
+   *  (the geyser, the bar, the melt), the answer not waiting its turn */
   private bend(S: Sight, c: Character, me: Snap, o: Snap, D: DuelSight, it: Intent, linked: boolean) {
     const P = D.powers?.[S.seat];
     if (!P) return;
@@ -715,8 +735,6 @@ export class DuelBrain implements Brain {
     } else this.formAt = -1;
     const dx = o.x - me.x, dz = o.z - me.z, dist = c.plane ? Math.abs(o.s - me.s) : Math.hypot(dx, dz), dy = o.y - me.y;
     const falling = !c.grounded && me.vy < 0 && groundOf(D, me.x, me.z, me.y) < D.yKill + 0.6;
-    // (a save from the void doesn't wait its turn)
-    if (linked || (t < this.nextCast && !falling)) return;
     const toward: [number, number] = c.plane ? [c.plane.right[0] * sgn(o.s - me.s), c.plane.right[2] * sgn(o.s - me.s)] : dist > 1e-3 ? [dx / dist, dz / dist] : [Math.sin(c.yaw), Math.cos(c.yaw)];
     const oAir = !o.grounded, flown = D.flown === 1 - S.seat;
     const overVoid = groundOf(D, me.x, me.z, me.y) < D.yKill + 0.6;
@@ -726,53 +744,153 @@ export class DuelBrain implements Brain {
       for (const b of D.bends ?? []) if (b.kind === kind && b.seat !== S.seat) { const d = Math.hypot(b.at[0] - me.x, b.at[2] - me.z); if (!best || d < best.d) best = { at: b.at, d }; }
       return best;
     };
-    const wave = theirs('wave'), step = theirs('step'), other = D.powers?.[1 - S.seat]?.matter;
+    const wave = theirs('wave'), step = theirs('step'), them = D.powers?.[1 - S.seat], other = them?.matter;
+    /** the other's power ready to answer a setup (its flare or ribbon, its whip) */
+    const answers = (...ids: string[]) => !!them && them.ids.some((id, i) => ids.includes(id) && them.ready[i]);
     const to = (p: [number, number, number]): [number, number] => { const x = p[0] - me.x, z = p[2] - me.z, l = Math.hypot(x, z) || 1; return [x / l, z / l]; };
+    // (a reaction's answer and a save from the void don't wait their turn)
+    const answer = (wave && wave.d < 5) || (step && step.d < 6.5);
+    if (linked || (t < this.nextCast && !falling && !answer)) return;
+    /** floor all along a way from here (a dash that carries the body: none over a drop or the water) */
+    const floorAlong = (u: [number, number], len: number) => {
+      for (let r = 0.8; r <= len; r += 0.8) if (groundOf(D, me.x + u[0] * r, me.z + u[1] * r, me.y, 0.6) < me.y - 0.6) return false;
+      return true;
+    };
+    let best: { slot: 0 | 1; keen: number; aim: [number, number] | null; urgent: boolean } | null = null;
     for (const slot of [0, 1] as const) {
       if (!P.ready[slot]) continue;
       // the moment for it (how keen, a second), and which way the stick points: at the other, or none (null)
-      let keen = 0, aim: [number, number] | null = toward;
+      let keen = 0, aim: [number, number] | null = toward, urgent = false;
       switch (P.ids[slot]) {
         case 'flare':
-          if (wave && wave.d < 1.6) { keen = 4; aim = null; }
-          else if (step && step.d < 1.4 && c.grounded) { keen = 2.5; aim = null; }
+          if (wave && wave.d < 2.2) { keen = 14; aim = wave.d > 0.5 ? to(wave.at) : null; urgent = true; }
+          else if (step && step.d < 1.4 && c.grounded && step.at[1] - me.y < 2.2) { keen = 8; aim = null; urgent = true; }
           else keen = c.grounded && dist < 2.0 && Math.abs(dy) < 0.8 ? 0.6 : oAir && dist < 3 && dy > 0.5 && dy < 3.5 ? 1.2 : 0;
           break;
         case 'ribbon':
-          if (wave && wave.d > 1 && wave.d < 5) { keen = 2.5; aim = to(wave.at); }
-          else keen = c.grounded && dist > 3.5 && dist < 7 ? 0.35 : 0;
+          if (wave && wave.d > 0.8 && wave.d < 5 && floorAlong(to(wave.at), Math.min(4, wave.d))) { keen = 10; aim = to(wave.at); urgent = true; }
+          else if (step && step.d > 1 && step.d < 4 && c.grounded && step.at[1] - me.y < 2.2 && floorAlong(to(step.at), step.d)) { keen = 3; aim = to(step.at); urgent = true; }
+          // (a dash to the other leaving a rising ribbon behind it: the other, crossing it, rides up into the catch;
+          // or the other in the air above: under it, the ribbon lifts this body to it)
+          else keen = c.grounded && dist > 2.5 && dist < 7 && floorAlong(toward, 4) ? 0.8 : oAir && dy > 1 && dist < 3 && floorAlong(toward, dist) ? 1.0 : 0;
           break;
         case 'whip':
-          if (step && step.d > 1.5 && step.d < 6 && step.at[1] > me.y + 1.8) { keen = 1.8; aim = to(step.at); }
+          if (step && step.d > 1.2 && step.d < 6.5 && step.at[1] > me.y + 0.3 && step.at[1] < me.y + 4.5) { keen = 10; aim = to(step.at); urgent = true; }
           else keen = dist > 2.2 && dist < 6 ? (oAir ? 1.4 : dist > 3.2 ? 0.35 : 0) : 0;
           break;
-        case 'wave': keen = c.grounded && o.grounded && dist > (other === 'fire' ? 1.5 : 2) && dist < 5.5 ? (other === 'fire' ? 0.7 : 0.3) : 0; break;
+        case 'wave':
+          // (to a fire partner whose flare or ribbon is ready: it sets the wave alight, the geyser)
+          if (other === 'fire' && answers('flare', 'ribbon') && c.grounded && dist > 1.5 && dist < 5.5) keen = 1.6;
+          else keen = c.grounded && o.grounded && dist > 1.5 && dist < 6 ? 0.6 : c.grounded && oAir && dist < 4 ? 0.4 : 0;
+          break;
         case 'step':
           if (oAir && o.vy < -1.5 && dist < 4.5 && o.y - groundOf(D, o.x, o.z, o.y) > 1.2) keen = 1.4;
-          else if (!c.grounded && me.vy < -2 && (overVoid || this.style === 'flyer')) { keen = overVoid ? 3 : 0.25; aim = null; }
-          else if ((other === 'water' || other === 'fire') && c.grounded && dist > 3 && dist < 6) keen = 0.3;
+          else if (!c.grounded && me.vy < -2 && (overVoid || this.style === 'flyer')) { keen = overVoid ? 3 : 0.6; aim = null; }
+          // (a step set between the two for a water partner's lash, the bar, or a fire partner's flare, the melt; or one
+          // to climb: a ledge the body runs up onto)
+          else if (other === 'water' && answers('whip') && c.grounded && dist > 2.5 && dist < 5.5) keen = 1.2;
+          else if (other === 'fire' && answers('flare', 'ribbon') && c.grounded && dist > 1.5 && dist < 4) keen = 0.8;
+          else if (c.grounded && dist > 2 && dist < 6) keen = 0.35;
           break;
-        case 'slide': keen = c.grounded && dist > 3 && dist < 9 ? 0.5 : 0; break;
+        case 'slide': keen = c.grounded && dist > 3 && dist < 9 ? 0.7 : 0; break;
         case 'blink': keen = dist > 2.5 && dist < 7 ? 0.5 : 0; break;
         case 'arc': keen = dist > 2.5 && dist < 7.5 ? (oAir || !c.grounded ? 1.2 : 0.6) : 0; break;
         case 'pillar':
           if (o.grounded && c.grounded && dist > 1.2 && dist < 4) keen = 0.6;
           else if (oAir && dy > 1.5 && dist < 2 && c.grounded) { keen = 0.6; aim = null; }
           break;
-        case 'prism': keen = flown && dist > 2 && dist < 7 ? 2 : 0; break;
+        case 'prism':
+          if (flown && dist > 2 && dist < 7) keen = 2;
+          // (the other flying fast on its own, a leap, a launch, a wall kick: a facet on its path turns it here)
+          else if (oAir && Math.hypot(o.vx, o.vy, o.vz) > 4.5 && dist > 2 && dist < 6.5) keen = 1.0;
+          else if (oAir && dist > 2.5 && dist < 6) keen = 0.3;
+          break;
       }
       // over the void and falling: a power that saves it, as a person would reach for one (a rocket jump, a lash or a
       // tether to the other, a blink toward it; the step under its feet is above)
       const id = P.ids[slot];
-      if (overVoid && !c.grounded && me.vy < 0 && (id === 'flare' || id === 'blink' || ((id === 'whip' || id === 'arc') && dist < 6))) { keen = Math.max(keen, 4); aim = toward; }
+      if (overVoid && !c.grounded && me.vy < 0 && (id === 'flare' || id === 'blink' || ((id === 'whip' || id === 'arc') && dist < 6))) { keen = Math.max(keen, 4); aim = toward; urgent = true; }
       // (in the power form they are free: keener, and toward the other whatever the moment, from close enough)
       if (P.form > 0) keen = Math.max(keen * 3, dist < 7 ? 0.8 : 0);
-      if (keen <= 0 || !R.chance(keen * (0.5 + 0.5 * this.skill) * S.dt)) continue;
-      if (aim) stickFor(c, aim[0], aim[1], 1, it); else { it.moveX = 0; it.moveZ = 0; if (!c.plane) it.moveY = 0; }
-      if (slot === 0) it.power1 = true; else it.power2 = true;
-      this.count(`power-${P.ids[slot]}`); this.why = `power ${P.ids[slot]}`;
-      this.nextCast = t + (P.form > 0 ? R.range(0.8, 1.6) : R.range(4.5, 9) + (1 - this.skill) * 3);
+      // the two powers about as often as each other: the one cast more lately waits, the other is reached for
+      const lead = this.castN[slot] - this.castN[1 - slot];
+      if (!urgent) keen *= lead >= 2 ? 0.25 : lead >= 1 ? 0.5 : lead <= -2 ? 2.2 : lead <= -1 ? 1.5 : 1;
+      if (keen > 0 && (!best || keen > best.keen)) best = { slot, keen, aim, urgent };
+    }
+    if (!best || (t < this.nextCast && !best.urgent) || !R.chance(best.keen * (0.5 + 0.5 * this.skill) * S.dt)) return;
+    const { slot, aim } = best;
+    if (aim) stickFor(c, aim[0], aim[1], 1, it); else { it.moveX = 0; it.moveZ = 0; if (!c.plane) it.moveY = 0; }
+    if (slot === 0) it.power1 = true; else it.power2 = true;
+    this.castN[slot]++;
+    this.count(`power-${P.ids[slot]}`); this.why = `power ${P.ids[slot]}`;
+    this.nextCast = t + (P.form > 0 ? R.range(0.8, 1.6) : R.range(4.5, 9) + (1 - this.skill) * 3);
+    // an ice step set on the ground ahead: a ledge to run up onto, now
+    if (P.ids[slot] === 'step' && c.grounded && aim && !c.plane) this.stepGoal = t + 0.08;
+  }
+
+  // ---------------------------------------------------------------- the hazards and the ledges
+  /** where to be, given the hazard and the ice steps standing: up onto a step (a ledge), into the hum's column with the
+   *  other, out of the Pool's water onto a stone near the other. Null: the plan stands */
+  private placeFor(S: Sight, me: Snap, o: Snap, D: DuelSight, gx: number, gz: number): { x: number; y: number; z: number; why: string } | null {
+    const t = S.t, Z = D.hazard ?? null;
+    // an ice step standing near, its top a jump up: a ledge (a body that has just set one runs up onto it)
+    const steps = (D.bends ?? []).filter((b) => b.kind === 'step');
+    const stepNow = t < this.stepGoal + 0.4;
+    for (const b of steps) {
+      const h = b.at[1] - me.y, d = Math.hypot(b.at[0] - me.x, b.at[2] - me.z);
+      if (h < 0.5 || h > 2.4 || d > 3.6) continue;
+      // (only over floor: a step out over a drop or the water is a save, not a ledge to run up onto)
+      if (groundOf(D, b.at[0], b.at[2], b.at[1] - 0.7, 0.1) < me.y - 0.6) continue;
+      if (stepNow || this.rng.chance(0.35 + 0.3 * this.K.showy)) { this.count('step-ledge'); return { x: b.at[0], y: b.at[1], z: b.at[2], why: 'step' }; }
+    }
+    if (!Z) return null;
+    // the hum: into its column with the other (live, or about to be), to float up together
+    for (const L of Z.lifts) {
+      const dMe = Math.hypot(L.at[0] - me.x, L.at[2] - me.z), dO = Math.hypot(L.at[0] - o.x, L.at[2] - o.z);
+      if (dMe < 5.5 && dO < 3.5 && Math.hypot(o.x - me.x, o.z - me.z) < 4 && this.rng.chance(L.live ? 0.5 : 0.25)) {
+        const a = this.rng.range(0, Math.PI * 2), r = L.r * 0.4;
+        this.count('hum-go');
+        return { x: L.at[0] + Math.cos(a) * r, y: L.at[1], z: L.at[2] + Math.sin(a) * r, why: 'hum' };
+      }
+    }
+    // the Pool: keep to the stones near the other (the water is for coming back from a miss, not for staying in)
+    if (Z.kind === 'swell') {
+      const w = Z.water(gx, gz);
+      if (w != null && groundOf(D, gx, gz, me.y, 2.5) < w - 0.5) {
+        let bx = gx, bz = gz, bd = Infinity;
+        for (let i = 0; i < 16; i++) for (const r of [0.8, 1.5, 2.3]) {
+          const a = (i / 16) * Math.PI * 2, x = gx + Math.cos(a) * r, z = gz + Math.sin(a) * r, y = groundOf(D, x, z, me.y, 2.5);
+          const wz = Z.water(x, z) ?? 0;
+          if (y > wz - 0.3 && y < me.y + 2.2 && r < bd) { bd = r; bx = x; bz = z; }
+        }
+        if (bd < Infinity) return { x: bx, y: groundOf(D, bx, bz, me.y, 2.5), z: bz, why: 'stone' };
+      }
+    }
+    return null;
+  }
+
+  /** riding the hazard now: a leap at the other with a gust behind it, a jump off the swell's crest toward the other */
+  private ride(S: Sight, c: Character, me: Snap, o: Snap, D: DuelSight, it: Intent) {
+    const Z = D.hazard, t = S.t;
+    if (!Z || !c.grounded || this.pending || t < this.jumpUntil + 0.3 || c.plane) return;
+    const dx = o.x - me.x, dz = o.z - me.z, dist = Math.hypot(dx, dz);
+    if (dist < 2.2 || dist > 8) return;
+    const ux = dx / dist, uz = dz / dist;
+    const w = Z.wind, ws = Math.hypot(w[0], w[1]);
+    if (ws > 0.4 && (w[0] * ux + w[1] * uz) / ws > 0.45 && this.rng.chance(1.4 * S.dt)) {
+      this.jumpNow(t, holdFor(2.0, c.phys)); this.airJumpAt = dist > 4.5 ? t + 0.34 : -1;
+      this.goal = { x: o.x, y: o.y, z: o.z, s: 0, why: 'gust' }; this.nextDecide = t + 0.9;
+      this.count('gust-leap'); this.why = 'gust';
       return;
+    }
+    if (Z.swell) {
+      const h = Z.swell(me.x, me.z), wy = Z.water(me.x, me.z) ?? 0;
+      if (h > 0.14 && me.y < wy + 0.6 && dist < 6 && this.rng.chance(3 * S.dt)) {
+        this.jumpNow(t, holdFor(2.0, c.phys));
+        this.goal = { x: o.x, y: o.y, z: o.z, s: 0, why: 'crest' }; this.nextDecide = t + 0.8;
+        this.count('crest-jump'); this.why = 'crest';
+        stickFor(c, ux, uz, 1, it);
+      }
     }
   }
 }
