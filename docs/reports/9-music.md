@@ -114,12 +114,13 @@ beat puts it (normalised cross-correlation, ±80 ms, to the sample):
 
 ### The films
 
-Both films rendered at `--preview` (960×540, 30 fps) with the real tracks, after master's merges (water, the films):
+Both films rendered at `--preview` (960×540, 30 fps) with the real tracks, after master's merges (water, the films, then
+the polish before the master films and the deploy commit; the numbers below are from the renders after the last merge):
 
 | film | track | first frame | cuts (s, the track's beat there) | flashes on the track's beats (`--flash`) | the film's audio onsets on its grid | loudness |
 |---|---|---|---|---|---|---|
-| film 1 (`film1-preview.mp4`, 69.8 s) | redwoods, 113.052 bpm | beat -0.518 (bar 7 on the jogo's "1.1", 13 s in) | 48.571 (91), 50.694 (95), 69.801 (131) | 106 of 131 beats (the 25 of the jogo's lead-in, before its grid is known, are dark); each within 30 ms of its beat, median 10.8 (ab-jogo 8.3 / 24.9, c-gate 2.2 / 3.0, d-hub 16 / 30) | 86 % within 20 ms, median +0.6 ms | -17.9 LUFS |
-| film 2 (`film2-preview.mp4`, 74.0 s) | temple, 94.019 bpm | beat 0.070 (bar 1 on "1.1", 45 ms before the first frame) | 73.983 (116) | 114 of 115, each within 23.5 ms, median 8.5 | 78 % within 20 ms, median +6.1 ms (the temple's intro is the loosest stretch of all five tracks: the track alone, there, +1.6 ms) | -17.0 LUFS |
+| film 1 (`film1-preview.mp4`, 69.8 s) | redwoods, 113.052 bpm | beat -0.518 (bar 7 on the jogo's "1.1", 13 s in) | 48.571 (91), 50.694 (95), 69.801 (131) | 106 of 131 beats (the 25 of the jogo's lead-in, before its grid is known, are dark); each within 30 ms of its beat, median 10.8 (ab-jogo 8.3 / 24.9, c-gate 2.2 / 3.0, d-hub 16 / 30) | 85 % within 20 ms, median +0.6 ms | -17.9 LUFS |
+| film 2 (`film2-preview.mp4`, 74.0 s) | temple, 94.019 bpm | beat 0.070 (bar 1 on "1.1", 45 ms before the first frame) | 73.983 (116) | 115 of 115, each within 23.5 ms, median 8.3 | 76 % within 20 ms, median +6.2 ms (the temple's intro is the loosest stretch of all five tracks: the track alone, there, +1.6 ms) | -17.0 LUFS |
 
 - The flashes are frames (33.3 ms at 30 fps), so "within a frame" is all a preview can show: no flash was more than a
   frame from its beat, in any shot, after the first frame on the grid.
@@ -144,7 +145,8 @@ the audio tests (26: 6 new for the tracks: the file for a beat round the loop, a
 under a track at level 3 with each bar's chord the track's, a new world's track on the next bar line at its tempo, a
 drop on a bar line without moving the grid, a room's new epoch bringing its track), the portals, the net tests (a new
 rules test: a seat's travel re-epochs the room at the new world's tempo on the old grid's next bar line, the end of
-play on the new grid). All pass (the net smoothness test once failed under load and passed alone and in the full run).
+play on the new grid). The room server sets a room's tempo only through the rules' `createSession` (its world's
+track's, `server/rooms.ts` unchanged by the deploy commit) and `onTravel` (`retempo`). All pass, after the last merge too (the net smoothness test once failed under load and passed alone and in the full run).
 
 ## Weak points
 
