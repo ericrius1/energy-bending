@@ -20,7 +20,7 @@
 // the page (index.ts) and the Node harness (sim.ts) step it after the powers each frame. Each has a switch: the arena's
 // `hazard.on` (and `&hazards=0` on the page, `hazards: false` in the harness).
 import type { Character } from '../dancer/character';
-import { planeNormal } from '../engine/camera';
+import { planeNormal, type Ledge } from '../engine/camera';
 import type { Solid } from '../worlds/solids';
 import type { Arena } from './arena';
 import type { DuelMatch } from './match';
@@ -66,9 +66,9 @@ export const HAZARD = {
   /** the swell: its speed across the pool is its reach over SWELL_BEATS beats; the push along its crest (m/s at its top),
    *  a jump from its crest (m/s up, along) */
   SWELL_BEATS: 12, SWELL_DRIFT: 1.6, SWELL_JUMP: 3.2, SWELL_ALONG: 2.2,
-  /** the wind: how hard it leans a body in the air (m/s²) and on its feet (m/s of drift), the speed along it past which
-   *  it adds nothing (m/s); its warning (beats before), rise, hold and fall (beats) */
-  GUST_AIR: 6.5, GUST_GROUND: 0.7, GUST_MAX: 4.5, GUST_WARN: 3, GUST_RISE: 1.5, GUST_HOLD: 6, GUST_FALL: 3,
+  /** the wind: how fast it carries a body in the air and on its feet (m/s, at its height); its warning (beats before),
+   *  rise, hold and fall (beats) */
+  GUST_AIR: 2.4, GUST_GROUND: 0.6, GUST_WARN: 3, GUST_RISE: 1.5, GUST_HOLD: 6, GUST_FALL: 3,
   /** the hum: its warning (beats before the phrase), its lift (beats), the column's rise (m/s) */
   HUM_WARN: 8, HUM_BEATS: 6, HUM_UP: 6.5,
 };
@@ -195,12 +195,33 @@ export class DuelHazards {
   readonly ride: (string | null)[] = [null, null];
   private rideT = [0, 0];
   private crestUsed = [-1, -1];
+  /** the hum's rise on each body (m/s), while it rides the column */
+  private lift: (number | null)[] = [null, null];
 
   constructor(readonly chars: readonly [Character, Character], readonly match: DuelMatch, readonly arena: Arena, readonly o: HazardsOptions = {}) {
     this.hazard = arena.hazard ?? null;
     if (this.hazard && o.on !== undefined) setHazards(arena, o.on);
+    // locked to the stage plane, the water is a ledge across it at the floating height under the body (the plane's own
+    // floor has gaps where the water is)
+    if (this.hazard) for (const c of chars) {
+      const prev = c.extraLedges;
+      c.extraLedges = () => { const a = prev ? prev() : [], L = this.waterLedge(c); return L ? [...a, L] : a; };
+    }
+  }
+  private waterLedge(c: Character): Ledge | null {
+    const p = c.plane, w = p ? waterAt(this.hazard!, c.root[0], c.root[2]) : null;
+    if (!p || w == null) return null;
+    return { id: 'duel.water', x0: -p.halfWidth - 2, x1: p.halfWidth + 2, y: w - HAZARD.FLOAT - p.origin[1], solid: true, thick: 0.05 };
   }
   get on() { return !!this.hazard?.on; }
+  /** the arena at rest again (its clock at 0: the tide low, the stones still; its switch on, as the arena has it), for
+   *  what runs after (the tests) */
+  rest() {
+    const H = this.hazard;
+    if (!H) return;
+    H.beat = 0; H.on = true;
+    if (H.swell) { for (const m of H.swell.movers) m.solid.c[1] = m.rest[1]; H.swell.bob.fill(0); }
+  }
 
   /** what a virtual player sees of it now */
   sight(): HazardSight | null {
@@ -301,33 +322,33 @@ export class DuelHazards {
           }
         }
       } else this.wasIn[k] = false;
-      // ---- the wind: a lean off the line, more in the air
+      // ---- the wind: a lean off the line, more in the air (the body carried with it, as a wave carries one: its own
+      // steering and the air's drag would take a push on its speed straight back)
       if (gust && gust.strength > 0.02 && !out && !carried) {
         const d = gust.dir, along = c.v[0] * d[0] + c.v[2] * d[1];
-        if (!c.grounded) {
-          if (along < P.GUST_MAX) {
-            const f = this.flat(c, [d[0] * P.GUST_AIR * gust.strength * dt, 0, d[1] * P.GUST_AIR * gust.strength * dt]);
-            c.v = [c.v[0] + f[0], c.v[1], c.v[2] + f[2]];
-          }
-          if (gust.strength > 0.3 && along > 1.2) ride = 'gust';
-        } else this.push(c, [d[0] * P.GUST_GROUND * gust.strength, d[1] * P.GUST_GROUND * gust.strength], dt);
+        const s = (c.grounded ? P.GUST_GROUND : P.GUST_AIR) * gust.strength;
+        this.push(c, [d[0] * s, d[1] * s], dt);
+        if (!c.grounded && gust.strength > 0.3 && along > -0.5) ride = 'gust';
       }
       // ---- the hum: a column of soft light lifts whoever stands round the crystal, holding them at its top
       if (hum && hum.lift > 0 && !out && !carried) {
         const s = hum.spot, M = H.hum!, rel = r[1] - s[1];
         if (Math.hypot(r[0] - s[0], r[2] - s[2]) < M.r && rel > -0.6 && rel < M.h + 0.5) {
-          const want = P.HUM_UP * hum.lift * clamp((M.h - rel) / 1.6, -0.3, 1);
-          // (the column holds its riders: drawn in toward its middle, their drift across it eased)
+          const want = P.HUM_UP * hum.lift * clamp((M.h - rel) / 1.6, 0, 1);
+          // the rise eases up to the column's speed and holds there, slowing to a float at its top (set on the body each
+          // frame, as the powers' updrafts are: the duel's jump cut would take it back), and the column holds its
+          // riders: drawn in toward its middle, their drift across it eased
+          const was = this.lift[k] ?? Math.min(c.v[1], 0);
+          this.lift[k] = was + (want - was) * (1 - Math.exp(-8 * dt));
           const e = Math.exp(-2 * dt), f = this.flat(c, [(s[0] - r[0]) * 4 * dt, 0, (s[2] - r[2]) * 4 * dt]);
-          let vy = c.v[1];
-          if (vy < want) vy += (want - vy) * (1 - Math.exp(-10 * dt));
-          c.v = [c.v[0] * e + f[0], vy, c.v[2] * e + f[2]];
+          c.v = [c.v[0] * e + f[0], Math.max(c.v[1], this.lift[k]!), c.v[2] * e + f[2]];
           if (c.grounded && c.v[1] > 0.5) { c.grounded = false; c.support = null; }
           c.env.updraft = Math.max(c.env.updraft, 1);
           if (!this.ride[k] || this.ride[k] !== 'hum') this.fx.push({ k: 'lift', seat: k, at: [r[0], r[1], r[2]] });
           ride = 'hum';
         }
       }
+      if (ride !== 'hum') this.lift[k] = null;
       this.riding(k, out ? null : ride, dt);
     }
   }
@@ -337,9 +358,9 @@ export class DuelHazards {
     const r = c.root, h = swellAt(H, r[0], r[2], beat);
     return r[1] < h + 0.6 ? h / H.swell!.amp : 0;
   }
-  /** a drift on a body: moved with it (free), or carried along the plane (locked: env.carryX on the ground) */
+  /** a drift on a body: moved with it, as a wave carries one (locked: along the plane only) */
   private push(c: Character, d: V2, dt: number) {
-    if (c.plane) { c.env.carryX += d[0] * c.plane.right[0] + d[1] * c.plane.right[2]; return; }
+    if (c.plane) { const R = c.plane.right, s = (d[0] * R[0] + d[1] * R[2]) * dt; c.root = [c.root[0] + R[0] * s, c.root[1], c.root[2] + R[2] * s]; return; }
     c.root = [c.root[0] + d[0] * dt, c.root[1], c.root[2] + d[1] * dt];
   }
   /** a direction kept in a locked body's plane */

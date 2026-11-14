@@ -35,7 +35,7 @@ import type { Solid } from '../worlds/solids';
 import { Rng, newHints, type Brain, type Sight } from './brain';
 import { canStart, pressMove, stickFor } from './body';
 import { groundUnder } from '../duel/arena';
-import type { HazardSight } from '../duel/hazards';
+import { HAZARD, type HazardSight } from '../duel/hazards';
 
 export type DuelStyle = 'lead' | 'flyer' | 'base';
 export const DUEL_STYLES: readonly DuelStyle[] = ['lead', 'flyer', 'base'];
@@ -179,9 +179,12 @@ export class DuelBrain implements Brain {
   private count(k: string) { this.counts[k] = (this.counts[k] ?? 0) + 1; }
 
   // ---------------------------------------------------------------- the locked plane's surfaces
-  private surfaces(p: StagePlane, beat: number): Surf[] {
+  private surfaces(p: StagePlane, beat: number, D: DuelSight | null = null, at: Snap | null = null): Surf[] {
     const ly = p.ledgeY ?? defaultLedgeY, oy = p.origin[1], out: Surf[] = [];
     if (p.ground != null) out.push({ id: '_ground', x0: -p.halfWidth, x1: p.halfWidth, y: oy + p.ground, solid: true, thick: 0, ground: true });
+    // (the hazard's water, a floor across the plane at the floating height: hazards.ts)
+    const w = D?.hazard && at ? D.hazard.water(at.x, at.z) : null;
+    if (w != null) out.push({ id: 'duel.water', x0: -p.halfWidth, x1: p.halfWidth, y: w - HAZARD.FLOAT, solid: true, thick: 0, ground: true });
     for (const L of p.ledges as Ledge[]) out.push({ id: L.id, x0: L.x0, x1: L.x1, y: oy + ly(L, beat), solid: !!L.solid, thick: L.thick ?? PHYS.solidThick, ground: false });
     return out;
   }
@@ -238,14 +241,14 @@ export class DuelBrain implements Brain {
     this.wasLinked = !!L;
 
     if (t >= this.nextDecide) {
-      if (pl) this.decideLocked(S, c, mine, o, this.surfaces(pl, S.beat), otherOut, yKill);
+      if (pl) this.decideLocked(S, c, mine, o, this.surfaces(pl, S.beat, D, mine), otherOut, yKill);
       else this.decideFree(S, mine, o, otherOut, D);
       this.nextDecide = t + this.K.decide * this.rng.range(0.75, 1.35);
       this.aimOff = [this.aimOff[0] * 0.4 + this.rng.normal() * this.K.aimErr * 0.6, this.aimOff[1] * 0.4 + this.rng.normal() * this.K.aimErr * 0.6];
     }
     if (!this.pending && !L) this.dance(S, c, mine, o, otherOut);
     if (!L && !otherOut && D) this.ride(S, c, mine, o, D, it);
-    if (pl) this.legsLocked(S, c, mine, this.surfaces(pl, S.beat), yKill, it, t);
+    if (pl) this.legsLocked(S, c, mine, this.surfaces(pl, S.beat, D, mine), yKill, it, t);
     else this.legsFree(S, c, mine, D, yKill, it, t);
     // the contact: the grab, the pump, the fling, the lift, the counter, the leap at the other (over the legs)
     if (!otherOut) this.partner(S, c, O, mine, o, D, it, holding, held);

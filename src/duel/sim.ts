@@ -200,5 +200,6 @@ export function simulateDuel(o: DuelSimOptions): DuelSimResult {
     res.powers = { casts, forms: [powers.rules.seats[0].forms, powers.rules.seats[1].forms], reactions: { ...powers.rules.reactions }, felt: { ...powers.felt }, events: powerEvents };
   }
   if (hazards?.on) res.hazards = { rides: Object.fromEntries(Object.entries(hazards.rides).map(([k, v]) => [k, { ...v }])), waterS: hazards.waterS };
+  hazards?.rest();
   return res;
 }
