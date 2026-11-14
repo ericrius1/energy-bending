@@ -1,18 +1,21 @@
 // The HUD: two 2D canvases laid over the WebGPU canvas (index.html's layer: above the stage, below the menus and the
 // touch pad, never taking a pointer), drawn from one HudState (state.ts) each frame.
-//   base   what changes seldom: the players' panels and the score. Drawn again only when a value it shows changes
-//          or a piece of it is moving (a pip cracking, a meter filling, the super's glint)
-//   live   what moves every frame: the beat, the countdown and the banner, the pops, the tags over the heads. Only
-//          the boxes drawn last frame are cleared
+//   base   what changes seldom: the dancers' panels (glass, emblem, name, style, dash). Each panel is drawn again
+//          alone, only when a value it shows changes or a piece of it is moving (the style rolling, the dash filling)
+//   live   what moves every frame: the link's line of light, the tags over the heads, the combos under the panels and
+//          the link's ring and chip, the shared energy and the set's orb, the beat, the pops, the countdown and the
+//          banner. Only the boxes drawn last frame are cleared
 // Both are kept at the device's pixel ratio (or, filming, the render's: the film is graded bigger than it is shown)
 // so the type is crisp. `compose` lays both over a captured frame (bend.grab) and `flatten` gives one image for the
 // film's GPU composite (index.ts).
 import { emptyHud, type HudState } from './state';
 import { layout, type Layout, type Box } from './layout';
-import { PlayerPanel } from './panel';
-import { Centre, drawScore, scoreSig, warmCentre } from './centre';
+import { PlayerPanel, warmPanel } from './panel';
+import { Centre, warmCentre } from './centre';
+import { Shared, warmShared } from './shared';
+import { LinkLine } from './link';
 import { drawBeat } from './beat';
-import { drawPops, drawTags, warmPops } from './pops';
+import { Pops, drawTags, warmPops } from './pops';
 import { makeCanvas, type Ctx, type Sprite } from './style';
 
 export interface HudStats {
@@ -20,6 +23,8 @@ export interface HudStats {
   cpuMs: number; cpuMaxMs: number;
   /** frames the base layer was drawn, of frames drawn at all (since the last stats reset) */
   baseFrames: number; frames: number;
+  /** ms a frame by part (the mean since the last reset): what the HUD's time goes on */
+  parts: Record<string, number>;
   size: [number, number]; ratio: number; compact: boolean; mode: string; visible: boolean;
 }
 
@@ -36,7 +41,10 @@ export class Hud {
   private cssH = 0;
   private panels = [new PlayerPanel(0), new PlayerPanel(1)];
   private centre = new Centre();
-  private score = '';
+  private shared = new Shared();
+  private link = new LinkLine();
+  private pops = new Pops();
+  private wasDuel = false;
   /** sprites to make ahead, one a frame (a new cast or size: its words, tags and countdown) */
   private warm: (() => void)[] = [];
   private warmFor = '';
@@ -46,6 +54,10 @@ export class Hud {
   private on = true;
   private cpu: number[] = [];
   private counts = { base: 0, frames: 0 };
+  private parts: Record<string, number> = {};
+  private lap = 0;
+  /** the time since the last lap, added to a part */
+  private part(name: string) { const t = performance.now(); this.parts[name] = (this.parts[name] ?? 0) + t - this.lap; this.lap = t; }
   /** the stage canvas it lies over, and the pixel ratio to draw at */
   private stage: HTMLElement | null = null;
   private ratioOf: () => number = () => Math.min(3, globalThis.devicePixelRatio || 1);
@@ -117,30 +129,30 @@ export class Hud {
     const L = this.L!, r = this.ratio, gb = this.gb!, gl = this.gl!;
     const duel = st.mode === 'duel';
 
-    // ---------------------------------------------------------------- base: the panels and the score
-    // (three strips across the top, each drawn again alone when what it shows changes: seat 0's panel, the score,
-    // seat 1's panel; a glow reaching past its strip is clipped at the strip's edge, halfway across the gap)
-    const dirty = [this.baseDirty, this.baseDirty, this.baseDirty];
+    // ---------------------------------------------------------------- base: the panels
+    // (two halves of the screen, each drawn again alone when its panel changes; a glow reaching past the middle is
+    // clipped there)
+    const dirty = [this.baseDirty, this.baseDirty];
+    if (duel !== this.wasDuel) { this.wasDuel = duel; dirty.fill(true); }
     if (duel) {
-      for (const p of st.players) if (p.seat === 0 || p.seat === 1) { if (this.panels[p.seat].update(p, dt)) dirty[p.seat === 0 ? 0 : 2] = true; }
+      for (const p of st.players) if (p.seat === 0 || p.seat === 1) { if (this.panels[p.seat].update(p, dt)) dirty[p.seat] = true; }
       this.centre.update(st, dt);
-      const sig = scoreSig(st);
-      if (sig !== this.score) { this.score = sig; dirty[1] = true; }
-    } else if (this.score !== 'off') { this.score = 'off'; dirty.fill(true); }
-    if (dirty.some(Boolean)) {
-      const P = L.panels, S = L.score, bottom = Math.max(P[0].y + P[0].h, S.y + S.h) + 40 * L.u;
-      const cut0 = (P[0].x + P[0].w + S.x) / 2, cut1 = (S.x + S.w + P[1].x) / 2;
-      const strips: [number, number][] = [[0, cut0], [cut0, cut1], [cut1, L.W]];
-      for (let i = 0; i < 3; i++) {
+      this.shared.update(st, dt);
+      this.link.update(st, dt);
+      this.pops.update(st, L, dt);
+    }
+    this.lap = t0;
+    this.part('update');
+    if (dirty[0] || dirty[1]) {
+      const P = L.panels, bottom = P[0].y + P[0].h + 14 * L.u;
+      const strips: [number, number][] = [[0, L.W / 2], [L.W / 2, L.W]];
+      for (let i = 0; i < 2; i++) {
         if (!dirty[i]) continue;
         const [x0, x1] = strips[i];
         gb.save();
         gb.beginPath(); gb.rect(x0, 0, x1 - x0, bottom); gb.clip();
         gb.clearRect(x0, 0, x1 - x0, bottom);
-        if (duel) {
-          if (i === 1) { if (st.players.length) drawScore(gb, st, L, r); }
-          else for (const p of st.players) if (p.seat === (i === 0 ? 0 : 1)) this.panels[p.seat].draw(gb, p, P[p.seat], L.compact, L.u, st.round.koTarget, r);
-        }
+        if (duel) for (const p of st.players) if (p.seat === i) this.panels[i].draw(gb, p, P[i], L.compact, L.u, r);
         gb.restore();
       }
       this.baseDirty = false;
@@ -148,6 +160,7 @@ export class Hud {
     }
 
     // ---------------------------------------------------------------- live: only last frame's boxes cleared
+    this.part('base');
     const prev = this.liveBoxes;
     let area = 0;
     for (const b of prev) area += b.w * b.h;
@@ -155,24 +168,36 @@ export class Hud {
     else for (const b of prev) gl.clearRect(Math.floor(b.x) - 1, Math.floor(b.y) - 1, Math.ceil(b.w) + 2, Math.ceil(b.h) + 2);
     const out: Box[] = [];
     if (duel) {
-      for (const p of st.players) if (p.seat === 0 || p.seat === 1) this.panels[p.seat].drawFlow(gl, p, L.panels[p.seat], L.compact, L.u, st.beat, r, out);
+      // (the link under everything: it is in the world, between the bodies)
+      this.part('clear');
+      this.link.draw(gl, st, L, r, out);
+      this.part('link');
       drawTags(gl, st, L, r, out);
+      this.part('tags');
+      for (const p of st.players) if (p.seat === 0 || p.seat === 1) this.panels[p.seat].drawLive(gl, p, st, L, r, out);
+      this.part('combo');
+      this.shared.draw(gl, st, L, r, out);
+      this.part('shared');
     }
     drawBeat(gl, st.beat, L, r, out);
-    // (the banner over the pops: the last KO's word rises behind it)
+    this.part('beat');
+    // (the banner over the pops: the last move's word rises behind it)
     if (duel) {
-      drawPops(gl, st, L, r, out);
+      this.pops.draw(gl, st, L, r, out);
+      this.part('pops');
       this.centre.draw(gl, st, L, r, out);
+      this.part('centre');
     }
     this.liveBoxes = out;
 
-    // the warm-up: the next sprite this duel will want, made now while nothing is happening
+    // the warm-up: the next sprite this battle will want, made now while nothing is happening
     if (duel) {
-      const key = `${L.W}x${L.H}@${r}:${st.players.map((p) => p.color).join(',')}`;
-      if (key !== this.warmFor) { this.warmFor = key; this.warm = [...warmCentre(L, r), ...warmPops(st, L, r)]; }
+      const key = `${L.W}x${L.H}@${r}:${st.players.map((p) => p.color + p.name).join(',')}:${st.set.length}`;
+      if (key !== this.warmFor) { this.warmFor = key; this.warm = [...warmPanel(L, r), ...warmPops(st, L, r), ...warmCentre(L, r, st), ...warmShared(st, L, r)]; }
       if (this.warm.length && performance.now() - t0 < 0.15) this.warm.shift()!();
     }
 
+    this.part('warm');
     this.counts.frames++;
     const ms = performance.now() - t0;
     this.cpu.push(ms);
@@ -188,7 +213,6 @@ export class Hud {
     this.gl?.clearRect(0, 0, this.L.W, this.L.H);
     this.liveBoxes = [];
     this.baseDirty = true;
-    this.score = '';
   }
 
   /** lay what is on screen over a captured frame of w × h pixels (bend.grab) */
@@ -212,9 +236,10 @@ export class Hud {
     const s: HudStats = {
       cpuMs: +(this.cpu.reduce((a, b) => a + b, 0) / n).toFixed(4), cpuMaxMs: +Math.max(0, ...this.cpu).toFixed(4),
       baseFrames: this.counts.base, frames: this.counts.frames,
+      parts: Object.fromEntries(Object.entries(this.parts).map(([k, v]) => [k, +(v / Math.max(1, this.counts.frames)).toFixed(4)])),
       size: [this.cssW, this.cssH], ratio: +this.ratio.toFixed(3), compact: !!this.L?.compact, mode: this.state.mode, visible: this.on,
     };
-    if (reset) { this.cpu = []; this.counts = { base: 0, frames: 0 }; }
+    if (reset) { this.cpu = []; this.counts = { base: 0, frames: 0 }; this.parts = {}; }
     return s;
   }
 }

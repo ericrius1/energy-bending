@@ -1,6 +1,6 @@
 {
   "name": "hud-film",
-  "note": "the HUD's composite check: ?hud=demo over a played pair in the geode, the side view, a few seconds from the countdown into play (src/hud; docs/reports/11-hud.md)",
+  "note": "the HUD's composite check: ?hud=demo (the contact-dance battle) over a played pair in the geode, the side view, the two brought together, a few seconds through a catch, a swing and a fling (src/hud; docs/reports/12-hud.md)",
   "bpm": 120,
   "shots": [
     {
@@ -10,7 +10,10 @@
       "cast": [{ "dress": "fire" }, { "dress": "water" }],
       "seconds": 6,
       "query": { "hud": "demo" },
-      "cues": [{ "at": -9, "rig": "lock" }, { "at": -9, "js": "bend.hud.demo.at(1.2)" }]
+      "cues": [
+        { "at": -9, "rig": "lock" },
+        { "at": -9, "js": "const P = bend.players(); if (P[0].locked) { bend.place(0, -0.5); bend.place(1, 0.5); } const d = bend.hud.demo; d.at(d.moments(8).catch - 1.2);" }
+      ]
     }
   ]
 }
