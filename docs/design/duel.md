@@ -165,7 +165,7 @@ falling over the void; a few a minute each, the form a moment after the bar fill
 
 **HUD.** `players[].flow?` (0..1; in the power form, the form's time left), `players[].powers?: { id, name, ready, cost,
 key? }[]` (`ready`: castable now: the flow there, not cooling, not joined; `cost` 0 in the form; `key` the seat's
-device's, absent for a virtual player or touch), `players[].form?` (0..1 left), pops of kind `'power'` (a cast's name,
+device's, absent for touch and for a virtual player unless `&keys` names a layout for it, as films do), `players[].form?` (0..1 left), pops of kind `'power'` (a cast's name,
 "POWER FORM") and `'react'` ("STEAM!", "MELT!", "FREEZE!"), through hud-state.ts's pop budget (`DuelHud.events`'
 `words`: a cast only with room, the form within it, a reaction always). The panel draws the flow as a bar along its
 foot (a mark at each cost; gold when full and in the form) and the two powers as icons at its inner end (bright when
