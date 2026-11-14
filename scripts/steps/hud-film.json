@@ -1,0 +1,16 @@
+{
+  "name": "hud-film",
+  "note": "the HUD's composite check: ?hud=demo over a played pair in the geode, the side view, a few seconds from the countdown into play (src/hud; docs/reports/11-hud.md)",
+  "bpm": 120,
+  "shots": [
+    {
+      "id": "demo",
+      "mode": "play",
+      "world": "geode",
+      "cast": [{ "dress": "fire" }, { "dress": "water" }],
+      "seconds": 6,
+      "query": { "hud": "demo" },
+      "cues": [{ "at": -9, "rig": "lock" }, { "at": -9, "js": "bend.hud.demo.at(1.2)" }]
+    }
+  ]
+}
