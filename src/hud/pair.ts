@@ -48,9 +48,14 @@ export class PairChain {
     // ---- the flash of a tier: each one's colour washing in from its side, a ring from the orb
     const fk = (t - this.flashAt) / FLASH;
     if (fk >= 0 && fk < 1) {
-      const a = Math.sin(Math.PI * clamp01(fk * 1.6)) * (1 - fk) * 0.55, R = L.H * 0.55;
-      stamp(g, glow(ca, R, dpr, 0.15), 0, L.H * 0.5, 1, a);
-      stamp(g, glow(cb, R, dpr, 0.15), L.W, L.H * 0.5, 1, a);
+      const a = Math.sin(Math.PI * clamp01(fk * 1.6)) * (1 - fk) * 0.8, R = L.H * 0.6;
+      // (gradients drawn for the second it lasts: a sprite this big would not fit the HUD's atlas)
+      for (const [x0, c] of [[0, ca], [L.W, cb]] as const) {
+        const gr = g.createRadialGradient(x0, L.H * 0.5, 0, x0, L.H * 0.5, R);
+        gr.addColorStop(0, rgba(lift(c, 0.25), 0.6 * a)); gr.addColorStop(0.5, rgba(c, 0.24 * a)); gr.addColorStop(1, rgba(c, 0));
+        g.fillStyle = gr;
+        g.fillRect(x0 === 0 ? 0 : L.W - R, L.H * 0.5 - R, R, R * 2);
+      }
       const rr = O.r * (1.4 + 9 * easeOut(fk));
       g.lineWidth = Math.max(1, 2.4 * u * (1 - fk));
       g.strokeStyle = rgba(lift(this.flashCol, 0.3), 0.7 * (1 - fk));

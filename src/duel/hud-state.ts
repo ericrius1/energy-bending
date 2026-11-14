@@ -1,10 +1,10 @@
 // What the duel tells the HUD each frame: the HudState, version 2 (docs/design/duel.md, "The HUD's state, version 2":
 // the contact dance's), built from the rules' state, the contact, the two bodies and the beat, and handed to
 // `bend.hud.set(state)` (src/hud draws it; the duel draws no HUD of its own). The pops (CATCH, SWING, FLING ×n,
-// PERFECT, COMBO ×n, a tier's word, MERGE, BEND, …) are kept here: the events push them, they age and go. A few
-// words a second at most (POP_BUDGET): one SWING per hold, counting up in place (SWING ×3), one PERFECT per dancer
-// counting up while it shows; past the budget a minor word is dropped, or a fresh one of the same dancer's is
-// rewritten in place (its id kept, so the HUD updates the pop rather than adding one). The set's words (BEND, MERGE,
+// PERFECT, COMBO ×n, a tier's word, a pair tier's (DUET ×14, kind 'pair'), MERGE, BEND, …) are kept here: the events
+// push them, they age and go. A few words a second at most (POP_BUDGET): one SWING per hold, counting up in place
+// (SWING ×3), one PERFECT per dancer counting up while it shows; past the budget a minor word is dropped, or a fresh
+// one of the same dancer's is rewritten in place (its id kept, so the HUD updates the pop rather than adding one). The set's words (BEND, MERGE,
 // a tier, the finale, the winner) always show.
 //
 // (The v2 types are the contract's as duel.md writes them, with its optional fields (combo.beats, combo.ended and
@@ -60,7 +60,7 @@ export interface HudState {
   shared: { energy: number; peak: number; merge: number; fusion?: number;
     /** the longest stretch near the top this set (s), of the `highFor` the fusion needs, and the merges this set (the
      *  banner's "nearly" when the finale didn't fuse) */
-    high?: number; highFor?: number; merges?: number };
+    high?: number; highFor?: number; highAt?: number; merges?: number };
   set: { time: number; length: number; phase: 'intro' | 'play' | 'finale' | 'done'; countdown?: number; winner?: number;
     /** the finale fused (from the finale on) */
     fused?: boolean };
@@ -246,7 +246,7 @@ export class DuelHud {
     const st: HudState = {
       mode: 'duel', players,
       link: { on: link.on, energy: d.energy, ...(link.from ? { from: link.from } : {}), ...(link.to ? { to: link.to } : {}) },
-      shared: { energy: d.energy, peak: d.peak, merge: d.merge, fusion: +fusionCharge(d).toFixed(3), high: +(d.highBest / 1000).toFixed(2), highFor: DUEL.FUSE_HOLD_MS / 1000, merges: d.merges },
+      shared: { energy: d.energy, peak: d.peak, merge: d.merge, fusion: +fusionCharge(d).toFixed(3), high: +(d.highBest / 1000).toFixed(2), highFor: DUEL.FUSE_HOLD_MS / 1000, highAt: DUEL.FUSE_AT, merges: d.merges },
       set: { time: Math.max(0, time), length: setMs / 1000, phase: d.phase, ...(d.phase === 'intro' ? { countdown: countLeft(d, now) } : {}), ...(d.winner != null ? { winner: d.winner } : {}), ...(d.phase === 'finale' || d.phase === 'done' ? { fused: d.fused } : {}) },
       pair: this.pairOf(d, players),
       beat: { phase: beat - Math.floor(beat), bpm, window: DUEL.PERFECT_MS / 1000 },

@@ -78,6 +78,8 @@ export interface HudShared {
    *  banner's "nearly" note when the finale didn't fuse) */
   high?: number;
   highFor?: number;
+  /** the top (0 … 1) the fusion asks to be held */
+  highAt?: number;
   merges?: number;
 }
 

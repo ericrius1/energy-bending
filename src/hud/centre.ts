@@ -34,13 +34,15 @@ function bigWord(text: string, size: number, dpr: number, colour: string) {
 const GO = 'DANCE', FIN = 'FINALE';
 
 /** the banner's "nearly", for a set that didn't fuse: "NEARLY · HELD 2.1 S OF 3 AT THE TOP" (and "· NO MERGE YET"
- *  when it never merged); null when it fused or the game says nothing of it */
+ *  when it never merged); a set never at the top says what the fusion asks ("FUSION · HOLD 90% FOR 3 S"); null when
+ *  it fused or the game says nothing of it */
 export function nearly(st: HudState): string | null {
   const S = st.set, H = st.shared;
   if (S.fused !== false || H.high == null || !H.highFor) return null;
   const held = Math.min(H.high, H.highFor);
   const of = Number.isInteger(H.highFor) ? String(H.highFor) : H.highFor.toFixed(1);
   const merge = H.merges === 0 ? '  ·  NO MERGE YET' : '';
+  if (held < 0.05) return `FUSION  ·  HOLD ${Math.round((H.highAt ?? 0.9) * 100)}% FOR ${of} S${H.merges === 0 ? '  ·  AND MERGE' : ''}`;
   return held >= H.highFor ? `NEARLY  ·  HELD ${of} S AT THE TOP${merge}` : `NEARLY  ·  HELD ${held.toFixed(1)} S OF ${of} AT THE TOP${merge}`;
 }
 

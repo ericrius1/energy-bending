@@ -662,6 +662,8 @@ test('the finale: a fused lift reports its top once (the duel holds it); a bow n
   assert(a === 'NEARLY  ·  HELD 2.1 S OF 3 AT THE TOP', `${a}`);
   assert(nearly({ ...st, shared: { high: 3.4, highFor: 3, merges: 0 } } as typeof st)!.includes('NO MERGE'), 'held but never merged');
   assert(nearly({ ...st, set: { fused: true } } as typeof st) === null, 'fused: nothing');
+  const far = nearly({ ...st, shared: { high: 0, highFor: 3, highAt: 0.9, merges: 0 } } as typeof st);
+  assert(far === 'FUSION  ·  HOLD 90% FOR 3 S  ·  AND MERGE', `never at the top: ${far}`);
   return a!;
 });
 
