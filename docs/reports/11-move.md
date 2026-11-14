@@ -128,14 +128,16 @@ about 0.75); kick or spin on a wall gives wallJump → martelo / wallJump → a�
 scheme, the swipe (a slow push doesn't dash) and the hub handing its scheme on.
 
 **Seen** (critic-cap, `node scripts/steps/move-gen.mjs` then `node scripts/critic-cap.mjs scripts/steps/move-11.json
---prefix 11 --url …`, RTX 5090, under the render lock; I looked at every sheet):
+--prefix 11 --url …`, RTX 5090; light test captures, the last on a private lock, `RENDER_LOCK=…/render-lock-move`, per
+the relaxed rule; I looked at every sheet):
 - Free 3D in the temple, the follow camera: `11-move-free-column-sheet.jpg` (run, jump into the back-row column, the
   slide with a hand on it, the kick back off it), `11-move-free-pillars-sheet.jpg` (kicked between the stage's two
   pillars under the lintel, then a dash out), `11-move-free-flow-sheet.jpg` (run → jump → martelo → dash → land → a
   bênção carried by the run → an aú), `11-move-free-wallau-sheet.jpg` (the slide, spin: an aú flung off the column,
   landing on a broken pillar's top: solid tops are floors).
 - Locked in the pool's test arena: `11-move-wallslide-sheet.jpg` (jump into the block's face near the apex, the slide
-  crouched against it), `11-move-climb-sheet.jpg` (the shaft kicked up wall to wall), `11-move-dash-sheet.jpg` (ground
+  crouched against it), `11-move-climb-sheet.jpg` (the 2.7 m shaft kicked up wall to wall to the 4.5 m block's top in under a second,
+  off it and back down, and up again; the locked camera lags the climb, so the body rides the frame's top edge), `11-move-dash-sheet.jpg` (ground
   dash, jump, up-right dash, down-right dash into the end wall), `11-move-dashjump-sheet.jpg` (run, dash, jump: over the
   step into the far wall and down it), `11-move-fastfall-sheet.jpg` (player one fast-falls beside the bot's plain fall).
   Stills: `11-move-*-<s>.jpg`.
