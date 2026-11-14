@@ -114,7 +114,7 @@ try {
           const welcome = n.duel as DuelWelcome;
           assert.ok(welcome && welcome.world === 'temple');
           const terrain = { groundAt: (x: number, z: number) => W.world.groundAt(x, z), fallY: W.world.fallY, get solids() { return [...W.world.solids, ...c.solids]; } };
-          const c = new DuelClient({ welcome, seat: k, link: n, terrain, plane: null });
+          const c = new DuelClient({ welcome, seat: k, link: n, terrain, plane: null, arena: W.arena });
           n.onFrame = (b) => c.onFrame(b);
           for (const [t, m] of early[k]) { if (t === 'dev') c.onEvents(m); else c.onState(m); }
           clients[k] = c;

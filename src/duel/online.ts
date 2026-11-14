@@ -15,6 +15,7 @@
 // [&lag=&jitter=&loss=]. The first to come is seat 1, the second seat 2, anyone after watches (up to six).
 import type { FrameCtx } from '../engine/frame';
 import type { StagePlane } from '../engine/camera';
+import type { Arena } from './arena';
 import type { Character } from '../dancer/character';
 import type { IntentController } from '../dancer/intent-controller';
 import type { Music } from '../audio/music';
@@ -45,6 +46,7 @@ export interface OnlineCtx {
   powers: DuelPowers;
   finale: Finale;
   plane: StagePlane;
+  arena: Arena;
   /** the page's world, the seats' dresses and the matters their powers are */
   world: string;
   dress: [string, string];
@@ -166,7 +168,7 @@ export async function startOnline(o: OnlineCtx): Promise<OnlineDuel> {
 
   // the predicted body stands in the page's world as the page's body does (its floor, its solids with the powers')
   const terrain = chars[seat ?? 0].terrain;
-  const c = client = new DuelClient({ welcome, seat, link: net, terrain, plane: welcome.locked ? o.plane : null });
+  const c = client = new DuelClient({ welcome, seat, link: net, terrain, plane: welcome.locked ? o.plane : null, arena: o.arena });
   for (const [t, m] of early) { if (t === 'dev') c.onEvents(m as never); else c.onState(m as never); }
   if (welcome.locked) { for (const x of o.ctl) x.setPlane(o.plane); app.rig.lock(o.plane); }
 

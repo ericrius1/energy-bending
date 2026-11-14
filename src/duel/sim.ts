@@ -21,6 +21,7 @@ import { matterOf, type PowerEvent } from '../../shared/powers.ts';
 import { DuelHud, type HudSeat } from './hud-state';
 import type { Solid } from '../worlds/solids';
 import { DuelPowers, noPower, type PowerInput } from './powers';
+import { DuelHazards } from './hazards';
 
 export interface DuelSimOptions {
   arena: Arena;
@@ -42,6 +43,9 @@ export interface DuelSimOptions {
   /** the weight of contact's time warp, as the page plays it (weight.ts: holds on a catch, a beat slowed on a pair tier);
    *  off by default (the tests' sets are the bodies' plain time), on in the probe (scripts/duel-sim.mjs) */
   warp?: boolean;
+  /** the arena's gentle hazards (hazards.ts: the tide, the wind, the swell, the crystals' hum); default on where the
+   *  arena has them */
+  hazards?: boolean;
   each?: (f: { t: number; beat: number; match: DuelMatch; powers: DuelPowers | null; bodies: readonly Character[]; intents: Intent[]; events: DuelEvent[] }) => void;
 }
 
@@ -79,6 +83,8 @@ export interface DuelSimResult {
   match: DuelMatch;
   /** the powers: each seat's casts by power and forms, the reactions, what the bodies felt, every power event */
   powers: { casts: [Record<string, number>, Record<string, number>]; forms: [number, number]; reactions: Record<string, number>; felt: DuelPowers['felt']; events: { t: number; e: PowerEvent }[] } | null;
+  /** the hazards: each one's rides (how many, seconds), seconds the bodies spent in water; null: none */
+  hazards: { rides: Record<string, { n: number; s: number }>; waterS: number } | null;
 }
 
 /** the arena and the world a world id duels in, in Node: the world's own arena (worlds/<id>/arena.ts), shown */
@@ -110,6 +116,7 @@ export function simulateDuel(o: DuelSimOptions): DuelSimResult {
   const match = new DuelMatch(chars, A, plane, 0, bpm, { solids: () => solids, setMs: o.setMs });
   const dress = o.dress ?? ['fire', 'water'];
   const powers = o.powers === false ? null : new DuelPowers(chars, match, { matter: [matterOf(dress[0]), matterOf(dress[1])], sink: solids, groundAt: terrain.groundAt, yKill: A.space.yKill });
+  const hazards = A.hazard ? new DuelHazards(chars, match, A, { on: o.hazards ?? true }) : null;
   const sight = (): DuelSight => {
     const L = match.contact.link;
     return {
@@ -117,6 +124,7 @@ export function simulateDuel(o: DuelSimOptions): DuelSimResult {
       flown: match.contact.flown?.flyer ?? null,
       yKill: A.space.yKill, space: A.space, spawns: A.spawns, solids, groundAt: terrain.groundAt,
       ...(powers ? { powers: powers.sight(), bends: powers.liveSight() } : {}),
+      hazard: hazards?.sight() ?? null,
     };
   };
   const brains = typeof o.brains === 'function' ? o.brains(sight) : o.brains;
@@ -126,7 +134,7 @@ export function simulateDuel(o: DuelSimOptions): DuelSimResult {
   const stage: StageView = { plane: o.locked ? plane : null, stage: plane, terrain, gates: [], room: A.space.radius, solids };
   const drivers = brains.map((b, k) => (b ? new BrainDriver(b, bodies[k], scene, () => stage) : null));
   const seats: [SeatStats, SeatStats] = [blankStats(), blankStats()];
-  const res: DuelSimResult = { seconds: 0, play: 0, sets: [], seats, stats: match.state.stats, holds: [], spread: [], ends: {}, merges: [[]], combos: [], pops: { max: 0, total: 0, updates: 0 }, energy: [[]], match, powers: null };
+  const res: DuelSimResult = { seconds: 0, play: 0, sets: [], seats, stats: match.state.stats, holds: [], spread: [], ends: {}, merges: [[]], combos: [], pops: { max: 0, total: 0, updates: 0 }, energy: [[]], match, powers: null, hazards: null };
   const powerEvents: { t: number; e: PowerEvent }[] = [];
   // (the HUD's pops as the page makes them, from the same events: how many words a second reach the screen)
   const hud = new DuelHud(), hudSeats: HudSeat[] = [0, 1].map((k) => ({ name: `P${k + 1}`, matter: 'fire', screen: [0.3 + 0.4 * k, 0.5], dash: 1, holding: false, held: false }));
@@ -163,6 +171,7 @@ export function simulateDuel(o: DuelSimOptions): DuelSimResult {
     // (the moments of weight, after the powers: a catch at range, a geyser's top; the finale clears the powers' effects)
     ev.push(...match.juice(now, [], powers?.fx ?? [], powers?.live ?? []));
     if (powers && ev.some((e) => e.k === 'finale')) powers.settle();
+    hazards?.step(beat, gdt * 1000);
     if (match.state.phase === 'play') res.play += gdt;
     const L = match.contact.link;
     if (L && holdFrom < 0) holdFrom = t;
@@ -200,5 +209,7 @@ export function simulateDuel(o: DuelSimOptions): DuelSimResult {
     for (const { e } of powerEvents) if (e.k === 'cast') casts[e.seat][e.power] = (casts[e.seat][e.power] ?? 0) + 1;
     res.powers = { casts, forms: [powers.rules.seats[0].forms, powers.rules.seats[1].forms], reactions: { ...powers.rules.reactions }, felt: { ...powers.felt }, events: powerEvents };
   }
+  if (hazards?.on) res.hazards = { rides: Object.fromEntries(Object.entries(hazards.rides).map(([k, v]) => [k, { ...v }])), waterS: hazards.waterS };
+  hazards?.rest();
   return res;
 }

@@ -22,6 +22,7 @@
 // it there too), and the arena's rim light (arena-layer.ts) marks the tops a body can stand on and the plane's walls.
 import type { Ledge, StagePlane, Wall } from '../engine/camera';
 import { box, cylinder, type Solid } from '../worlds/solids';
+import type { Hazard } from './hazards';
 
 export type { Wall };
 type V3 = [number, number, number];
@@ -50,6 +51,9 @@ export interface Arena {
    *  rough stand-ins for what is drawn (columns drawn round, stood in for as boxes): the rim light follows these in place of
    *  the solids' own top edges */
   outlines?: V3[][];
+  /** (beyond the contract, phase 3) the arena's gentle hazard, nature's own (hazards.ts): the temple's tide, the
+   *  redwoods' wind, the Pool's swell, the geode's hum; `hazard.on` its switch */
+  hazard?: Hazard;
 }
 
 const byWorld = new Map<string, Arena>();

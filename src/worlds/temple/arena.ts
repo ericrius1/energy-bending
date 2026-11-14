@@ -10,6 +10,7 @@ import type { Ledge, Wall } from '../../engine/camera';
 import { stagePlane } from '../stage';
 import { arenas, floorWithDrops, mergeWalls, sides, type Arena, type Drop } from '../../duel/arena';
 import { layoutTemple, solidsOf, STAGE_Z, STONE_FLOATS, type Stone } from './layout';
+import { tideHazard } from '../../duel/hazards';
 
 type V3 = [number, number, number];
 
@@ -137,6 +138,10 @@ function build(): TempleDuel {
     camera: { minDist: 9, maxDist: 22, lens: 30, low: -0.6 },
     // (the afterglow's warmth: the moon already silvers every top)
     rim: [1.0, 0.6, 0.32],
+    // the hazard: the spring tide, in over the court for a while and out again over sixteen bars (highest on a phrase's
+    // line): at its height 1.45 m deep, the court's floor and its low stones under it and the drops pools to swim,
+    // a body floating with its feet 0.3 m over the floor; at its lowest the drops' water 0.5 m down their sides
+    hazard: tideHazard({ low: -0.5, high: 1.45, bars: 16 }),
   };
   return { arena, data, blocks: blocks.length, drums: drums.length };
 }

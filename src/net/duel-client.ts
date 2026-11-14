@@ -25,6 +25,9 @@ import { Contact, splitIntent, type ContactEvent, type Link } from '../duel/cont
 import type { StagePlane } from '../engine/camera';
 import type { Solid } from '../worlds/solids';
 import type { Live, PowerFx } from '../duel/powers';
+import { DuelHazards } from '../duel/hazards';
+import type { Arena } from '../duel/arena';
+import type { DuelMatch } from '../duel/match';
 import { onBeat, type DuelEvent, type DuelState } from '../../shared/duel.ts';
 import type { PowerEvent } from '../../shared/powers.ts';
 import { beatAt } from '../../shared/rules.ts';
@@ -83,6 +86,8 @@ export interface DuelClientOptions {
   terrain: Terrain;
   /** the arena's plane when the room is locked to it */
   plane: StagePlane | null;
+  /** the arena (its gentle hazard moves the predicted body as the server's moves the server's: the tide, the wind) */
+  arena?: Arena | null;
   buffer?: Partial<BufferParams>;
 }
 
@@ -127,6 +132,9 @@ export class DuelClient {
   private queue: DuelFrameEvents[] = [];
   private tent: { seq: number; until: number; kind: 'catch' | 'aerial' } | null = null;
   private look: V3 = [0, 0, 0];
+  /** the arena's hazard as the server steps it, on the predicted body */
+  private hz: DuelHazards | null = null;
+  private hzMatch: { bodyEvents: Record<string, unknown>[][] } | null = null;
   /** the server tick before which each seat can't catch again (a fling, a counter or a lift just ended its hold) */
   private noGrab = [0, 0];
   private judge: Contact | null = null;
@@ -158,6 +166,21 @@ export class DuelClient {
       c.setProfile('duel');
       c.yaw = o.seat ? -Math.PI / 2 : Math.PI / 2;
       this.pred = c;
+      // the arena's hazard on the predicted body, as the server steps it after the powers: a stand-in for the match
+      // (the phase, who is frozen or held, this body's own events) and a body that stands in for the other seat
+      if (o.arena?.hazard) {
+        const other = new Character({ seat: 1 - o.seat, plane: null, terrain: o.terrain });
+        const pair = (o.seat === 0 ? [c, other] : [other, c]) as [Character, Character];
+        const self = this;
+        const stand = {
+          get state() { return { phase: self.running ? self.state?.phase ?? 'done' : 'done' }; },
+          frozen: (k: number) => !!((self.newest[k]?.flags ?? 0) & DUEL_FLAG.FROZEN),
+          contact: { held: (k: number) => self.link?.held === k },
+          bodyEvents: [[], []] as Record<string, unknown>[][],
+        };
+        this.hzMatch = stand;
+        this.hz = new DuelHazards(pair, stand as unknown as DuelMatch, o.arena);
+      }
     } else this.pred = null;
     this.stats.since = performance.now();
   }
@@ -234,6 +257,7 @@ export class DuelClient {
       c.lookAt = this.look;
     } else c.lookAt = this.shownChars[1 - k].root;
     c.update(this.tickMs / 1000, it, { beats: beat, bpm: this.w.music.bpm });
+    if (this.hz && this.hzMatch) { this.hzMatch.bodyEvents[k] = c.events.slice(); this.hz.step(beat, this.tickMs); this.hzMatch.bodyEvents[k] = []; }
     c.events.length = 0;
     if (ci?.grabEdge && !this.replaying) this.tryCatch(x.seq);
     const rec: Hist = h ?? { x, save: {}, root: [0, 0, 0], v: [0, 0, 0], beat, grounded: false };

@@ -1,5 +1,8 @@
-// The Pool's duel arena (src/duel/arena.ts), from one description: in the duel the black water is deep (a body that falls
-// in sinks past the kill floor) and the space is a field of things rising out of it, drawn by stones.wgsl: stepping
+// The Pool's duel arena (src/duel/arena.ts), from one description: in the duel the black water is deep, and it is a floor
+// to swim in (phase 3, hazards.ts: a body that misses a stone lands in the water with a ripple, floats with its head and
+// shoulders out, swims slower than it runs, and kicks up onto a stone; nobody falls out of the Pool), and on each phrase a
+// swell rolls across it that the floes ride and the low stones rock on. The space is a field of things rising out of
+// the water, drawn by stones.wgsl: stepping
 // stones of dark wet stone and ice floes a stride apart, blocks a jump high, standing stones taller than a jump to kick
 // off and climb, and through the middle, along the stage plane, a row of them laid as a stage: a big flat stone at each
 // end with a standing stone on it, a floe either side of the middle, and in the middle a stone with an arch on it (two
@@ -9,6 +12,7 @@ import { mulberry32 } from 'math/random';
 import { stagePlane } from '../stage';
 import { boxOn, type Solid } from '../solids';
 import { arenas, mergeWalls, slicePlane, topAt, type Arena, type PieceGroup } from '../../duel/arena';
+import { swellHazard, waterFloor, type Mover } from '../../duel/hazards';
 
 type V3 = [number, number, number];
 
@@ -31,11 +35,15 @@ const FOOT = -1.6;
 function build(): PoolDuel {
   const rng = mulberry32.create(71);
   const r = () => mulberry32.sample(rng);
-  const rocks: Rock[] = [], groups: PieceGroup[] = [];
+  const rocks: Rock[] = [], groups: PieceGroup[] = [], movers: Mover[] = [];
+  /** the stones on the plane's stage stay put (the arch stands on the middle one, the menhirs on the ends) */
+  const still = new Set(['endL', 'middle', 'endR', 'menhirL', 'menhirR', 'pillarL', 'pillarR', 'lintel', 'cap']);
   /** a piece from its foot to `top` (on the plane: x from s0 to s1, depth d) */
   const rock = (id: string, x: number, z: number, w: number, d: number, y0: number, top: number, yaw = 0, ice = false, round = 0.12) => {
     rocks.push({ at: [x, y0, z], size: [w, top - y0, d], yaw, ice, round, seed: r() });
     const s = boxOn([x, y0, z], [w, top - y0, d], yaw);
+    // (the floes ride the swell; the low stepping stones rock on it a little; the tall ones stand)
+    if (!still.has(id) && (ice || top < 0.5) && s.kind === 'box') movers.push({ solid: s, rest: [s.c[0], s.c[1], s.c[2]], k: ice ? 1 : 0.4, index: rocks.length - 1 });
     const g = groups.find((q) => q.id === id);
     if (g) g.solids.push(s); else groups.push({ id, solids: [s] });
     return s;
@@ -108,12 +116,15 @@ function build(): PoolDuel {
   }
   const arena: Arena = {
     world: 'pool',
-    space: { center: [0, 0, 0], radius: 12, yKill: -1.4, yTop: 8.0 },
+    // (the water is a floor now: the kill floor stands for a body somehow under it)
+    space: { center: [0, 0, 0], radius: 12, yKill: -2.0, yTop: 8.0 },
     spawns, pieces, plane,
     camera: { minDist: 8, maxDist: 24, lens: 26, low: -1.0 },
     drops: [],
     // (the moon's cold light)
     rim: [0.6, 0.78, 1.0],
+    // the hazard: a swell across the pool on each phrase, from a different side in turn (hazards.ts)
+    hazard: swellHazard({ amp: 0.32, width: 2.1, reach: 13, dirs: [0.3, 2.4, 4.4, 1.3, 3.5, 5.5], movers }),
   };
   const data = new Float32Array(rocks.length * ROCK_FLOATS);
   rocks.forEach((k, i) => data.set([...k.at, k.yaw, ...k.size, k.ice ? 1 : 0, k.seed, k.round, 0, 0], i * ROCK_FLOATS));
@@ -124,11 +135,26 @@ let made: PoolDuel | null = null;
 /** the Pool's duel arena and the stones it adds (built once) */
 export function poolDuel(): PoolDuel { return (made ??= build()); }
 
-/** the water's floor in the duel: the top of a stone or floe a body could wade onto from the water (none: deep) */
-export function poolGround(x: number, z: number) {
+/** the pool's bed in the duel: the top of a stone or floe a body could wade onto from the water (none: deep) */
+export function poolBed(x: number, z: number) {
   let g = -3;
-  for (const s of poolDuel().arena.pieces!) { const t = topAt(s, x, z); if (t > g && t < 0.5) g = t; }
+  for (const s of poolDuel().arena.pieces!) { const t = topAt(s, x, z); if (t > g && t < 0.8) g = t; }
   return g;
+}
+/** the floor in the duel: the bed, or the water a body floats in over it (with the swell on it) */
+export function poolGround(x: number, z: number) { return Math.max(poolBed(x, z), waterFloor(poolDuel().arena.hazard, x, z)); }
+
+/** the stones' data for stones.wgsl with each mover where the swell has it now (into `out`, a copy of `data`); whether
+ *  any moved */
+export function poolStonesNow(out: Float32Array): boolean {
+  const D = poolDuel(), S = D.arena.hazard?.swell;
+  if (!S) return false;
+  let moved = false;
+  S.movers.forEach((m, i) => {
+    const o = m.index * ROCK_FLOATS + 1, y = D.data[o] + S.bob[i];
+    if (out[o] !== y) { out[o] = y; moved = true; }
+  });
+  return moved;
 }
 
 export function registerPoolArena() { arenas.register(poolDuel().arena); }

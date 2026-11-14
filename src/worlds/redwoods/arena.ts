@@ -12,6 +12,7 @@ import type { Solid } from '../solids';
 import { arenas, drumSolid, floorWithDrops, mergeWalls, slicePlane, type Arena, type Drop, type PieceGroup } from '../../duel/arena';
 import { layoutWoods } from './layout';
 import { layoutStage, packPieces, type Piece } from './stage';
+import { windHazard } from '../../duel/hazards';
 
 type V3 = [number, number, number];
 
@@ -132,6 +133,9 @@ function build(): RedwoodsDuel {
     camera: { minDist: 6, maxDist: 9.5, lens: 40, low: -0.6 },
     // (the lanterns' warm light, a little green from the leaves)
     rim: [1.0, 0.82, 0.45],
+    // the hazard: the wind through the clearing, a gust on seven phrases of ten, mostly along the stage one way or the
+    // other, now and then slanting across it (hazards.ts)
+    hazard: windHazard({ dirs: [0, Math.PI, 0.8, Math.PI + 0.8, Math.PI - 0.5, -0.5].map((a) => a + Math.atan2(right[2], right[0])), often: 7 }),
   };
   return { arena, pieces: packPieces(pieces), big: big.length, count: pieces.length };
 }

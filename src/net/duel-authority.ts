@@ -17,6 +17,7 @@ import { DuelMatch, duelPlane } from '../duel/match';
 import { Contact, splitIntent, noInput, type ContactEvent, type ContactInput, type Link } from '../duel/contact';
 import { DuelPowers, noPower, type Live, type PowerFx, type PowerInput } from '../duel/powers';
 import { Finale } from '../duel/finale';
+import { DuelHazards } from '../duel/hazards';
 import type { Arena } from '../duel/arena';
 import type { WorldLike } from '../duel/fallback';
 import { worldFor } from '../duel/stages';
@@ -97,6 +98,7 @@ export class DuelAuthority {
   readonly match: DuelMatch;
   readonly powers: DuelPowers;
   readonly finale: Finale;
+  readonly hazards: DuelHazards | null;
   readonly music: MusicClock;
   readonly setMs: number;
   readonly t0: number;
@@ -142,6 +144,7 @@ export class DuelAuthority {
     this.match = new DuelMatch(this.chars, this.arena, plane, 0, bpm, { solids: () => this.solids, setMs: this.setMs });
     this.powers = new DuelPowers(this.chars, this.match, { matter: [matterOf(o.matter[0]), matterOf(o.matter[1])], sink: this.solids, groundAt: terrain.groundAt, yKill: this.arena.space.yKill });
     this.finale = new Finale(this.chars);
+    this.hazards = this.arena.hazard ? new DuelHazards(this.chars, this.match, this.arena, { on: true }) : null;
     this.seats = [0, 1].map((): SeatIn => ({ queue: [], last: null, recv: -1, ack: -1, starved: 0, dry: 0, folded: 0, lost: 0 })) as unknown as [SeatIn, SeatIn];
   }
 
@@ -229,6 +232,9 @@ export class DuelAuthority {
         const c = C[k], m = mine[k];
         if (Math.hypot(c.root[0] - m[0], c.root[1] - m[1], c.root[2] - m[2]) > 1e-4 || Math.hypot(c.v[0] - m[3], c.v[1] - m[4], c.v[2] - m[5]) > 1e-3) this.pushed[k] = this.tick;
       }
+      // (the arena's gentle hazard, after the powers, on the room's beat: the tide, the wind, the swell, the hum; each
+      // page's prediction runs it too, so its push is not counted as the other's)
+      this.hazards?.step(beat, this.tickMs);
       out.ev = ev; out.tc = [...preTouch, ...M.touches]; out.pe = P.events; out.fx = P.fx;
     } else for (const c of C) c.events.length = 0;
     const st = this.slowDelta();
