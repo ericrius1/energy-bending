@@ -23,6 +23,7 @@ import type { Harm } from '../audio/harmony';
 import { panOf, distOf, type Listener } from '../audio/spatial';
 import { trackChord, trackFor, type TrackInfo } from '../audio/track';
 import { DUEL } from '../../shared/duel.ts';
+import { HAZARD, gustNow, humNow, swellNow, tideAt, type Hazard } from './hazards';
 
 type V3 = [number, number, number];
 type Ev = Record<string, unknown> & { k?: string; kind?: string; type?: string };
@@ -58,6 +59,9 @@ export const TIMING: Record<DuelCue, { grids: number[]; ahead: number; gap?: num
   cast: { grids: [0.5, 0.25], ahead: 0.06, gap: 0.05 }, form: { grids: [1, 0.5], ahead: 0.1, gap: 0.5 }, react: { grids: [1, 0.5], ahead: 0.1, gap: 0.5 },
   launch: { grids: [], ahead: 0 }, swap: { grids: [], ahead: 0 }, redirect: { grids: [0.25], ahead: 0.04 },
   dash: { grids: [], ahead: 0, gap: 0.1 }, walljump: { grids: [], ahead: 0, gap: 0.1 }, land: { grids: [], ahead: 0, gap: 0.2 }, jump: { grids: [], ahead: 0, gap: 0.15 },
+  // (the hazards' phrase sounds come with their own beat: `CueReq.beat`)
+  splash: { grids: [], ahead: 0, gap: 0.3 }, crest: { grids: [0.25], ahead: 0.04, gap: 0.3 },
+  tide: { grids: [], ahead: 0, gap: 1 }, gust: { grids: [], ahead: 0, gap: 1 }, swell: { grids: [], ahead: 0, gap: 1 }, hum: { grids: [], ahead: 0, gap: 1 }, humlift: { grids: [1], ahead: 0.1, gap: 1 },
 };
 
 // ---------------------------------------------------------------- the map
@@ -67,6 +71,8 @@ export interface CueReq {
   /** the seat it is (its matter's colour, where it is heard); -1 or absent: the pair's */
   seat?: number; other?: number;
   at?: V3 | null; vel?: number; level?: number; power?: string; on?: boolean; big?: boolean; perfect?: boolean; dur?: number;
+  /** when it sounds, as a beat of the music's clock (a hazard's phrase sound; at once if it has passed): no grid */
+  beat?: number;
 }
 type Rule = (e: Ev) => CueReq | CueReq[] | null;
 const num = (x: unknown, d = 0) => (typeof x === 'number' && Number.isFinite(x) ? x : d);
@@ -123,6 +129,10 @@ export const DUEL_SOUNDS: Record<string, Rule> = {
   'power:launch': (e) => ({ cue: 'launch', seat: seatOf(e), at: v3(e.at) }),
   'power:blink': (e) => (e.swap ? { cue: 'swap', seat: seatOf(e), at: v3(e.to) } : null),
   'power:redirect': (e) => ({ cue: 'redirect', seat: seatOf(e), at: v3(e.at) }),
+  // ---- the arenas' hazards (hazards.ts HazardFx's `k`; their phrase sounds come from HazardSound, below)
+  'hazard:splash': (e) => ({ cue: 'splash', seat: seatOf(e), at: v3(e.at), level: num(e.strength, 0.5) }),
+  'hazard:crest': (e) => ({ cue: 'crest', seat: seatOf(e), at: v3(e.at) }),
+  'hazard:lift': (e) => ({ cue: 'launch', seat: seatOf(e), at: v3(e.at) }),
   // ---- the bodies (soft)
   'body:dash': (e) => ({ cue: 'dash', at: [num(e.x), num(e.y) + 1, num(e.z)] }),
   'body:wallJump': (e) => ({ cue: 'walljump', at: [num(e.x), num(e.y) + 1, num(e.z)], level: 1 }),
@@ -142,6 +152,35 @@ export function cuesOf(name: string, e: Ev, map: Record<string, Rule> = DUEL_SOU
 const CATCHES: Partial<Record<DuelCue, number>> = { catch: 1, aerial: 2, range: 3 };
 /** how hard each cue plays (× the make-up gain in synth/duel.ts) */
 const VEL: Partial<Record<DuelCue, number>> = { catch: 0.85, aerial: 0.95, range: 0.95, merge: 0.9, fusion: 1, finale: 0.95, banner: 0.85, tier: 0.9 };
+
+// ---------------------------------------------------------------- the arenas' hazards
+/** the hazards' own sounds, on their phrases (hazards.ts: each acts on the music's 4-bar phrase, shown before it acts):
+ *  the redwoods' gust (leaves on the air from its warning, then the wind), the Pool's swell rolling across from the
+ *  phrase line, the geode's crystal humming through its warning and its column lifting on the line, the temple's tide a
+ *  slow wash each phrase while it is in. Each once a phrase, timed to its beat. Pure: the hazard and the beat in, cues out */
+export class HazardSound {
+  private last: Record<string, number> = {};
+  update(H: Hazard | null | undefined, beat: number, spb: number, mid: V3): CueReq[] {
+    if (!H || !H.on) return [];
+    const out: CueReq[] = [], P = HAZARD, once = (k: string, p: number) => { if (this.last[k] === p) return false; this.last[k] = p; return true; };
+    const near = (b: number) => beat >= b - 0.25;
+    if (H.kind === 'wind' && H.wind) {
+      const g = gustNow(H, beat), from = g.phrase * P.PHRASE - P.GUST_WARN;
+      if (g.has && near(from) && once('gust', g.phrase)) out.push({ cue: 'gust', beat: from, level: P.GUST_WARN * spb, dur: (P.GUST_RISE + P.GUST_HOLD + P.GUST_FALL) * spb, at: [mid[0] - g.dir[0] * 6, mid[1] + 1, mid[2] - g.dir[1] * 6] });
+    } else if (H.kind === 'swell' && H.swell) {
+      const w = swellNow(H, beat), S = H.swell;
+      if (w.u < 0.5 && once('swell', w.phrase)) out.push({ cue: 'swell', beat: w.phrase * P.PHRASE, dur: P.SWELL_BEATS * spb, at: [S.center[0], mid[1], S.center[1]] });
+    } else if (H.kind === 'hum' && H.hum) {
+      const m = humNow(H, beat), next = (m.phrase + 1) * P.PHRASE;
+      if (m.warn > 0 && once('hum', m.phrase + 1)) out.push({ cue: 'hum', beat: next - P.HUM_WARN, dur: P.HUM_WARN * spb, at: [m.next[0], m.next[1] + 1, m.next[2]] });
+      if (m.lift > 0 && once('humlift', m.phrase)) out.push({ cue: 'humlift', beat: m.phrase * P.PHRASE, at: [m.spot[0], m.spot[1] + 1, m.spot[2]] });
+    } else if (H.kind === 'tide' && H.tide) {
+      const p = Math.floor(beat / P.PHRASE), T = H.tide, lvl = (tideAt(H, p * P.PHRASE + P.PHRASE / 2) - T.low) / Math.max(0.01, T.high - T.low);
+      if (lvl > 0.15 && once('tide', p)) out.push({ cue: 'tide', beat: p * P.PHRASE, level: lvl, dur: P.PHRASE * spb, at: mid });
+    }
+    return out;
+  }
+}
 
 // ---------------------------------------------------------------- the set's length on the music
 /** a set's length (ms) as whole phrases (`bars`, 4) of the track nearest the length asked, so a set that begins on a
@@ -177,6 +216,9 @@ export interface DuelSource {
   powers(): readonly object[];
   /** a seat's body events this frame */
   body(seat: number): readonly object[];
+  /** the arena's hazard and its moments this frame (hazards.ts; none in an arena without one) */
+  hazard?(): Hazard | null;
+  hazards?(): readonly object[];
   /** a seat's matter (its dress: the colour), and its chest (where its sounds are) */
   matter(seat: number): string;
   chest(seat: number): V3;
@@ -194,6 +236,7 @@ export class DuelSound {
   jogoAsked = 0;
   private last = new Map<string, number>();
   private n = 0;
+  private hazardSound = new HazardSound();
   /** the first time a cue played (s), for a rate a minute */
   private t0 = -1;
   private tLast = 0;
@@ -219,6 +262,9 @@ export class DuelSound {
     take('touch', S.touches());
     take('power', S.powers());
     for (let k = 0; k < 2; k++) take('body', S.body(k), k);
+    take('hazard', S.hazards?.() ?? []);
+    const H = S.hazard?.();
+    if (H) { const now = this.host.now(), spb = 60 / (this.host.clock.bpm || 112); reqs.push(...this.hazardSound.update(H, this.host.clock.beatAt(now), spb, midpoint(S.chest(0), S.chest(1)))); }
     if (!reqs.length) return 0;
     // one catch a moment (a touch and a power's catch, or a juice event's twin, in one frame): the strongest
     const best = new Map<number, CueReq>();
@@ -247,7 +293,8 @@ export class DuelSound {
     if (last != null && now - last < (T.gap ?? 0.12)) { this.counts.twins++; return false; }
     this.last.set(key, now);
     const bpm = H.clock.bpm || 112, spb = 60 / bpm;
-    const g = T.grids.length ? onGrid(now, H.clock.beatAt(now), spb, T.grids, T.ahead, 0.025, H.clock.swing) : { t: now, snapped: false, wait: 0 };
+    const g = r.beat != null ? { t: now + Math.max(0, (r.beat - H.clock.beatAt(now)) * spb), snapped: false, wait: 0 }
+      : T.grids.length ? onGrid(now, H.clock.beatAt(now), spb, T.grids, T.ahead, 0.025, H.clock.swing) : { t: now, snapped: false, wait: 0 };
     const S = this.src, k = seat >= 0 ? seat : 0;
     const at = r.at ?? (seat >= 0 ? S.chest(seat) : midpoint(S.chest(0), S.chest(1)));
     const L = H.listener;
@@ -308,6 +355,7 @@ interface DuelApiLike {
   readonly state: { since: number; countMs: number; phase: string };
   match: { touches: readonly object[]; bodyEvents: readonly (readonly object[])[]; chars: readonly { root: ArrayLike<number> }[] };
   powers: { fx: readonly object[]; rules: { seats: readonly { matter: string }[] } };
+  hazards?: { hazard: Hazard | null; fx: readonly object[] };
 }
 export interface DuelSoundOptions {
   frame: { tick(phase: 'audio', fn: () => void, what: string): void };
@@ -334,6 +382,8 @@ export function duelSound(o: DuelSoundOptions) {
     body: (k) => D().match.bodyEvents[k] ?? [],
     matter: (k) => D().powers.rules.seats[k]?.matter ?? 'water',
     chest: (k) => { const r = D().match.chars[k]?.root ?? [0, 0, 0]; return [r[0], r[1] + 1.1, r[2]]; },
+    hazard: () => D().hazards?.hazard ?? null,
+    hazards: () => D().hazards?.fx ?? [],
   };
   const host: SoundHost = { out: E.out, now: () => M.now(), clock: E.clock as unknown as SoundHost['clock'], harmony: E.harmony, listener: o.listener };
   const sound = new DuelSound(host, src, DUEL_SOUNDS, (name, x) => (M.sfx as unknown as (n: string, x: unknown) => void)(name, x)) as DuelSound & { music: SetMusic };

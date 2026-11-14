@@ -227,6 +227,8 @@ const DUEL_SOLO: [DuelCue, string, Partial<DuelCall>?][] = [
   ['form', 'fire', { on: true }], ['form', 'fire', { on: false }], ['launch', 'gems'], ['swap', 'plasma'], ['redirect', 'gems'],
   ...(['fire', 'water', 'ice', 'plasma', 'gems'] as const).flatMap((m): [DuelCue, string, Partial<DuelCall>][] => [['dash', m, {}], ['walljump', m, {}], ['land', m, { level: 0.7 }]]),
   ['jump', 'fire'],
+  ['splash', 'water', { level: 0.8 }], ['crest', 'water'], ['tide', 'water', { level: 1, dur: 2 }], ['gust', 'fire', { level: 0.6, dur: 1.4 }],
+  ['swell', 'water', { dur: 2 }], ['hum', 'gems', { dur: 1.5 }], ['humlift', 'gems'],
 ];
 SCENARIOS['duel-solo'] = () => {
   const gap = 2.2;

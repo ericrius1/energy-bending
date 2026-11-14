@@ -10,7 +10,8 @@ import { Harmony } from '../harmony';
 import { TRACKS, trackMood } from '../track';
 import { originListener } from '../spatial';
 import { DuelVoices, DUEL_GAIN, tierBright } from '../synth/duel';
-import { onGrid, cuesOf, DUEL_SOUNDS, TIMING, DuelSound, SetMusic, phraseSetMs, phraseLine, type DuelSource, type MusicLike } from '../../duel/sound';
+import { onGrid, cuesOf, DUEL_SOUNDS, TIMING, DuelSound, SetMusic, HazardSound, phraseSetMs, phraseLine, type DuelSource, type MusicLike } from '../../duel/sound';
+import { tideHazard, windHazard, humHazard, swellHazard, gustNow } from '../../duel/hazards';
 import { check, close, say, type Tests } from './check';
 
 type V3 = [number, number, number];
@@ -124,6 +125,28 @@ export const tests: Tests = {
     check(MOTION_CUES.has('dash') && MOTION_CUES.has('land') && !MOTION_CUES.has('catch'), 'movement on the motion bus');
   },
 
+  'the hazards: each once a phrase, on its own beat'() {
+    const spb = 0.6, mid: V3 = [0, 1, 0];
+    const run = (H: Parameters<HazardSound['update']>[0], beats = 64) => {
+      const S = new HazardSound(), out: { cue: string; beat?: number; at: number }[] = [];
+      for (let b = 0; b < beats; b += 1 / 30) for (const r of S.update(H, b, spb, mid)) out.push({ cue: r.cue, beat: r.beat, at: b });
+      return out;
+    };
+    const wind = windHazard({ dirs: [0, 1.5], often: 10 }), g = run(wind);
+    check(g.length === 5 && g.every((x) => x.cue === 'gust'), `a gust a phrase, the fifth's warning before beat 64 (${g.length})`);
+    check(g.every((x) => Math.abs((x.beat! + 3) % 16) < 1e-6 && x.at >= x.beat! - 0.26), 'each from its warning, three beats before the line');
+    check(gustNow(wind, 13.5).warn > 0, 'the hazard agrees: the leaves fly before the line');
+    const tide = run(tideHazard({ low: 0, high: 1, bars: 16 }));
+    check(tide.length >= 2 && tide.every((x) => x.cue === 'tide' && x.beat! % 16 === 0), 'the tide on its phrase lines while it is in');
+    const hum = run(humHazard({ spots: [[0, 0, 0], [2, 0, 0]], r: 1, h: 3 }));
+    check(hum.filter((x) => x.cue === 'hum').length >= 3 && hum.filter((x) => x.cue === 'humlift').length >= 3, 'the hum before each lift, the lift on the line');
+    check(hum.filter((x) => x.cue === 'hum').every((x) => (x.beat! + 8) % 16 === 0), 'the hum through its eight-beat warning');
+    const swell = run(swellHazard({ amp: 0.4, width: 2, reach: 8, dirs: [0], movers: [] }));
+    check(swell.length === 4 && swell.every((x) => x.cue === 'swell' && x.beat! % 16 === 0), 'a swell a phrase, from its line');
+    check(run(null).length === 0 && run({ ...wind, on: false }).length === 0, 'none without a hazard, or with it off');
+    say(`over 64 beats: ${g.length} gusts, ${tide.length} tides, ${hum.length} hums and lifts, ${swell.length} swells`);
+  },
+
   'the tiers rise: higher and brighter each'() {
     for (let t = 1; t < 4; t++) check(tierBright(t + 1) > tierBright(t), `tier ${t + 1} brighter than ${t}`);
     say(`the tiers' brightness: ${[1, 2, 3, 4].map((t) => `${['FLOW', 'BLOOM', 'RADIANT', 'SUBLIME'][t - 1]} ${Math.round(tierBright(t))} Hz`).join(', ')}`);
@@ -138,7 +161,7 @@ export const tests: Tests = {
     }
     for (const [name, rule] of Object.entries(DUEL_SOUNDS)) {
       void rule;
-      check(/^(duel|touch|power|body):/.test(name), `${name}: a source's name`);
+      check(/^(duel|touch|power|body|hazard):/.test(name), `${name}: a source's name`);
     }
   },
 

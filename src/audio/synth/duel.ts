@@ -37,12 +37,13 @@ export const DUEL_GAIN: Record<DuelCue, number> = {
   release: 0.45, merge: 0.8, finale: 0.85, fusion: 0.9, banner: 1.1, tier: 0.75, bank: 0.4, fall: 0.5, reform: 0.45,
   cast: 1.1, form: 0.8, react: 0.85, launch: 0.5, swap: 0.6, redirect: 0.6,
   dash: 0.55, walljump: 0.6, land: 0.65, jump: 0.35,
+  splash: 0.7, crest: 0.6, tide: 0.6, gust: 0.7, swell: 0.65, hum: 0.6, humlift: 0.7,
 };
 /** each power's gain inside the cast's, so the ten sit together (measured alone, the flare, the ribbon, the blink and
  *  the arc were 4 to 7 dB under the ice step) */
 const POWER_GAIN: Record<string, number> = { flare: 1.5, ribbon: 1.9, blink: 1.6, arc: 1.6, whip: 1.15, wave: 1.15 };
 /** voices a cue keeps sounding at once, and how long one lasts (s) for the count */
-const CAP: Partial<Record<DuelCue, number>> = { swing: 2, dash: 3, land: 3, walljump: 3, jump: 2, catch: 3, cast: 4 };
+const CAP: Partial<Record<DuelCue, number>> = { tide: 2, gust: 2, swell: 2, hum: 2, swing: 2, dash: 3, land: 3, walljump: 3, jump: 2, catch: 3, cast: 4 };
 /** the reverb's share for a cue */
 const WET: Partial<Record<DuelCue, number>> = { merge: 0.45, fusion: 0.5, finale: 0.45, banner: 0.45, tier: 0.35, go: 0.4, react: 0.4, form: 0.35 };
 
@@ -476,6 +477,69 @@ export class DuelVoices {
       default: this.bowl(o, t, 'stone', notes(this.tones(c), 79, 1)[0], 0.18 * v, 0.4);
     }
     return 0.5;
+  }
+  // ---------------------------------------------------------------- the arenas' hazards (src/duel/hazards.ts)
+  /** a body landing in the water (the Pool, the temple's tide): a splash by how hard, bubbles climbing the chord */
+  c_splash(t: number, c: DuelCall, o: Out) {
+    const v = clamp(c.level, 0.2, 1);
+    this.air(o, t, [[0, 2800], [0.35, 600]], 0.7, 0.3 * v, 0.004, 0.35, 'lowpass');
+    this.air(o, t, [[0, 400], [0.1, 300]], 0.7, 0.25 * v, 0.002, 0.08, 'lowpass');
+    const ns = notes(this.tones(c), 72, 5);
+    for (let i = 0; i < 2 + Math.round(3 * v); i++) this.bubble(o, t + 0.04 + i * 0.05 + this.n.r() * 0.02, ns[(i + Math.floor(c.seed * 5)) % 5], 0.1 * v);
+    return 0.8;
+  }
+  /** a jump off the swell's crest: foam lifting, the matter's colour going up */
+  c_crest(t: number, c: DuelCall, o: Out) {
+    this.air(o, t, [[0, 900], [0.3, 3500]], 0.8, 0.18, 0.04, 0.35);
+    this.tint(o, t + 0.05, c.matter, notes(this.tones(c), this.reg(c.matter) + 5, 1)[0], 0.4, 0.5);
+    return 0.8;
+  }
+  /** the temple's tide on a phrase line: a slow wash coming in and drawing back over the phrase, as deep as the tide */
+  c_tide(t: number, c: DuelCall, o: Out) {
+    const d = clamp(c.dur ?? 8, 2, 12), v = clamp(c.level, 0.2, 1);
+    this.air(o, t, [[0, 250], [d * 0.4, 900], [d, 300]], 0.5, 0.35 * v, d * 0.35, d * 0.6, 'lowpass');
+    this.air(o, t + d * 0.1, [[0, 1800], [d * 0.4, 3500], [d * 0.8, 1500]], 0.7, 0.03 * v, d * 0.3, d * 0.5);
+    for (let i = 0; i < 4; i++) this.bubble(o, t + d * (0.3 + 0.08 * i) + this.n.r() * 0.1, notes(this.tones(c), 67, 4)[i], 0.04 * v);
+    return d + 0.3;
+  }
+  /** a gust through the redwoods: leaves and needles rustling on the air first, then the wind swelling and easing */
+  c_gust(t: number, c: DuelCall, o: Out) {
+    // (level: the warning's length, s; dur: the gust's own)
+    const warn = clamp(c.level, 0.3, 4), d = clamp(c.dur ?? 6, 1, 10);
+    const n = this.n, leaves = n.gn(1); leaves.connect(o);
+    for (let i = 0; i < 14; i++) {
+      const at = t + n.r() * (warn + d * 0.5), f = 3000 + n.r() * 4000;
+      n.link(n.noise(at, 0.06), n.bq('bandpass', f, 2.5), n.envG(at, 0.05 + 0.04 * n.r(), 0.01, 0.05 + n.r() * 0.06), leaves);
+    }
+    const g = n.gn(0), bp = n.bq('bandpass', 350, 0.8);
+    n.path(bp.frequency, t, [[0, 300], [warn + d * 0.3, 900], [warn + d, 400]]);
+    g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(0.35, t + warn + d * 0.25); g.gain.setTargetAtTime(0, t + warn + d * 0.65, d * 0.12);
+    n.link(n.noiseL(t, warn + d + 0.5), bp, g, o);
+    return warn + d + 0.5;
+  }
+  /** the Pool's swell rolling across: surf gathering and drawing back, from one side to the other, a low tone under it */
+  c_swell(t: number, c: DuelCall, o: Out) {
+    const n = this.n, d = clamp(c.dur ?? 7, 2, 10), pan = n.pan(0);
+    pan.pan.setValueAtTime(-0.6, t); pan.pan.linearRampToValueAtTime(0.6, t + d);
+    pan.connect(o);
+    this.air(pan, t, [[0, 300], [d * 0.5, 1100], [d, 350]], 0.55, 0.3, d * 0.4, d * 0.55, 'lowpass');
+    this.osc(pan, t, 'sine', mtof(notes(this.tones(c), 38, 1)[0]), 0.06, d * 0.4, d * 0.5);
+    return d + 0.3;
+  }
+  /** a geode crystal humming before it lifts: a rubbed bowl's two close tones swelling over the warning */
+  c_hum(t: number, c: DuelCall, o: Out) {
+    const n = this.n, d = clamp(c.dur ?? 4, 1, 8), ns = notes(this.tones(c), 76, 3), g = n.gn(0);
+    g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(0.06, t + d * 0.9); g.gain.setTargetAtTime(0, t + d, 0.25);
+    g.connect(o);
+    for (const [m, cents] of [[ns[0], 0], [ns[0], 6], [ns[2], -4]] as const) { const s = n.o('sine', mtof(m) * Math.pow(2, cents / 1200), t, t + d + 1.5); s.connect(g); }
+    return d + 1.5;
+  }
+  /** the crystal's column lifting: a glass chord blooming, a tone climbing */
+  c_humlift(t: number, c: DuelCall, o: Out) {
+    notes(this.tones(c), 64, 3).forEach((m, i) => this.bowl(o, t + i * 0.03, 'glass', m, 0.3, 3));
+    const m = notes(this.tones(c), 67, 1)[0];
+    this.glide(o, t, 'sine', mtof(m), mtof(m + 12), 1, 0.06, 0.3, 0.9);
+    return 3;
   }
   /** an air jump: a whisper */
   c_jump(t: number, _c: DuelCall, o: Out) {

@@ -48,12 +48,13 @@ export type DuelCue =
   | 'count' | 'go' | 'catch' | 'aerial' | 'range' | 'swing' | 'fling' | 'landed' | 'lift' | 'counter' | 'release'
   | 'merge' | 'finale' | 'fusion' | 'banner' | 'tier' | 'bank' | 'fall' | 'reform'
   | 'cast' | 'form' | 'react' | 'launch' | 'swap' | 'redirect'
-  | 'dash' | 'walljump' | 'land' | 'jump';
+  | 'dash' | 'walljump' | 'land' | 'jump'
+  | 'splash' | 'crest' | 'tide' | 'gust' | 'swell' | 'hum' | 'humlift';
 export const DUEL_CUES: DuelCue[] = ['count', 'go', 'catch', 'aerial', 'range', 'swing', 'fling', 'landed', 'lift', 'counter', 'release',
   'merge', 'finale', 'fusion', 'banner', 'tier', 'bank', 'fall', 'reform', 'cast', 'form', 'react', 'launch', 'swap', 'redirect',
-  'dash', 'walljump', 'land', 'jump'];
-/** the movement voices (soft, under the music: their own bus) */
-export const MOTION_CUES: ReadonlySet<DuelCue> = new Set(['dash', 'walljump', 'land', 'jump']);
+  'dash', 'walljump', 'land', 'jump', 'splash', 'crest', 'tide', 'gust', 'swell', 'hum', 'humlift'];
+/** the movement voices and the arenas' hazards (soft, under the music: their own bus) */
+export const MOTION_CUES: ReadonlySet<DuelCue> = new Set(['dash', 'walljump', 'land', 'jump', 'splash', 'tide', 'gust', 'swell', 'hum']);
 /** a duel sound as the instrument is handed it */
 export interface DuelCall {
   cue: DuelCue;
