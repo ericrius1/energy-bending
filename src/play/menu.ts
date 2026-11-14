@@ -154,14 +154,18 @@ export function showFront(query: URLSearchParams, open: (href: string) => void =
   return root;
 }
 
-/** the lobby before a jogo on one screen: which device plays which dancer */
+/** the lobby before a jogo on one screen: which device plays which dancer. A seat still waiting says how to join it
+ *  (a key, a click or a tap; a gamepad's button) and is itself a button: a click or a tap on it joins that seat */
 export class Lobby {
   readonly root: HTMLElement;
   private cards: HTMLElement[] = [];
-  constructor(partner: boolean) {
+  constructor(partner: boolean, onPick?: (seat: number, e: PointerEvent) => void) {
     this.root = el('div', 'jg jg-lobby');
+    const touch = typeof matchMedia === 'function' && matchMedia('(pointer: coarse)').matches;
     for (let s = 0; s < 2; s++) {
-      const card = el('div', 'jg-card', `<b class="jg-seat">${s + 1}</b><div class="jg-dev">${s === 1 && partner ? GLYPHS.partner : GLYPHS.press}</div>`);
+      const card = el('div', 'jg-card', `<b class="jg-seat">${s + 1}</b><div class="jg-dev">${s === 1 && partner ? GLYPHS.partner : GLYPHS.press}</div><span class="jg-hint">${touch ? 'tap to join' : 'press a key or click'}</span>`,
+        { role: 'button', tabindex: '0', 'aria-label': `player ${s + 1}: join` });
+      card.addEventListener('pointerdown', (e) => { if (!card.classList.contains('on')) { e.stopPropagation(); onPick?.(s, e); } });
       this.cards.push(card);
       this.root.append(card);
     }
@@ -172,6 +176,8 @@ export class Lobby {
     const c = this.cards[s];
     if (!c) return;
     c.querySelector('.jg-dev')!.innerHTML = device ? DEVICE_GLYPH[device] ?? GLYPHS.press : GLYPHS.press;
+    const hint = c.querySelector<HTMLElement>('.jg-hint');
+    if (hint && device) hint.textContent = device === 'bot' ? 'partner' : device.replace(/-.*/, '');
     c.classList.toggle('on', !!device);
   }
   hide() { this.root.classList.add('gone'); setTimeout(() => this.root.remove(), 600); }

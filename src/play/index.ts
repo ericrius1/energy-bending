@@ -379,7 +379,17 @@ export async function startJogo(app: PlayApp, mode: string, opts: { joined?: Joi
       else if (++waited > 60 + hold * 60) void start();
     }, 'jogo: a script waits for the first stepped frame (and its hold)');
   } else if (!online) {
-    lobby = new Lobby(mode === 'partner');
+    // a device that joins seat 1 by a pointer: a touch joins as touch; a click joins the keyboard's solo layout (the
+    // mouse is part of it)
+    const joinPointer = (pt: { touch: boolean; id: number; x: number; y: number }) => {
+      const hub = play.hub, n = hub.players.length;
+      if (pt.touch) hub.touch(pt.id, pt.x, pt.y);
+      if (hub.players.length === n) {
+        hub.key('KeyA');
+        (hub.players[n]?.source as { keyUp?(code: string): void } | undefined)?.keyUp?.('KeyA');
+      }
+    };
+    lobby = new Lobby(mode === 'partner', (_seat, e) => joinPointer({ touch: e.pointerType !== 'mouse', id: e.pointerId, x: e.clientX, y: e.clientY }));
     lobby.seat(1, 'bot');
     const was = play.hub.onJoin;
     play.hub.onJoin = (p) => {
@@ -396,11 +406,7 @@ export async function startJogo(app: PlayApp, mode: string, opts: { joined?: Joi
     if (j) {
       const n = hub.players.length;
       if (j.device === 'keyboard') hub.key(j.code);
-      else if (j.device === 'touch') hub.touch(j.id, j.x, j.y);
-      if (hub.players.length === n) {
-        hub.key('KeyA');
-        (hub.players[n]?.source as { keyUp?(code: string): void } | undefined)?.keyUp?.('KeyA');
-      }
+      if (hub.players.length === n) joinPointer(j.device === 'touch' ? { touch: true, id: j.id, x: j.x, y: j.y } : { touch: false, id: 0, x: 0, y: 0 });
     }
   }
 

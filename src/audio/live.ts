@@ -17,6 +17,8 @@ export class Live {
   private jank = 0;
   private lastTick: number | null = null;
   private td: Float32Array<ArrayBuffer> | null = null;
+  /** resume a suspended or interrupted context (the page's gestures call it; so may anyone) */
+  wake: () => void = () => {};
 
   constructor(tone: Tone, private onTick: (cur: number, until: number) => void) {
     // iOS: play through the ring/silent switch, like any music app
@@ -25,6 +27,23 @@ export class Live {
     this.ctx = new AudioContext({ latencyHint: 'interactive' });
     this.synth = new Synth(this.ctx, tone);
     void this.ctx.resume();
+    // a browser may keep the context suspended (made outside a gesture: a gamepad's press, a page opened by address;
+    // Safari more strictly than Chrome) or interrupt it (a call, the tab hidden, the device asleep): any later click,
+    // key or tap, and the tab coming back, resume it. The first gesture also plays one silent sample (iOS unlocks the
+    // output only for a sound started inside a gesture)
+    let unlocked = false;
+    const wake = () => {
+      const st = this.ctx.state as string;
+      if (st === 'closed') return;
+      if (st !== 'running') void this.ctx.resume().catch(() => {});
+      if (!unlocked) {
+        unlocked = true;
+        try { const b = this.ctx.createBufferSource(); b.buffer = this.ctx.createBuffer(1, 1, this.ctx.sampleRate); b.connect(this.ctx.destination); b.start(); } catch { /* fine */ }
+      }
+    };
+    this.wake = wake;
+    for (const ev of ['pointerdown', 'keydown', 'touchend']) addEventListener(ev, wake, { capture: true, passive: true });
+    document.addEventListener('visibilitychange', () => { if (!document.hidden) wake(); });
     this.timer = setInterval(() => this.tick(), 25);
     try {
       const src = 'let i=0;onmessage=e=>{clearInterval(i);if(e.data>0)i=setInterval(()=>postMessage(0),e.data)}';
@@ -74,6 +93,7 @@ export class Live {
   }
 
   stop() {
+    for (const ev of ['pointerdown', 'keydown', 'touchend']) removeEventListener(ev, this.wake, { capture: true });
     clearInterval(this.timer);
     this.worker?.terminate();
     void this.ctx.close();

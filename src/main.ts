@@ -262,8 +262,13 @@ async function toggleYou() {
   const e = new Eyes(you, (msg) => console.info(`you: ${msg}`));
   try { await e.start(coarse); show.you = you; eyes = e; show.stage(show.program); } catch (err) { e.stop(); console.warn('energybending: the camera', err); }
 }
+// the show's keys (space, n, w, l, y, f) are for the show and the demos only. In a game (a jogo or a duel, begun from
+// the front or opened by address) the same keys are the players' (W up and jump, L kick, F merge, space jump): there
+// they changed the world, flipped the view and shattered the bodies in the middle of play
+const inGame = () => document.body.classList.contains('playing') || ['jogo', 'duel', 'play'].some((k) => new URLSearchParams(location.search).has(k));
 addEventListener('keydown', (e) => {
   if ((e.target as HTMLElement)?.closest?.('input, select, textarea')) return;
+  if (inGame()) return;
   if (e.key === ' ') { e.preventDefault(); if (!show.awake) wake(); else hand.shatter(); }
   else if (e.key === 'n') { wake(); show.programme.next(); }
   else if (e.key === 'w') void setWorld(worlds[(worlds.indexOf(worldOf(main.world)) + 1) % worlds.length].id);

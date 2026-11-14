@@ -52,7 +52,9 @@ async function install() {
     const mode = currentMode(root);
     if (mode !== 'same' && mode !== 'partner') return;
     e.stopImmediatePropagation();
-    void begin(mode, null);
+    // the click that pressed play joins seat 1 (it had joined nobody: the jogo sat in its lobby, waiting for a key)
+    const pe = e as PointerEvent;
+    void begin(mode, pe.pointerType === 'touch' || pe.pointerType === 'pen' ? { device: 'touch', id: pe.pointerId, x: pe.clientX, y: pe.clientY } : { device: 'mouse' });
   }, { capture: true });
 
   // ---------------------------------------------------------------- resting: the strip fades, and comes back
