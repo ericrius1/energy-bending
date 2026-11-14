@@ -4,7 +4,7 @@
 //        [--no-encode] [--out docs/reports/media/film] [--prefix 6 (the contact sheets' name: <prefix>-film-…)]
 //        [--no-score (the pictures alone, silence under them: a quick look while working on a timeline)]
 //        [--seconds 36 (every shot that long)] [--size 1280x720 (a preview's size)] [--name x (<film>-x-preview.mp4)]
-//        [--flash (the sync check)]
+//        [--flash (the sync check)] [--keep-work (keep the joined lossless pictures in <out>/work)]
 //   (anything else as the first argument is the older path, a cut of src/engine/film.ts: scripts/film-cut.mjs)
 // Each shot is one page (?film&cut=timeline, src/engine/film-shot.ts) that plays the shot from its first frame; the
 // frames from its in-point are read back as YUV 4:2:0 and posted here. A shot is cut into takes (`--take` seconds,
@@ -465,5 +465,8 @@ if (opts.flash && TRACK) {
   sync = { flashes: flashes.length, beats, medianMs: +(abs[Math.floor(abs.length / 2)] ?? NaN).toFixed(1), worstMs: +(abs[abs.length - 1] ?? NaN).toFixed(1), frameMs: +(1000 / Q.fps).toFixed(1), perShot, firstErrs: errs.slice(0, 12).map((e) => +e.toFixed(1)) };
   log(`sync: ${flashes.length} flashes over ${beats} beats; each from the track's beat: median ${sync.medianMs} ms, worst ${sync.worstMs} ms (a frame is ${sync.frameMs} ms); by shot ${perShot.map((p) => `${p.shot} ${p.flashes}/${p.beats} ${p.medianMs}/${p.worstMs} ms`).join(', ')}`);
 }
+// (the joined pictures are lossless copies of the takes, about 9 MB a second at 640x360 and far more at 1080p: gone once
+// encoded, unless --keep-work; the takes stay in the cache)
+if (!opts['keep-work']) for (const f of [picture, ...pick.map((s) => s.joined)]) rmSync(f, { force: true });
 writeFileSync(join(work, 'run.json'), JSON.stringify({ film: NAME, quality: Q.label, track: TRACK ? { id: TRACK.id, bpm: TRACK.bpm, beat0: BEAT0, source: relative(ROOT, TRACK.source) } : null, sync, size: [W, H], fps: Q.fps, scale: Q.scale, build: buildHash, renderS, holds, outs, shots: pick.map((s) => ({ id: s.id, seconds: s.seconds, frames: s.frames, keep: s.keep, at: s.at, takes: s.takes, dir: relative(ROOT, s.dir), info: s.info })) }, null, 1));
 process.exit(0);

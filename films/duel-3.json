@@ -1,0 +1,75 @@
+{
+  "name": "duel-3",
+  "title": "The duel's phase 3 film (Juice): a highlight reel of the contact dance, two virtual players seen as players see them (the duel's own camera, the HUD on screen, the power keys of a split keyboard under each panel's icons), on the Pool's track (The Still Pool) from bar 60's second beat. The count-in falls in the track's hush and DANCE lands on bar 61 over the Pool, where ice rides the swell's crest off the water into water's catch; still in the hush, the temple's high tide floats the pair into a FREEZE bar, and the geode's hum lifts both into a catch inside its column; the music comes back on bar 65 with an air catch held by the game and the pair's MURMURATION flash in the temple; STEAM carries water up between the redwoods into fire's catch; a MELT in the geode, its near fade opening the beams to lines of light; a gust leaning a meeting in the air among the redwoods; AURORA over the Pool; then a temple set's merge and its fused finale on bar 73 (skill 0.85), and the banner. Every duel shot plays its set from the first frame (seeded brains, the music's clock anchored to the duel's start) and cuts into it by its pre-roll, on the track's beats; the sound is the track with each shot's recorded score under it at the game's balance: the duel's own voices, the matter, the hazards.",
+  "audio": { "track": "pool", "from": 60.25 },
+  "size": "1280x720",
+  "fps": 60,
+  "fadeIn": 0.3,
+  "fadeOut": 1.4,
+  "defaults": { "mode": "duel", "from": "start", "hud": true, "query": { "keys": "left,right" } },
+  "shots": [
+    {
+      "id": "pool-open",
+      "note": "the Pool: 3, 2, 1 in the track's hush, DANCE on bar 61; ice (fern) rides the swell's crest off the water and water (rose) catches it out of the air",
+      "world": "pool",
+      "cast": [{ "dress": "water", "style": "lead", "skill": 0.85 }, { "dress": "ice", "style": "flyer", "skill": 0.85 }],
+      "seed": 1, "preroll": 0, "beats": 8
+    },
+    {
+      "id": "temple-tide-freeze",
+      "note": "the temple at high tide: ice (rose) and water (fern) afloat over the drowned court, swinging (DUET); water's whip meets ice's step: FREEZE!, the bar",
+      "world": "temple",
+      "cast": [{ "dress": "ice", "style": "lead", "skill": 0.95 }, { "dress": "water", "style": "flyer", "skill": 0.95 }],
+      "seed": 13, "preroll": 47.082, "beats": 6
+    },
+    {
+      "id": "geode-hum",
+      "note": "the geode: a crystal hums, its column of honey light lifts plasma (rose) and gems (fern) together, and they catch in the air inside it",
+      "world": "geode",
+      "cast": [{ "dress": "plasma", "style": "base", "skill": 0.85 }, { "dress": "gems", "style": "flyer", "skill": 0.85 }],
+      "seed": 4, "preroll": 7.930, "beats": 5
+    },
+    {
+      "id": "temple-murmuration",
+      "note": "bar 65, the music back: the temple's court at ebbing tide, fire (rose) catches ice (fern) out of the air (the game's hold on an air catch) and the pair's chain reaches MURMURATION x61: the flash of both colours, a beat slowed",
+      "world": "temple",
+      "cast": [{ "dress": "fire", "style": "lead", "skill": 0.85 }, { "dress": "ice", "style": "flyer", "skill": 0.85 }],
+      "seed": 1, "preroll": 54.516, "beats": 4
+    },
+    {
+      "id": "redwoods-steam",
+      "note": "the redwoods: fire's flare meets water's wave, STEAM!, the geyser carries water up through the light between the trunks and fire leaps up and catches it (AIR CATCH, held)",
+      "world": "redwoods",
+      "cast": [{ "dress": "water", "style": "flyer", "skill": 0.85 }, { "dress": "fire", "style": "lead", "skill": 0.85 }],
+      "seed": 2, "preroll": 38.161, "beats": 5
+    },
+    {
+      "id": "geode-melt",
+      "note": "the geode: ice (rose) sets a step, fire's flare melts it: MELT!; the near fade opens the crystal beams between the eye and the pair to lines of light",
+      "world": "geode",
+      "cast": [{ "dress": "ice", "style": "lead", "skill": 0.85 }, { "dress": "fire", "style": "flyer", "skill": 0.85 }],
+      "seed": 1, "preroll": 17.346, "beats": 6
+    },
+    {
+      "id": "redwoods-gust",
+      "note": "the redwoods: a gust through the clearing, leaves and needles streaming; ice (rose) and water (fern) meet in the air on it",
+      "world": "redwoods",
+      "cast": [{ "dress": "ice", "style": "lead", "skill": 0.85 }, { "dress": "water", "style": "flyer", "skill": 0.85 }],
+      "seed": 2, "preroll": 38.161, "beats": 5
+    },
+    {
+      "id": "pool-aurora",
+      "note": "the Pool: fire (rose) and water (fern) between the floes, a fling and an air catch, and the pair's chain reaches AURORA x131",
+      "world": "pool",
+      "cast": [{ "dress": "fire", "style": "lead", "skill": 0.85 }, { "dress": "water", "style": "flyer", "skill": 0.85 }],
+      "seed": 1, "preroll": 55.507, "beats": 5
+    },
+    {
+      "id": "temple-finale",
+      "note": "the temple's court, a set's last seconds: MERGE, an air catch, FINALE on bar 73, fire (rose) lifts water (fern) overhead into the column of light, the fused lift, and the banner",
+      "world": "temple",
+      "cast": [{ "dress": "fire", "style": "flyer", "skill": 0.85 }, { "dress": "water", "style": "lead", "skill": 0.85 }],
+      "seed": 3, "preroll": 61.454, "beats": 20
+    }
+  ]
+}
