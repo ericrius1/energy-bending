@@ -26,7 +26,7 @@
 // Intent split between its body and the contact (seat gates); travel — the contact and the rules, the effects;
 // camera — the free camera side-on to the pair; post — the glows up to the GPU, the HUD's state.
 import type { FrameCtx } from '../engine/frame';
-import { Solids, distTo, type StagePlane } from '../engine/camera';
+import type { StagePlane } from '../engine/camera';
 import type { Dancer } from '../dancer/dancer';
 import type { IntentController } from '../dancer/intent-controller';
 import type { Music } from '../audio/music';
@@ -59,6 +59,8 @@ import type { WaterPasses } from '../matter/water/pool';
 import type { PlasmaPasses } from '../matter/plasma/plasma';
 import { Finale } from './finale';
 import { DuelCamera, type CamBody, type CamSpace } from './camera';
+import { spaceFor } from './camspace';
+import { SEAT_CSS } from './seat';
 import { camKind } from './weight';
 import { DuelHud, screenOf, type HudSeat, type HudState, type HudWord } from './hud-state';
 // (the HUD is the page's one, reached through bend.hud, and screenOf is hud-state.ts's copy of src/hud's: any value
@@ -248,6 +250,7 @@ export async function startDuel(app: PlayApp, opts: { joined?: Joined } = {}) {
     sfx: (name, o) => { music.sfx(name as Parameters<Music['sfx']>[0], o); }, ear,
     rumble: (k, s, ms) => { const i = humanSeats.indexOf(k); if (i >= 0) hub.rumble(i, s, ms); },
     field: field as unknown as DuelFxCtx['field'], burst: app.hand?.burst ?? null, finale: () => finale.look(),
+    eye: () => [cam.position[0], cam.position[1], cam.position[2]], form: (k) => powers.hud(k).form,
   });
   const water = app.kinds.find((k) => k.id === 'water' || k.id === 'ice') as WaterPasses | undefined;
   const plasma = app.kinds.find((k) => k.id === 'plasma') as PlasmaPasses | undefined;
@@ -329,25 +332,15 @@ export async function startDuel(app: PlayApp, opts: { joined?: Joined } = {}) {
   // eases the lock in and out from it. A player's own look input (the right stick, the mouse) turns it by hand for a
   // moment. The lock gets the same head room (CameraRig.apexG, headroom)
   const dcam = new DuelCamera();
-  let solidsFor: readonly Solid[] | null = null, solidSet: Solids | null = null;
-  const camSpace = (): CamSpace | null => {
-    const list = solids();
-    if (list.length !== solidsFor?.length) { solidsFor = list; solidSet = list.length ? new Solids(list) : null; }
-    const S = solidSet;
-    if (!S) return null;
-    return {
-      clear: (p) => { let d = Infinity; for (const s of S.list) d = Math.min(d, distTo(s, p)); return d; },
-      blocked: (a, b) => S.sweep(a, b, 0.12) < 0.98,
-      ground: (x, z) => world().groundAt(x, z),
-    };
-  };
+  // (camspace.ts: World.solids with the powers' own, made again whenever one comes or goes)
+  const spaceNow = spaceFor((x, z) => world().groundAt(x, z)), camSpace = (): CamSpace | null => spaceNow(solids());
   const FRAMED = [JOINT.Hips, JOINT.Spine1, JOINT.LeftHand, JOINT.RightHand, JOINT.LeftToeBase, JOINT.RightToeBase];
   const camBody = (k: number): CamBody | null => {
     const d = dancer(k);
     if (!d) return null;
     const J = d.skeleton.world, at = (j: number): V3 => [J[j * JOINT_FLOATS], J[j * JOINT_FLOATS + 1], J[j * JOINT_FLOATS + 2]];
     const c = chars[k];
-    return { pts: FRAMED.map(at), sight: [at(JOINT.Hips), at(JOINT.Spine1)], head: at(JOINT.HeadEnd), root: [c.root[0], c.root[1], c.root[2]], vel: [c.v[0], c.v[1], c.v[2]], air: !c.grounded };
+    return { pts: FRAMED.map(at), sight: [at(JOINT.Hips), at(JOINT.Spine1)], head: at(JOINT.HeadEnd), root: [c.root[0], c.root[1], c.root[2]], vel: [c.v[0], c.v[1], c.v[2]], air: !c.grounded, away: c.reforming };
   };
   rig.apexG = chars[0].phys.gravity;
   rig.headroom = 0.5;
@@ -425,6 +418,7 @@ export async function startDuel(app: PlayApp, opts: { joined?: Joined } = {}) {
     // (from: the holder's contact point, its grip; to: the held body's, its chest, which the grip carries)
     const link = L ? { on: true, from: linkAt ?? undefined, to: project(fx.chest(L.held)) } : { on: false };
     hudState = duelHud.build(match.state, now, f.dt, seats, beat, bpm, setMs, link);
+    for (const p of hudState.players) p.color = SEAT_CSS[p.seat];   // (each seat its own colour, whatever its matter: seat.ts)
     (window as unknown as { bend?: { hud?: { set?: (s: HudState) => void } } }).bend?.hud?.set?.(hudState);
   }, 'duel: its glows to the GPU, its HUD state');
 
