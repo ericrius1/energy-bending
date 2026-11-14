@@ -221,7 +221,9 @@ export class DuelClient {
   private tickOnce() {
     const x = inputOf(this.pending, this.seq++, this.yaw, this.viewTick());
     for (const e of EDGES) (this.pending as unknown as Record<string, boolean>)[e] = false;
-    const beat = this.beat(this.o.link.now() + this.o.link.rtt / 2);
+    // (the beat this input will be stepped on at the server: half a round trip and the queue ahead of now)
+    const q = Number(this.last?.x.q ?? 3);
+    const beat = this.beat(this.o.link.now() + this.o.link.rtt / 2 + q * this.tickMs);
     this.predict(x, beat, null);
     this.sent.push(x);
     if (this.sent.length > DUEL_NET.REDUNDANT + 1) this.sent.shift();
@@ -256,6 +258,8 @@ export class DuelClient {
       this.look[0] = N.root[0] + N.v[0] * a; this.look[1] = N.root[1]; this.look[2] = N.root[2] + N.v[2] * a;
       c.lookAt = this.look;
     } else c.lookAt = this.shownChars[1 - k].root;
+    // (the hazard's water and stones where the server's will be when it steps this input: its last tick's beat)
+    if (this.o.arena?.hazard) this.o.arena.hazard.beat = beat - (this.w.music.bpm * this.tickMs) / 60000;
     c.update(this.tickMs / 1000, it, { beats: beat, bpm: this.w.music.bpm });
     if (this.hz && this.hzMatch) { this.hzMatch.bodyEvents[k] = c.events.slice(); this.hz.step(beat, this.tickMs); this.hzMatch.bodyEvents[k] = []; }
     c.events.length = 0;

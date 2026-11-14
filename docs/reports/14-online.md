@@ -4,7 +4,7 @@ Two people on two devices in one duel: `?duel&net=ROOM`. The room server runs th
 contact, the powers, the rules, the finale) at 60 Hz. Each page sends only its thumbs, predicts its own body at once,
 plays the other back from the server's snapshots, and plays the server's events. Both pages agreed on every event in
 every run measured (Node and two browsers, 0 to 200 ms of lag). The full sim on the server is cheap: a tick costs 0.2
-to 0.5 ms mean and under 1 ms at p99.
+to 0.6 ms mean and 0.5 to 1.9 ms at p99, of 16.7 ms.
 
 Branch: `worktree-agent-af5b09554b3a71e21` (master merged in, with the front menu and the juice). Not pushed, not
 deployed.
@@ -91,8 +91,8 @@ it. If esbuild is missing, the server still serves the jogo and the site, and a 
 ## The numbers
 
 **The server's tick** (`/duels`, `DuelAuthority.stats()`). In process with two virtual players' inputs, a whole 20 s
-set (1,490 ticks): 0.19 to 0.24 ms mean, 0.48 to 0.82 ms p99, 0.9 to 1.2 ms max. In the server process with two
-clients and snapshots: 0.36 to 0.59 ms mean, 0.58 to 1.0 ms p99. A tick is 16.7 ms, so one core could run dozens of
+set (1,490 ticks): 0.19 to 0.24 ms mean, 0.48 to 0.82 ms p99, 0.9 to 2.8 ms max. In the server process with two
+clients and snapshots, the hazard included: 0.29 to 0.60 ms mean, 0.53 to 1.9 ms p99, at most 7.4 ms once. A tick is 16.7 ms, so one core could run dozens of
 rooms. The machine was busy with other agents throughout, which inflates the maxima.
 
 **Bytes a second, per page:**
@@ -107,50 +107,54 @@ Wire overhead (TCP, TLS) is not counted. The jogo's pose stream is 5.8 KB/s per 
 
 **Prediction error and corrections**, measured at each acknowledged input (each snapshot), in steady play where only
 this page's thumbs moved the body. A separate count covers snapshots where the other or a power moved it (the server
-flags them `PUSHED`).
+flags them `PUSHED`). Since master's arenas came in, the temple has its tide. The server steps the hazard, and each
+page's prediction steps it on its own body.
+
+Node, two `DuelClient`s through the real server (`node test/duel.test.ts`, the final `npm run test:net`, the temple
+with its tide; 14 s measured):
+
+| lag | page | error p50 / p95 / max (mm) | moved by the other or a power: n, max | corrections /s | catches felt / confirmed / mutual / denied | server queue: starved |
+|---|---|---|---|---|---|---|
+| 0 | 0 | 0.5 / 1.1 / 28 | 5, 41 mm | 0.29 | 2 / 1 / 0 / 1 | 2 |
+| 0 | 1 | 0.4 / 1.1 / 1.8 | 5, 210 mm | 0.36 | 1 / 1 / 0 / 0 | 2 |
+| 80 | 0 | 0.7 / 2.7 / 29 | 14, 441 mm | 1.0 | 6 / 3 / 2 / 1 | 13 |
+| 80 | 1 | 0.6 / 2.0 / 427 | 15, 3.1 m (a fall) | 1.07 | 3 / 3 / 0 / 0 | 8 |
+| 200 | 0 | 1.7 / 7.0 / 41 | 5, 73 mm | 0.36 | 5 / 4 / 0 / 1 | 27 |
+| 200 | 1 | 0.4 / 1.5 / 3.0 | 4, 144 mm | 0.29 | 2 / 0 / 1 / 1 | 14 |
 
 Two headless Chromes on the RTX 5090 (`node test/two-duel-pages.mjs`, `&bot` on both pages, the temple, 20 s measured
-after 6 s of play, jitter a fifth of the lag):
+after 6 s of play, jitter a fifth of the lag). There are two runs. The first was before the arenas' hazards came in
+from master; the second is after, with the tide predicted.
 
-| lag | page | error p50 / p95 / max (mm) | moved by the other or a power: n, max | corrections /s (cuts) | catches felt / confirmed / mutual / denied | delay | events alike |
-|---|---|---|---|---|---|---|---|
-| 0 | a | 0.6 / 1.3 / 82 | 9, 178 mm | 0.5 (0) | 2 / 2 / 0 / 0 | 114 ms | 83 of 83 |
-| 0 | b | 0.4 / 1.1 / 215 | 8, 4.7 m (a fall) | 0.4 (1) | 0 / 0 / 0 / 0 | 113 ms | |
-| 80 | a | 0.5 / 1.9 / 611 | 9, 152 mm | 0.5 (0) | 5 / 4 / 1 / 0 | 155 ms | 72 of 72 |
-| 80 | b | 0.5 / 1.3 / 424 | 21, 4.3 m | 1.1 (4) | 1 / 1 / 0 / 0 | 161 ms | |
-| 200 | a | 0.5 / 4.7 / 88 | 7, 112 mm | 0.3 (0) | 4 / 4 / 0 / 0 | 237 ms | 73 of 73 |
-| 200 | b | 0.6 / 2.0 / 1154 | 7, 538 mm | 0.35 (3) | 2 / 0 / 1 / 1 | 229 ms | |
+| lag | page | before the tide: p50 / p95 / max (mm), corrections /s | with the tide: p50 / p95 / max (mm), corrections /s | catches felt / confirmed / mutual / denied (with the tide) | delay | events alike (with the tide) |
+|---|---|---|---|---|---|---|
+| 0 | a | 0.6 / 1.3 / 82, 0.5 | 0.6 / 1.6 / 88, 0.6 | 7 / 5 / 2 / 0 | 119 ms | 97 of 97 |
+| 0 | b | 0.4 / 1.1 / 215, 0.4 | 0.5 / 2.2 / 78, 0.75 | 1 / 1 / 0 / 0 | 118 ms | |
+| 80 | a | 0.5 / 1.9 / 611, 0.5 | 0.6 / 781 / 1179, 1.9 | 5 / 3 / 2 / 0 | 164 ms | 76 of 76 |
+| 80 | b | 0.5 / 1.3 / 424, 1.1 | 0.6 / 230 / 825, 2.05 | 4 / 3 / 1 / 0 | 157 ms | |
+| 200 | a | 0.5 / 4.7 / 88, 0.3 | 0.6 / 139 / 866, 2.4 | 9 / 4 / 1 / 4 | 238 ms | 67 of 67 |
+| 200 | b | 0.6 / 2.0 / 1154, 0.35 | 0.8 / 98 / 871, 2.75 | 0 / 0 / 0 / 0 | 243 ms | |
 
-Rtt was 1, 85 to 87 and 197 to 217 ms. Stills (640×400, low quality, the HUD composited):
-`docs/reports/media/duel-net-200-a.jpg` and `-200-b.jpg` (a swing at 200 ms, from both pages, the same set clock),
+Rtt was 0 to 1, 82 to 87 and 196 to 217 ms. Bytes didn't change with the tide: down 12.4 to 13.3 KB/s, up 4.1 KB/s.
+Stills (640×400, low quality, the HUD composited), from the run before the tide:
+`docs/reports/media/duel-net-200-a.jpg` and `-200-b.jpg` (a swing at 200 ms, from both pages, at the same set clock),
 `duel-net-0-a.jpg`.
-
-Node, two `DuelClient`s through the real server (`node test/duel.test.ts`, in `npm run test:net`; 14 s measured):
-
-| lag | page | error p50 / p95 / max (mm) | corrections /s | catches felt / confirmed / mutual / denied | server queue: starved, folded |
-|---|---|---|---|---|---|
-| 0 | 0 | 0.5 / 1.9 / 2.2 | 0.36 | 5 / 3 / 0 / 2 | 2, 0 |
-| 0 | 1 | 0.5 / 11.6 / 88 | 0.5 | 3 / 2 / 0 / 1 | 2, 0 |
-| 80 | 0 | 0.6 / 2.0 / 758 | 0.57 | 3 / 1 / 1 / 1 | 67, 10 |
-| 80 | 1 | 0.5 / 611 / 918 | 1.14 | 4 / 2 / 2 / 0 | 66, 12 |
-| 200 | 0 | 0.7 / 2.9 / 88 | 0.57 | 6 / 4 / 0 / 1 | 27, 0 |
-| 200 | 1 | 0.4 / 34 / 217 | 2.07 | 3 / 0 / 3 / 0 | 16, 0 |
 
 What the numbers say:
 
-- **Half the time the prediction is exact** to half a millimetre. The p95 is a few millimetres in most runs.
-- **What's left is corrections a few times a second or less.** They come from inputs the server didn't have in time:
-  a starved queue repeats the last input, and the body then moves one tick more than predicted. The Node 80 ms run
-  starved 67 times and folded 10, and its p95 rose to 0.6 m. The test process runs both clients and both brains in one
-  Node event loop on a loaded machine, and stalls of 50 to 500 ms there show up as input bursts. The browsers starve
-  less per second of play.
-- **The few errors of half a metre to a metre** come from things outside the page's control: a fall's reform, the
-  other's fling at the moment of release, a vault. Most are flagged and counted apart; a few still land in the steady
-  count.
-- **Catches.** Of 38 catches felt across these twelve page-runs, the server confirmed 23, 8 were mutual (joined all
-  the same), 6 were denied and 1 was still pending when the run ended. The server judged catches where the catcher saw them 1 to 6 times a run.
-  Its refusals (`refused` in `/duels`) were mostly grabs pressed out of reach anyway ("miss"), a link already there
-  ("joined"), the other gone past 2.2 m ("far"), or the re-grab pause.
+- **Half the time the prediction is exact** to half a millimetre. The p95 is a few millimetres in every Node run, and
+  in the browsers before the tide.
+- **What's left is corrections about once a second or less.** They come from inputs the server didn't have in time:
+  a starved queue repeats the last input, and the body then moves one tick more than predicted. A few come from errors
+  of half a metre to a metre: a fall's reform, the other's fling at the moment of release, a vault. Most of those are
+  flagged and counted apart; a few still land in the steady count.
+- **With the tide, the browsers at 80 and 200 ms got worse**: p95 0.1 to 0.8 m and 2 to 2.75 corrections a second. The
+  Node clients at the same lags, with the same client code and the same tide, stay at a few millimetres. I didn't find
+  the cause in time. It is the first thing to look at (see "Not done").
+- **Catches.** Of 38 catches felt across the first twelve page-runs, the server confirmed 23, 8 were mutual (joined
+  all the same), 6 were denied and 1 was still pending when the run ended. The server judged catches where the
+  catcher saw them 1 to 8 times a run. Its refusals (`refused` in `/duels`) were mostly grabs pressed out of reach
+  anyway ("miss"), a link already there ("joined"), the other gone past 2.2 m ("far"), or the re-grab pause.
 - **Both pages agreed on every event**, in order, in every run. That holds by construction, since one message goes to
   everyone, and the test checks it line by line.
 
@@ -170,6 +174,9 @@ What the numbers say:
 
 ## Not done, and honest weak points
 
+- **The browsers' prediction with the temple's tide at 80 and 200 ms** is worse than the Node clients' (above):
+  probably something of the page's own world or hazard that the Node client doesn't have, but unconfirmed. The
+  hazard's per-body state (in the water, a hum's lift) isn't saved for a replay either.
 - **The caster's own powers aren't predicted.** A flare's rocket jump, a pillar's launch or a geyser's ride is the
   server's, so the caster's body is shown from the snapshots while it is carried. The launch therefore shows about
   rtt + playback delay late on the caster's own screen (300 to 450 ms at 200 ms of lag). Predicting them means running
@@ -213,6 +220,8 @@ What the numbers say:
   - `src/main.ts`, one line: `?duel&net` no longer also starts the mocap `?net` demo, which would have joined the same
     room code as a jogo
   - `package.json`: `test:net` runs `test/duel.test.ts`
-- No change to `shared/duel.ts`, `contact.ts`, `match.ts`, `sim.ts` or the powers. The authority reads a few private
+- Master merged in twice: the front menu and the juice, then the arenas' hazards. Online the lobby is the room's card,
+  the time warp is off, and the server steps the hazard (`DuelHazards`) after the powers, as `sim.ts` does.
+- No change to `shared/duel.ts`, `contact.ts`, `match.ts`, `sim.ts`, the hazards or the powers. The authority reads a few private
   fields of `Contact`, `DuelPowers` and `Character` by name: the judged catch makes its link as `Contact` does, as
   `DuelPowers.join` already did.
