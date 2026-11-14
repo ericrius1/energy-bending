@@ -122,21 +122,52 @@ and the same music.
 - **On the beat**: an action within the beat window is *perfect*: more knockback, a bigger effect, and it fills the
   **super** meter. This is what makes it a dance: the music is a weapon.
 
-## Spells and powers (phase 2)
+## Phase 2, "Bend": powers that move bodies, and the phase 1 film's five fixes
 
-Each body's matter decides its spells. Two each, plus the super:
+> Written 14 Nov 2026 from the owner's direction ("different spells… powers and effects", the contact dance, no
+> damage) and report 12's five feel issues. It replaces the old spell table (fireballs, shards, deflects): **no power
+> hurts, pushes away or scatters anyone.** Every power makes movement or contact: it lifts, carries, catches at
+> range, gives a step in the air, or redirects a fling. A power earns style only through the dance it makes happen
+> (a catch from a whip, a launch off a pillar into a catch, a ride up a ribbon into a vault).
 
-| matter | spell 1 | spell 2 | super (power form) |
+**Flow** (per dancer, 0..1) is the fuel. Dancing well fills it: links on the beat, variety, wall runs, flips, aús,
+catches. A power costs a share of it (about a quarter); a full bar is the **power form**. Standing about or repeating
+one link fills nothing.
+
+| matter | power 1 | power 2 | power form (6 s, powers free and bigger) |
 |---|---|---|---|
-| fire | fireball (projectile, 3 charges, recharge) | flame dash (the dash leaves a burning trail) | plasma: blink and arcs |
-| water | water whip (medium-reach lash that pulls) | wave (rolls along the ground) | ice: shards and walls |
-| ice | ice shard (fast projectile) | ice wall (a set-ice block: cover and a ledge) | glacier |
-| plasma | arc bolt (short chain) | blink (exists) | storm |
-| gems | stone throw | crystal shield | heart of stone |
+| fire | **flare**: a burst under the feet, a rocket jump along the stick; near the other it lifts them too | **ribbon**: the dash leaves a burning ribbon that rises as an updraft for ~2 s; anyone crossing it rides up | plasma: the flare blinks |
+| water | **whip**: a lash ~6 m along the stick; reaching the other it is a catch at range (a long link to reel in or swing on) | **wave**: a roll along the ground that carries whoever stands in it, its crest a jump boost | ice: the whip's rope freezes into a bar |
+| ice | **step**: a block of ice set in the air ahead or under, 4 s, a ledge for either (wall-jumpable) | **slide**: an ice path along the ground, slick and fast | glacier: steps in a stair |
+| plasma | **blink** (exists): a short jump through space; through the other it swaps you | **arc**: a lightning tether at range that pulls the two to meet mid-air (a catch) | storm: arcs chain |
+| gems | **pillar**: a crystal column rises under a point, launching whoever is on it | **prism**: a facet in the air; a flung body that meets it is redirected | heart of stone: pillars in a row |
 
-**Reactions** when matter meets matter: fire on water is a steam burst (area knockback); fire on ice shatters it;
-water on fire douses the flame dash. Two projectiles that meet clash. Pickups (element orbs) spawn and grant a spell
-for a while.
+**Reactions** when two powers meet: fire's ribbon or flare in water's wave is a **steam geyser** (a tall updraft both
+can ride: a stage for a high catch); fire on an ice step melts it to a slick puddle; water's whip on an ice step
+freezes the rope into a bar to swing round. Each reaction pops once ("STEAM!").
+
+**Input.** `Intent.power1`, `Intent.power2` (edges, optional) and the duel's `form` edge for the power form; aimed by the
+move stick (none: the facing). Keys per layout in `src/input/keyboard.ts`, gamepad and touch alike; the HUD's help
+lists them. The virtual players cast too, as people would: a whip at a flyer out of reach, a step under a falling
+partner, a flare into a catch.
+
+**HUD.** `players[].flow` (0..1), `players[].powers: { id, name, ready, cost }[]`, `players[].form` (0..1 left),
+pops of kind `'power'` and `'react'`. The rules live beside the duel's (`shared/powers.ts`, pure, run in Node); their
+drawing in `src/duel/power-fx.ts` with the matter and field the game already has; the effects on bodies through
+`Character.env` (`updraft`, `slick`, `carryX`) and temporary solids in `World.solids`.
+
+**The five fixes** (report 12, "Five things that hold it back"):
+1. **Camera**: frame the higher body with head room (the flyer's apex while launched or flown, not the pair's
+   middle); keep the eye out of the pieces (a yaw whose eye stands clear, or rise over them); no gate disc in frame.
+2. **Energy**: ebbs when apart or repeating; the merge needs the peak held while joined; a fusion is rare (a peak of
+   ~0.9 held a few seconds), the set's event.
+3. **Combos**: no wall run while held (the bug: a held body dragged along a face counted every frame); a combo banks
+   after a beat or two held; the flown body gets links only for what it does with the flight; past ×4, tiers (a
+   word, a sound, a colour), and the HUD shows the count, not just the last six icons.
+4. **Finale**: the two do one thing on the music's last bar (a fused body, or a scripted lift and throw), a second or
+   two, then the banner; the centre's words clear the pops.
+5. **Contact reads from the bodies**: one SWING pop per hold, counting up; pops in a lane per dancer, off the bodies
+   and each other; the holder's grip and the flown body's streak drawn so "who threw whom" reads before any word.
 
 ## Juice (phase 3)
 
@@ -230,7 +261,7 @@ also drives the real page with real key presses in real time, to measure what a 
 
 1. **Move**: the movement kit, the arenas, the duel's core (hits, KOs, reform, rounds), the HUD, the virtual players.
    Film: two virtual players' first duel, wall jumps and all.
-2. **Bend**: spells, projectiles, parries, reactions, the beat's perfect bonus, the super, pickups.
+2. **Bend**: the powers (flow, two per matter, the power form), their reactions, the five fixes above. Film: duel-2.
 3. **Juice**: hit-stop, shake, slow motion, pops, sound, hazards, online duels, the front's menus for the duel.
 
 Each phase's film: about 30 s, 720p60 (`docs/reports/media/film/duel-<n>.mp4`), the duel played by two virtual
