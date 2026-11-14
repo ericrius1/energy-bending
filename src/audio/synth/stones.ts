@@ -26,6 +26,12 @@ export class Stones {
     }));
   }
 
+  /** a struck voice's buffer and the playback rate that pitches it to `midi` (the duel's bowls: synth/duel.ts) */
+  voice(timbre: Timbre, midi: number, reverse = false) {
+    const base = nearestBase(VOICES[timbre], midi);
+    return { buf: this.bank.get(reverse ? `glass.rev${base}` : `${timbre}${base}`)!, rate: Math.pow(2, (midi - base) / 12), gain: VOICES[timbre].gain, len: ringLength(timbre, midi) };
+  }
+
   strike(when: number, timbre: Timbre, midi: number, vel: number, pan: number, wet = 0.5, reverse = false, dist = 0) {
     if (vel < 0.01) return;
     if (this.ends.length >= this.maxVoices) {

@@ -1,13 +1,13 @@
 // The synth: the Instrument that makes sound, on any audio context (live, or offline for a film). It assembles the
 // parts (the mix and its room, the kit, the roda's instruments, the pad, bass and voices, the jogo's effects and
-// moments, the stones, the place's own sounds, the matter voices) and answers every Instrument call by handing it to
+// moments, the duel's voices, the stones, the place's own sounds, the matter voices) and answers every Instrument call by handing it to
 // the part that plays it. `renderOffline` replays a Recorder's calls into a fresh Synth on an OfflineAudioContext.
-import type { Instrument, SfxCall, FusionKind, MatterPlay, HoldPlay, Timbre } from '../instrument';
+import type { Instrument, SfxCall, DuelCall, FusionKind, MatterPlay, HoldPlay, Timbre, UnderLevels } from '../instrument';
 import type { Recorder } from '../instrument';
 import type { Tone, Room } from '../sound';
 import type { Harm } from '../harmony';
 import { Nodes } from './nodes';
-import { Mix } from './mix';
+import { Mix, UNDER } from './mix';
 import * as drums from './drums';
 import * as capo from './capoeira';
 import { Pad, bass, voice } from './tonal';
@@ -15,6 +15,7 @@ import { Stones } from './stones';
 import { Ambience } from './ambience';
 import { Jogo } from './jogo';
 import { Moments } from './moments';
+import { DuelVoices } from './duel';
 import { matterVoices } from '../matter/sounds';
 import '../matter';
 
@@ -27,6 +28,7 @@ export class Synth implements Instrument {
   private amb: Ambience;
   private jogo: Jogo;
   private moments: Moments;
+  private duelV: DuelVoices;
   private holds = new Map<string, { set(t: number, p: HoldPlay): void }>();
   private warned = new Set<string>();
 
@@ -39,6 +41,7 @@ export class Synth implements Instrument {
     this.amb = new Ambience(this.n, this.mix, this.stones, tone);
     this.jogo = new Jogo(this.n, this.mix);
     this.moments = new Moments(this.n, this.mix);
+    this.duelV = new DuelVoices(this.n, this.mix, this.stones);
     this.mix.setTone(0, tone, 0.01);
   }
 
@@ -52,7 +55,7 @@ export class Synth implements Instrument {
   unsuck(t: number) { this.mix.unsuck(t); }
   duck(t: number, depth: number) { this.mix.duckAt(t, depth); }
   delayBeat(t: number, beat: number) { this.mix.delayBeat(t, beat); }
-  under(t: number, amount: number) { this.mix.under(t, amount); }
+  under(t: number, amount: number, levels?: Partial<UnderLevels>) { this.mix.under(t, amount, levels ? { ...UNDER, ...levels } : UNDER); }
   // ---- drums
   kick(t: number, vel: number, hard = false) { drums.kick(this.n, this.mix, t, vel, hard); }
   clap(t: number, vel: number) { drums.clap(this.n, this.mix, t, vel); }
@@ -79,6 +82,7 @@ export class Synth implements Instrument {
   fusionStep(t: number, kind: FusionKind, fm: number, fb: number, s16: number, rel: number, H: Harm, sd: number) { this.moments.fusionStep(t, kind, fm, fb, s16, rel, H, sd); }
   tension(t: number, T: number, s16: number, L: number, quiet: boolean, H: Harm, sd: number) { this.moments.tension(t, T, s16, L, quiet, H, sd); }
   sfx(t: number, call: SfxCall) { this.jogo.play(t, call); }
+  duel(t: number, call: DuelCall) { this.duelV.play(t, call); }
   // ---- stones and the place
   strike(t: number, timbre: Timbre, midi: number, vel: number, pan: number, wet = 0.5, reverse = false, dist = 0) { this.stones.strike(t, timbre, midi, vel, pan, wet, reverse, dist); }
   ambience(t: number, day: number, night: number, dawn: number, wind: number) { this.amb.ambience(t, day, night, dawn, wind); }

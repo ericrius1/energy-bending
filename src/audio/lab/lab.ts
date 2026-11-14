@@ -8,13 +8,14 @@ import { renderOffline } from '../synth/synth';
 import { wav } from '../instrument';
 import { MOODS, moodIndex } from '../harmony';
 import { WORLD_SOUND, type Tone, type Room } from '../sound';
-import { SFX, FUSIONS, MOVES, type Element, type SfxName, type FusionKind } from '../instrument';
+import { SFX, FUSIONS, MOVES, type Element, type SfxName, type FusionKind, type DuelCue, type DuelCall } from '../instrument';
 import { originListener } from '../spatial';
 import type { MatterEars, Voiced } from '../matter';
 import { measure, loudest, type Stats } from './measure';
 import { labDancer, type LabDancer } from './body';
 import type { World } from '../../worlds/world';
 import { mulberry32 } from 'math/random';
+import { DUEL_BALANCE } from '../../duel/sound';
 
 const STONES = ['amethyst', 'celestite', 'agate', 'citrine', 'quartz', 'emerald', 'rose', 'obsidian', 'malachite', 'pyrite', 'brilliant'];
 const GEODE: Tone = { water: 2600, cave: 0.8, hearth: 0.5, depth: 0.5, forest: 0 };
@@ -209,6 +210,41 @@ export const SCENARIOS: Record<string, () => Scenario> = {
       r.music.tension = Math.min(1, t / 12);
     },
   }),
+};
+// (i) the duel's sounds (synth/duel.ts), each alone, nothing under it: the set's, the contact's in two matters, the
+// ten powers, the reactions, the form, the tiers, the movement voices in every matter. On the plain place's mood
+const DUEL_SOLO: [DuelCue, string, Partial<DuelCall>?][] = [
+  ['count', 'fire', { level: 3 }], ['count', 'fire', { level: 2 }], ['count', 'fire', { level: 1 }], ['go', 'fire'],
+  ...(['fire', 'water', 'ice', 'plasma', 'gems'] as const).map((m): [DuelCue, string, Partial<DuelCall>] => ['catch', m, { other: m === 'water' ? 'fire' : 'water' }]),
+  ['aerial', 'water', { other: 'fire' }], ['range', 'water', { other: 'fire' }], ['swing', 'fire', { level: 1 }], ['swing', 'fire', { level: 3 }],
+  ['fling', 'fire'], ['fling', 'water'], ['landed', 'water'], ['lift', 'ice'], ['counter', 'plasma'], ['release', 'fire'],
+  ['merge', 'fire', { other: 'water' }], ['finale', 'fire', { other: 'water' }], ['fusion', 'fire', { other: 'water' }], ['banner', 'water'],
+  ['tier', 'water', { level: 1 }], ['tier', 'water', { level: 2 }], ['tier', 'water', { level: 3 }], ['tier', 'water', { level: 4 }], ['bank', 'fire'],
+  ['fall', 'fire'], ['reform', 'fire'],
+  ...([['flare', 'fire'], ['ribbon', 'fire'], ['whip', 'water'], ['wave', 'water'], ['step', 'ice'], ['slide', 'ice'], ['blink', 'plasma'], ['arc', 'plasma'], ['pillar', 'gems'], ['prism', 'gems']] as const)
+    .map(([p, m]): [DuelCue, string, Partial<DuelCall>] => ['cast', m, { power: p, dur: 2 }]),
+  ['react', 'fire', { power: 'geyser' }], ['react', 'fire', { power: 'melt' }], ['react', 'water', { power: 'freeze' }],
+  ['form', 'fire', { on: true }], ['form', 'fire', { on: false }], ['launch', 'gems'], ['swap', 'plasma'], ['redirect', 'gems'],
+  ...(['fire', 'water', 'ice', 'plasma', 'gems'] as const).flatMap((m): [DuelCue, string, Partial<DuelCall>][] => [['dash', m, {}], ['walljump', m, {}], ['land', m, { level: 0.7 }]]),
+  ['jump', 'fire'],
+  ['splash', 'water', { level: 0.8 }], ['crest', 'water'], ['tide', 'water', { level: 1, dur: 2 }], ['gust', 'fire', { level: 0.6, dur: 1.4 }],
+  ['swell', 'water', { dur: 2 }], ['hum', 'gems', { dur: 1.5 }], ['humlift', 'gems'],
+];
+SCENARIOS['duel-solo'] = () => {
+  const gap = 2.2;
+  return {
+    seconds: DUEL_SOLO.length * gap + 2, world: stubWorld('plain', PLAIN),
+    // (no bed under it: each sound's own level, at the duel's balance under a track, as the game plays it: the master
+    // 14 dB down, so the compressor rests and the cues compare as they are)
+    setup(r) { grooveParams.level = 0; r.music.engine.setPlace(0, PLAIN, PLAIN_ROOM, 1, true); r.music.engine.out.under(0, 1, DUEL_BALANCE); },
+    each(r, t, f) {
+      const i = Math.round(t / gap - 0.5);
+      if (f % Math.round(gap * 60) !== Math.round(gap * 30) || i >= DUEL_SOLO.length) return;
+      const [cue, matter, x] = DUEL_SOLO[i], E = r.music.engine;
+      r.mark(`${cue}${x?.power ? ':' + x.power : ''}:${matter}${x?.level != null && cue !== 'land' ? ':' + x.level : ''}${x?.on === false ? ':off' : ''}`);
+      E.out.duel(t, { cue, matter, pan: 0, dist: 0.1, vel: 0.85, level: 1, H: E.harmony.at(t), spb: 60 / E.clock.bpm, seed: (i * 0.618) % 1, ...x });
+    },
+  };
 };
 // (b) each mood at levels 1 to 4 (six bars each, after two of level 0), in the plain place
 MOODS.forEach((m, i) => {
