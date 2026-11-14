@@ -44,7 +44,7 @@ export interface CamSpace {
   sweep?(a: V3, b: V3, r: number): number;
   /** the share of the rays (unit directions) from the eye that meet a solid within `reach` m: a piece standing in the
    *  near part of the frame (without it only the eye and the sight lines are judged) */
-  fg?(eye: V3, rays: readonly V3[], reach: number, r?: number): number;
+  fg?(eye: V3, rays: readonly V3[], reach: number, r?: number, weights?: readonly number[]): number;
   /** the same space over only the solids within r of p (null: all of them are) */
   local?(p: V3, r: number): CamSpace | null;
 }
@@ -101,15 +101,20 @@ export const DUEL_CAM = {
   /** the margins never crossed (the hard pass) */
   hardTop: 0.1, hardBottom: 0.04, hardSide: 0.04,
   /** the pitches it may look down at (rad): the plain view first, then rising over the pieces */
-  pitches: [0.2, 0.42, 0.66],
+  pitches: [0.2, 0.38, 0.55],
   /** the fallback's dips under what hangs over the pair where no tilt up is clean (rad, added to the pitch), and the
    *  lowest it looks (a little up) */
   dips: [-0.12, -0.22], minPitch: -0.08,
   /** the fallback's tilts up over what the eye would stand in (rad, added to the pitch), and the steepest look down */
-  rises: [0.12, 0.25, 0.4, 0.55, 0.7],
+  rises: [0.1, 0.2, 0.3, 0.42, 0.55],
   /** the fallback's boom never shorter than this (m) */
   minPull: 4,
-  maxPitch: 1.15,
+  maxPitch: 0.75,
+  /** the look down it keeps under (rad, 35°): a players' view, not a security camera's. Past it (to maxPitch, 43°) only
+   *  where neither a turn nor the boom coming in made the eye clean */
+  softPitch: 0.61,
+  /** how often an unclean eye asks the choice again (s): a turn to a clear side comes before a steep rise */
+  swingEvery: 0.15,
   /** the lenses it may choose (degrees): the plain one, and a wider one from closer in where the long boom stands
    *  among the pieces (the geode's shelves, the redwoods' trunks) */
   lenses: [46, 62],
@@ -134,15 +139,25 @@ export const DUEL_CAM = {
   lookAhead: 0.3,
   /** a sight line stops this short of the body (m) */
   shortOf: 0.4,
-  costs: { blocked: 1.2, blockedShare: 3, inside: 4, margin: 1.5, side: 0.4, pitch: 1.4, turn: 1.0, otherSide: 0.8, near: 0.8, nearShare: 6 },
+  costs: { blocked: 1.2, blockedShare: 3, inside: 4, margin: 1.5, side: 0.4, pitch: 2.0, turn: 1.0, otherSide: 0.8, near: 0.8, nearShare: 6 },
   /** the frame's near part (a piece across the lens): rays through a cols × rows grid, looking for a solid nearer than
    *  `fgNear` of the way to the nearer body and at most `fgMax` m; the eye is clean while under `fgOk` of them meet one */
-  fgCols: 7, fgRows: 4, fgNear: 0.5, fgMax: 4, fgOk: 0.03,
+  fgCols: 7, fgRows: 4, fgNear: 0.6, fgMax: 5, fgOk: 0.03,
+  /** a ray through a corner of the frame (the two outer columns of the top and bottom rows) counts this many times: a
+   *  drum filling a near corner is nearly as bad as one over a body */
+  fgCorner: 2.5,
   /** the fallback's rise is held this long (s) before it eases down to a lower one that is clean */
   riseHold: 0.6,
   /** the eye never stands further than this past the room from the arena's middle (m, any direction) */
   roomOver: 1.2,
 };
+
+/** the near grid's weights: DUEL_CAM.fgCorner in its corners, 1 elsewhere */
+const FG_W: number[] = (() => {
+  const P = DUEL_CAM, w: number[] = [];
+  for (let j = 0; j < P.fgRows; j++) for (let i = 0; i < P.fgCols; i++) w.push((i < 2 || i >= P.fgCols - 2) && (j === 0 || j === P.fgRows - 1) ? P.fgCorner : 1);
+  return w;
+})();
 
 /** each impulse's shape (DuelCamera.impulse), at k = 1: how far the look point leans toward the contact (a share of the
  *  way, at most `reach` m), how much of the boom it eases in (negative: out), its length (s), a soft settle of the look
@@ -304,6 +319,10 @@ export class DuelCamera {
   private pull = 1;
   /** the rise the fallback holds, and how long a lower one has been enough */
   private riseKeep = 0;
+  /** the eye was cluttered and nothing modest cleaned it (the steep tilts are allowed), and when it may ask the choice
+   *  again */
+  private steep = false;
+  private swingT = 0;
   private riseLow = 0;
   /** the impulses under way (their age in seconds of real time), and how much of them the clean eye lets through */
   private imps: (CamImpulse & { age: number })[] = [];
@@ -448,11 +467,11 @@ export class DuelCamera {
         if (I.space.fg) {
           // (from the fit's eye, and from back along the boom where it eases in from)
           const rays = raysAt(yaw, pitch, f.fov, I.aspect, P.fgCols, P.fgRows);
-          let fg = I.space.fg(f.eye, rays, nearReach(f.eye, I.bodies));
+          let fg = I.space.fg(f.eye, rays, nearReach(f.eye, I.bodies), 0.04, FG_W);
           const far = Math.min(this.dist, P.maxDist) - f.dist;
           if (!this.fresh && far > 0.3) {
             const b = axes(yaw, pitch).back, e: V3 = [f.eye[0] + b[0] * far, f.eye[1] + b[1] * far, f.eye[2] + b[2] * far];
-            fg = Math.max(fg, I.space.fg(e, rays, nearReach(e, I.bodies)));
+            fg = Math.max(fg, I.space.fg(e, rays, nearReach(e, I.bodies), 0.04, FG_W));
           }
           if (fg > 0) s += K.near + K.nearShare * fg;
           lastFg = fg;
@@ -551,13 +570,14 @@ export class DuelCamera {
       if (o > 0) b += 1 + o * 2;
       if (c < want) b += 1 + (want - c) * 2;
       if (sp.fg) {
-        const fg = sp.fg(e, raysAt(this.yaw, pitch, this.fov, I.aspect, P.fgCols, P.fgRows), nearReach(e, I.bodies));
+        const fg = sp.fg(e, raysAt(this.yaw, pitch, this.fov, I.aspect, P.fgCols, P.fgRows), nearReach(e, I.bodies), 0.04, FG_W);
         if (fg > P.fgOk) b += 0.5 + fg * 3;
       }
       for (const B of I.bodies) {
         let n = 0;
         for (const p of [B.sight[0], B.sight[1] ?? B.sight[0], B.head]) if (sp.blocked(e, short(e, p, P.shortOf))) n++;
-        if (n >= 2) b += 0.3 * n;
+        // (one of them hidden is already unclean: a slab partly over the pair)
+        if (n) b += 0.2 + 0.3 * n;
       }
       return b;
     };
@@ -571,11 +591,16 @@ export class DuelCamera {
     const badBoth = (p: number) => { const b = bad(eyeAt(p, this.dist), p); return b > 0 || vl <= 0.5 ? b : bad(eyeAt(p, this.dist, lookOn), p); };
     let riseWant = 0, found = false;
     const bad0 = sp ? badBoth(this.pitch) : 0;
+    // (an unclean eye asks the choice again at once: a turn to a clear side first, a modest rise meanwhile)
+    this.swingT -= dt;
+    if (bad0 > 0 && this.swingT <= 0) { this.wait = 0; this.swingT = P.swingEvery; }
     if (bad0 > 0) {
-      // (the first tilt that is clean; where none is, the least unclean, if it is clearly better)
+      // (the first tilt that is clean, under the soft ceiling unless last frame neither a turn nor the boom made it clean;
+      // where none is, the least unclean, if it is clearly better)
+      const cap = this.steep ? P.maxPitch : P.softPitch;
       let best = bad0;
       for (const r of P.rises) {
-        const p = Math.min(P.maxPitch, this.pitch + r), b = badBoth(p);
+        const p = Math.min(cap, this.pitch + r), b = badBoth(p);
         if (b === 0) { riseWant = r; best = 0; found = true; break; }
         if (b < best - 0.1) { best = b; riseWant = r; }
       }
@@ -588,7 +613,7 @@ export class DuelCamera {
     // (held: a higher tilt is taken at once, a lower one only once it has been enough for a while, so the eye does not
     // bob over a row of drums)
     // (and dropped at once where the tilt it holds is no longer clean itself)
-    const keptBad = () => { const p = Math.min(P.maxPitch, this.pitch + this.riseKeep); return bad(eyeAt(p, this.dist), p) > 0; };
+    const keptBad = () => { const p = Math.min(this.steep ? P.maxPitch : P.softPitch, this.pitch + this.riseKeep); return bad(eyeAt(p, this.dist), p) > 0; };
     const away = Math.abs(riseWant) >= Math.abs(this.riseKeep) && riseWant * this.riseKeep >= 0;
     if (this.fresh || away || (riseWant !== this.riseKeep && keptBad())) { this.riseKeep = riseWant; this.riseLow = 0; }
     else if ((this.riseLow += dt) >= P.riseHold) { this.riseKeep = riseWant; this.riseLow = 0; }
@@ -597,7 +622,7 @@ export class DuelCamera {
     const dr = this.riseKeep - this.rise, quick = this.last.eyeBad > 0 || Math.abs(this.riseKeep) > Math.abs(this.rise) + 1e-4;
     const rate = quick ? 1.6 : 0.5, kr = quick ? 8 : 1.5;
     this.rise = this.fresh ? this.riseKeep : this.rise + Math.max(-rate * dt, Math.min(rate * dt, dr * (1 - Math.exp(-dt * kr))));
-    const pitch = Math.max(P.minPitch, Math.min(P.maxPitch, this.pitch + this.rise));
+    const pitch = Math.max(P.minPitch, Math.min(this.steep ? P.maxPitch : Math.max(P.softPitch, Math.min(P.maxPitch, this.pitch)), this.pitch + this.rise));
     // the hard pass: whatever the ease left out, the boom (then the lens) takes in from where the look point is now
     const need = boomFor(pts, look, this.yaw, pitch, this.fov, I.aspect, hard);
     if (need > this.dist) this.dist = Math.min(need, maxD * 1.25);
@@ -622,6 +647,8 @@ export class DuelCamera {
       }
       if (ok > 0) pullWant = ok;
     }
+    // (cluttered with no clean tilt, turn or boom: next frame the tilt may go steeper, up to maxPitch)
+    this.steep = cluttered && pullWant === 1 && !found;
     this.pull = this.fresh ? pullWant : this.pull + (pullWant - this.pull) * (1 - Math.exp(-dt * (pullWant < this.pull ? 14 : 1.5)));
     if (sp && pullWant < this.pull && sp.clear(eyeAt(pitch, D0 * this.pull)) < I.near + 0.15) this.pull = pullWant;
     let D = D0 * this.pull;
