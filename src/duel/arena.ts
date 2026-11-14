@@ -46,6 +46,10 @@ export interface Arena {
   drops?: Drop[];
   /** (beyond the contract) the rim light on what can be stood on and slid on, in the world's palette: linear rgb */
   rim?: [number, number, number];
+  /** (beyond the contract) the outlines of the tops a body stands on, as closed loops, for an arena whose solids are
+   *  rough stand-ins for what is drawn (the forge's hexagonal columns as boxes): the rim light follows these in place of
+   *  the solids' own top edges */
+  outlines?: V3[][];
 }
 
 const byWorld = new Map<string, Arena>();
@@ -311,7 +315,8 @@ export function standPoints(solids: readonly Solid[], step = 0.35) {
   }
   return out;
 }
-function bottomAt(s: Solid, x: number, z: number) {
+/** the bottom of a solid under (x, z), or Infinity where it isn't over that point */
+export function bottomAt(s: Solid, x: number, z: number) {
   if (topAt(s, x, z) === -Infinity) return Infinity;
   if (s.kind === 'box') { const [k] = upAxis(s); return s.c[1] - Math.abs([s.x, s.y, s.z][k][1]) * s.h[k]; }
   return Math.min(s.a[1], s.b[1]) - s.r;

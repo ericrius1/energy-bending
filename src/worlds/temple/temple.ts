@@ -240,12 +240,14 @@ export class Temple implements World {
         label: 'temple.drums.far', vertex: 'vs_drum', bind: { stones: this.buf }, count: 32 * (6 - 1 + 2 * 2) * 6, instances: k.farDrums,
         constants: { FIRST: k.blocks + k.drums, SIDES: 32, RINGS: 6, CAPR: 2 }, cull: 'none', enabled: on,
       });
-      // the duel arena's stones (arena.ts), as the court's
+      // the duel arena's stones (arena.ts), as the court's but its drums in less (their flutes in the light only, as a
+      // phone draws the court's): with the court's detail its forty drums cost the scene pass 0.23 ms at 1080p
       const duel = templeDuel(), shown = () => on() && arenaShown(this.id);
+      const DS = coarse ? 32 : 48, DR = coarse ? 4 : 6, DC = coarse ? 2 : 3;
       pass.draw(stoneShader, { label: 'temple.duel.blocks', vertex: 'vs_block', bind: { stones: this.duelBuf }, count: 6 * N * N * 6, instances: duel.blocks, constants: { FIRST: 0, N }, cull: 'none', enabled: shown });
       pass.draw(stoneShader, {
-        label: 'temple.duel.drums', vertex: 'vs_drum', bind: { stones: this.duelBuf }, count: SIDES * (RINGS - 1 + CAPR * 2) * 6, instances: duel.drums,
-        constants: { FIRST: duel.blocks, SIDES, RINGS, CAPR }, cull: 'none', enabled: shown,
+        label: 'temple.duel.drums', vertex: 'vs_drum', bind: { stones: this.duelBuf }, count: DS * (DR - 1 + DC * 2) * 6, instances: duel.drums,
+        constants: { FIRST: duel.blocks, SIDES: DS, RINGS: DR, CAPR: DC }, cull: 'none', enabled: shown,
       });
     }
   }

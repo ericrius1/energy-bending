@@ -77,7 +77,8 @@ fn kindColour(k: u32) -> vec3f {
   // little breath on the beat
   let across = exp(-i.uv.x * i.uv.x * 5.0);
   let along = i.uv.y * i.info.y;
-  let ends = smoothstep(0.0, 0.05, along) * smoothstep(0.0, 0.05, i.info.y - along);
+  let fade = select(0.0, 0.05, i.info.y > 0.8);
+  let ends = select(1.0, smoothstep(0.0, fade, along) * smoothstep(0.0, fade, i.info.y - along), fade > 0.0);
   let breath = 1.0 + look.beat.y * (pow(1.0 - look.beat.x, 3.0) - 0.25);
   // (walls a little fainter than the tops: the tops are where a body lands)
   let w = select(1.0, 0.7, k >= 2u);

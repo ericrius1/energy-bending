@@ -61,12 +61,13 @@ export interface ForgeDuel {
 function build(L: ForgeLayout): ForgeDuel {
   const rng = mulberry32.create(91);
   const r = () => mulberry32.sample(rng);
-  const cols: number[] = [], groups: PieceGroup[] = [];
+  const cols: number[] = [], groups: PieceGroup[] = [], outlines: [number, number, number][][] = [];
   for (const st of STONES) {
-    const w = S3 * st.R, solids: Solid[] = [];
+    const w = S3 * st.R, solids: Solid[] = [], corners: [number, number][] = [];
     const cell = (cx: number, cz: number, hang: number, top: number) => {
       cols.push(cx, cz, top, st.R, hang, SLAB, r(), 0);
       solids.push(boxOn([cx, top - hang, cz], [w, hang, 2 * st.R]));
+      for (let k = 0; k < 6; k++) { const a = Math.PI / 6 + (k * Math.PI) / 3; corners.push([cx + Math.cos(a) * st.R * 0.97, cz + Math.sin(a) * st.R * 0.97]); }
     };
     // rows of cells, flat sides facing ±x (row j at z + 1.5 R j, every other row half a cell over), inside a ragged
     // circle; the middle hangs deepest, the rim `edge`. A stone on the plane has its row j = 0 exactly the run it says
@@ -83,6 +84,21 @@ function build(L: ForgeLayout): ForgeDuel {
       cell(cx, cz, hang, st.top - (j && !st.row ? 0.03 * r() : 0));
     }
     groups.push({ id: st.id, solids });
+    // (its top's outline for the rim light: the hull of its columns' corners)
+    outlines.push(hull(corners).map(([x, z]) => [x, st.top + 0.01, z]));
+  }
+  // the stage's slabs too, where they hold still (the floats and the crown bob: the plane's ledges mark them)
+  for (const s of L.slabs.slice(0, 4)) {
+    if (s.bob) continue;
+    const corners: [number, number][] = [];
+    for (let i = 0; i < L.stageColumns; i++) {
+      const o = i * COLUMN_FLOATS;
+      if (L.slabs[L.columns[o + 5]] !== s) continue;
+      for (let k = 0; k < 6; k++) { const a = Math.PI / 6 + (k * Math.PI) / 3; corners.push([L.columns[o] + Math.cos(a) * L.columns[o + 3] * 0.97, L.columns[o + 1] + Math.sin(a) * L.columns[o + 3] * 0.97]); }
+    }
+    // (the anvil is two lobes: its main body and the gate's, each its own hull)
+    const lobe = s.lobe, inLobe = (p: [number, number]) => !!lobe && Math.hypot(p[0] - lobe[0], p[1] - lobe[1]) < lobe[2] + 0.5 && (p[0] - s.x) ** 2 / (s.rx * s.rx) + (p[1] - s.z) ** 2 / (s.rz * s.rz) > 1;
+    for (const part of [corners.filter((p) => !inLobe(p)), corners.filter(inLobe)]) if (part.length >= 3) outlines.push(hull(part).map(([x, z]) => [x, s.top + 0.01, z]));
   }
   const pieces = groups.flatMap((g) => g.solids);
 
@@ -109,10 +125,20 @@ function build(L: ForgeLayout): ForgeDuel {
     spawns: [[-2.4, 0, 0.6], [2.4, 0, -0.6], [3.2, 1.2, -5.6], [-3.2, -0.6, 5.6], [-7.2, 3.4, 0], [7.4, 1.9, 5.8], [0.8, 3.3, -8.6]],
     pieces, plane,
     camera: { minDist: 9, maxDist: 24, lens: 28 },
-    drops: [],
+    drops: [], outlines,
     rim: [1.0, 0.42, 0.16],
   };
   return { arena, columns: new Float32Array(cols), count: cols.length / COLUMN_FLOATS };
+}
+
+/** the convex hull of points (x, z), counter-clockwise (Andrew's monotone chain) */
+function hull(pts: [number, number][]): [number, number][] {
+  const p = [...pts].sort((a, b) => a[0] - b[0] || a[1] - b[1]);
+  const cross = (o: number[], a: number[], b: number[]) => (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0]);
+  const lo: [number, number][] = [], hi: [number, number][] = [];
+  for (const q of p) { while (lo.length >= 2 && cross(lo[lo.length - 2], lo[lo.length - 1], q) <= 0) lo.pop(); lo.push(q); }
+  for (const q of [...p].reverse()) { while (hi.length >= 2 && cross(hi[hi.length - 2], hi[hi.length - 1], q) <= 0) hi.pop(); hi.push(q); }
+  return [...lo.slice(0, -1), ...hi.slice(0, -1)];
 }
 
 /** how deep the first and the last columns of a stage slab's row on the plane hang (its walls) */

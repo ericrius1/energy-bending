@@ -3,7 +3,7 @@
 // the lock comes in), and the debug view. Pure (no GPU), so the tests can count them.
 import { planePoint } from '../engine/camera';
 import type { Solid } from '../worlds/solids';
-import { topAt, type Arena } from './arena';
+import { bottomAt, topAt, type Arena } from './arena';
 
 /** floats a segment takes (two vec4f: a point and its kind, a point and its width) */
 export const SEG_FLOATS = 8;
@@ -17,11 +17,15 @@ type V3 = [number, number, number];
  *  height, a hex column's beside the next, is left out): what a body can stand on, outlined */
 export function topEdges(solids: readonly Solid[], within: (x: number, z: number, y: number) => boolean): [V3, V3][] {
   const out: [V3, V3][] = [];
+  // (an edge is left out where the next top at its height goes on past it, or where something stands on it: a drum on
+  // the drum below, a lintel on its capital)
   const covered = (x: number, z: number, y: number, self: Solid) => solids.some((o) => o !== self && Math.abs(topAt(o, x, z) - y) < 0.08);
+  const under = (x: number, z: number, y: number, self: Solid) => solids.some((o) => o !== self && topAt(o, x, z) > y + 0.04 && bottomAt(o, x, z) < y + 0.06);
   const edge = (s: Solid, p: V3, q: V3, dir: [number, number]) => {
     const m: V3 = [(p[0] + q[0]) / 2, p[1], (p[2] + q[2]) / 2];
     if (!within(m[0], m[2], m[1])) return;
     if (covered(m[0] + dir[0] * 0.07, m[2] + dir[1] * 0.07, m[1] - 0.01, s)) return;
+    if (under(m[0] - dir[0] * 0.08, m[2] - dir[1] * 0.08, m[1] - 0.01, s)) return;
     out.push([p, q]);
   };
   for (const s of solids) {
@@ -37,6 +41,9 @@ export function topEdges(solids: readonly Solid[], within: (x: number, z: number
       edge(s, at(-1, 1), at(-1, -1), [-A[0], -A[2]]);
     } else {
       const flat = Math.hypot(s.b[0] - s.a[0], s.b[2] - s.a[2]);
+      // (a ball, a lantern, has no rim; nor a trunk's flared foot, the trunk going on up through its top)
+      if (flat < 1e-3 && Math.abs(s.b[1] - s.a[1]) < 1e-3) continue;
+      if (flat < 1e-3 && solids.some((o) => o !== s && topAt(o, s.a[0], s.a[2]) > Math.max(s.a[1], s.b[1]) + s.r + 0.5)) continue;
       if (flat < 1e-3) {
         // an upright drum: a ring round its flat top
         const y = Math.max(s.a[1], s.b[1]) + s.r + 0.01, n = 14;
@@ -64,7 +71,10 @@ export function arenaSegments(a: Arena, solids: readonly Solid[]) {
   // the tops in the space a body can stand on (above the floor, below the top, inside the space)
   const within = (x: number, z: number, y: number) => y > 0.3 && y < S.yTop - 1 && Math.hypot(x - S.center[0], z - S.center[2]) < S.radius + 1.5;
   const withinLow = (x: number, z: number, y: number) => y > S.yKill + 0.5 && y < S.yTop - 1 && Math.hypot(x - S.center[0], z - S.center[2]) < S.radius + 1.5;
-  for (const [p, q] of topEdges(solids, a.plane.ground === null && !(a.drops?.length) ? withinLow : within)) { seg(rim, p, q, K.solid, RW); seg(dbg, p, q, K.solid, DW * 0.7); }
+  const edges: [V3, V3][] = a.outlines
+    ? a.outlines.flatMap((loop) => loop.map((p, i) => [p, loop[(i + 1) % loop.length]] as [V3, V3]))
+    : topEdges(solids, a.plane.ground === null && !(a.drops?.length) ? withinLow : within);
+  for (const [p, q] of edges) { seg(rim, p, q, K.solid, RW); seg(dbg, p, q, K.solid, DW * 0.7); }
   // the drops' rims
   for (const d of a.drops ?? []) {
     const n: [number, number] = [-P.right[2], P.right[0]];
