@@ -363,16 +363,16 @@ export function duelSound(o: DuelSoundOptions) {
 export class SetMusic {
   /** where the set is on the track: its "go" (duel ms) is this beat since the track's bar 1 */
   plan: { goMs: number; beat: number } | null = null;
-  readonly counts = { sets: 0, placed: 0, follows: 0, lastDriftBeats: 0, nudgedMs: 0, slowedMs: 0 };
-  /** how far the music is ahead of the set (ms, the last frame's), and the set's own pause not yet given up (ms) */
+  readonly counts = { sets: 0, placed: 0, follows: 0, lastDriftBeats: 0, nudgedMs: 0 };
+  /** how far the music is ahead of the set (ms, the last frame's) */
   private driftMs = 0;
-  private paused = 0;
-  /** the set's clock may run this much faster or slower to keep with the music (a frame's hitch made up unheard) */
-  slew = 0.04;
+  /** how much faster the set's clock may run to catch the music up (its own holds and hitches made up unheard). The
+   *  weight's holds (src/duel/weight.ts: a catch's few frames, a pair tier's beat of slow motion) hold the set's clock
+   *  with the bodies, about 4 s a set: 8 % makes that up within the set, so its finale still lands on its line */
+  slew = 0.08;
   /** a drift past this (beats) puts the music back where the set is: in play (and the finale) only a big one (a
-   *  context woken late, a tab back: the deck crossfades half a second), in the count-in and the banner a small one
-   *  (a hitch's frames lost by the set's clock: the finale then still lands on its line) */
-  driftBeats = { play: 0.5, between: 0.12 };
+   *  context woken late, a tab back: the deck crossfades half a second), in the count-in and the banner a small one */
+  driftBeats = { play: 2, between: 0.12 };
 
   constructor(private music: MusicLike, private world: () => string, private film: boolean) {}
 
@@ -405,19 +405,13 @@ export class SetMusic {
     if (Math.abs(is - want) > most) { this.counts.follows++; this.place(nowMs); }
   }
 
-  /** what to add to the set's clock this frame (ms; index.ts adds it to the duel's `now`): a hitch's lost frames made up
-   *  a few percent at a time, so the finale lands on its line. A set slowed or held on purpose (a hit-stop, slow
-   *  motion: its dance time runs slower than the frame's) is not pulled back: a short hold is made up, a long one moves
-   *  the plan (the set lands that much later on the music, until the next set's count-in) */
+  /** what to add to the set's clock this frame (ms; index.ts adds it to the duel's `now`): the drift made up a few
+   *  percent at a time, so the finale lands on its line. Not while the set is held or slowed on purpose (the weight's
+   *  hit-stop, slow motion: its dance time runs slower than the frame's): it catches up after */
   nudge(dt: number, danceDt: number) {
     const M = this.music;
     if (!this.plan || !this.on || !M.live || M.live.ctx.state !== 'running' || dt <= 0) return 0;
-    if (Math.abs(danceDt - dt) > 0.03 * dt) {
-      this.paused += (dt - danceDt) * 1000;
-      if (Math.abs(this.paused) > 250) { this.plan.goMs -= this.paused; this.counts.slowedMs += this.paused; this.driftMs -= this.paused; this.paused = 0; }
-      return 0;
-    }
-    this.paused = 0;
+    if (Math.abs(danceDt - dt) > 0.03 * dt) return 0;
     const cap = this.slew * danceDt * 1000, n = Math.max(-cap, Math.min(cap, this.driftMs));
     this.driftMs -= n;
     this.counts.nudgedMs += n;

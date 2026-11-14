@@ -180,15 +180,12 @@ export const tests: Tests = {
     S.follow(duel + 5000, 'play');
     close(clock.beatAt(now), go + (5000 - 3 * count) / 1000 / spb, 1e-6, 'followed to where the set is');
     check(S.counts.follows === 1, 'once');
-    // a small drift is the set's clock's to make up: a few percent a frame, never more
-    S.follow(duel + 5000 - 100, 'play');
-    check(S.counts.follows === 1, 'a 100 ms drift is not a jump');
-    const n = S.nudge(1 / 60, 1 / 60);
-    close(n, 0.04 * 1000 / 60, 1e-9, 'nudged by at most 4%');
-    // slow motion: not pulled back, the plan moves once the hold is long
-    const before = S.plan!.goMs;
-    for (let i = 0; i < 60; i++) S.nudge(1 / 60, 0.3 / 60);
-    check(S.plan!.goMs < before && S.counts.slowedMs > 250, 'a long slow motion moves the plan');
+    // a small drift (a hold, a hitch) is the set's clock's to make up: a few percent a frame, never more
+    S.follow(duel + 5000 - 600, 'play');
+    check(S.counts.follows === 1, 'a 600 ms drift is not a jump');
+    close(S.nudge(1 / 60, 1 / 60), 0.08 * 1000 / 60, 1e-9, 'nudged by at most 8%');
+    // held (a hit-stop, slow motion): not pulled back while it lasts
+    check(S.nudge(1 / 60, 0.06 / 60) === 0, 'nothing while the bodies are held');
     // a film: nothing moves
     const F = new SetMusic(M, () => 'temple', true);
     const o0 = clock.origin, g0 = clock.gridTime;

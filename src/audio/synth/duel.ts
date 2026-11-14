@@ -35,9 +35,12 @@ import type { Timbre } from '../voices';
 export const DUEL_GAIN: Record<DuelCue, number> = {
   count: 1, go: 1, catch: 0.85, aerial: 0.9, range: 0.9, swing: 0.55, fling: 0.8, landed: 0.85, lift: 1, counter: 0.6,
   release: 0.45, merge: 0.8, finale: 0.85, fusion: 0.9, banner: 1.1, tier: 0.75, bank: 0.4, fall: 0.5, reform: 0.45,
-  cast: 0.8, form: 0.8, react: 0.85, launch: 0.5, swap: 0.6, redirect: 0.6,
+  cast: 1.1, form: 0.8, react: 0.85, launch: 0.5, swap: 0.6, redirect: 0.6,
   dash: 0.55, walljump: 0.6, land: 0.65, jump: 0.35,
 };
+/** each power's gain inside the cast's, so the ten sit together (measured alone, the flare, the ribbon, the blink and
+ *  the arc were 4 to 7 dB under the ice step) */
+const POWER_GAIN: Record<string, number> = { flare: 1.5, ribbon: 1.9, blink: 1.6, arc: 1.6, whip: 1.15, wave: 1.15 };
 /** voices a cue keeps sounding at once, and how long one lasts (s) for the count */
 const CAP: Partial<Record<DuelCue, number>> = { swing: 2, dash: 3, land: 3, walljump: 3, jump: 2, catch: 3, cast: 4 };
 /** the reverb's share for a cue */
@@ -324,7 +327,9 @@ export class DuelVoices {
   }
 
   // ---------------------------------------------------------------- the powers
-  c_cast(t: number, c: DuelCall, o: Out) {
+  c_cast(t: number, c: DuelCall, out: Out) {
+    // (each power at about the same level alone: the duel-solo render's peaks)
+    const o = this.n.gn(POWER_GAIN[c.power ?? ''] ?? 1); o.connect(out);
     const big = c.big ? 1.25 : 1, tones = this.tones(c), base = notes(tones, this.reg(c.matter), 3);
     switch (c.power) {
       case 'flare': // a whoomph of flame rising, a warm tone gliding up a fifth, embers

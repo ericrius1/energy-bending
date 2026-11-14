@@ -15,6 +15,7 @@ import { measure, loudest, type Stats } from './measure';
 import { labDancer, type LabDancer } from './body';
 import type { World } from '../../worlds/world';
 import { mulberry32 } from 'math/random';
+import { DUEL_BALANCE } from '../../duel/sound';
 
 const STONES = ['amethyst', 'celestite', 'agate', 'citrine', 'quartz', 'emerald', 'rose', 'obsidian', 'malachite', 'pyrite', 'brilliant'];
 const GEODE: Tone = { water: 2600, cave: 0.8, hearth: 0.5, depth: 0.5, forest: 0 };
@@ -231,8 +232,9 @@ SCENARIOS['duel-solo'] = () => {
   const gap = 2.2;
   return {
     seconds: DUEL_SOLO.length * gap + 2, world: stubWorld('plain', PLAIN),
-    // (no bed under it: each sound's own level)
-    setup(r) { grooveParams.level = 0; r.music.engine.setPlace(0, PLAIN, PLAIN_ROOM, 1, true); },
+    // (no bed under it: each sound's own level, at the duel's balance under a track, as the game plays it: the master
+    // 14 dB down, so the compressor rests and the cues compare as they are)
+    setup(r) { grooveParams.level = 0; r.music.engine.setPlace(0, PLAIN, PLAIN_ROOM, 1, true); r.music.engine.out.under(0, 1, DUEL_BALANCE); },
     each(r, t, f) {
       const i = Math.round(t / gap - 0.5);
       if (f % Math.round(gap * 60) !== Math.round(gap * 30) || i >= DUEL_SOLO.length) return;
