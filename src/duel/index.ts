@@ -244,8 +244,8 @@ export async function startDuel(app: PlayApp) {
   // the free camera, a fighting game's: the rig's own third-person follow (dancer/play.ts aims it at the pair's middle and
   // stands it back to hold both), turned side-on to the line between the two, a little behind seat 1, so both are seen
   // across the screen; it swings round (at the rig's own rate) as they circle. Of the side-on turns (either side, and a
-  // little either way of each) it takes the one whose boom the world's solids leave clearest (the forge's crown and
-  // floats pulled the boom in to nothing from some sides), keeping the one it has unless another is clearly better.
+  // little either way of each) it takes the one whose boom the world's solids leave clearest (a slab's crown and
+  // the stones over it can pull the boom in to nothing from some sides), keeping the one it has unless another is clearly better.
   // Snapped there on the first frames
   // (World.clear and the gates' discs, the rig's clearance, pull the boom in the same way: off while free, the lock's own)
   let clearWas: typeof rig.clearance = rig.clearance;

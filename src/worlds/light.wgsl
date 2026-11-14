@@ -28,7 +28,6 @@
 #include "./redwoods/forest"
 #include "./pool/pool"
 #include "./temple/temple"
-#include "./forge/forge"
 #include "../matter/fire/light"
 
 /** the light of every world, a slot each, and the dancers' own. A new world appends its member */
@@ -40,7 +39,6 @@ struct WorldLight {
   forest: Forest,
   pool: Pool,
   temple: Temple,
-  forge: Forge,
   /** what the main view may fade (worlds/fade.ts): not a world's */
   sight: Sight,
 }
@@ -58,8 +56,7 @@ struct Sight { body: array<SightBody, 2>, k: vec4f }
 @group(2) @binding(1) var poolWaves: texture_2d<f32>;
 @group(2) @binding(2) var templeWaves: texture_2d<f32>;
 
-/** which world lights this pipeline: 0 the geode, 1 the redwoods, 2 the pool, 3 the temple, 4 the forge (each World's
- *  `light`) */
+/** which world lights this pipeline: 0 the geode, 1 the redwoods, 2 the pool, 3 the temple (each World's `light`) */
 override WORLD: u32 = 0u;
 
 /** the key light on matter at p: towards it, its colour × strength (with what the world does to it there), the same
@@ -71,7 +68,6 @@ fn worldEnv(d: vec3f, p: vec3f) -> vec3f {
   if (WORLD == 1u) { return woodsEnv(d, p); }
   if (WORLD == 2u) { return poolEnv(d, p); }
   if (WORLD == 3u) { return templeEnv(d, p); }
-  if (WORLD == 4u) { return forgeEnv(d, p); }
   return studio(d);
 }
 
@@ -81,11 +77,10 @@ fn worldFire(p: vec3f, n: vec3f) -> vec3f { return fireLightAt(worldLight.fire, 
 
 /** the soft light on a surface facing N, dimmed in crevices (ao) */
 fn worldAmbient(N: vec3f, ao: f32, p: vec3f) -> vec3f {
-  // (the woods' lampLight carries the dancers' fire too; the temple and the forge add it at the weight they're given)
+  // (the woods' lampLight carries the dancers' fire too; the temple adds it at the weight it's given)
   if (WORLD == 1u) { return woodsAmbient(N) * (0.25 + 0.75 * ao) * 1.6 + lampLight(p, N, 0.2) * 0.5; }
   if (WORLD == 2u) { return poolAmbient(N, ao) + worldFire(p, N) * 0.25; }
   if (WORLD == 3u) { return templeAmbient(N, ao, p, 0.25); }
-  if (WORLD == 4u) { return forgeAmbient(N, ao, p, 0.25); }
   return geodeAmbient(N, ao) + worldFire(p, N) * 0.25;
 }
 
@@ -117,14 +112,6 @@ fn worldKey(p: vec3f, fine: bool, fixture: f32) -> KeyLight {
     k.glint = 1.2;
     return k;
   }
-  if (WORLD == 4u) {
-    // the fire's glow from far below
-    k.dir = normalize(worldLight.forge.key.xyz);
-    k.col = worldLight.forge.fire.rgb * worldLight.forge.fire.w * 0.35;
-    k.plain = k.col;
-    k.glint = 1.0;
-    return k;
-  }
   k.dir = normalize(worldLight.geode.key.xyz);
   k.plain = vec3f(1.0, 0.96, 0.9) * worldLight.geode.key.w * 0.11;
   k.col = k.plain * geodeKeyNet(p, fine, fixture);
@@ -137,7 +124,6 @@ fn worldRim() -> vec4f {
   if (WORLD == 1u) { return worldLight.forest.rim; }
   if (WORLD == 2u) { return vec4f(worldLight.pool.glow.rgb, worldLight.pool.keyCol.w); }
   if (WORLD == 3u) { return vec4f(worldLight.temple.moonCol.rgb, worldLight.temple.moonCol.w * 2.0); }
-  if (WORLD == 4u) { return vec4f(worldLight.forge.aurora.rgb, worldLight.forge.aurora.w * 2.5); }
   return worldLight.geode.rim;
 }
 
@@ -153,17 +139,15 @@ fn worldAir(s: vec4f, px: vec2i, d: vec3f) -> vec3f {
   if (WORLD == 1u) { return woodsAir(s, px, d); }
   if (WORLD == 2u) { return poolAir(s, px, d); }
   if (WORLD == 3u) { return templeAir(s, px, d); }
-  if (WORLD == 4u) { return forgeAir(s, px, d); }
   return geodeAir(s, px, d);
 }
 
 /** the scene at pixel px as the world shows it, before its air: most worlds show it as drawn; a world with water lays
- *  the surface over what was seen through it (the reflections, bent by the ripples), a hot one bends it in the heat.
+ *  the surface over what was seen through it (the reflections, bent by the ripples).
  *  Only the air pass calls this (src: the scene it reads, alpha the view distance) */
 fn worldScene(src: texture_2d<f32>, px: vec2i, d: vec3f) -> vec4f {
   if (WORLD == 2u) { return poolScene(src, px, d); }
   if (WORLD == 3u) { return templeScene(src, px, d); }
-  if (WORLD == 4u) { return forgeScene(src, px, d); }
   return textureLoad(src, px, 0);
 }
 

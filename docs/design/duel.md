@@ -72,7 +72,14 @@
 > and `combo.cashed?: number` (set for the frame a combo ends), `players[].lead?: number` (0..1: how much of the
 > set this dancer led), `players[].best?: number` (the best combo this set, for the banner), `pops[].id?: number`
 > and `pops[].dir?: [number, number]` (a fling's direction on screen). `link.from` is the holder's contact point and
-> `link.to` the held's.
+> `link.to` the held's. Phase 2 (fixes 2, 3 and 5) adds: `combo.tier?: number` (past ×4 the tier reached, 0 none;
+> `DUEL.TIERS` in shared/duel.ts: FLOW at 12 varied links, BLOOM 18, RADIANT 26, SUBLIME 36), `combo.tierName?:
+> string` and `combo.tierColor?: string` (its word and CSS colour, from tier 1; on a combo's ended frame, the ended
+> combo's), and `shared.fusion?: number` (0 … 1, the fusion's charge: the set's longest stretch at `FUSE_AT` of
+> `FUSE_HOLD_MS`, 1 once the finale will fuse, which also needs a MERGE). A pop's `id` is stable: a pop counted up
+> or rewritten in place keeps it (one SWING per hold, its text going `SWING`, `SWING ×2`, …; one PERFECT per dancer
+> counting up; past the budget of about three new words a second a fresh pop of the same dancer's is rewritten), so
+> the HUD updates the pop rather than adding one. A tier reached pops its word (`FLOW ×12`, kind `combo`).
 
 > **Correction from the owner (13 Nov 2026), which overrides anything below that reads otherwise.**
 > It is still a dance, and it is **3D native**. It is not a 2D arena brawler.
@@ -172,8 +179,9 @@ drawing in `src/duel/power-fx.ts` with the matter and field the game already has
 ## Juice (phase 3)
 
 Hit-stop (a few frames frozen on a hit), screen shake, slow motion on a round's last KO, words that pop ("PERFECT",
-"PARRY", "STEAM!"), hits heard on the beat, hazards per arena (the forge's lava, the temple's tide, falling things in
-the redwoods), online duels with the server authoritative.
+"PARRY", "STEAM!"), hits heard on the beat, gentle hazards per arena, nature's own (the temple's tide rising over its
+floor, wind through the redwoods leaning a body off its line, a swell in the pool rocking its stepping stones), online
+duels with the server authoritative.
 
 ## The contracts the parallel work shares
 

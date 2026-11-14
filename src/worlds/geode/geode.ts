@@ -18,7 +18,7 @@ import shelfShader from './shelves.wgsl';
 import crystalShader from './crystals.wgsl';
 import { layoutShelves, packBlades, solidsOfShelves } from './shelves';
 import { clearOf, type Solid } from '../solids';
-import { HUB_GATES, hubParams } from './gates';
+import { hubGates, hubParams } from './gates';
 import { stagePlane, spawnsOf } from '../stage';
 import type { Grade, Fixture, PortalDef, World, WorldCtx } from '../world';
 import type { ScenePass } from '../../engine/scene';
@@ -127,14 +127,9 @@ export class Geode implements World {
     this.u = lightSlot(ctx.kit, 'geode');
     this.shared = {};
     // the hub's gates (HUB_GATES), one to each world
-    const gate = (world: string): PortalDef => {
-      const [x, z] = HUB_GATES[world], l = Math.hypot(x, z);
-      return { id: `geode.${world}`, at: [x, 1.35, z], normal: [-x / l, 0, -z / l], radius: 1.25, to: { world, portal: `${world}.geode` } };
-    };
-    this.portals = ['pool', 'temple', 'forge', 'redwoods'].map(gate);
+    const sites = hubGates();
+    this.portals = sites.map(({ world, at, normal, radius }): PortalDef => ({ id: `geode.${world}`, at, normal, radius, to: { world, portal: `${world}.geode` } }));
     // each gate's setting: a ring of crystals in its world's colour round the disc, a worn path to it across the floor
-    const tints = ['pool', 'temple', 'forge', 'redwoods'];
-    const sites = this.portals.map((p) => ({ at: p.at, normal: p.normal, radius: p.radius, tint: Math.max(0, tints.indexOf(p.to.world)) }));
     this.gates = sites.flatMap((s) => [s.at[0], s.at[2], 0.55, s.tint]);
     // a stage through the middle, seen from the front, its ledges the crystal shelves grown out of the druses at its
     // ends and behind it; the lens long enough to flatten it, the camera inside the hollow

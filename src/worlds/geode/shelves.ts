@@ -17,7 +17,7 @@ export interface Blade { at: [number, number, number]; yaw: number; pitch: numbe
 
 export const BLADE_FLOATS = 12;
 
-/** a gate the crystals grow round: its disc's middle, the way it faces, its radius, its world's tint (0 … 3) */
+/** a gate the crystals grow round: its disc's middle, the way it faces, its radius, its world's tint (0 … 2: gates.ts hubGates) */
 export interface GateSite { at: [number, number, number]; normal: [number, number, number]; radius: number; tint: number }
 
 type V3 = [number, number, number];

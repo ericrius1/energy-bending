@@ -76,7 +76,7 @@ test('redwoods: only the lantern that hung low in front of the lock is lifted, i
   return `lantern ${k}: its bottom from ${(L[k].anchor[1] - before[k]).toFixed(2)} m to 6.40 m`;
 });
 
-test('a look point a hand over a slab of columns: a boom rising gently away is clear (the forge crown, 9-stage.md)', () => {
+test('a look point a hand over a slab of columns: a boom rising gently away is clear (a crown of columns, 9-stage.md)', () => {
   // a row of 0.43 m columns, their tops at 3.1 m, the look point 0.3 m over the middle one: inside the 40 cm margin of
   // its neighbours too, which read as 0 clear before the margin shrank for a start that near
   const slab = [-3, -2, -1, 0, 1, 2, 3].map((k) => boxOn([k * 0.43, 2.0, 0], [0.43, 1.1, 0.5]));

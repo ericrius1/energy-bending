@@ -1,6 +1,6 @@
 // The duel's arenas: one per world, a 3D play space about 10 to 14 m round, dense with things to climb, kick off, stand on
 // and fall from, built from what the world has there (columns, trunks, blades, slabs) and matter added in its own kind
-// (floating stones in the forge, broken drums and lintels in the temple, low branches and logs in the redwoods, crystal
+// (broken drums and lintels in the temple, low branches and logs in the redwoods, crystal
 // shelves and beams in the geode, stepping stones and ice floes in the Pool). Each world's folder builds its own
 // (`<world>/arena.ts`) from the one description it draws the added matter from, and registers it from its index.ts:
 // `arenas.register(arena)`, read back with `arenaFor(worldId)`. docs/design/duel.md has the contract.
@@ -47,7 +47,7 @@ export interface Arena {
   /** (beyond the contract) the rim light on what can be stood on and slid on, in the world's palette: linear rgb */
   rim?: [number, number, number];
   /** (beyond the contract) the outlines of the tops a body stands on, as closed loops, for an arena whose solids are
-   *  rough stand-ins for what is drawn (the forge's hexagonal columns as boxes): the rim light follows these in place of
+   *  rough stand-ins for what is drawn (columns drawn round, stood in for as boxes): the rim light follows these in place of
    *  the solids' own top edges */
   outlines?: V3[][];
 }
@@ -90,8 +90,8 @@ export function onArena(fn: (world: string | null) => void) { watchers.push(fn);
 // ---------------------------------------------------------------- drops
 
 /** a hole in the floor while the arena is shown: from s0 to s1 along the plane, from `behind` metres behind it to `front`
- *  in front (toward the lock's camera), `deep` metres down. Its world draws its sides and bottom (or, the Pool and the
- *  forge, has nothing there to begin with) and its `groundAt` falls away inside it */
+ *  in front (toward the lock's camera), `deep` metres down. Its world draws its sides and bottom (or, the Pool, has
+ *  nothing there to begin with) and its `groundAt` falls away inside it */
 export interface Drop { s0: number; s1: number; behind: number; front: number; deep: number }
 
 /** the plane's coordinates of a world point: s along it, t toward the camera (planeNormal) */
@@ -325,7 +325,7 @@ export function bottomAt(s: Solid, x: number, z: number) {
 /** what is wrong with an arena (empty: nothing). In 3D: the space's size, the spawns (at least 4, spread, each on
  *  something), every piece's top reachable from the ground by jumps, and something to jump onto or kick off within a
  *  second's run of anywhere. On the plane: its ledges inside its ends and reachable, its walls, a couple of drops.
- *  `ground(x, z)` is the world's floor there (null: none, the forge's sky or the Pool's deep water), `solids` everything
+ *  `ground(x, z)` is the world's floor there (null: none, the Pool's deep water), `solids` everything
  *  solid while the arena is shown (the world's own and the pieces) */
 export function checkArena(a: Arena, ground: (x: number, z: number) => number | null, solids: readonly Solid[]): string[] {
   const out: string[] = [], S = a.space, P = a.plane, W = P.walls ?? [];

@@ -90,7 +90,7 @@ export class Music {
         // the first world's track now (decoded before the first touch), the others' files a little later
         this.loader = new TrackLoader(import.meta.env.BASE_URL);
         void this.loader.want(tr);
-        setTimeout(() => { for (const id of ['geode', 'redwoods', 'temple', 'pool', 'forge']) { const t = trackFor(id); if (t) void this.loader!.fetch(t); } }, 8000);
+        setTimeout(() => { for (const id of ['geode', 'redwoods', 'temple', 'pool']) { const t = trackFor(id); if (t) void this.loader!.fetch(t); } }, 8000);
       }
     }
     for (const k of kinds) if (isVoiced(k)) k.hear(this.ears);

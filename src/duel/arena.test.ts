@@ -7,28 +7,23 @@ import { test, assert, near, done } from '../dancer/test/check';
 import { arenaFor, arenas, checkArena, crossing, describeArena, groundUnder, inDrop, slicePlane, topAt, type Arena } from './arena';
 import { arenaSegments } from './arena-segments';
 import { box, boxOn, cylinder, type Solid } from '../worlds/solids';
-import { registerForgeArena } from '../worlds/forge/arena';
 import { registerTempleArena } from '../worlds/temple/arena';
 import { registerGeodeArena } from '../worlds/geode/arena';
 import { registerRedwoodsArena } from '../worlds/redwoods/arena';
 import { registerPoolArena } from '../worlds/pool/arena';
-import { layoutForge, solidsOfForge } from '../worlds/forge/layout';
 import { layoutTemple, solidsOf } from '../worlds/temple/layout';
 import { layoutShelves, solidsOfShelves } from '../worlds/geode/shelves';
-import { HUB_GATES } from '../worlds/geode/gates';
+import { hubGates } from '../worlds/geode/gates';
 import { layoutWoods, solidsOfWoods } from '../worlds/redwoods/layout';
 import { layoutStage, solidsOfStage } from '../worlds/redwoods/stage';
 
-registerForgeArena(); registerTempleArena(); registerGeodeArena(); registerRedwoodsArena(); registerPoolArena();
+registerTempleArena(); registerGeodeArena(); registerRedwoodsArena(); registerPoolArena();
 
 /** each world's own solids, as its World.solids lists them (without the duel's pieces) */
 function worldSolids(id: string): Solid[] {
-  if (id === 'forge') return solidsOfForge(layoutForge({ coarse: false }));
   if (id === 'temple') return solidsOf(layoutTemple({ coarse: false }).stones);
   if (id === 'geode') {
-    const tints = ['pool', 'temple', 'forge', 'redwoods'];
-    const gates = tints.map((w) => { const [x, z] = HUB_GATES[w], l = Math.hypot(x, z); return { at: [x, 1.35, z] as [number, number, number], normal: [-x / l, 0, -z / l] as [number, number, number], radius: 1.25, tint: tints.indexOf(w) }; });
-    const s = layoutShelves({ caveRadius: 12, gates });
+    const s = layoutShelves({ caveRadius: 12, gates: hubGates() });
     return solidsOfShelves(s.blades, s.points);
   }
   if (id === 'redwoods') { const w = layoutWoods(); return [...solidsOfStage(layoutStage(w.trunks).pieces), ...solidsOfWoods(w)]; }
@@ -36,12 +31,12 @@ function worldSolids(id: string): Solid[] {
 }
 /** each world's floor while the duel is on (null: none there) */
 function floorOf(a: Arena): (x: number, z: number) => number | null {
-  if (a.world === 'forge' || a.world === 'pool') return () => null;
+  if (a.world === 'pool') return () => null;
   return (x, z) => (inDrop(a.plane, a.drops ?? [], x, z) ? null : 0);
 }
 
 test('every world has an arena', () => {
-  for (const w of ['geode', 'redwoods', 'pool', 'temple', 'forge']) assert(arenaFor(w), `no arena for ${w}`);
+  for (const w of ['geode', 'redwoods', 'pool', 'temple']) assert(arenaFor(w), `no arena for ${w}`);
   return arenas.ids().join(', ');
 });
 for (const a of arenas.all()) {

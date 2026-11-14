@@ -9,8 +9,20 @@ import { defineParams } from '../../engine/params';
  *  its underside as a flat slab over the dancers (dancer/show.ts turns it off and on) */
 export const hubParams = defineParams('hub', { highBlade: true }, { highBlade: { label: 'high blade' } });
 
-/** each gate's place on the floor (x, z), by the world it opens on */
-export const HUB_GATES: Record<string, [number, number]> = { pool: [-6.0, 3.0], temple: [6.0, 3.0], forge: [-2.9, 6.0], redwoods: [2.9, 6.0] };
+/** each gate's place on the floor (x, z), by the world it opens on, in the order of their tints (geode.wgsl
+ *  geodeGateTint): the pool's and the temple's to either side in front, the redwoods' straight out in front of the
+ *  stage, further than they are (past the locked camera, which stands about 7.4 m out on that line and must not stand
+ *  behind a disc, and 2.2 m clear of the duel arena's front beam at z 7.4) */
+export const HUB_GATES: Record<string, [number, number]> = { pool: [-6.0, 3.0], temple: [6.0, 3.0], redwoods: [0, 9.7] };
+
+/** each hub gate as the geode stands it (its disc's middle 1.35 m up, 1.25 m round, facing the middle) and as the
+ *  shelves' layout grows a crown of crystals round it (shelves.ts GateSite; `tint` its world's colour) */
+export function hubGates() {
+  return Object.entries(HUB_GATES).map(([world, [x, z]], tint) => {
+    const l = Math.hypot(x, z);
+    return { world, at: [x, 1.35, z] as [number, number, number], normal: [-x / l, 0, -z / l] as [number, number, number], radius: 1.25, tint };
+  });
+}
 
 /** the gate the front opens on and how far off it the camera turns (rad): the temple's gate to one side of the pair and
  *  the redwoods' to the other, the two best worlds behind the two dancers, and the hub's high blade (which reaches out

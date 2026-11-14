@@ -16,7 +16,7 @@ import { lastDress } from '../dancer/show';
 export type Mode = 'same' | 'partner' | 'online' | 'solo';
 export interface Choice { mode: Mode; world: string; dress: [string, string]; lock: boolean; room?: string; create?: boolean; watch?: boolean }
 
-const WORLDS: [string, string][] = [['geode', '#8a5cff'], ['pool', '#5fb6ff'], ['temple', '#38c7b0'], ['forge', '#ff8a3c'], ['redwoods', '#7fb85a']];
+const WORLDS: [string, string][] = [['geode', '#8a5cff'], ['pool', '#5fb6ff'], ['temple', '#38c7b0'], ['redwoods', '#7fb85a']];
 /** each preset's two colours (the swatch's living gradient) */
 const SWATCH: Record<string, [string, string]> = {
   fire: ['#ff5a14', '#ffd27a'], water: ['#1c6cff', '#7fe0ff'], ice: ['#a8dcff', '#ffffff'], plasma: ['#8a2cff', '#ff7af0'],
@@ -88,7 +88,9 @@ export type FrontChoice = { kind: 'mode'; value: Mode } | { kind: 'world'; value
 /** the front of the game: returns its root (removed when a choice is made). It starts from the bodies last chosen
  *  (dancer/show.ts lastDress: what the show's dancers already wear) */
 export function showFront(query: URLSearchParams, open: (href: string) => void = (h) => location.assign(h), onChoose?: (c: FrontChoice) => void): HTMLElement {
-  const c: Choice = { mode: 'same', world: query.get('world') ?? 'geode', dress: lastDress(), lock: !query.has('free') };
+  // (a world the game doesn't have, like the retired forge's ?world=forge, opens on the hub)
+  const asked = query.get('world'), world = WORLDS.some(([w]) => w === asked) ? asked! : 'geode';
+  const c: Choice = { mode: 'same', world, dress: lastDress(), lock: !query.has('free') };
   const root = el('div', 'jg jg-front');
   const go = () => open(hrefOf(c, location.pathname, query));
 

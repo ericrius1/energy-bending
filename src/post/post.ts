@@ -1,5 +1,5 @@
 // The post chain (Gem Dancers', reworked around the frame's depth contract). Per view: the world's surface step on the
-// opaque scene (the pool's and the temple's water, the forge's heat), then the light in the air with the glowing
+// opaque scene (the pool's and the temple's water), then the light in the air with the glowing
 // matter laid over it (air.wgsl). For the main view also: the glow's trails (before the air, so only glowing matter
 // leaves them), the lens (depth of field gathered at half resolution, placed by the focus target, focused on the
 // dancers the view frames), a bloom chain with a warm, wide halo, and the grade (the tone map, then the world's own
@@ -115,8 +115,8 @@ export const FOCUS_SLOTS = 3;
 export const BODY_KINDS: ReadonlySet<string> = new Set(['water', 'ice']);
 
 /** whether a world lays something over its scene before the air (worlds/light.wgsl worldScene: the pool's water (2),
- *  the temple's tide (3), the forge's heat (4)); keep in step with that switch */
-const sceneStep = (w: World | undefined) => !!w && w.light >= 2 && w.light <= 4;
+ *  the temple's tide (3)); keep in step with that switch */
+const sceneStep = (w: World | undefined) => !!w && w.light >= 2 && w.light <= 3;
 
 export class PostChain {
   readonly post: UniformBuffer<PostU>;

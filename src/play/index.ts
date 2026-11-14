@@ -236,7 +236,8 @@ export async function startJogo(app: PlayApp, mode: string, opts: { joined?: Joi
 
   // ---------------------------------------------------------------- what the room needs to know first
   const plane = (): StagePlane | null => play.plane();
-  const beatNow = () => { const m = room.state?.music; return m ? beatAt(m, room.now()) : 0; };
+  // a function declaration, hoisted: the partner (above, after an await) may read the beat before this line runs
+  function beatNow() { const m = room.state?.music; return m ? beatAt(m, room.now()) : 0; }
   const judge = (_seat: number) => {
     const st = room.state;
     // as heard, when the music follows the room's clock live; else the room's grid at this instant (stepped by hand:

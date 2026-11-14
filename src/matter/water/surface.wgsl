@@ -617,8 +617,8 @@ fn lensOf(sh: Shade, uv: vec2f, od: f32, d: f32) -> vec2f {
 }
 
 /** whether this world surfaces its scene (its scene step and air) before the water composites (src/post/post.ts
- *  sceneStep: the Pool, the temple, the forge): then the copy the water bends is the finished, fogged world */
-fn surfaced() -> bool { return WORLD >= 2u && WORLD <= 4u; }
+ *  sceneStep: the Pool, the temple): then the copy the water bends is the finished, fogged world */
+fn surfaced() -> bool { return WORLD >= 2u && WORLD <= 3u; }
 
 struct SceneOut { @location(0) c: vec4f, @builtin(frag_depth) depth: f32 }
 

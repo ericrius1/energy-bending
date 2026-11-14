@@ -384,8 +384,8 @@ export class DuelBrain implements Brain {
           away = [gx / gl, gz / gl];
         }
       }
-      // (only toward somewhere to land: a kick off a rock out over the pool's water, or off a stone over the forge's
-      // void, is a fall; with nothing that way the body slides down the face instead)
+      // (only toward somewhere to land: a kick off a rock out over the pool's water, or off a ledge out over a drop,
+      // is a fall; with nothing that way the body slides down the face instead)
       const lands = (k: number) => !!away && ground(me.x + away[0] * k, me.z + away[1] * k, 2.5) > yKill + 0.6;
       if (away && !(lands(1.6) || lands(2.6) || lands(3.6))) away = null;
       if (away && me.vy < 1.5 && t >= this.jumpUntil + 0.12) {

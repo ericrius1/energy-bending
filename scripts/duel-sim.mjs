@@ -1,6 +1,6 @@
 // The duel's Node playtest (src/duel/probe.ts, bundled with esbuild and run under Node, as scripts/test-ts.mjs runs the
 // tests). No page, no GPU: two virtual players through the real bodies and the duel's rules, many seeded rounds.
-//   node scripts/duel-sim.mjs [--world temple,forge] [--rounds 8] [--styles mix|aggressive,evasive] [--skills 0.7,0.7]
+//   node scripts/duel-sim.mjs [--world temple,geode] [--rounds 8] [--styles mix|aggressive,evasive] [--skills 0.7,0.7]
 //                             [--seed 1] [--json out.json] [-v]
 import { build } from 'esbuild';
 import { spawnSync } from 'node:child_process';

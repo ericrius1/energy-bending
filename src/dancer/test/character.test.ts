@@ -25,11 +25,12 @@ const TIDE = stage('tide', 0.14, [
   { id: 'pillarL', x0: -0.72, x1: -0.46, y: 0.35, solid: true }, { id: 'altar', x0: -0.13, x1: 0.13, y: 0.49, solid: true },
   { id: 'pillarR', x0: 0.46, x1: 0.72, y: 0.35, solid: true }, { id: 'lintel', x0: 0.22, x1: 0.40, y: 0.68 },
 ], [[-0.59, 0.35], [0.59, 0.35]]);
-const FORGE = stage('forge', null, [
-  { id: 'anvil', x0: -0.58, x1: 0.58, y: 0.22, solid: true }, { id: 'floatL', x0: -0.78, x1: -0.52, y: 0.47, bob: 0.03 },
+// (no ground: a slab, two bobbing floats and a bobbing crown over a pit)
+const FLOATS = stage('floats', null, [
+  { id: 'slab', x0: -0.58, x1: 0.58, y: 0.22, solid: true }, { id: 'floatL', x0: -0.78, x1: -0.52, y: 0.47, bob: 0.03 },
   { id: 'floatR', x0: 0.52, x1: 0.78, y: 0.47, bob: 0.03 }, { id: 'crown', x0: -0.15, x1: 0.15, y: 0.63, bob: 0.045 },
 ], [[-0.35, 0.22], [0.35, 0.22]]);
-const STAGES = [VOID, RED, TIDE, FORGE];
+const STAGES = [VOID, RED, TIDE, FLOATS];
 const DEFAULT_PLANE = { origin: [0, 0, 0] as [number, number, number], right: [1, 0, 0] as [number, number, number] };
 const at = (_p: StagePlane, x: number, y = G0) => [x * K, (y - G0) * K] as const;
 
@@ -125,9 +126,9 @@ test('cannot pass a solid ledge from below; walls stop at solid sides', () => {
   return `head peak ${top.toFixed(2)} under slab bottom ${bottom.toFixed(2)}; stopped at ${d.x.toFixed(2)}`;
 });
 
-test('rides a bobbing ledge without jitter (Sky Forge)', () => {
-  const L = FORGE.ledges.find((l) => l.id === 'floatL')!;
-  const c = make(FORGE); c.reset(-0.65 * K, ledgeY(L, 0)); c.update(1 / 60, I(), ((1 / 60) * BPM) / 60);
+test('rides a bobbing ledge without jitter (a stage of floats)', () => {
+  const L = FLOATS.ledges.find((l) => l.id === 'floatL')!;
+  const c = make(FLOATS); c.reset(-0.65 * K, ledgeY(L, 0)); c.update(1 / 60, I(), ((1 / 60) * BPM) / 60);
   let worst = 0, n = 0;
   run(c, 4.4, () => I(), 60, 1 / 60, (c, t) => { n++; assert(c.grounded, 'lost the ledge at ' + t); worst = Math.max(worst, Math.abs(c.y - ledgeY(L, (t * BPM) / 60))); });
   assert(worst < 1e-9, 'offset from the ledge ' + worst);
@@ -141,8 +142,8 @@ test('extra ledges from a callback can be stood on (set ice)', () => {
   assert(c.grounded && Math.abs(c.y - 1.2) < 1e-9 && c.support?.id === 'ice', 'on the ice: ' + c.y);
 });
 
-test('falls into the Sky Forge pit and re-forms at the spawn', () => {
-  const c = make(FORGE, 0); c.reset(...at(FORGE, 0.5, 0.22)); c.events.length = 0;
+test('falls into the pit of a stage with no ground and re-forms at the spawn', () => {
+  const c = make(FLOATS, 0); c.reset(...at(FLOATS, 0.5, 0.22)); c.events.length = 0;
   run(c, 3, (t) => I({ moveX: t < 0.6 ? 1 : 0 }));
   const ev = c.events.find((e) => e.type === 'respawn');
   assert(ev, 'no respawn event');

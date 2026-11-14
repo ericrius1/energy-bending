@@ -71,7 +71,7 @@ const TRACK = await (async () => {
     return { ...known, page: known.id, source: existsSync(wav) ? wav : join(ROOT, 'public', known.file) };
   }
   const path = resolve(join(FILE, '..'), a);
-  if (!existsSync(path)) fail(`audio.track ${a}: neither a world's track nor a file`);
+  if (!existsSync(path)) fail(`audio.track ${a}: neither a world's track nor a file${a === 'forge' ? " (the forge's track left with its world, 14 Nov 2026: films/duel-1.json and duel-p1.json are records of films already made)" : ''}`);
   const { analyse } = await import('./music-analyze.mjs');
   const A = analyse(path, { bpm: film.audio.bpm ?? film.bpm ?? 112 });
   const page = film.audio.key ?? MANIFEST.worlds?.[film.shots[0]?.world] ?? null;

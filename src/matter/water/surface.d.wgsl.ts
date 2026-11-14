@@ -129,21 +129,6 @@ export interface Temple {
   drops: ArrayLike<number> | Vec4[];
   dropFrame: Vec4;
 }
-export interface Forge {
-  zenith: Vec4;
-  horizon: Vec4;
-  fire: Vec4;
-  cloud: Vec4;
-  aurora: Vec4;
-  aurora2: Vec4;
-  key: Vec4;
-  heat: Vec4;
-  seam: Vec4;
-  stone: Vec4;
-  bob: ArrayLike<number> | Vec4[];
-  lights: ArrayLike<number> | Vec4[];
-  glow: ArrayLike<number> | Vec4[];
-}
 export interface FireLight {
   pos: Vec4;
   col: Vec4;
@@ -161,7 +146,6 @@ export interface WorldLight {
   forest: Forest;
   pool: Pool;
   temple: Temple;
-  forge: Forge;
   sight: Sight;
 }
 export interface SightBody {
@@ -353,5 +337,5 @@ export interface FocusOut {
   body: Vec4;
 }
 
-declare const shader: Shader<{ Frame: Frame; FullscreenOut: FullscreenOut; Geode: Geode; Forest: Forest; Pool: Pool; Temple: Temple; Forge: Forge; FireLight: FireLight; FireLights: FireLights; WorldLight: WorldLight; SightBody: SightBody; Sight: Sight; KeyLight: KeyLight; Joint: Joint; Seg: Seg; Particle: Particle; Home: Home; BodyStep: BodyStep; Bodies: Bodies; Touch: Touch; Goal: Goal; Touched: Touched; Stepped: Stepped; Seen: Seen; ViewSeen: ViewSeen; Heart: Heart; Hearts: Hearts; Surf: Surf; Bone: Bone; Edge: Edge; Shade: Shade; SceneOut: SceneOut; FocusOut: FocusOut }, 'frame' | 'worldLight' | 'bodies' | 'touch' | 'surf' | 'seen' | 'hearts' | 'joints' | 'segs' | 'poolWaves' | 'templeWaves' | 'scene' | 'water' | 'raw' | 'fog' | 'samp_linear' | 'samp_repeat' | 'samp_nearest' | 'samp_shadow'>;
+declare const shader: Shader<{ Frame: Frame; FullscreenOut: FullscreenOut; Geode: Geode; Forest: Forest; Pool: Pool; Temple: Temple; FireLight: FireLight; FireLights: FireLights; WorldLight: WorldLight; SightBody: SightBody; Sight: Sight; KeyLight: KeyLight; Joint: Joint; Seg: Seg; Particle: Particle; Home: Home; BodyStep: BodyStep; Bodies: Bodies; Touch: Touch; Goal: Goal; Touched: Touched; Stepped: Stepped; Seen: Seen; ViewSeen: ViewSeen; Heart: Heart; Hearts: Hearts; Surf: Surf; Bone: Bone; Edge: Edge; Shade: Shade; SceneOut: SceneOut; FocusOut: FocusOut }, 'frame' | 'worldLight' | 'bodies' | 'touch' | 'surf' | 'seen' | 'hearts' | 'joints' | 'segs' | 'poolWaves' | 'templeWaves' | 'scene' | 'water' | 'raw' | 'fog' | 'samp_linear' | 'samp_repeat' | 'samp_nearest' | 'samp_shadow'>;
 export default shader;
