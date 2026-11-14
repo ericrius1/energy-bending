@@ -2,19 +2,31 @@
 // "jogo"). No marketing copy: icons, device glyphs and short labels only, and nothing at all during play (the meters
 // are in the world, hud.ts).
 //
-//   the front     how to play (together on one screen, with a partner, online, solo), where to start (the geode hub
-//                 by default: its gates are the level select), what each dancer wears (the presets, as swatches that
-//                 move), the side view on or off, and go. Choosing writes the choice into the page's address and opens
-//                 it (?jogo=same|partner|online&world=…&dress=…&free), so a jogo is always a link
-//   online        make a room (its code and a link to share) or join one by code; or watch (a free dancer, a guest)
-//   the lobby     before a jogo on one screen: a card per dancer saying which device plays it, waiting for a press
+//   the front     which game: the dance (the jogo) or the duel (the dance battle, src/duel); how to play it (together
+//                 on one screen, with a partner, online; the dance also solo), where (the geode hub by default: its
+//                 gates are the level select), what each dancer wears (the presets, as swatches that move), the side
+//                 view or 3D, the controls card (?), and go. Choosing writes the choice into the page's address
+//                 (?jogo=same|partner|online&world=…&dress=…&free; ?duel&world=…&dress=…&p1=human&p2=bot|human[&lock];
+//                 ?duel&net=ROOM&…), so a game is always a link; the hub's front (worlds/geode/front.ts) begins it in
+//                 the page where it can
+//   online        the dance: make a room (its code and a link to share) or join one by code; or watch (a free dancer, a
+//                 guest). The duel: a room code made for you at once (a word and two digits, friendly to read out), its
+//                 link with a copy button, go to open it; or a friend's code and join
+//   the lobby     before a game on one screen: a card per dancer saying which device plays it, waiting for a press
 //   waiting       online, until the other seat comes: the room's code and link
-// Esc goes back to the front from anywhere.
+// The strip is walked with the arrow keys (or a gamepad's d-pad and stick: front.ts) as well as the pointer and Tab.
+// Esc goes back to the front from anywhere in a jogo.
 import { PRESETS } from '../matter/core/presets';
 import { lastDress } from '../dancer/show';
+import type { FrameBuilder } from '../engine/frame';
+import type { InputHub, Player } from '../input/hub';
+import type { TouchSource } from '../input/touch';
+import { TouchPad } from '../input/touch-pad';
+import type { Joined } from './index';
 
 export type Mode = 'same' | 'partner' | 'online' | 'solo';
-export interface Choice { mode: Mode; world: string; dress: [string, string]; lock: boolean; room?: string; create?: boolean; watch?: boolean }
+export type Game = 'dance' | 'duel';
+export interface Choice { game?: Game; mode: Mode; world: string; dress: [string, string]; lock: boolean; room?: string; create?: boolean; watch?: boolean }
 
 const WORLDS: [string, string][] = [['geode', '#8a5cff'], ['pool', '#5fb6ff'], ['temple', '#38c7b0'], ['redwoods', '#7fb85a']];
 /** each preset's two colours (the swatch's living gradient) */
@@ -31,10 +43,16 @@ export const GLYPHS = {
   partner: svg(`${figure(14)}<g transform="translate(33 0)"><path d="M0 7l2 5 5 2-5 2-2 5-2-5-5-2 5-2z"/><path d="M0 24v6M-6 33l6-3 6 3M0 30l-5 9M0 30l5 9"/></g>`),
   online: svg(`${figure(13)}<circle cx="34" cy="22" r="9"/><path d="M25 22h18M34 13c-4 5-4 13 0 18M34 13c4 5 4 13 0 18"/>`),
   solo: svg(`${figure(24, 1.1)}`),
+  // the dance: one dancer in the ginga, a turn round them; the duel: two leaping to catch each other, a spark between
+  dance: svg(`${figure(18)}<path d="M28 39c7 0 13-6 13-14 0-6-4-11-9-12"/><path d="M29 10l3 3-4 2"/>`),
+  duel: svg(`<circle cx="10" cy="13" r="4"/><path d="M11 17l4 11M15 28l-6 11M15 28l7 9M12 20l9-5"/><circle cx="38" cy="13" r="4"/><path d="M37 17l-4 11M33 28l6 11M33 28l-7 9M36 20l-9-5"/><path d="M24 3l1.2 3 3 1.2-3 1.2-1.2 3-1.2-3-3-1.2 3-1.2z"/>`),
   lock: svg(`<rect x="6" y="12" width="36" height="24" rx="3"/><path d="M14 30l6-8 5 5 4-4 6 7"/>`),
   free: svg(`<path d="M24 6l16 9v18l-16 9-16-9V15z"/><path d="M8 15l16 9 16-9M24 24v18"/>`),
   go: svg(`<path d="M17 11l20 13-20 13z" fill="currentColor"/>`),
   back: svg(`<path d="M30 10L16 24l14 14"/>`),
+  help: svg(`<circle cx="24" cy="24" r="17"/><path d="M19 19.5a5 5 0 1 1 7 4.6c-1.4.7-2 1.6-2 3.2"/><circle cx="24" cy="33.5" r="1.4" fill="currentColor"/>`),
+  copy: svg(`<rect x="15" y="15" width="22" height="24" rx="3"/><path d="M11 32V12a3 3 0 0 1 3-3h16"/>`),
+  again: svg(`<path d="M37 18a14 14 0 1 0 1 10"/><path d="M38 9v9h-9"/>`),
   keyboard: svg(`<rect x="4" y="13" width="40" height="22" rx="3"/><path d="M10 20h2M16 20h2M22 20h2M28 20h2M34 20h4M10 26h2M16 26h16M36 26h2"/>`),
   gamepad: svg(`<path d="M14 16h20a8 8 0 0 1 8 8l2 9a4 4 0 0 1-7 3l-5-5H16l-5 5a4 4 0 0 1-7-3l2-9a8 8 0 0 1 8-8z"/><path d="M14 22v6M11 25h6"/><circle cx="32" cy="23" r="1.4"/><circle cx="36" cy="27" r="1.4"/>`),
   touch: svg(`<path d="M20 22V10a3 3 0 0 1 6 0v12M26 18a3 3 0 0 1 6 0v4M32 21a3 3 0 0 1 6 0v8c0 7-5 13-12 13h-2c-5 0-8-3-10-7l-5-9a3 3 0 0 1 5-3l2 3"/>`),
@@ -58,10 +76,15 @@ const button = (cls: string, html: string, label: string, on: () => void) => {
   return b;
 };
 
-/** the address of a choice (the jogo opens from it) */
+/** the debug and network keys an address keeps through the menu */
+const KEEP = ['server', 'lag', 'jitter', 'loss', 'debug', 'panel'];
+const bare = (q: URLSearchParams) => q.toString().replace(/=(?=&|$)/g, '');
+
+/** the address of a choice (the game opens from it) */
 export function hrefOf(c: Choice, base = location.pathname, keep: URLSearchParams = new URLSearchParams()) {
+  if (c.game === 'duel') return duelHref(c, base, keep);
   const q = new URLSearchParams();
-  for (const k of ['server', 'lag', 'jitter', 'loss', 'debug', 'panel']) if (keep.has(k)) q.set(k, keep.get(k)!);
+  for (const k of KEEP) if (keep.has(k)) q.set(k, keep.get(k)!);
   if (c.mode === 'solo') { q.set('play', ''); q.set('world', c.world); q.set('dress', c.dress[0]); }
   else {
     q.set('jogo', c.mode);
@@ -70,7 +93,21 @@ export function hrefOf(c: Choice, base = location.pathname, keep: URLSearchParam
     if (!c.lock) q.set('free', '');
     if (c.mode === 'online') { if (c.room) q.set('room', c.room); if (c.create) q.set('create', ''); if (c.watch) q.set('watch', ''); }
   }
-  return `${base}?${q.toString().replace(/=(?=&|$)/g, '')}`;
+  return `${base}?${bare(q)}`;
+}
+
+/** the duel's address (src/duel/index.ts): two on one screen (p2 human), against a virtual partner (p2 bot), or online
+ *  (&net=ROOM, the room server's; &server= kept). Free in 3D unless &lock (the duel's own default is free) */
+export function duelHref(c: Choice, base = location.pathname, keep: URLSearchParams = new URLSearchParams()) {
+  const q = new URLSearchParams();
+  q.set('duel', '');
+  if (c.mode === 'online') q.set('net', c.room || roomName());
+  q.set('world', c.world);
+  q.set('dress', c.dress.join(','));
+  if (c.mode !== 'online') { q.set('p1', 'human'); q.set('p2', c.mode === 'same' ? 'human' : 'bot'); }
+  if (c.lock) q.set('lock', '');
+  for (const k of KEEP) if (keep.has(k)) q.set(k, keep.get(k)!);
+  return `${base}?${bare(q)}`;
 }
 
 /** a fresh room code: four letters a person can read out (no I, O) */
@@ -80,24 +117,57 @@ export function roomCode(r: () => number = Math.random) {
   for (let i = 0; i < 4; i++) s += A[Math.floor(r() * A.length)];
   return s;
 }
+/** a friendlier room code: a word of the worlds and two digits (FERN42, TIDE17), easy to say to a friend; the room
+ *  server takes 3 to 8 letters and digits */
+const WORDS = ['FERN', 'MOSS', 'TIDE', 'LEAF', 'DAWN', 'GLOW', 'REED', 'PINE', 'SAGE', 'WAVE', 'RAIN', 'MIST', 'OPAL', 'JADE', 'LARK', 'WREN', 'DOVE', 'DUSK', 'CALM', 'BLOOM', 'CORAL', 'RIVER', 'STONE', 'EMBER', 'PEARL', 'CEDAR', 'OAK', 'SKY'];
+export function roomName(r: () => number = Math.random) {
+  return WORDS[Math.floor(r() * WORDS.length)] + String(10 + Math.floor(r() * 90));
+}
 
-/** what the front's buttons say they are (data- attributes: data-mode, data-world, data-seat and data-name), and the
- *  callback told of every choice as it is made (the hub's front re-dresses the dancers, turns to a gate) */
-export type FrontChoice = { kind: 'mode'; value: Mode } | { kind: 'world'; value: string } | { kind: 'body'; seat: number; value: string } | { kind: 'lock'; value: boolean };
+/** what the front's buttons say they are (data- attributes: data-game, data-mode, data-world, data-seat and data-name),
+ *  and the callback told of every choice as it is made (the hub's front re-dresses the dancers, turns to a gate) */
+export type FrontChoice = { kind: 'game'; value: Game } | { kind: 'mode'; value: Mode } | { kind: 'world'; value: string } | { kind: 'body'; seat: number; value: string } | { kind: 'lock'; value: boolean };
+
+const GAME_KEY = 'energybending.front.game';
+const keptGame = (): Game => { try { return localStorage.getItem(GAME_KEY) === 'duel' ? 'duel' : 'dance'; } catch { return 'dance'; } };
+const keepGame = (g: Game) => { try { localStorage.setItem(GAME_KEY, g); } catch { /* no storage */ } };
 
 /** the front of the game: returns its root (removed when a choice is made). It starts from the bodies last chosen
- *  (dancer/show.ts lastDress: what the show's dancers already wear) */
+ *  (dancer/show.ts lastDress: what the show's dancers already wear) and the game last chosen */
 export function showFront(query: URLSearchParams, open: (href: string) => void = (h) => location.assign(h), onChoose?: (c: FrontChoice) => void): HTMLElement {
   // (a world the game doesn't have, like the retired forge's ?world=forge, opens on the hub)
   const asked = query.get('world'), world = WORLDS.some(([w]) => w === asked) ? asked! : 'geode';
-  const c: Choice = { mode: 'same', world, dress: lastDress(), lock: !query.has('free') };
+  const game = keptGame();
+  // the side view is each game's own default: the dance's side view (&free for 3D), the duel's 3D (&lock for the side)
+  const lockOf: Record<Game, boolean> = { dance: !query.has('free'), duel: query.has('lock') };
+  const modeOf: Record<Game, Mode> = { dance: 'same', duel: 'partner' };
+  const c: Choice = { game, mode: modeOf[game], world, dress: lastDress(), lock: lockOf[game] };
   const root = el('div', 'jg jg-front');
+  root.dataset.game = game;
   const go = () => open(hrefOf(c, location.pathname, query));
 
+  const games = el('div', 'jg-row jg-games');
+  const gameBtns: Record<string, HTMLButtonElement> = {};
+  for (const [g, label] of [['dance', 'dance'], ['duel', 'duel']] as [Game, string][]) {
+    gameBtns[g] = button('jg-game', GLYPHS[g], label, () => {
+      if (c.game === g) return;
+      modeOf[c.game!] = c.mode; lockOf[c.game!] = c.lock;
+      c.game = g; c.mode = modeOf[g]; c.lock = lockOf[g];
+      if (g === 'duel' && c.mode === 'solo') c.mode = 'partner';
+      if (g === 'duel' && c.mode === 'online' && !c.room) c.room = roomName();
+      keepGame(g); paint(); onChoose?.({ kind: 'game', value: g });
+    });
+    gameBtns[g].dataset.game = g;
+    games.append(gameBtns[g]);
+  }
   const modes = el('div', 'jg-row jg-modes');
   const modeBtns: Record<string, HTMLButtonElement> = {};
   for (const [m, label] of [['same', 'together'], ['partner', 'partner'], ['online', 'online'], ['solo', 'solo']] as [Mode, string][]) {
-    modeBtns[m] = button('jg-mode', GLYPHS[m], label, () => { c.mode = m; paint(); onChoose?.({ kind: 'mode', value: m }); });
+    modeBtns[m] = button('jg-mode', GLYPHS[m], label, () => {
+      c.mode = m;
+      if (c.game === 'duel' && m === 'online' && !c.room) c.room = roomName();
+      paint(); onChoose?.({ kind: 'mode', value: m });
+    });
     modeBtns[m].dataset.mode = m;
     modes.append(modeBtns[m]);
   }
@@ -122,6 +192,7 @@ export function showFront(query: URLSearchParams, open: (href: string) => void =
     }
     bodies.append(row);
   }
+  // the dance online: make a room (opens it), join or watch one by code
   const online = el('div', 'jg-row jg-online');
   const code = el('input', 'jg-code', '', { maxlength: '8', placeholder: '····', 'aria-label': 'room', autocapitalize: 'characters', spellcheck: 'false' }) as HTMLInputElement;
   online.append(
@@ -130,57 +201,215 @@ export function showFront(query: URLSearchParams, open: (href: string) => void =
     button('jg-join', GLYPHS.go, 'join', () => { const v = code.value.trim().toUpperCase(); if (v) { c.room = v; c.create = false; c.watch = false; go(); } }),
     button('jg-watch', GLYPHS.watch, 'watch', () => { const v = code.value.trim().toUpperCase(); if (v) { c.room = v; c.create = false; c.watch = true; go(); } }),
   );
+  // the duel online: a room made for you (its code, a new one, its link and a copy button; go opens it), or a friend's
+  const net = el('div', 'jg-row jg-duelnet');
+  const room = el('b', 'jg-room');
+  const url = el('span', 'jg-url');
+  const linkOf = () => `${location.origin}${duelHref({ ...c, mode: 'online' }, location.pathname, query)}`;
+  const copyBtn = button('jg-copy', GLYPHS.copy, 'copy link', () => {
+    const href = linkOf();
+    const done = () => { copyBtn.classList.add('on'); copyBtn.querySelector('span')!.textContent = 'copied'; setTimeout(() => { copyBtn.classList.remove('on'); copyBtn.querySelector('span')!.textContent = 'copy link'; }, 1800); };
+    const fallback = () => { const t = el('textarea', 'jg-clip') as HTMLTextAreaElement; t.value = href; document.body.append(t); t.select(); try { document.execCommand('copy'); } catch { /* none */ } t.remove(); done(); };
+    if (navigator.clipboard?.writeText) navigator.clipboard.writeText(href).then(done, fallback); else fallback();
+  });
+  const friend = el('input', 'jg-code', '', { maxlength: '8', placeholder: 'code', 'aria-label': "a friend's room", autocapitalize: 'characters', spellcheck: 'false' }) as HTMLInputElement;
+  net.append(
+    room,
+    button('jg-again', GLYPHS.again, 'new code', () => { c.room = roomName(); paint(); }),
+    url, copyBtn, friend,
+    button('jg-join', GLYPHS.go, 'join', () => { const v = friend.value.trim().toUpperCase().replace(/[^A-Z0-9]/g, ''); if (v.length >= 3) { c.room = v; go(); } }),
+  );
+  friend.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.stopPropagation(); net.querySelector<HTMLButtonElement>('.jg-join')!.click(); } });
   const foot = el('div', 'jg-row jg-foot');
+  const helpBtn = button('jg-help', GLYPHS.help, 'how to play', () => { void import('../duel/help').then((m) => m.toggleHelp(m.guessDev(), c.game === 'duel' ? c.dress : [])); });
   const lockBtn = button('jg-lock', GLYPHS.lock, 'side', () => { c.lock = !c.lock; paint(); onChoose?.({ kind: 'lock', value: c.lock }); });
   const goBtn = button('jg-go', GLYPHS.go, '', go);
-  foot.append(lockBtn, goBtn);
-  root.append(modes, worlds, bodies, online, foot);
+  goBtn.setAttribute('aria-label', 'play');
+  foot.append(helpBtn, lockBtn, goBtn);
+  root.append(games, modes, worlds, bodies, online, net, foot);
 
   function paint() {
+    const duel = c.game === 'duel';
+    root.dataset.game = c.game;
+    for (const [g, b] of Object.entries(gameBtns)) b.classList.toggle('on', g === c.game);
     for (const [m, b] of Object.entries(modeBtns)) b.classList.toggle('on', m === c.mode);
+    modeBtns.solo.hidden = duel;
     for (const [w, b] of Object.entries(worldBtns)) b.classList.toggle('on', w === c.world);
     for (let s = 0; s < 2; s++) bodyBtns[s].forEach((b, i) => b.classList.toggle('on', names[i] === c.dress[s]));
     bodies.classList.toggle('one', c.mode === 'solo');
-    online.hidden = c.mode !== 'online';
-    goBtn.hidden = c.mode === 'online';
+    online.hidden = duel || c.mode !== 'online';
+    net.hidden = !duel || c.mode !== 'online';
+    if (duel && c.mode === 'online') {
+      room.textContent = c.room ?? '';
+      const href = linkOf();
+      url.textContent = href.replace(/^https?:\/\//, '').replace(/\?.*$/, '') + `?duel&net=${c.room}`;
+      url.title = href;
+    }
+    goBtn.hidden = !duel && c.mode === 'online';
+    goBtn.setAttribute('aria-label', duel ? (c.mode === 'online' ? 'open the room' : 'play the duel') : 'play the dance');
     lockBtn.classList.toggle('on', c.lock);
     lockBtn.innerHTML = (c.lock ? GLYPHS.lock : GLYPHS.free) + `<span>${c.lock ? 'side' : '3d'}</span>`;
   }
   paint();
   document.body.append(root);
-  // a gamepad or the keys move round it too: Enter goes
   root.tabIndex = -1;
-  root.addEventListener('keydown', (e) => { if (e.key === 'Enter' && c.mode !== 'online') go(); });
+  root.addEventListener('keydown', (e) => {
+    const t = e.target as HTMLElement;
+    if (t.closest('input')) return;
+    // the arrow keys walk the strip (a button pointed at shows its label); Enter on the strip (not on another button,
+    // which Enter presses) goes
+    const dir = ({ ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] } as Record<string, [number, number]>)[e.key];
+    if (dir) { e.preventDefault(); moveFocus(root, dir[0], dir[1]); return; }
+    if (e.key === 'Enter' && (t === root || t === goBtn) && !(c.game !== 'duel' && c.mode === 'online')) { e.preventDefault(); go(); }
+  });
   return root;
 }
 
-/** the lobby before a jogo on one screen: which device plays which dancer. A seat still waiting says how to join it
- *  (a key, a click or a tap; a gamepad's button) and is itself a button: a click or a tap on it joins that seat */
+/** move the focus within `root` to the nearest visible button (or input) in a direction (dx, dy: -1, 0, 1), the way a
+ *  d-pad walks a menu; nothing focused yet: the chosen game's button, else the first */
+export function moveFocus(root: HTMLElement, dx: number, dy: number) {
+  const all = [...root.querySelectorAll<HTMLElement>('button, input')].filter((b) => !b.closest('[hidden]') && b.offsetParent !== null);
+  if (!all.length) return null;
+  const cur = document.activeElement as HTMLElement | null;
+  if (!cur || !root.contains(cur) || cur === root) { const f = root.querySelector<HTMLElement>('.jg-go:not([hidden])') ?? all[0]; f.focus(); return f; }
+  const a = cur.getBoundingClientRect(), ax = a.left + a.width / 2, ay = a.top + a.height / 2;
+  let best: HTMLElement | null = null, bestD = Infinity;
+  for (const b of all) {
+    if (b === cur) continue;
+    const r = b.getBoundingClientRect(), x = r.left + r.width / 2 - ax, y = r.top + r.height / 2 - ay;
+    const along = x * dx + y * dy, across = Math.abs(x * dy - y * dx);
+    if (along <= 2) continue;
+    const d = along + across * 2.2;
+    if (d < bestD) { bestD = d; best = b; }
+  }
+  best?.focus();
+  return best;
+}
+
+/** the lobby before a jogo (or a duel) on one screen: which device plays which dancer. A seat still waiting says how
+ *  to join it (a key, a click or a tap; a gamepad's button) and is itself a button: a click or a tap on it joins that
+ *  seat. `hint` words a waiting seat's way to join; `alt` adds a small second button to a waiting seat (the duel's
+ *  "or a partner": a virtual player takes a seat nobody came for) */
 export class Lobby {
   readonly root: HTMLElement;
   private cards: HTMLElement[] = [];
-  constructor(partner: boolean, onPick?: (seat: number, e: PointerEvent) => void) {
+  private hints: string[] = [];
+  constructor(partner: boolean, onPick?: (seat: number, e: PointerEvent) => void, opts: { hint?: (seat: number) => string; alt?: { seat: number; label: string; on: () => void } } = {}) {
     this.root = el('div', 'jg jg-lobby');
     const touch = typeof matchMedia === 'function' && matchMedia('(pointer: coarse)').matches;
     for (let s = 0; s < 2; s++) {
-      const card = el('div', 'jg-card', `<b class="jg-seat">${s + 1}</b><div class="jg-dev">${s === 1 && partner ? GLYPHS.partner : GLYPHS.press}</div><span class="jg-hint">${touch ? 'tap to join' : 'press a key or click'}</span>`,
+      this.hints[s] = opts.hint?.(s) ?? (touch ? 'tap to join' : 'press a key or click');
+      const card = el('div', 'jg-card', `<b class="jg-seat">${s + 1}</b><div class="jg-dev">${s === 1 && partner ? GLYPHS.partner : GLYPHS.press}</div><span class="jg-hint">${this.hints[s]}</span>`,
         { role: 'button', tabindex: '0', 'aria-label': `player ${s + 1}: join` });
       card.addEventListener('pointerdown', (e) => { if (!card.classList.contains('on')) { e.stopPropagation(); onPick?.(s, e); } });
+      if (opts.alt?.seat === s) {
+        const a = opts.alt;
+        const alt = el('button', 'jg-alt', `${GLYPHS.partner}<span>${a.label}</span>`, { type: 'button', 'aria-label': a.label });
+        alt.addEventListener('pointerdown', (e) => e.stopPropagation());
+        alt.addEventListener('click', (e) => { e.stopPropagation(); a.on(); });
+        card.append(alt);
+      }
       this.cards.push(card);
       this.root.append(card);
     }
     document.body.append(this.root);
   }
-  /** a seat's device: keyboard, gamepad, touch, camera, bot (the partner), or null (waiting for a press) */
+  /** a seat's device: keyboard (or keyboard-solo|left|right: which half), gamepad (gamepad-N), touch, camera, bot (the
+   *  partner), or null (waiting for a press) */
   seat(s: number, device: string | null) {
     const c = this.cards[s];
     if (!c) return;
-    c.querySelector('.jg-dev')!.innerHTML = device ? DEVICE_GLYPH[device] ?? GLYPHS.press : GLYPHS.press;
+    const kind = device?.replace(/-.*/, '') ?? null;
+    c.querySelector('.jg-dev')!.innerHTML = kind ? DEVICE_GLYPH[kind] ?? GLYPHS.press : GLYPHS.press;
     const hint = c.querySelector<HTMLElement>('.jg-hint');
-    if (hint && device) hint.textContent = device === 'bot' ? 'partner' : device.replace(/-.*/, '');
+    const half = device === 'keyboard-left' ? 'keyboard · left' : device === 'keyboard-right' ? 'keyboard · right' : null;
+    if (hint) hint.textContent = !device ? this.hints[s] : device === 'bot' ? 'partner' : half ?? kind!;
     c.classList.toggle('on', !!device);
   }
   hide() { this.root.classList.add('gone'); setTimeout(() => this.root.remove(), 600); }
+}
+
+/** what the duel's lobby needs of the duel (src/duel/index.ts) */
+export interface DuelSeats {
+  hub: InputHub;
+  frame: FrameBuilder;
+  canvas: HTMLCanvasElement;
+  /** the seats people play (not virtual players), in the order devices take them */
+  humanSeats: readonly number[];
+  /** is seat k a virtual player now */
+  bot: (k: number) => boolean;
+  /** has the duel begun */
+  started: () => boolean;
+  /** give seat k to a virtual partner (and begin) */
+  partner: (k: number) => void;
+  /** the device whose press began the duel on the front: seat 1's */
+  joined?: Joined;
+}
+/** the duel's lobby: a card per seat before the duel, who plays it (a key, a pad, touch, a virtual player) or, while it
+ *  waits, how to join it, the card itself a button (a click or a tap joins that seat). The press, click, tap or pad
+ *  that began the duel on the front joins seat 1 at once; a second human seat nobody takes can go to a virtual partner
+ *  from its card. It stays a moment after the duel begins, so who is who reads, then goes. A touch player gets the
+ *  touch pad's buttons (dancer/play.ts makes them for the seats it joins; the duel takes the hub's joins itself, so
+ *  its touch players had none). Returns the lobby, or null with no seat to wait for (virtual players only) */
+export function duelLobby(o: DuelSeats): Lobby | null {
+  const { hub } = o;
+  if (!o.humanSeats.length) return null;
+  let pad: TouchPad | null = null;
+  const touch = typeof matchMedia === 'function' && matchMedia('(pointer: coarse)').matches;
+  const seatOf = (index: number) => o.humanSeats[index] ?? null;
+  // a pointer joins the seat that waits: a touch as touch (one touch player per screen), a click as the keyboard (seat
+  // 1's alone, the solo layout with the mouse; a second click splits it, the right half for seat 2)
+  const joinPointer = (pt: { touch: boolean; id: number; x: number; y: number }) => {
+    const n = hub.players.length;
+    if (pt.touch) hub.touch(pt.id, pt.x, pt.y);
+    if (hub.players.length !== n) return;
+    const code = hub.players.some((p) => p.device === 'keyboard') ? 'ArrowRight' : 'KeyA';
+    hub.key(code);
+    (hub.players[n]?.source as { keyUp?(code: string): void } | undefined)?.keyUp?.(code);
+  };
+  const hint = (k: number) => {
+    if (k === o.humanSeats[0]) return touch ? 'tap to join' : 'press a key or click';
+    return touch ? 'a gamepad joins' : 'arrows, a pad, or click';
+  };
+  const lobby = new Lobby(false, (seat, e) => {
+    if (o.started() && !o.humanSeats.includes(seat)) return;
+    joinPointer({ touch: e.pointerType !== 'mouse', id: e.pointerId, x: e.clientX, y: e.clientY });
+  }, {
+    hint,
+    // (a second human seat nobody takes: a virtual partner from its card)
+    alt: o.humanSeats.length > 1 ? { seat: o.humanSeats[1], label: 'or a partner', on: () => o.partner(o.humanSeats[1]) } : undefined,
+  });
+  lobby.root.classList.add('jg-lobby-duel');
+  for (let k = 0; k < 2; k++) if (o.bot(k)) lobby.seat(k, 'bot');
+  const was = hub.onJoin, wasChange = hub.onChange;
+  const shown = (p: Player) => {
+    const k = seatOf(p.index);
+    if (k != null) lobby.seat(k, p.device === 'keyboard' ? `keyboard-${p.slot}` : p.device);
+    if (p.device === 'touch') pad ??= new TouchPad(p.source as TouchSource, o.canvas);
+  };
+  hub.onJoin = (p) => { was?.(p); shown(p); };
+  hub.onChange = (p) => { wasChange?.(p); shown(p); };
+  o.frame.tick('camera', () => pad?.update(), 'duel: the touch pad');
+  // the lobby goes a moment after the duel begins; a seat given to a partner shows it at once
+  let hideAt = 0;
+  o.frame.tick('input', () => {
+    if (hideAt < 0) return;
+    for (let k = 0; k < 2; k++) if (o.bot(k)) lobby.seat(k, 'bot');
+    if (!o.started()) return;
+    const t = performance.now();
+    if (!hideAt) hideAt = t + 1400;
+    else if (t >= hideAt) { hideAt = -1; lobby.hide(); }
+  }, 'duel: the lobby');
+  // the press that began the duel joins seat 1 now (a key or a click that names no key of the layouts joins the
+  // keyboard's solo layout, mouse included; a pad joins as that pad)
+  const j = o.joined;
+  if (j) {
+    const n = hub.players.length;
+    if (j.device === 'keyboard') hub.key(j.code);
+    else if (j.device === 'gamepad') { const p = hub.join(hub.pads.source(j.index), 'gamepad'); if (p) p.slot = j.index; }
+    if (hub.players.length === n) joinPointer(j.device === 'touch' ? { touch: true, id: j.id, x: j.x, y: j.y } : { touch: false, id: 0, x: 0, y: 0 });
+  }
+  return lobby;
 }
 
 /** online, until the other seat comes: the room's code and its link */

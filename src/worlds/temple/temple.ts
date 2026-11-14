@@ -24,6 +24,7 @@ import { clearOf, type Solid } from '../solids';
 import { JOINT } from '../../skeleton/rig';
 import { arenaShown, dropsUniform, inDrop } from '../../duel/arena';
 import { templeDuel } from './arena';
+import { tideAt, tidePhase, waterFloor } from '../../duel/hazards';
 
 export const templeParams = defineParams('temple', {
   /** the tide: its lowest and highest (m over the floor), and over how many bars it comes in and goes out */
@@ -200,7 +201,10 @@ export class Temple implements World {
   update(f: FrameCtx, c: { x: number; z: number }) {
     const P = templeParams;
     this.seen = f.kit.frameIndex;
-    this.tide = tideY(f.beat.beats);
+    // (the duel's spring tide while its arena is shown and its hazard is on: higher, over sixteen bars; hazards.ts)
+    const H = templeDuel().arena.hazard, spring = !!H?.on && arenaShown(this.id);
+    if (spring) H!.beat = f.beat.beats;
+    this.tide = spring ? tideAt(H!, f.beat.beats) : tideY(f.beat.beats);
     this.waves.update(f, c.x, c.z, this.tide);
     const v = this.live;
     v.water[0] = this.tide; v.water[1] = P.mirror; v.water[2] = P.ripples; v.water[3] = P.wind;
@@ -212,10 +216,11 @@ export class Temple implements World {
       const g = this.own[d] ?? [fc[0] * P.firelight, fc[1] * P.firelight, fc[2] * P.firelight];
       this.glows.set([g[0], g[1], g[2], 0], d * 4);
     }
-    v.fire[0] = P.fireReach; v.fire[1] = f.t; v.fire[2] = D; v.fire[3] = P.tideHigh + 0.04;
+    const lo = spring ? H!.tide!.low : P.tideLow, hi = spring ? H!.tide!.high : P.tideHigh;
+    v.fire[0] = P.fireReach; v.fire[1] = f.t; v.fire[2] = D; v.fire[3] = hi + 0.04;
     // where the tide's cycle is (for how long the stone above the water has been drying)
-    const ph = P.tideHold >= 0 ? P.tideHold : f.beat.beats / (P.tideBars * 4);
-    v.tide[0] = P.tideLow; v.tide[1] = P.tideHigh; v.tide[2] = ph - Math.floor(ph); v.tide[3] = P.dry;
+    const ph = spring ? tidePhase(H!, f.beat.beats) : P.tideHold >= 0 ? P.tideHold : f.beat.beats / (P.tideBars * 4);
+    v.tide[0] = lo; v.tide[1] = hi; v.tide[2] = ph - Math.floor(ph); v.tide[3] = P.dry;
     // the duel arena's drops in the court (empty unless it is shown)
     const duel = templeDuel(), drops = dropsUniform(duel.arena.plane, duel.arena.drops!, arenaShown(this.id));
     this.u.set({ ...v, drops: drops.rects, dropFrame: drops.frame });
@@ -258,8 +263,12 @@ export class Temple implements World {
   clear(a: [number, number, number], b: [number, number, number]) { return clearOf(this.solids, a, b); }
   /** the floor, or the top of a solid stone standing there (the altar, a stump) */
   groundAt(x: number, z: number) {
-    // (the duel arena's drops fall away to the sea bed, past its kill floor)
-    if (arenaShown(this.id)) { const a = templeDuel().arena; if (inDrop(a.plane, a.drops!, x, z)) return -2.6; }
+    if (!arenaShown(this.id)) return this.floor(x, z);
+    // (the duel arena's drops fall away to the sea bed, past its kill floor; its spring tide is a floor to float on)
+    const a = templeDuel().arena, w = waterFloor(a.hazard, x, z);
+    return Math.max(w, inDrop(a.plane, a.drops!, x, z) ? -2.6 : this.floor(x, z));
+  }
+  private floor(x: number, z: number) {
     for (const [x0, x1, z0, z1, top] of this.layout.tops) if (x >= x0 && x <= x1 && z >= z0 && z <= z1) return top;
     return 0;
   }
