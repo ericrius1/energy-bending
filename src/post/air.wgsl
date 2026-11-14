@@ -11,7 +11,7 @@
 // depth of field takes it in place of the opaque one (what is seen through the gate is that far), the fog never does.
 //
 // Surfaces, reflections and the fog test against the opaque distance: the world's scene step (worldScene: the pool's
-// and the temple's water, the forge's heat) and its air (worldAir) see the opaque scene, never the glow, so a flame
+// and the temple's water) and its air (worldAir) see the opaque scene, never the glow, so a flame
 // can't cut a hole in the water behind it; the glow is laid over afterwards, fogged as far as it is (the nearer of its
 // own distance and the opaque one).
 //

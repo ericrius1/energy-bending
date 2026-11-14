@@ -239,9 +239,9 @@ test('jump height: the brain\'s model of the body\'s jump (the duel\'s profile)'
   near(jumpHeight(h, DUEL_PHYS), 1.0, 0.02, 'a held hop');
 });
 
-test('two virtual players dance a set in the temple and the forge, free and locked, deterministically: catches, swings, flings, combos', () => {
+test('two virtual players dance a set in the temple and the geode, free and locked, deterministically: catches, swings, flings, combos', () => {
   const out: string[] = [];
-  for (const w of ['temple', 'forge']) for (const locked of [false, true]) {
+  for (const w of ['temple', 'geode']) for (const locked of [false, true]) {
     const { arena: A, world: W } = nodeArena(w);
     const run = () => simulateDuel({ arena: A, world: W, locked, brains: makeBrains(['lead', 'flyer'], [0.7, 0.7], [3, 9]), sets: 1, setMs: 30000, seconds: 60 });
     const r1 = run(), r2 = run();

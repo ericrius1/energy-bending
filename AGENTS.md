@@ -4,8 +4,8 @@
 
 1. A place you dance in, with someone else, where bodies are made of matter that answers the music.
 2. Dancers are skeletons (the 38-joint CMU rig) wearing matter: GPU particles sprung to homes on capsules.
-3. Matter kinds (gems, fire, plasma, water, ice, steam) and worlds (the geode, the redwoods, the pool, the tide temple,
-   the sky forge) are plugged in by registry; live gates join the worlds.
+3. Matter kinds (gems, fire, plasma, water, ice, steam) and worlds (the geode, the redwoods, the pool, the tide temple)
+   are plugged in by registry; live gates join the worlds. (The sky forge was retired on 14 Nov 2026: docs/PLAN.md.)
 4. It runs on WebGPU through weft (`@ericrius1/weft`), an explicit list of passes with WGSL as the source of data.
 5. The plan of record is `docs/PLAN.md`. Reports: `docs/reports/0-foundation.md`, the eight wave 1 reports
    (`1-*.md`), the first integration (`2-integration.md`), the critic's look and plan (`3-critique.md`), the jogo and
@@ -30,7 +30,7 @@ npm run weft         # weft at the tip of its dist/weft branch (predev and prebu
 
 Debug flags (add to the URL): `?pip` (the other world in an inset, from an orbiting camera), `?landmarks` (a mocap
 dancer and its 13-landmark copy), `?wander` (motion-matched dancers walking to random points), `?lock` (the camera
-locked to the world's stage plane; `l` toggles), `?world=redwoods|pool|temple|forge`, `?panel` (or `/`),
+locked to the world's stage plane; `l` toggles), `?world=redwoods|pool|temple` (an unknown one opens the hub), `?panel` (or `/`),
 `?debug` (weft's overlay: GPU time per pass), `?baseline` (only WebGPU's default limits: a phone's), `?noautores`, `?you` (webcam on first touch; `y` toggles),
 `?jogo=same|partner|online|script` (the game: src/play; `&partner=playful|calm|fierce|mirror|standin`, `&roda=N`,
 `&free`, `&bpm=N` a local room's tempo, `&hold=S` a script's room S seconds late with the dancers asleep, a bare
@@ -79,7 +79,7 @@ src/
                      per pipeline, group 2, with the dancers' fire; and the near fade, `sightDrop`), fade.ts (what the
                      near fade fades), shared.ts (its one uniform: a slot per world, lightSlot), stage.ts (stage
                      planes), water/ (ripples and the surface of the pool and temple)
-  worlds/geode|redwoods|pool|temple|forge/   the five worlds, each with its stage, ledges and portal sites
+  worlds/geode|redwoods|pool|temple/   the four worlds, each with its stage, ledges and portal sites
   portals/           live gates: slots (views), the gate camera, the disc's surface, the depth of field's window
                      (focus.wgsl), crossing, carrying
   dancer/            Dancer (form, presence, world, clapAt), the controllers (mocap, landmark, camera, wander, intent),
@@ -112,7 +112,7 @@ grids, the worlds' ripples, readback copies) → `cull` (per view: gem culls, wa
 views included) → `gates` (each live gate's view: its scene, glow, air, then fire's field over it, deepest first; and
 at most four times a second a still for a gate nobody sees live) → `scene` (per view: the scene pass, then its glow
 pass; then one draw of every live disc on screen, the depth of field's window, `gates.focus`) → `surface` (main view
-and inset, worlds with a scene step: the Pool's and the temple's water, the forge's heat, on the opaque scene) → `air`
+and inset, worlds with a scene step: the Pool's and the temple's water, on the opaque scene) → `air`
 (per view: water's fog estimate (`water.fog`, an eighth of the resolution, the geode and the redwoods only), the water
 bodies composited, fire's splat, focus and composite into the glow target, the glow's trails, the merge, the air; then
 steam's half-resolution wisps) → `post` (main view: the lens:
@@ -188,7 +188,7 @@ pass: additive, never the opaque distance).
   update; declareScene(scene); groundAt; exposure; tone; ambience; grade?; waterY?(); clear?(a, b); solids?;
   stageDim? }` (`solids`: capsules and boxes, `src/worlds/solids.ts`; every world but the Pool has them; `stageDim`:
   how much the locked view dims what lies beyond the stage, 0.55 where a world says nothing: the geode 0.65, the
-  redwoods 0.75, the Pool 0.3, the temple 0.5, the forge 0.3, 9-stage.md), registered as
+  redwoods 0.75, the Pool 0.3, the temple 0.5, 9-stage.md), registered as
   `worlds.register({ id, make(ctx) })`; `PortalDef { id, at, normal, radius, to, up? }`. `WorldLight` (worlds/light.wgsl)
   has a member per world and two that are not worlds': `fire` before them, `sight` (the near fade) after them.
 - `Controller { kind; rig; update(dt, ctx: FrameCtx, out: Skeleton); carry?(m) }`; `Dancer = skeleton + controller +
@@ -277,7 +277,7 @@ a shared group whole in every stage of a pipeline that uses any of it; a shader'
 whose entry uses them. For a render shader the shared groups any of its entries uses are counted in all of them (an
 upper bound: which vertex and fragment entries pair is the TypeScript's business). Per stage, vertex / fragment
 (v/f) or compute (c), the most any entry of that stage uses; the baseline less that is what is left. Samplers are 4
-of 16 everywhere (group 0's; no shader declares its own). The world light uniform is 3,904 of 65,536 bytes (the near
+of 16 everywhere (group 0's; no shader declares its own). The world light uniform is 3,584 of 65,536 bytes (the near
 fade's `sight` is 80 of them).
 Regenerate with `node scripts/check-bindings.mjs --table` (one row per stage) after changing a binding.
 
@@ -325,7 +325,7 @@ Regenerate with `node scripts/check-bindings.mjs --table` (one row per stage) af
 | worlds/redwoods/trunks.wgsl | v/f | 3 / 3 | 1 / 0 | 3 / 4 | 0 / 0 | 0 1 2 |
 | worlds/redwoods/woods.wgsl | v/f | 3 / 3 | 0 / 0 | 2 / 3 | 0 / 0 | 0 1 2 |
 | worlds/water/ripples.wgsl | c | 6 | 2 | 4 | 1 | 0 1 3 |
-| every other world draw (backdrops, motes, shelves, crystals, embers, slabs, stones, ferns, flowers, lanterns, pollen) | v/f | 3 / 3 | ≤ 1 / 0 | 2 / 2 | 0 / 0 | 0 (1) 2 |
+| every other world draw (backdrops, motes, shelves, crystals, stones, ferns, flowers, lanterns, pollen) | v/f | 3 / 3 | ≤ 1 / 0 | 2 / 2 | 0 / 0 | 0 (1) 2 |
 
 The tight ones now (`npm test` counts 149 entry points): **storage buffers** in the gems' sim and cull (7 of 8: one
 more storage buffer in either needs packing first); **storage textures** in the field's step (3 of 4: A, B and C; a

@@ -171,7 +171,7 @@ Write `AGENTS.md` and the first `docs/extending/` guides.
 | fire + plasma | `src/matter/fire`, `plasma` | flame and plasma bodies, arcs |
 | water + ice | `src/matter/water`, `ice` | fluid bodies with a screen-space surface, freezing and melting, set ice |
 | field + reactions | `src/matter/field`, `reactions` | the wind/heat/wet grid, steam, quench, fusion flows |
-| worlds | `src/worlds/*` | the void pool, tide temple, sky forge; stage planes; world light on matter |
+| worlds | `src/worlds/*` | the void pool, tide temple (and the sky forge, retired 14 Nov 2026); stage planes; world light on matter |
 | portals | `src/portals` | live gates |
 | dancers | `src/dancer`, `src/input`, `src/skeleton/retarget` | body physics in 3D, the move library, all input devices, the locked/free camera rig |
 | net | `src/net`, `shared`, `server` | the prototype's server and netcode, in TypeScript, on landmarks |
@@ -196,6 +196,11 @@ near fade and the gates' depth of field, the temple's lock, the stage dim and th
 timelines, water against the fog and its rise) and their integration (`docs/reports/9-integration.md`, which lists
 what is left). Next: the music from Suno (in progress), the two films rendered at master quality, the deploy (the
 code on GitHub, the room server on Railway, the site at ericlevin.dev/energybending), and a place in the portfolio.
+
+**14 Nov 2026: the Sky Forge retired.** Eric: this is a chill, good-vibes thing, so no lava; worlds stay with nature,
+healing and awe. Four worlds remain (the geode, the hub; the redwoods; the pool; the tide temple), the hub has three
+gates (the redwoods' now straight out in front of the stage), and the forge's world, track and duel arena are gone;
+the reports and the films made in it (films/duel-1.json, duel-p1.json) stay as records.
 
 ## Shared habits
 

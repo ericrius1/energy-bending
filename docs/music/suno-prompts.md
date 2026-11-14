@@ -37,7 +37,7 @@ felt piano, harp arpeggios, airy synth pads, a slow rolling bass, light brushed 
 swelling like rising steam. Serene, weightless, hopeful, glowing: a dance on black water under a full moon. Wide, clear,
 lush reverb, loop-friendly with no hard ending.
 
-## The Sky Forge (the forge), 124 bpm, F sharp minor
+## The Sky Forge (the forge), 124 bpm, F sharp minor (retired with its world, 14 Nov 2026: no lava, the game keeps to nature, healing and awe)
 
 Epic tribal forge rhythm, instrumental, 124 BPM, F sharp minor. Anvil hits and metallic percussion, taiko and surdo
 drums with atabaque, a driving berimbau ostinato, deep pulsing synth bass, molten brass swells, bright synth plucks like

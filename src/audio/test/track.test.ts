@@ -87,7 +87,7 @@ export const tests: Tests = {
 
   'a drop under a track lands on a bar line and leaves the grid where it was'() {
     let dropAt = -1, before = 0;
-    const { e } = play(8, 'forge', (e, t) => { if (Math.abs(t - 3) < 1e-9) { before = e.clock.origin; e.drop(); } });
+    const { e } = play(8, 'pool', (e, t) => { if (Math.abs(t - 3) < 1e-9) { before = e.clock.origin; e.drop(); } });
     const d = e.events.find((x) => x.type === 'drop');
     check(d, 'the drop');
     dropAt = d!.t as number;

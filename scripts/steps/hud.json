@@ -60,26 +60,6 @@
   "frames2": 120
  },
  {
-  "name": "forge-lock",
-  "query": "play&two&hud=demo&dress=fire,water",
-  "world": "forge",
-  "wake": true,
-  "lock": true,
-  "frames": 60,
-  "eval2": "const P = bend.players(); if (P[0].locked) { bend.place(0, -0.5); bend.place(1, 0.5); } else { bend.place(1, P[0].x + 0.9, P[0].z + 0.15); } const d = bend.hud.demo, m = d.moments(8); d.at(m.merge + 0.9 - 2);",
-  "frames2": 120
- },
- {
-  "name": "forge-free",
-  "query": "play&two&hud=demo&dress=fire,water",
-  "world": "forge",
-  "wake": true,
-  "lock": false,
-  "frames": 60,
-  "eval2": "const P = bend.players(); if (P[0].locked) { bend.place(0, -0.5); bend.place(1, 0.5); } else { bend.place(1, P[0].x + 0.9, P[0].z + 0.15); } const d = bend.hud.demo, m = d.moments(8); d.at(m.merge + 0.9 - 2);",
-  "frames2": 120
- },
- {
   "name": "redwoods-day-lock",
   "query": "play&two&hud=demo&dress=fire,water",
   "world": "redwoods",

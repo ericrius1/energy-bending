@@ -172,8 +172,9 @@ drawing in `src/duel/power-fx.ts` with the matter and field the game already has
 ## Juice (phase 3)
 
 Hit-stop (a few frames frozen on a hit), screen shake, slow motion on a round's last KO, words that pop ("PERFECT",
-"PARRY", "STEAM!"), hits heard on the beat, hazards per arena (the forge's lava, the temple's tide, falling things in
-the redwoods), online duels with the server authoritative.
+"PARRY", "STEAM!"), hits heard on the beat, gentle hazards per arena, nature's own (the temple's tide rising over its
+floor, wind through the redwoods leaning a body off its line, a swell in the pool rocking its stepping stones), online
+duels with the server authoritative.
 
 ## The contracts the parallel work shares
 

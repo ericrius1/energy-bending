@@ -22,7 +22,7 @@ export const STAGES = [
   'scene',  // per view: the scene pass (the world, then the matter in it), then its glow pass (what translucent matter
             // adds, kept off the opaque scene: engine/views.ts)
   'surface', // per view with its own air (the main one, the inset): the world's surface step on the opaque scene (the
-            // pool's and the temple's water, the forge's heat), before anything translucent is composited over it
+            // pool's and the temple's water), before anything translucent is composited over it
   'air',    // per view: the water bodies' surface, the glow's trails, then the light in the air and the glow over it
   'post',   // the main view's depth of field, trails, bloom
   'out',    // to the canvas (or the film's frames), and insets over it

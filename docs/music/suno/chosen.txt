@@ -5,4 +5,4 @@ temple    2ff9ec8c-42b1-4766-9069-ed975d98475a  Moon Over the Tide Temple.mp3   
 redwoods  66a9093d-da67-4c7f-9e47-8974c21f4ed2  Embers in the Redwoods.mp3      (film 1's score)
 geode     b58fbd8f-0a18-43a6-bd7b-24c8f866196b  Inside the Geode.mp3            (the geode and the hub)
 pool      d2cb3439-072c-4643-8b5b-77195acf1061  The Still Pool.mp3
-forge     46a862a6-df17-4ab2-b4d1-3a92d28e3599  The Sky Forge.mp3
+forge     46a862a6-df17-4ab2-b4d1-3a92d28e3599  The Sky Forge.mp3               (retired with its world, 14 Nov 2026: not in the game)

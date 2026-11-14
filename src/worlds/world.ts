@@ -109,7 +109,7 @@ export interface World {
   declareScene(scene: ScenePass): void;
   /** the floor's height under (x, z) */
   groundAt(x: number, z: number): number;
-  /** a world with no ground everywhere (the forge): a body that falls below this height has fallen out of the world
+  /** a world without ground everywhere: a body that falls below this height has fallen out of the world
    *  and re-forms at a spawn (the dancers' physics, free or locked). Leave it out where there is always a floor */
   readonly fallY?: number;
   /** its colour identity (src/post/grade.ts); left out, no grade */

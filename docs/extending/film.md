@@ -128,7 +128,7 @@ middle otherwise).
 cast (`dress`, `style`: lead, flyer, base, `skill`), seeded by the shot's `seed`; `"query": { "lock": "" }` plays it in
 the 2D lock, a `{ "at", "rig": "lock" }` cue switches mid-shot, `"query": { "set": 40 }` sets the set's length. On a
 track its music clock is anchored to the duel's first frame, not to the in-point (the dance depends on where the beats
-fall: the brains wait for the 8th lines, the forge's slabs bob by the beat), and `preroll` is snapped to a whole beat,
+fall: the brains wait for the 8th lines, a stage's bobbing ledges move by the beat), and `preroll` is snapped to a whole beat,
 so the in-point falls on a beat of the track: **moving a duel shot's in-point leaves its dance exactly as it was**. So
 scout a whole set once (`"preroll": 0, "seconds": 72`), read `info.json`'s `duel.log` (every rule event with `t`, the
 shot's clock, and `d`, the duel's seconds), then cut into it with `preroll` (and two shots of one seed are two cuts of

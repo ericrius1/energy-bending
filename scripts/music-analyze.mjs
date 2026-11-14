@@ -1,5 +1,5 @@
 // The worlds' music: each Suno track measured and encoded for the web (docs/extending/sound.md, "A world's track").
-//   node scripts/music-analyze.mjs [--from ~/Downloads] [--only temple,forge] [--no-encode] [--clicks] [--seams]
+//   node scripts/music-analyze.mjs [--from ~/Downloads] [--only temple,pool] [--no-encode] [--clicks] [--seams]
 // For each track (TRACKS below: a title, the worlds it plays in, the tempo and key it was asked for) it reads
 // `<from>/<title>.mp3` (or .wav), decodes it with ffmpeg and measures:
 //   - the tempo: the beat period whose comb best fits the onsets over the whole track (the Rayleigh vector strength of
@@ -28,13 +28,13 @@ import { fileURLToPath } from 'node:url';
 const ROOT = resolve(fileURLToPath(new URL('..', import.meta.url)));
 const FFMPEG = process.env.FFMPEG ?? 'ffmpeg';
 
-/** the tracks: one per world (the geode's also plays on the hub, the front of the game) */
+/** the tracks: one per world (the geode's also plays on the hub, the front of the game). (The Sky Forge's, "The Sky Forge",
+ *  Suno 46a862a6-df17-4ab2-b4d1-3a92d28e3599, left with its world on 14 Nov 2026: docs/music/suno/ids.txt keeps it) */
 export const TRACKS = [
   { id: 'geode', title: 'Inside the Geode', worlds: ['geode', 'hub'], bpm: 112, key: 'A minor', suno: 'b58fbd8f-0a18-43a6-bd7b-24c8f866196b' },
   { id: 'redwoods', title: 'Embers in the Redwoods', worlds: ['redwoods'], bpm: 112, key: 'D minor', suno: '66a9093d-da67-4c7f-9e47-8974c21f4ed2' },
   { id: 'pool', title: 'The Still Pool', worlds: ['pool'], bpm: 120, key: 'C major', suno: 'd2cb3439-072c-4643-8b5b-77195acf1061' },
   { id: 'temple', title: 'Moon Over the Tide Temple', worlds: ['temple'], bpm: 90, key: 'G major', suno: '2ff9ec8c-42b1-4766-9069-ed975d98475a' },
-  { id: 'forge', title: 'The Sky Forge', worlds: ['forge'], bpm: 124, key: 'F♯ minor', suno: '46a862a6-df17-4ab2-b4d1-3a92d28e3599' },
 ];
 
 const NOTE = ['C', 'C♯', 'D', 'E♭', 'E', 'F', 'F♯', 'G', 'A♭', 'A', 'B♭', 'B'];
@@ -592,6 +592,8 @@ if (isMain) {
     console.log(`  ${(track.measured.bytes / 1e6).toFixed(2)} MB, ${track.measured.lufs} LUFS (gain ${gain.toFixed(1)} dB), encode lag ${track.measured.encodeLagMs} ms`);
     if (opt.clicks) clicks(out, track, MEDIA);
   }
+  // (a track no longer listed, a retired world's, leaves the manifest)
+  for (const id of Object.keys(prev.tracks)) if (!TRACKS.some((T) => T.id === id)) delete prev.tracks[id];
   prev.generated = 'scripts/music-analyze.mjs';
   prev.worlds = Object.fromEntries(Object.values(prev.tracks).flatMap((t) => t.worlds.map((w) => [w, t.id])));
   writeFileSync(manifestFile, JSON.stringify(prev, null, 1) + '\n');
