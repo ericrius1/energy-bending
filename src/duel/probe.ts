@@ -74,6 +74,7 @@ for (const world of worlds) for (const view of views) {
     console.log(`  round ${f1(line.roundS.mean)} s (p10 ${f1(line.roundS.p10)}, p90 ${f1(line.roundS.p90)}); KO every ${f1(line.koS.mean)} s (median ${f1(line.koS.p50)}, p90 ${f1(line.koS.p90)}); ${f2(line.hitsPerKo)} hits per KO; ${kos} KOs, ${falls} by falling`);
     console.log(`  per player-minute: ${f1(line.hitsPerMin)} hits (${(line.perfectShare * 100).toFixed(0)}% perfect), ${f1(line.jumpsPerMin)} jumps, ${f1(line.airJumpsPerMin)} air jumps, ${f1(line.wallJumpsPerMin)} wall jumps, ${f1(line.flipsPerMin)} flips; ${(line.airShare * 100).toFixed(0)}% of the time in the air; apart ${f1(line.spread.p50)} m (p90 ${f1(line.spread.p90)}); flow at the end ${f1(line.flowEnd)} (most ${f1(line.flowMax)})`);
     console.log(`  moves a minute: ${Object.entries(line.movesPerMin).map(([k, v]) => `${k} ${v}`).join(', ')}`);
+    if (verbose) for (const r of all.slice(0, 1)) console.log(`  seat brains: ${r.seats.map((x) => JSON.stringify(x.brain)).join(" || ")} hits ${r.seats.map((x) => x.hits).join("-")}`);
     if (verbose) console.log(`  brain: ${Object.entries(brain).map(([k, v]) => `${k} ${v}`).join(', ')}`);
   }
 }

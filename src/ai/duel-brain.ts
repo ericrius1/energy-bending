@@ -23,7 +23,7 @@
 //
 // The knobs: `skill` 0 … 1 (reaction time, aim error, beat accuracy, how often it answers, how far it reads ahead)
 // and `style`. Deterministic for a seed (its only randomness is its Rng, its only clock the Sight's).
-import { Character, PHYS } from '../dancer/character';
+import { Character, PHYS, type Phys } from '../dancer/character';
 import { MOVES, tempoScale } from '../dancer/moves';
 import { ledgeY as defaultLedgeY, distTo, type Ledge, type StagePlane } from '../engine/camera';
 import { makeIntent, type Intent } from '../input/intent';
@@ -75,19 +75,20 @@ const AIR_ATTACKS = ['martelo', 'strike'] as const;
 /** the dance between exchanges (flourishes on the beat) */
 const FLOURISHES = ['au', 'macaco', 'spin', 'pirueta', 'au', 'giro'] as const;
 
-/** the body's own jump, from PHYS: the height reached holding the jump for `hold` seconds from the start */
-export function jumpHeight(hold: number, v0 = PHYS.jumpV) {
-  const g = PHYS.gravity, T = Math.min(hold, v0 / g);
+/** the body's own jump, from its physics (the jogo's PHYS or the duel's DUEL_PHYS): the height reached holding the
+ *  jump for `hold` seconds from the start */
+export function jumpHeight(hold: number, P: Phys = PHYS) {
+  const v0 = P.jumpV, g = P.gravity, T = Math.min(hold, v0 / g);
   if (T >= v0 / g - 1e-6) return (v0 * v0) / (2 * g);
   const h1 = v0 * T - 0.5 * g * T * T, v1 = v0 - g * T;
-  return h1 + (v1 * v1) / (2 * g * PHYS.cutMul);
+  return h1 + (v1 * v1) / (2 * g * P.cutMul);
 }
 /** how long to hold the jump to rise `h` metres (a full hold past the body's single jump) */
-export function holdFor(h: number, v0 = PHYS.jumpV) {
-  const full = v0 / PHYS.gravity;
-  if (h >= jumpHeight(full, v0) - 0.02) return full + 0.05;
+export function holdFor(h: number, P: Phys = PHYS) {
+  const full = P.jumpV / P.gravity;
+  if (h >= jumpHeight(full, P) - 0.02) return full + 0.05;
   let a = 0, b = full;
-  for (let i = 0; i < 24; i++) { const m = (a + b) / 2; if (jumpHeight(m, v0) < h) a = m; else b = m; }
+  for (let i = 0; i < 24; i++) { const m = (a + b) / 2; if (jumpHeight(m, P) < h) a = m; else b = m; }
   return b;
 }
 
@@ -373,8 +374,8 @@ export class DuelBrain implements Brain {
       // up: a stump, the altar, a slab: jump onto it (the air jump at the top for a tall one)
       if ((want[0] || want[1]) && ahead > me.y + 0.3 && ahead - me.y < 3.2 && t >= this.jumpUntil + 0.05) {
         const h = ahead - me.y;
-        this.jumpNow(t, holdFor(Math.min(h + 0.35, 2.05)));
-        this.airJumpAt = h + 0.3 > jumpHeight(10) ? t + 0.36 : -1;
+        this.jumpNow(t, holdFor(Math.min(h + 0.35, jumpHeight(10, c.phys) + 0.05), c.phys));
+        this.airJumpAt = h + 0.3 > jumpHeight(10, c.phys) ? t + 0.36 : -1;
         this.count('jump');
       }
       // a pit ahead: a gap it can clear it jumps, running; else it doesn't go
@@ -383,12 +384,12 @@ export class DuelBrain implements Brain {
         for (let r = 0.9; r <= 3.4; r += 0.3) { const y = ground(me.x + want[0] * r, me.z + want[1] * r); if (y > yKill + 0.6 && y < me.y + 1.6) { land = r; break; } }
         const edge = ground(me.x + want[0] * 0.25, me.z + want[1] * 0.25) < yKill + 0.6;
         if (land > 0 && edge && t >= this.jumpUntil + 0.05) {
-          this.jumpNow(t, holdFor(1.4)); this.airJumpAt = land > 2.2 ? t + 0.34 : -1; this.count('jump');
+          this.jumpNow(t, holdFor(1.4, c.phys)); this.airJumpAt = land > 2.2 ? t + 0.34 : -1; this.count('jump');
         } else if (land < 0) want = [0, 0];
       }
       // showy: a flip now and then when nothing presses
       if (this.style === 'showy' && !this.pending && t - this.lastPress > 0.9 && t >= this.jumpUntil + 0.1 && this.rng.chance(0.006 * this.K.showy * 60 * S.dt)) {
-        this.jumpNow(t, holdFor(2)); this.flipT = t + 0.3; this.count('jump');
+        this.jumpNow(t, holdFor(2.2, c.phys)); this.flipT = t + 0.3; this.count('jump');
       }
     } else {
       // in the air: over the void, back toward floor and the air jump; the planned air jump at the top; a wall kick
@@ -403,16 +404,25 @@ export class DuelBrain implements Brain {
         if (l > 1e-3) want = [(bx - me.x) / l, (bz - me.z) / l];
         if (me.vy < 0.5) { this.airJumpAt = -1; this.pressAirJump(t); }
       } else if (this.airJumpAt > 0 && t >= this.airJumpAt && me.vy < 1.2) { this.airJumpAt = -1; this.pressAirJump(t); }
-      const touching = solids.find((s) => distTo(s, [me.x, me.y + 1.0, me.z]) < PHYS.halfW + 0.35);
-      if (touching && me.vy < 0.8 && t >= this.jumpUntil + 0.12) {
-        // push into it, then kick off away from it
-        const p: [number, number, number] = [me.x, me.y + 1, me.z], e = 0.05;
-        const gx = distTo(touching, [p[0] + e, p[1], p[2]]) - distTo(touching, [p[0] - e, p[1], p[2]]);
-        const gz = distTo(touching, [p[0], p[1], p[2] + e]) - distTo(touching, [p[0], p[1], p[2] - e]);
-        const gl = Math.hypot(gx, gz) || 1;
+      // a wall to kick off: the body's own reading (Character.wallKick and wallNormal, the duel's profile: what a jump
+      // means now), or, on the jogo's profile, a solid it falls against
+      let away: [number, number] | null = null;
+      if (c.phys.wallSlide) { const n = c.wallNormal; if (c.wallKick && n) away = n; }
+      else {
+        const touching = solids.find((s) => distTo(s, [me.x, me.y + 1.0, me.z]) < c.phys.halfW + 0.35);
+        if (touching) {
+          const p: [number, number, number] = [me.x, me.y + 1, me.z], e = 0.05;
+          const gx = distTo(touching, [p[0] + e, p[1], p[2]]) - distTo(touching, [p[0] - e, p[1], p[2]]);
+          const gz = distTo(touching, [p[0], p[1], p[2] + e]) - distTo(touching, [p[0], p[1], p[2] - e]);
+          const gl = Math.hypot(gx, gz) || 1;
+          away = [gx / gl, gz / gl];
+        }
+      }
+      if (away && me.vy < 1.5 && t >= this.jumpUntil + 0.12) {
+        // (sliding: hold into it a moment, then kick off away from it)
         if (this.rng.chance(this.style === 'showy' || g.why === 'wall kick' ? 0.6 : 0.2 + 0.4 * this.skill)) {
           this.jumpNow(t, 0.3);
-          want = [gx / gl, gz / gl];
+          want = away;
           this.airUsed = false;
           this.count('wall-jump');
           if (g.why === 'wall kick') this.goal = { ...g, why: 'close' };
@@ -422,7 +432,7 @@ export class DuelBrain implements Brain {
         this.flipT = -1; this.pending = { move: 'spin', at: t, dir: [Math.sin(c.yaw), Math.cos(c.yaw)], why: 'flip' };
       }
     }
-    this.dash(c, dist, it, t, want);
+    this.dash(c, dist, it, t, want, ground(me.x, me.z) < yKill + 0.6);
     // the thumbs: eight directions, held a while once moved
     const q = makeIntent();
     if (want[0] || want[1]) stickFor(c, want[0], want[1], 1, q);
@@ -434,7 +444,7 @@ export class DuelBrain implements Brain {
 
   // ---------------------------------------------------------------- locked: deciding where to be, and the legs
   private decideLocked(S: Sight, c: Character, me: Snap, o: Snap, surf: Surf[], otherOut: boolean, yKill: number) {
-    const K = this.K, pl = c.plane!, lim = pl.halfWidth - PHYS.wallMargin - 0.1;
+    const K = this.K, pl = c.plane!, lim = pl.halfWidth - c.phys.wallMargin - 0.1;
     const ad = Math.abs(o.s - me.s);
     let want = K.want, why = 'close';
     if (otherOut) { want = Math.max(2.2, K.want); why = 'wait out its re-forming'; }
@@ -458,7 +468,7 @@ export class DuelBrain implements Brain {
   }
 
   private legsLocked(S: Sight, c: Character, me: Snap, surf: Surf[], yKill: number, it: Intent, t: number) {
-    const pl = c.plane!, lim = pl.halfWidth - PHYS.wallMargin;
+    const pl = c.plane!, lim = pl.halfWidth - c.phys.wallMargin;
     const g = this.goal;
     const here = c.grounded ? surf.find((q) => q.id === c.support?.id) ?? this.under(surf, me.s, me.y + 0.1) : null;
     let target = this.under(surf, g.s, g.y + 0.2) ?? here;
@@ -486,8 +496,8 @@ export class DuelBrain implements Brain {
         take = clamp(take, here.x0 + 0.15, here.x1 - 0.15);
         const toward = sgn(clamp(g.s, target.x0 + 0.3, target.x1 - 0.3) - me.s);
         if (Math.abs(take - me.s) < 0.35 && t >= this.jumpUntil + 0.05) {
-          this.jumpNow(t, holdFor(Math.min(h + 0.35, 2.05)));
-          this.airJumpAt = h + 0.3 > jumpHeight(10) ? t + 0.36 : -1;
+          this.jumpNow(t, holdFor(Math.min(h + 0.35, jumpHeight(10, c.phys) + 0.05), c.phys));
+          this.airJumpAt = h + 0.3 > jumpHeight(10, c.phys) ? t + 0.36 : -1;
           this.count('jump');
           want = toward; this.stick = [toward, 0]; this.stickSince = t;
         } else if (Math.abs(take - me.s) >= 0.35) want = sgn(take - me.s);
@@ -497,7 +507,7 @@ export class DuelBrain implements Brain {
         const edge = ds > 0 ? here.x1 : here.x0;
         const gap = ds > 0 ? target.x0 - here.x1 : here.x0 - target.x1;
         if (gap > 0.05 && Math.abs(edge - me.s) < 0.55 && t >= this.jumpUntil + 0.05) {
-          this.jumpNow(t, holdFor(Math.max(0.6, target.y - here.y + 0.6))); this.count('jump'); want = sgn(ds);
+          this.jumpNow(t, holdFor(Math.max(0.6, target.y - here.y + 0.6), c.phys)); this.count('jump'); want = sgn(ds);
           this.airJumpAt = gap > 1.4 || target.y - here.y > 1.6 ? t + 0.34 : -1;
         }
       }
@@ -509,7 +519,7 @@ export class DuelBrain implements Brain {
         }
       }
       if (this.style === 'showy' && !this.pending && t - this.lastPress > 0.9 && t >= this.jumpUntil + 0.1 && this.rng.chance(0.006 * this.K.showy * 60 * S.dt)) {
-        this.jumpNow(t, holdFor(2)); this.flipT = t + 0.3; this.count('jump');
+        this.jumpNow(t, holdFor(2.2, c.phys)); this.flipT = t + 0.3; this.count('jump');
       }
     } else if (!c.grounded) {
       const landing = this.under(surf, me.s, me.y);
@@ -522,7 +532,8 @@ export class DuelBrain implements Brain {
         want = sgn(bs - me.s);
         if (me.vy < 0.5) { this.airJumpAt = -1; this.pressAirJump(t); }
       } else if (this.airJumpAt > 0 && t >= this.airJumpAt && me.vy < 1.2) { this.airJumpAt = -1; this.pressAirJump(t); }
-      const nearWall = this.wallNear(pl, me.s, me.y - pl.origin[1]);
+      const wk = c.phys.wallSlide ? c.wallKick : 0;
+      const nearWall = wk ? { into: wk } : c.phys.wallSlide ? null : this.wallNear(pl, me.s, me.y - pl.origin[1], c.phys);
       if (nearWall && me.vy < 0.8 && t >= this.jumpUntil + 0.12 && (want === nearWall.into || g.why === 'wall kick' || void_)) {
         want = nearWall.into;
         if (this.rng.chance(this.style === 'showy' ? 0.5 : 0.25 + 0.5 * this.skill)) {
@@ -550,11 +561,17 @@ export class DuelBrain implements Brain {
   }
 
   /** the dash, where the body has one (Intent.dash, the movement work's): to close a long gap on the ground */
-  private dash(c: Character, dist: number, it: Intent, t: number, want: [number, number]) {
-    if (!this.hadDash || this.pending || t - this.lastPress < 0.6 || !(want[0] || want[1])) return;
-    if (dist > 3 && c.grounded && this.style !== 'evasive' && this.rng.chance(0.02)) {
-      (it as Intent & { dash?: boolean }).dash = true; this.lastPress = t; this.count('dash');
-    }
+  /** the dash (the body's, Intent.dash, on the duel's profile): to close a long gap on the ground, to get away when
+   *  crowded (evasive), and back to the floor from over the void when the air jump is spent */
+  private dash(c: Character, dist: number, it: Intent, t: number, want: [number, number], void_ = false) {
+    if (!this.hadDash || !c.phys.dash || c.dashReady < 0.99 || this.pending || !(want[0] || want[1])) return;
+    const why = void_ && this.airUsed && !c.grounded ? 'recover'
+      : t - this.lastPress < 0.6 ? null
+      : dist > 3 && c.grounded && this.style !== 'evasive' && this.rng.chance(0.03) ? 'close'
+      : this.style === 'evasive' && this.goal.why === 'back off' && c.grounded && this.rng.chance(0.05) ? 'away'
+      : null;
+    if (!why) return;
+    it.dash = true; this.lastPress = t; this.count(`dash-${why}`);
   }
 
   private jumpNow(t: number, hold: number) { this.jumpPressAt = t; this.jumpUntil = t + hold; }
@@ -565,14 +582,14 @@ export class DuelBrain implements Brain {
   }
 
   /** a wall of the locked plane within reach of the body at plane (s, y): the plane's ends or its walls */
-  private wallNear(pl: StagePlane, s: number, y: number): { into: number } | null {
-    const lim = pl.halfWidth - PHYS.wallMargin;
+  private wallNear(pl: StagePlane, s: number, y: number, P: Phys): { into: number } | null {
+    const lim = pl.halfWidth - P.wallMargin;
     if (s > lim - 0.3) return { into: 1 };
     if (s < -lim + 0.3) return { into: -1 };
     for (const w of ((pl as StagePlane & { walls?: { s: number; side: number; y0: number; y1: number; climb?: boolean }[] }).walls ?? [])) {
       if (w.climb === false || y + 1.2 < w.y0 || y > w.y1) continue;
       const gap = (s - w.s) * w.side;
-      if (gap > 0 && gap < PHYS.halfW + 0.3) return { into: -w.side };
+      if (gap > 0 && gap < P.halfW + 0.3) return { into: -w.side };
     }
     return null;
   }
@@ -597,7 +614,7 @@ export class DuelBrain implements Brain {
     for (const r of reaches(S.bpm)) {
       if (r.air === c.grounded || !canStart(c, r.name)) continue;
       const tm = (r.a0 + r.a1) / 2, k = K.predict * tm;
-      const ox = o.x + o.vx * k, oz = o.z + o.vz * k, oy = o.y + (o.grounded ? 0 : (o.vy * tm - 0.5 * PHYS.gravity * tm * tm) * K.predict);
+      const ox = o.x + o.vx * k, oz = o.z + o.vz * k, oy = o.y + (o.grounded ? 0 : (o.vy * tm - 0.5 * c.phys.gravity * tm * tm) * K.predict);
       const rx = ox - me.x, rz = oz - me.z;
       const f = rx * fx + rz * fz, l = pl ? 0 : -rx * fz + rz * fx, h = oy - me.y;
       if (f + 0.18 < r.f0 || f - 0.18 > r.f1 || f < 0.2) continue;
@@ -670,17 +687,32 @@ export class DuelBrain implements Brain {
       if (!this.rng.chance(K.answer)) { this.count('missed'); continue; }
       const left = Math.max(0, a0 - m.age);
       const rl = Math.hypot(rx, rz) || 1, away: [number, number] = [rx / rl, rz / rl], toward: [number, number] = [-away[0], -away[1]];
-      const low = m.name === 'rasteira' || m.name === 'meia-lua' || m.name === 'armada';
-      const roll = this.rng.next();
-      if (c.grounded && (low || roll < 0.3) && canStart(c, 'jump')) {
+      // the answers that work: an evasion whose i-frames, started now, cover the attack's live window; a jump over a
+      // low one; a roll or an aú away; a block; a strike back if there is time. A good player takes the best; a weaker
+      // one any that comes to mind
+      const win = a1 - Math.max(a0, m.age), bpm = S.bpm;
+      const covers = (name: string) => {
+        const d = MOVES[name];
+        if (!d?.iframes || !canStart(c, name)) return false;
+        const dd = d.dur * tempoScale(bpm);
+        return left >= d.iframes[0] * dd - 0.01 && left + win <= d.iframes[1] * dd + 0.02;
+      };
+      const low = m.name === 'rasteira' || m.name === 'meia-lua';
+      const opts: { k: string; w: number }[] = [];
+      if (c.grounded) {
+        if (covers('esquiva') && !low) opts.push({ k: 'esquiva', w: 3 });
+        if (MOVES.negativa && covers('negativa') && !low) opts.push({ k: 'negativa', w: 2.5 });
+        if (covers('role')) opts.push({ k: 'role', w: 1.5 });
+        if (canStart(c, 'jump')) opts.push({ k: 'jump', w: low ? 3.5 : 0.8 });
+        opts.push({ k: 'au', w: 0.8 }, { k: 'block', w: 0.9 });
+      }
+      if (left > 0.12 && rl < 1.0 && canStart(c, 'strike')) opts.push({ k: 'strike', w: 0.9 });
+      if (!opts.length) continue;
+      const pick = this.rng.chance(this.skill) ? opts.reduce((p, q) => (q.w > p.w ? q : p)).k : this.rng.pick(opts).k;
+      if (pick === 'jump') {
         this.jumpNow(t, 0.42); this.stick = c.plane ? [sgn(away[0] * c.plane.right[0] + away[1] * c.plane.right[2]), 0] : this.stick; this.stickSince = t;
         this.why = `jump ${m.name}`; this.count('jump-dodge');
-      } else if (c.grounded && roll < 0.45 && left > 0.03) this.pending = { move: 'esquiva', at: t, dir: toward, why: `esquiva ${m.name}` };
-      else if (c.grounded && roll < 0.58 && left > 0.05 && MOVES.negativa) this.pending = { move: 'negativa', at: t, dir: toward, why: `negativa ${m.name}` };
-      else if (c.grounded && roll < 0.7) this.pending = { move: 'au', at: t, dir: away, why: `au from ${m.name}` };
-      else if (c.grounded && roll < 0.8) this.pending = { move: 'role', at: t, dir: away, why: `roll from ${m.name}` };
-      else if (left > 0.12 && rl < 1.0 && canStart(c, 'strike')) this.pending = { move: 'strike', at: t, dir: toward, why: `strike back at ${m.name}` };
-      else if (c.grounded) this.pending = { move: 'block', at: t, dir: toward, why: `block ${m.name}` };
+      } else this.pending = { move: pick, at: t, dir: pick === 'role' || pick === 'au' ? away : toward, why: `${pick} for ${m.name}` };
       this.nextDecide = Math.min(this.nextDecide, t + 0.3);
     }
   }

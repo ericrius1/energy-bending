@@ -5,9 +5,23 @@
 //
 // (The HUD is src/hud's: its HudState is the contract's, docs/design/duel.md.)
 import { DUEL, type DuelEvent, type DuelState } from '../../shared/duel.ts';
-import type { HudPlayer, HudPop, HudState } from '../hud';
+import type { HudPlayer, HudPop, HudState } from '../hud/state';
 
 export type { HudState };
+
+/** a world point on screen (0 … 1, past it when out of frame or behind: the HUD's edge arrow), as src/hud/state.ts's
+ *  screenOf, copied: a value imported from src/hud would be in main.ts's chunk (see index.ts's imports) */
+export function screenOf(viewProj: ArrayLike<number>, p: ArrayLike<number>): [number, number] {
+  const m = viewProj, x = p[0], y = p[1], z = p[2];
+  const cx = m[0] * x + m[4] * y + m[8] * z + m[12], cy = m[1] * x + m[5] * y + m[9] * z + m[13], cw = m[3] * x + m[7] * y + m[11] * z + m[15];
+  if (cw > 1e-3) return [(cx / cw) * 0.5 + 0.5, 0.5 - (cy / cw) * 0.5];
+  let dx = cx, dy = cy;
+  const l = Math.hypot(dx, dy);
+  if (l < 1e-5) { dx = 0; dy = -1; } else { dx /= l; dy /= l; }
+  dy = Math.min(dy, -0.35);
+  const k = 4 / Math.hypot(dx, dy);
+  return [0.5 + dx * k * 0.5, 0.5 - dy * k * 0.5];
+}
 
 /** each matter's colour on the HUD (CSS), the duel's tag colours */
 export const MATTER_CSS: Record<string, string> = {

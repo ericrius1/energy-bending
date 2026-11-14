@@ -4,8 +4,7 @@
 // long a KO takes, hits per KO, how long a round is, how often each move is used, wall jumps a minute, time in the air,
 // the flow built. Deterministic: the same brains, seeds, arena and view play the same duel.
 //
-// (Free bodies stand on the world's floor, groundAt: until the movement work gives them walls in 3D, a body can walk
-// into a pillar here as in the page. The brains go round them.)
+// (The bodies are on the duel's profile: free, they stand on the world's floor and its solids and can't pass them.)
 import { Character } from '../dancer/character';
 import { makeIntent, type Intent } from '../input/intent';
 import type { Brain, StageView } from '../ai/brain';
@@ -25,6 +24,8 @@ export interface DuelSimOptions {
   world: WorldLike;
   /** locked to the stage plane (the 2D option), or free in 3D (default) */
   locked?: boolean;
+  /** the bodies on the jogo's physics (no dash, no walls, solids passed through) instead of the duel's */
+  jogo?: boolean;
   /** the two seats' brains: a function given what DuelBrains see (makeBrains), or the brains */
   brains: [Brain | null, Brain | null] | ((sight: () => DuelSight) => [Brain | null, Brain | null]);
   /** stop after this many rounds (won), or this many seconds, whichever first */
@@ -82,10 +83,13 @@ const blankStats = (): SeatStats => ({ moves: {}, jumps: 0, airJumps: 0, wallJum
 export function simulateDuel(o: DuelSimOptions): DuelSimResult {
   const dt = o.dt ?? 1 / 60, bpm = o.bpm ?? 112, A = o.arena, W = o.world;
   const plane = duelPlane(A);
-  const terrain = { groundAt: (x: number, z: number) => W.groundAt(x, z), fallY: W.fallY };
   const solids: Solid[] = [...(W.solids ?? []), ...(A.pieces ?? [])];
+  // (the bodies on the duel's profile, DUEL_PHYS: its run and jump, the dash, wall slides and kicks against the
+  // world's solids, which they stand on and can't pass, as ?duel's do; `jogo: true` keeps the jogo's)
+  const terrain = { groundAt: (x: number, z: number) => W.groundAt(x, z), fallY: W.fallY, solids };
   const chars = [0, 1].map((k) => {
     const c = new Character({ seat: k, plane: o.locked ? plane : null, terrain });
+    if (!o.jogo) c.setProfile('duel');
     if (!o.locked) { const s = A.spawns[k]; c.reset(s[0], undefined, s[2]); }
     return c;
   }) as [Character, Character];

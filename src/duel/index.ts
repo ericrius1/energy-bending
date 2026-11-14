@@ -41,8 +41,10 @@ import { fallbackArena } from './fallback';
 import type { Solid } from '../worlds/solids';
 import { DuelMatch, duelPlane } from './match';
 import { DuelFx } from './fx';
-import { DuelHud, type HudSeat, type HudState } from './hud-state';
-import { hud, screenOf } from '../hud';
+import { DuelHud, screenOf, type HudSeat, type HudState } from './hud-state';
+// (the HUD is the page's one, reached through bend.hud, and screenOf is hud-state.ts's copy of src/hud's: any value
+// imported from src/hud lands in main.ts's own chunk, and the duel's chunk importing it waits for main.ts to finish
+// evaluating, which awaits the duel at the top level: a production build hung, the page never ready)
 import type { DuelEvent } from '../../shared/duel.ts';
 
 type V3 = [number, number, number];
@@ -245,7 +247,7 @@ export async function startDuel(app: PlayApp) {
     const seats = hudSeats();
     duelHud.events(pendingHud.splice(0, pendingHud.length), seats);
     hudState = duelHud.build(match.state, now, f.dt, seats, beat, bpm);
-    hud.set(hudState);
+    (window as unknown as { bend?: { hud?: { set?: (s: HudState) => void } } }).bend?.hud?.set?.(hudState);
   }, 'duel: its glows to the GPU, its HUD state');
 
   // ---------------------------------------------------------------- bend.duel

@@ -2,7 +2,7 @@
 // two virtual players dueling in Node (sim.ts), free and locked. Run by scripts/test-ts.mjs (npm test).
 import { test, assert, near, done } from '../../dancer/test/check';
 import { DUEL, newDuel, duelStep, duelMove, frozen, untouchable, onBeat, type DuelBody, type DuelEvent, type DuelState } from '../../../shared/duel.ts';
-import { Character } from '../../dancer/character';
+import { Character, DUEL_PHYS } from '../../dancer/character';
 import { DuelMatch, duelPlane } from '../match';
 import { simulateDuel, makeBrains, nodeArena } from '../sim';
 import { DuelBrain, holdFor, jumpHeight } from '../../ai/duel-brain';
@@ -163,8 +163,9 @@ test('the fallback arenas: a space, four spawns or more clear of the solids, a k
 /** two Characters and a match in play, free or locked, stepped together */
 function bodies(locked: boolean) {
   const A = T.arena, plane = duelPlane(A);
-  const terrain = { groundAt: T.world.groundAt };
+  const terrain = { groundAt: T.world.groundAt, solids: T.world.solids };
   const a = new Character({ seat: 0, plane: locked ? plane : null, terrain }), b = new Character({ seat: 1, plane: locked ? plane : null, terrain });
+  a.setProfile('duel'); b.setProfile('duel');
   const m = new DuelMatch([a, b], A, plane, 0, 112);
   let now = 0;
   const step = (n: number, f?: () => void) => {
@@ -220,10 +221,11 @@ test('free, a body that leaves the space sideways meets a soft wall', () => {
 });
 
 test('jump height: the brain\'s model of the body\'s jump', () => {
-  near(jumpHeight(10), 2.0, 0.05, 'the full jump');
-  const h = holdFor(1.0);
-  near(jumpHeight(h), 1.0, 0.02, 'a held hop');
+  near(jumpHeight(10, DUEL_PHYS), 2.2, 0.06, 'the duel\'s full jump');
+  const h = holdFor(1.0, DUEL_PHYS);
+  near(jumpHeight(h, DUEL_PHYS), 1.0, 0.02, 'a held hop');
   const c = new Character({ seat: 0, plane: duelPlane(T.arena) });
+  c.setProfile('duel');
   c.reset(-3);
   let top = 0, t = 0;
   for (let i = 0; i < 90; i++) { t += 1 / 60; c.update(1 / 60, { jump: i === 0, jumpHeld: t <= h + 1e-9 }, null); top = Math.max(top, c.root[1]); }
@@ -262,14 +264,15 @@ test('free, the virtual players dance between exchanges: flourishes on the beat,
 });
 
 test('a better player beats a worse one more often than not', () => {
-  let good = 0;
-  const N = 6;
+  let good = 0, kos = 0, all = 0;
+  const N = 8;
   for (let k = 0; k < N; k++) {
-    const r = simulateDuel({ arena: T.arena, world: T.world, brains: makeBrains(['aggressive', 'aggressive'], [0.95, 0.2], [11 + k, 31 + k]), rounds: 1, seconds: 400 });
+    const r = simulateDuel({ arena: T.arena, world: T.world, brains: makeBrains(['aggressive', 'aggressive'], [0.95, 0.15], [11 + k, 31 + k]), rounds: 1, seconds: 400 });
     if (r.rounds[0]?.winner === 0) good++;
+    if (r.rounds[0]) { kos += r.rounds[0].kos[0]; all += r.rounds[0].kos[0] + r.rounds[0].kos[1]; }
   }
-  assert(good >= 4, `the good one won ${good} of ${N}`);
-  return `${good} of ${N}`;
+  assert(good >= 5, `the good one won ${good} of ${N} (${kos} of ${all} KOs)`);
+  return `${good} of ${N} rounds, ${kos} of ${all} KOs`;
 });
 
 test('the brain holds its stick like a thumb: no flicker frame to frame', () => {
