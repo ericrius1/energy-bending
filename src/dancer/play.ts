@@ -84,22 +84,22 @@ const TEST_PLANE: StagePlane = { id: 'test', origin: [0, 0, 0], right: [1, 0, 0]
 
 /** ?play&arena=test: a duel test arena on a world's stage plane (where it stands and how the camera sees it), its floor
  *  at the stage's ground (0 over a pit). In its own coordinates (s along the plane, y up from the floor): a tall block
- *  at s -4.5 … -3.9 (4.5 m) and a low step at 2.4 … 3.0 (1.2 m), each a solid ledge with a wall on each face; the shaft
- *  between the left end and the tall block (3.45 m); a one-way platform at 1.7 m, one at 3.3 m, a perch at 6 m in the
- *  shaft; the ends at ±8 (walls too) */
+ *  at s -3.0 … -2.4 (4.5 m) and a low step at 2.4 … 3.0 (1.2 m), each a solid ledge with a wall on each face; the shaft
+ *  between the left end and the tall block (2.7 m); a one-way platform at 1.7 m, one at 3.3 m, a perch at 6 m in the
+ *  shaft; the ends at ±5.75 (the pool's own: walls too) */
 export function testArena(base: StagePlane): StagePlane {
   const g = base.ground ?? 0, oy = base.origin[1] + g;
   const block = (id: string, x0: number, x1: number, h: number): { ledge: Ledge; walls: Wall[] } => ({
     ledge: { id, x0, x1, y: g + h, solid: true, thick: h },
     walls: [{ id: `${id}.l`, s: x0, side: -1, y0: oy, y1: oy + h }, { id: `${id}.r`, s: x1, side: 1, y0: oy, y1: oy + h }],
   });
-  const tall = block('arena.tall', -4.5, -3.9, 4.5), low = block('arena.low', 2.4, 3.0, 1.2);
+  const tall = block('arena.tall', -3.0, -2.4, 4.5), low = block('arena.low', 2.4, 3.0, 1.2);
   return {
-    id: 'arena.test', origin: base.origin, right: base.right, halfWidth: 8, ground: g,
+    id: 'arena.test', origin: base.origin, right: base.right, halfWidth: 5.75, ground: g,
     ledges: [tall.ledge, low.ledge,
-      { id: 'arena.mid', x0: -2.6, x1: -0.4, y: g + 1.7 }, { id: 'arena.high', x0: -0.8, x1: 1.4, y: g + 3.3 }, { id: 'arena.perch', x0: -7.9, x1: -6.8, y: g + 6.0 }],
+      { id: 'arena.mid', x0: -1.8, x1: 0.2, y: g + 1.7 }, { id: 'arena.high', x0: -0.4, x1: 1.8, y: g + 3.3 }, { id: 'arena.perch', x0: -5.6, x1: -4.6, y: g + 6.0 }],
     walls: [...tall.walls, ...low.walls],
-    spawns: [[-2, g], [5, g]],
+    spawns: [[-1.5, g], [4.2, g]],
     height: 6.5, lens: base.lens, yaw: base.yaw, pitch: base.pitch,
   };
 }
