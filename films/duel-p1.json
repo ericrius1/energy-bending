@@ -1,0 +1,61 @@
+{
+  "name": "duel-p1",
+  "title": "The duel's phase 1 film: a highlight reel of the contact dance, two virtual players seen as a player sees them (the duel's own camera, the HUD on screen), on the forge's track. The temple's count-in lands DANCE on the track's entry, the first catch in the air and a launch off the hands; the same court in the 2D lock; the redwoods' build of catches and flings into a slow-motion fling at COMBO x12 and a catch; the forge's air catches and long combo, then its last catches into the fusion finale and the winner's banner. Every duel shot plays its set from the first frame (the brains seeded, deterministic, the music's clock anchored to the duel's start) and cuts into it by its pre-roll.",
+  "audio": { "track": "forge", "from": 49.25 },
+  "size": "1280x720",
+  "fps": 60,
+  "fadeIn": 0.4,
+  "fadeOut": 1.4,
+  "shots": [
+    {
+      "id": "temple-open",
+      "note": "the count-in in the temple, free: 3, 2, 1 on the track's pickup, DANCE on its entry (bar 50); fire (a flyer) vaults off water's shoulders, water (a lead) catches it out of the air, fire launches off its hands (COMBO x5)",
+      "mode": "duel", "world": "temple",
+      "cast": [{ "dress": "fire", "style": "flyer", "skill": 0.85 }, { "dress": "water", "style": "lead", "skill": 0.8 }],
+      "seed": 3, "from": "start", "preroll": 0, "beats": 11, "hud": true,
+      "set": { "temple": { "tideHold": 0.42 } }
+    },
+    {
+      "id": "temple-lock",
+      "note": "the same pair and court in the 2D lock (the option, anywhere): a fling and a vault, an air catch, a launch off the hands, catches",
+      "mode": "duel", "world": "temple", "query": { "lock": "" },
+      "cast": [{ "dress": "fire", "style": "flyer", "skill": 0.85 }, { "dress": "water", "style": "lead", "skill": 0.8 }],
+      "seed": 3, "from": "start", "preroll": 4.6, "beats": 9, "hud": true,
+      "set": { "temple": { "tideHold": 0.42 } }
+    },
+    {
+      "id": "redwoods-slow",
+      "note": "the redwoods' meadow: fire (a lead) and water (a flyer) catch, fling, wall-jump, catch in the air and lift as the shared energy rises; at the air catch's fling (COMBO x12, x4) the game slows to a third and the camera pushes in on the flown body",
+      "mode": "duel", "world": "redwoods",
+      "cast": [{ "dress": "fire", "style": "lead", "skill": 0.85 }, { "dress": "water", "style": "flyer", "skill": 0.85 }],
+      "seed": 5, "from": "start", "preroll": 4.6, "seconds": 8.5, "hud": true, "yawBase": "side",
+      "cues": [{ "at": 6.2333, "rate": 0.3, "ramp": 0.25 }],
+      "camera": [
+        { "at": 0, "mode": "rig" },
+        { "at": 5.9, "mode": "free", "blend": 0.9, "around": { "of": "d0", "joint": "chest" }, "dist": 4.6, "pitch": 0.12, "yaw": 0.35, "height": 0.15, "fov": 42, "lag": 0.15, "near": 0.9 },
+        { "at": 8.5, "around": { "of": "d0", "joint": "chest" }, "dist": 3.7, "pitch": 0.08, "yaw": 0.55, "height": 0.15, "fov": 42, "lag": 0.15, "near": 0.9 }
+      ]
+    },
+    {
+      "id": "forge-build",
+      "note": "the sky forge, late in a set: water (a lead) catches fire (a flyer) out of the air twice, launches it off its hands, flings it, and fire's COMBO x35 cashes into its style",
+      "mode": "duel", "world": "forge",
+      "cast": [{ "dress": "water", "style": "lead", "skill": 0.9 }, { "dress": "fire", "style": "flyer", "skill": 0.9 }],
+      "seed": 11, "from": "start", "preroll": 39.9, "beats": 11, "hud": true
+    },
+    {
+      "id": "forge-finale",
+      "note": "the set's last catches and fling, the merge full, FUSION FINALE",
+      "mode": "duel", "world": "forge",
+      "cast": [{ "dress": "water", "style": "lead", "skill": 0.9 }, { "dress": "fire", "style": "flyer", "skill": 0.9 }],
+      "seed": 11, "from": "start", "preroll": 59.85, "beats": 6, "hud": true
+    },
+    {
+      "id": "forge-banner",
+      "note": "the finale's fused steam, then the winner's banner",
+      "mode": "duel", "world": "forge",
+      "cast": [{ "dress": "water", "style": "lead", "skill": 0.9 }, { "dress": "fire", "style": "flyer", "skill": 0.9 }],
+      "seed": 11, "from": "start", "preroll": 65.5, "beats": 8, "hud": true
+    }
+  ]
+}
