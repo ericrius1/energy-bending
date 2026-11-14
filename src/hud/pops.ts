@@ -13,6 +13,7 @@
 //   PERFECT    gold, springs in with a ring of light opening
 //   COMBO ×n   punches in, bigger the longer the combo, a shiver
 //   MERGE      two halves in the two dancers' colours slide together and become one word with a flash
+//   DUET ×n    a pair tier (the two's chain): as MERGE, bigger, glowing in the tier's colour
 //   info       a plain note
 // Each word is a sprite made once per text, kind and colour (its glow and halo baked in) and stamped with its motion.
 // A tag is a sprite too; off the screen's edge it is held at the edge and points to where its player is.
@@ -22,7 +23,7 @@ import { LINK_KINDS } from './state';
 import { linkIcon } from './icons';
 import { FONT, GOLD, GOLD_HI, INK, glow, lift, measure, rgba, sprite, stamp, clamp01, easeOutBack, easeOut, type Ctx } from './style';
 
-const LIFE: Record<PopKind, number> = { catch: 0.95, swing: 1.05, fling: 1.0, perfect: 1.0, combo: 1.2, merge: 1.4, info: 1.6, power: 1.0, react: 1.4 };
+const LIFE: Record<PopKind, number> = { catch: 0.95, swing: 1.05, fling: 1.0, perfect: 1.0, combo: 1.2, merge: 1.4, info: 1.6, power: 1.0, react: 1.4, pair: 1.6 };
 export const popLife = (k: PopKind) => LIFE[k] ?? 1.1;
 
 interface Look { size: number; weight: string; top: string; bottom: string; glow: string | null; track: number; across?: [string, string] }
@@ -41,6 +42,12 @@ function lookOf(p: HudPop, st: HudState): Look {
     case 'merge': {
       const [a, b] = [st.players.find((q) => q.seat === 0)?.color ?? '#ff7a4a', st.players.find((q) => q.seat === 1)?.color ?? '#4ab0ff'];
       return { size: 22, weight: '800', top: '#ffffff', bottom: '#ffffff', glow: '#ffffff', track: 0.22, across: [lift(a, 0.4), lift(b, 0.4)] };
+    }
+    // (the pair's tier: the two's word, bigger, across both their colours with the tier's in the middle)
+    case 'pair': {
+      const [a, b] = [st.players.find((q) => q.seat === 0)?.color ?? '#ff7a4a', st.players.find((q) => q.seat === 1)?.color ?? '#4ab0ff'];
+      const tc = st.pair?.tierColor ?? '#ffffff';
+      return { size: 24, weight: '800', top: '#ffffff', bottom: '#ffffff', glow: tc, track: 0.2, across: [lift(a, 0.35), lift(b, 0.35)] };
     }
     // (the powers: a cast in the caster's colour, light; a reaction white over cyan, bigger)
     case 'power': return { size: 15, weight: '700', top: '#ffffff', bottom: lift(col, 0.55), glow: col, track: 0.18 };
@@ -342,7 +349,7 @@ export class Pops {
         x += Math.sin(age * 70) * Math.exp(-age * 9) * 2 * u;
         break;
       }
-      case 'merge': {
+      case 'merge': case 'pair': {
         // two halves sliding together, then one with a flash
         const c = clamp01(age / 0.32), off = 30 * u * (1 - easeOut(c));
         if (c < 1) {
@@ -362,7 +369,7 @@ export class Pops {
     // a count going up (SWING ×2 → ×3) or a text changed in place: a bump, not a new word
     if (e.bump >= 0) { const b = clamp01((this.t - e.bump) / 0.22); sc *= 1 + 0.2 * Math.sin(Math.PI * b) * (1 - b * 0.3); }
     if (a > 0.003) drawWord(g, spr, x, y, sc * sx, sc, rot, a);
-    const reach = e.kind === 'fling' ? 40 * u : e.kind === 'merge' ? 34 * u : 6 * u;
+    const reach = e.kind === 'fling' ? 40 * u : e.kind === 'merge' || e.kind === 'pair' ? 34 * u : 6 * u;
     const hw = spr.w * 0.6 * Math.max(sc * sx, 1.6) + reach, hh = spr.h * 0.6 * Math.max(sc, 1.6) + reach + 18 * u;
     out.push({ x: x0 - hw, y: y0 - hh, w: hw * 2, h: hh * 2 });
     return a;

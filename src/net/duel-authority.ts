@@ -210,7 +210,8 @@ export class DuelAuthority {
       ev.unshift(...pre);
       ev.push(...P.duelEvents);
       for (const e of ev) {
-        if (e.k === 'finale') this.finale.start(e.fused, bpm, [M.state.seats[0].style, M.state.seats[1].style]);
+        // (the finale: the set's powers end and fade, as the page's own duel does)
+        if (e.k === 'finale') { this.finale.start(e.fused, bpm, [M.state.seats[0].style, M.state.seats[1].style]); P.settle(); }
         else if (e.k === 'set') this.finale.stop();
       }
       this.finale.update(dt);
