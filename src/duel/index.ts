@@ -63,6 +63,7 @@ import { DuelCamera, type CamBody, type CamSpace } from './camera';
 import { spaceFor } from './camspace';
 import { SEAT_CSS } from './seat';
 import { camKind } from './weight';
+import { momentsHook } from './moments';
 import { DuelHud, screenOf, type HudSeat, type HudState, type HudWord } from './hud-state';
 import { duelSound, phraseSetMs } from './sound';
 import { trackFor } from '../audio/track';
@@ -467,6 +468,8 @@ export async function startDuel(app: PlayApp, opts: { joined?: Joined } = {}) {
     history: match.history,
     /** the HudState handed to the HUD this frame */
     hud: () => hudState,
+    /** the moments probe (moments.ts): words on screen and the bodies covered, sampled after each frame is drawn */
+    moments: momentsHook({ dancer, project, glows, lit: () => [...fx.lit, ...powerFx.lit], events: () => frameEvents, power: () => powers.fx, t: () => now / 1000 }),
     /** begin now (the human seats' devices not yet in), or from set 1 again */
     start: begin,
     restart: () => { finale.stop(); if (!started) begin(); else match.restart(now); },

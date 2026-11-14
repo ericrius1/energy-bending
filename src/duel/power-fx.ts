@@ -78,6 +78,8 @@ export class PowerFxDraw {
   private formWas = [0, 0];
   private deposits = 0;
   private vortices = new Set<string>();
+  /** this frame's moments' and reactions' light, as ranges of the glow list [from, to) (the moments probe) */
+  readonly lit: [number, number][] = [];
 
   constructor(private ctx: PowerFxCtx, private matter: (seat: number) => Matter) {}
 
@@ -109,6 +111,7 @@ export class PowerFxDraw {
     this.t += dt;
     this.deposits = 0;
     const G = this.ctx.glows;
+    this.lit.length = 0;
     for (const e of P.fx) this.moment0(e, P);
     // the effects as they stand (the powers' own clock: each Live's born is on it)
     const now = P.clock;
@@ -118,7 +121,9 @@ export class PowerFxDraw {
       seen.add(L.id);
       const a = fade(L, now);
       if (a <= 0.003) continue;
+      const g0 = G.count;
       this.draw(L, a, now, P, G, vort);
+      if ((L.kind === 'geyser' || L.kind === 'puddle') && G.count > g0) this.lit.push([g0, G.count]);
     }
     // set ice whose effect has gone (melted, or out of its life): taken away (its own melt has already shown)
     for (const [id, ids] of this.ice) if (!seen.has(id)) { for (const x of ids) this.ctx.setIce?.remove(x); this.ice.delete(id); }
@@ -138,7 +143,9 @@ export class PowerFxDraw {
         }
       }
     }
+    const g0 = G.count;
     this.moments = this.moments.filter((m) => { const age = this.t - m.t, u = age / m.life; if (u >= 1) return false; m.draw(u, age); return true; });
+    if (G.count > g0) this.lit.push([g0, G.count]);
   }
 
   /** a moment the powers made this frame: blooms, flashes, sounds */

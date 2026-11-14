@@ -66,6 +66,9 @@ export class DuelFx {
   private t = 0;
   private streaks: Streak[] = [];
   private halo = [1, 1];
+  /** this frame's moments' light, as ranges of the glow list [from, to) (the moments probe reads them: what lands on
+   *  the bodies) */
+  readonly lit: [number, number][] = [];
 
   constructor(private ctx: DuelFxCtx) {}
 
@@ -135,7 +138,10 @@ export class DuelFx {
       this.halo[k] += ((c.reforming ? 0 : 1) - this.halo[k]) * (1 - Math.exp(-dt * 6));
       if (dn) seatHalo(this.ctx.glows, dn.skeleton.world, k, this.halo[k], this.ctx.form?.(k) ?? dn.form, this.ctx.element(k));
     }
+    this.lit.length = 0;
+    const g0 = this.ctx.glows.count;
     this.fx = this.fx.filter((f) => { const age = this.t - f.t, u = age / f.life; if (u >= 1) return false; f.draw(u, age); return true; });
+    if (this.ctx.glows.count > g0) this.lit.push([g0, this.ctx.glows.count]);
   }
 
   private touch(e: ContactEvent) {

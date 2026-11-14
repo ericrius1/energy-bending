@@ -137,6 +137,9 @@ export class Pops {
   /** drawn last frame: in all, per seat, nobody's; and the most since `most` was reset */
   shown = { total: 0, seats: [0, 0], centre: 0 };
   most = { total: 0, seats: [0, 0], centre: 0 };
+  /** the words drawn last frame (alpha over 0.3), each its own box (px): what the moments probe tests the bodies
+   *  against */
+  cover: Box[] = [];
 
   private dt = 1 / 60;
 
@@ -218,6 +221,7 @@ export class Pops {
   draw(g: Ctx, st: HudState, L: Layout, dpr: number, out: Box[], avoid: Box | null = null) {
     const u = L.u * (L.compact ? 0.82 : 1);
     this.shown = { total: 0, seats: [0, 0], centre: 0 };
+    this.cover = [];
     if (!this.entries.length) return;
     // the lanes' anchors: beside each head, on the side away from the other (kept while the two are close), and the
     // middle lane above them both
@@ -284,7 +288,7 @@ export class Pops {
         else { e.y += (y - e.y) * ease; e.x += (x - e.x) * ease; }
         placed.push({ x: x - tw / 2, y: y - h / 2, w: tw, h });
         const a = this.one(g, e, spr, e.x, e.y, u, dpr, lane < 0 ? 1 : lanes[lane].side, st, out);
-        if (a > 0.3) { this.shown.total++; if (lane >= 0) this.shown.seats[lane]++; else this.shown.centre++; }
+        if (a > 0.3) { this.shown.total++; if (lane >= 0) this.shown.seats[lane]++; else this.shown.centre++; this.cover.push({ x: e.x - tw / 2, y: e.y - h / 2, w: tw, h }); }
       }
     }
     const M = this.most, S = this.shown;

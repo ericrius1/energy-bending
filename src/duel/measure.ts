@@ -129,6 +129,17 @@ for (const world of worlds) {
   { const g = [...gaps].sort((a, b) => a - b), q = (p: number) => f2(g[Math.floor(p * (g.length - 1))] ?? NaN); console.log(`  apart between holds: median ${q(0.5)} s, quartiles ${q(0.25)} / ${q(0.75)}; under 1 s ${(100 * g.filter((x) => x < 1).length / Math.max(1, g.length)).toFixed(0)}%`); }
   console.log(`  near the top (0.85+): ${per(E.topS)} s a set: links ${per(E.top.link)}, holds ${per(E.top.hold)}, ebb ${per(E.top.ebb)}; catches there ${per(E.top.catch)} + air ${per(E.top.aerial)} a set; apart with both combos live ${(100 * E.liveApartS / Math.max(1e-9, E.apartS)).toFixed(0)}% of apart`);
   console.log(`  energy a set: links ${per(E.link)}, holds' first moments ${per(E.hold)}, ebb apart ${per(E.ebbApart)}, ebb held ${per(E.ebbHeld)}, merges ${per(E.spend)}; joined ${(100 * E.joinedS / E.playS).toFixed(0)}% of play, apart but near ${(100 * E.nearS / E.playS).toFixed(0)}%`);
+  // the weight: the held moments a minute of play and how long each (frames), the slowed beats, the time the warp took
+  {
+    const holds: number[] = [], kinds: Record<string, number> = {};
+    let slows = 0, lost = 0;
+    for (const r of all) {
+      lost += r.match.warp.lost;
+      for (const h of r.match.history) if (h.e.k === 'juice') { if (h.e.hold > 0) { holds.push(h.e.hold); kinds[h.e.what + (h.e.via === 'geyser' ? '@geyser' : '')] = (kinds[h.e.what + (h.e.via === 'geyser' ? '@geyser' : '')] ?? 0) + 1; } if (h.e.slow != null) slows++; }
+    }
+    Object.assign(line, { holdsPerMin: holds.length / min, holdFrames: mean(holds), slowsPerMin: slows / min, warpLost: lost / nSets });
+    console.log(`  weight: ${f1(holds.length / min)} holds a minute, ${f1(mean(holds))} frames each (${Object.entries(kinds).map(([k, v]) => `${k} ${f1(v / min)}`).join(', ')} a minute); ${f1(slows / min)} slowed beats a minute; the warp took ${f2(lost / nSets)} s a set`);
+  }
   if (argv.includes('-v')) {
     const B: Record<string, number> = {};
     for (const r of all) for (const s of r.seats) for (const [k, v] of Object.entries(s.brain)) B[k] = (B[k] ?? 0) + v;

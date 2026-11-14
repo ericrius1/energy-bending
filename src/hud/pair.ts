@@ -23,6 +23,9 @@ export class PairChain {
   private shown: { text: string; color: string; tier: number } | null = null;
   private endAt = -9;
   private endHow: 'cashed' | 'dropped' = 'cashed';
+  /** the tier flash's light drawn last frame, as circles (px: x, y, r, the ring's width; 0 width a filled wash), for
+   *  the moments probe */
+  cover: { x: number; y: number; r: number; w: number }[] = [];
 
   update(st: HudState, dt: number) {
     this.t += dt;
@@ -45,6 +48,7 @@ export class PairChain {
     if (!P || st.mode !== 'duel') return;
     const u = L.u, O = L.orb, t = this.t;
     const [ca, cb] = P.colors;
+    this.cover = [];
     // ---- the flash of a tier: each one's colour washing in from its side, a ring from the orb
     const fk = (t - this.flashAt) / FLASH;
     if (fk >= 0 && fk < 1) {
@@ -60,6 +64,7 @@ export class PairChain {
       g.lineWidth = Math.max(1, 2.4 * u * (1 - fk));
       g.strokeStyle = rgba(lift(this.flashCol, 0.3), 0.7 * (1 - fk));
       g.beginPath(); g.arc(O.x, O.y, rr, 0, Math.PI * 2); g.stroke();
+      if (0.7 * (1 - fk) > 0.25) this.cover.push({ x: O.x, y: O.y, r: rr, w: Math.max(3, 2.4 * u * (1 - fk) * 3) });
       out.push({ x: 0, y: 0, w: L.W, h: L.H });
     }
     // ---- the chip
