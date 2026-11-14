@@ -35,9 +35,9 @@ const DRESS: [string, string][] = [['fire', 'water'], ['water', 'ice'], ['plasma
 
 interface Tally {
   frames: number; inside: number; nearEye: number; fgAny: number; fg10: number; fgSum: number; hidden: number; hiddenAny: number;
-  flyer: number; flyerOut: number; whole: number; maxStep: number; flips: number; ms: number; dist: number; pitch: number; minClear: number;
+  flyer: number; flyerOut: number; whole: number; out: number; maxStep: number; flips: number; ms: number; dist: number; pitch: number; minClear: number;
 }
-const blank = (): Tally => ({ frames: 0, inside: 0, nearEye: 0, fgAny: 0, fg10: 0, fgSum: 0, hidden: 0, hiddenAny: 0, flyer: 0, flyerOut: 0, whole: 0, maxStep: 0, flips: 0, ms: 0, dist: 0, pitch: 0, minClear: Infinity });
+const blank = (): Tally => ({ frames: 0, inside: 0, nearEye: 0, fgAny: 0, fg10: 0, fgSum: 0, hidden: 0, hiddenAny: 0, flyer: 0, flyerOut: 0, whole: 0, out: 0, maxStep: 0, flips: 0, ms: 0, dist: 0, pitch: 0, minClear: Infinity });
 const add = (a: Tally, b: Tally) => { for (const k of Object.keys(a) as (keyof Tally)[]) { if (k === 'maxStep') a[k] = Math.max(a[k], b[k]); else if (k === 'minClear') a[k] = Math.min(a[k], b[k]); else a[k] += b[k]; } };
 
 const pct = (n: number, d: number) => `${((100 * n) / Math.max(1, d)).toFixed(1)}%`;
@@ -69,6 +69,8 @@ for (const id of worlds) {
         const J = judge(pose, seen.length ? seen : B, space, ASPECT);
         T.frames++;
         if (J.clear < 0) T.inside++;
+        const room = arena.camera?.maxDist ?? arena.space.radius + 6, c0 = arena.space.center;
+        if (Math.hypot(pose.eye[0] - c0[0], pose.eye[1] - c0[1], pose.eye[2] - c0[2]) > room + 1.2) T.out++;
         if (J.clear < 0.6) T.nearEye++;
         T.minClear = Math.min(T.minClear, J.clear);
         if (J.fg > 0) T.fgAny++;
@@ -118,16 +120,16 @@ for (const id of worlds) {
   add(all, T);
   if (why) { console.log([...whyN].sort((a, b) => b[1] - a[1]).map(([k, v]) => `  ${k}: ${v}`).join('\n')); whyN.clear(); }
   const line = {
-    world: id, sets, frames: T.frames, inside: T.inside / T.frames, nearEye: T.nearEye / T.frames, minClear: T.minClear,
+    world: id, sets, frames: T.frames, inside: T.inside / T.frames, out: T.out / T.frames, nearEye: T.nearEye / T.frames, minClear: T.minClear,
     fgAny: T.fgAny / T.frames, fg10: T.fg10 / T.frames, fgMean: T.fgSum / T.frames, hidden: T.hidden / T.frames, hiddenAny: T.hiddenAny / T.frames,
     flyerIn: 1 - T.flyerOut / Math.max(1, T.flyer), flyerFrames: T.flyer, whole: T.whole / T.frames, maxStepDeg: T.maxStep * 57.3,
     flipsPerMin: T.flips / (T.frames / 3600), msPerFrame: T.ms / T.frames, dist: T.dist / T.frames, pitchDeg: (T.pitch / T.frames) * 57.3,
   };
   report.push(line);
-  console.log(`${id.padEnd(9)} (${(world.solids ?? []).length} solids) ${T.frames} frames: eye in a solid ${pct(T.inside, T.frames)}, within 0.6 m ${pct(T.nearEye, T.frames)} (nearest ${T.minClear.toFixed(2)} m); ` +
+  console.log(`${id.padEnd(9)} (${(world.solids ?? []).length} solids) ${T.frames} frames: eye in a solid ${pct(T.inside, T.frames)}, past the room ${pct(T.out, T.frames)}, within 0.6 m ${pct(T.nearEye, T.frames)} (nearest ${T.minClear.toFixed(2)} m); ` +
     `a piece in the near frame ${pct(T.fgAny, T.frames)} (over a tenth of it ${pct(T.fg10, T.frames)}, mean ${(100 * line.fgMean).toFixed(2)}%); ` +
     `a body hidden ${pct(T.hidden, T.frames)} (any line ${pct(T.hiddenAny, T.frames)}); flyer in frame ${T.flyer - T.flyerOut}/${T.flyer}; both whole ${pct(T.whole, T.frames)}; ` +
     `turn ≤ ${line.maxStepDeg.toFixed(2)}°/frame, ${line.flipsPerMin.toFixed(1)} reversals/min; boom ${line.dist.toFixed(1)} m, pitch ${line.pitchDeg.toFixed(0)}°; ${line.msPerFrame.toFixed(3)} ms/frame`);
 }
-console.log(`ALL       ${all.frames} frames: eye in a solid ${pct(all.inside, all.frames)}, within 0.6 m ${pct(all.nearEye, all.frames)}; near frame ${pct(all.fgAny, all.frames)} (>10% ${pct(all.fg10, all.frames)}); hidden ${pct(all.hidden, all.frames)} (any ${pct(all.hiddenAny, all.frames)}); flyer ${all.flyer - all.flyerOut}/${all.flyer}; whole ${pct(all.whole, all.frames)}; ${(all.ms / all.frames).toFixed(3)} ms/frame`);
+console.log(`ALL       ${all.frames} frames: eye in a solid ${pct(all.inside, all.frames)}, past the room ${pct(all.out, all.frames)}, within 0.6 m ${pct(all.nearEye, all.frames)}; near frame ${pct(all.fgAny, all.frames)} (>10% ${pct(all.fg10, all.frames)}); hidden ${pct(all.hidden, all.frames)} (any ${pct(all.hiddenAny, all.frames)}); flyer ${all.flyer - all.flyerOut}/${all.flyer}; whole ${pct(all.whole, all.frames)}; ${(all.ms / all.frames).toFixed(3)} ms/frame`);
 if (jsonOut) { const fs = await import('node:fs'); fs.writeFileSync(jsonOut, JSON.stringify(report, null, 1)); console.log(`wrote ${jsonOut}`); }

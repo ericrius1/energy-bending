@@ -140,6 +140,8 @@ export const DUEL_CAM = {
   fgCols: 7, fgRows: 4, fgNear: 0.5, fgMax: 4, fgOk: 0.03,
   /** the fallback's rise is held this long (s) before it eases down to a lower one that is clean */
   riseHold: 0.6,
+  /** the eye never stands further than this past the room from the arena's middle (m, any direction) */
+  roomOver: 1.2,
 };
 
 /** each impulse's shape (DuelCamera.impulse), at k = 1: how far the look point leans toward the contact (a share of the
@@ -460,6 +462,9 @@ export class DuelCamera {
       }
       const out = Math.hypot(f.eye[0] - I.center[0], f.eye[2] - I.center[2]) - I.room;
       if (out > 0) s += Math.min(2, out * 0.5);
+      // (and never out through the world's shell: past the room by more than roomOver, in any direction)
+      const out3 = Math.hypot(f.eye[0] - I.center[0], f.eye[1] - I.center[1], f.eye[2] - I.center[2]) - (I.room + P.roomOver);
+      if (out3 > 0) s += K.inside + out3 * 2;
       // side on (with the turn toward behind seat 1) unless the pair is on top of each other; the lower view; the
       // lens unwidened; little turn from what it is heading for; the other side only for a real gain
       const ideal = base + P.behind * Math.sign(wrap(behind - base));
@@ -532,6 +537,8 @@ export class DuelCamera {
     // solid by the near fade's distance and a margin, no piece across the near part of the frame, and each body seen
     // past the solids (two of its hips, chest and head). The choice keeps this rare
     const sp = I.space;
+    /** how far past the room the eye stands (m; the world's shell beyond it, the geode's hollow, is no solid) */
+    const outOf = (p: V3) => Math.hypot(p[0] - I.center[0], p[1] - I.center[1], p[2] - I.center[2]) - (I.room + P.roomOver);
     const eyeAt = (pitch: number, d: number, at: V3 = look): V3 => {
       const b = axes(this.yaw, pitch).back;
       return [at[0] + b[0] * d, at[1] + b[1] * d, at[2] + b[2] * d];
@@ -540,7 +547,8 @@ export class DuelCamera {
     const bad = (e: V3, pitch: number): number => {
       if (!sp) return 0;
       let b = 0;
-      const c = sp.clear(e), want = I.near + 0.35;
+      const c = sp.clear(e), want = I.near + 0.35, o = outOf(e);
+      if (o > 0) b += 1 + o * 2;
       if (c < want) b += 1 + (want - c) * 2;
       if (sp.fg) {
         const fg = sp.fg(e, raysAt(this.yaw, pitch, this.fov, I.aspect, P.fgCols, P.fgRows), nearReach(e, I.bodies));
@@ -596,7 +604,7 @@ export class DuelCamera {
     const D0 = Math.max(Math.min(need, maxD * 1.25), this.dist * (1 - imp.push * g));
     // (never in closer than P.minPull metres: an eye a metre from the dancers, its lens at the widest, is worse than a
     // stone dissolved by the near fade; where nothing down to there is clean, the clearest of them)
-    const clearOk = (p: V3) => !sp || sp.clear(p) > I.near + 0.35;
+    const clearOk = (p: V3) => (!sp || sp.clear(p) > I.near + 0.35) && outOf(p) <= 0;
     // (in along the boom also past a piece across the near part of the frame where no tilt cleared it, only as far as
     // an eye that is clean)
     let pullWant = 1;
@@ -615,7 +623,13 @@ export class DuelCamera {
     }
     this.pull = this.fresh ? pullWant : this.pull + (pullWant - this.pull) * (1 - Math.exp(-dt * (pullWant < this.pull ? 14 : 1.5)));
     if (sp && pullWant < this.pull && sp.clear(eyeAt(pitch, D0 * this.pull)) < I.near + 0.15) this.pull = pullWant;
-    const D = D0 * this.pull;
+    let D = D0 * this.pull;
+    // (and never out through the shell: the boom shortened to stay inside the room, the lens widening from there)
+    if (outOf(eyeAt(pitch, D)) > 0 && outOf(look) < 0) {
+      let lo = 0, hi = D;
+      for (let i = 0; i < 14; i++) { const m = (lo + hi) / 2; if (outOf(eyeAt(pitch, m)) > 0) hi = m; else lo = m; }
+      D = Math.max(lo, Math.min(D, 2.5));
+    }
     let fov = this.fov;
     if (boomFor(pts, look, this.yaw, pitch, fov, I.aspect, hard) > D) {
       let lo = fov, hi = P.widest;
