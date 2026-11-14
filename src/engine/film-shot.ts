@@ -422,10 +422,12 @@ async function run(api: FilmApi, recorder: Recorder, shot: ShotSpec, plan: ShotP
     }
     await B.step(1, dt * rateNow);
     // (a duel's events on the shot's clock: info.json's duel.log, the moments to cut on)
-    // (and the powers' own: a cast, the power form, a reaction, which the rules' events don't carry)
+    // (and the powers' own: a cast, the power form, a reaction, which the rules' events don't carry; and the hazards'
+    // moments, a splash, a jump off the swell's crest, a lift in the hum, as `hazard` with their own `k`)
     if (B.duel) {
-      const D = B.duel as { events(): unknown[]; now(): number; powers?: { events?: unknown[] } };
-      for (const e of [...D.events(), ...(D.powers?.events ?? [])] as Record<string, unknown>[]) duelLog.push({ t: +tau.toFixed(3), d: +(D.now() / 1000).toFixed(3), ...e });
+      const D = B.duel as { events(): unknown[]; now(): number; powers?: { events?: unknown[] }; hazards?: { fx?: Record<string, unknown>[] } };
+      const hz = (D.hazards?.fx ?? []).map((e) => ({ ...e, k: 'hazard', what: e.k }));
+      for (const e of [...D.events(), ...(D.powers?.events ?? []), ...hz] as Record<string, unknown>[]) duelLog.push({ t: +tau.toFixed(3), d: +(D.now() / 1000).toFixed(3), ...e });
     }
     if (track && jogo && gridScore == null) {
       const b = J.beat() as number | null;
@@ -465,7 +467,8 @@ async function run(api: FilmApi, recorder: Recorder, shot: ShotSpec, plan: ShotP
   const info = {
     shot: shot.id, inPoint, inTime: (inPoint + 1) * dt, slowed, pageFrames: i, pageTime: i * dt, width: kit.size.render[0], height: kit.size.render[1], jogo: J?.stats?.() ?? null,
     // (a duel's state at the end and what happened when, in its own ms: the moments to cut on, for working on a timeline)
-    duel: B.duel ? { now0: duelNow0, beat0: B.music.clock.beatAt(dt), stats: B.duel.stats(), log: duelLog } : null,
+    // (and the hazards' rides, each one's count and seconds, and the duel's sounds: what played, how many a minute)
+    duel: B.duel ? { now0: duelNow0, beat0: B.music.clock.beatAt(dt), stats: B.duel.stats(), hazards: B.duel.hazards ? { rides: B.duel.hazards.rides, waterS: B.duel.hazards.waterS } : null, sound: B.duel.sound?.stats?.() ?? null, log: duelLog } : null,
     track: track ? { id: track.id, bpm: track.bpm, gridTime: gridScore, trackBeatAtGrid, trackBeatAtIn, trackBeat0: M.engine.trackBeat0, clockBpm: M.clock.bpm } : null,
   };
   await post('/end', JSON.stringify(info));   // the sink releases the lock before it answers
