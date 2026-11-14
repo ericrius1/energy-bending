@@ -24,6 +24,8 @@ export interface HazardFxCtx {
   } | null;
   /** the world's water, rippled (the temple, the pool) */
   ripple?: (x: number, z: number, strength: number, radius: number) => void;
+  /** the world's floor (with its water): the swell's foam keeps to open water */
+  ground?: (x: number, z: number) => number;
   /** the camera's eye: what the hazards draw fades out within a few metres of it (a crest or a leaf against the lens) */
   eye?: () => ArrayLike<number>;
 }
@@ -190,6 +192,9 @@ export class HazardFxDraw {
       const across = rel + (i / 30 - 0.5) * 20;
       const x = S.center[0] + d[0] * along - d[1] * across, z = S.center[1] + d[1] * along + d[0] * across, h = swellAt(H, x, z, b), k = h / S.amp;
       const p: V3 = [x + d[0] * 0.2, h + 0.03, z + d[1] * 0.2];
+      // (none over a stone or a floe: the foam is on open water, the line broken where a stone stands in it)
+      const open = !this.ctx.ground || this.ctx.ground(p[0], p[2]) < h - 0.6;
+      if (!open) { prev = null; continue; }
       if (prev && k > 0.05) {
         G.seg(prev, p, 0.07, FOAM, 0.55 * k, 'soft');
         G.seg([prev[0] - d[0] * 1.3, prev[1] * 0.4, prev[2] - d[1] * 1.3], [p[0] - d[0] * 1.3, p[1] * 0.4, p[2] - d[1] * 1.3], 0.35, [0.35, 0.55, 0.85], 0.12 * k, 'soft');

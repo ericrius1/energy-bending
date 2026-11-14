@@ -252,7 +252,7 @@ export async function startDuel(app: PlayApp) {
     sfx: (name, o) => { music.sfx(name as Parameters<Music['sfx']>[0], o); }, ear,
     rumble: (k, s, ms) => { const i = humanSeats.indexOf(k); if (i >= 0) hub.rumble(i, s, ms); },
   }, (k) => powers.rules.seats[k].matter);
-  const hazardFx = new HazardFxDraw({ glows, eye: () => cam.position, field: field as unknown as ConstructorParameters<typeof HazardFxDraw>[0]['field'], ripple: (x, z, s, r) => { (world() as unknown as { ripple?: (x: number, z: number, s: number, r: number) => void }).ripple?.(x, z, s, r); } });
+  const hazardFx = new HazardFxDraw({ glows, eye: () => cam.position, ground: (x, z) => world().groundAt(x, z), field: field as unknown as ConstructorParameters<typeof HazardFxDraw>[0]['field'], ripple: (x, z, s, r) => { (world() as unknown as { ripple?: (x: number, z: number, s: number, r: number) => void }).ripple?.(x, z, s, r); } });
   const duelHud = new DuelHud();
   /** the keys a seat's powers are on (its device's), for the HUD */
   const powerKeys = (k: number): [string, string, string] | null => {
