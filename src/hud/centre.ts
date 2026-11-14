@@ -1,8 +1,10 @@
 // The middle of the screen: the set's intro countdown big in the middle ("3", "2", "1", then "DANCE" as play starts),
-// "FINALE" once as the set's last stretch begins, and the winner's banner when the set is done. A dance battle's win:
+// "FINALE" once as the set's last stretch begins (high, over the two's duet: src/duel/finale.ts), and the winner's
+// banner when the set is done (the finale is about a bar long, then this). A dance battle's win:
 // the band opens from the centre in the winner's colour, the name tracks in over "TAKES THE SET", and under it the
 // battle's numbers: each dancer's style in its colour and the peak the two reached together. The big words are
-// sprites (a glyph and its glow made once) stamped with a little motion.
+// sprites (a glyph and its glow made once) stamped with a little motion. `last` is what was drawn, as one box: the
+// pops (pops.ts) keep off it.
 import type { HudState } from './state';
 import type { Layout, Box } from './layout';
 import { FONT, GOLD, GOLD_HI, glow, haloText, lift, measure, rgba, sprite, stamp, easeOut, clamp01, type Ctx } from './style';
