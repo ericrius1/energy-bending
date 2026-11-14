@@ -8,11 +8,16 @@
 //
 // Given a `site` (server/site.ts), it also serves the game's built pages under their base path, so one service is
 // both the game and its rooms; without one it serves no files.
+//
+// A room made by a hello with `duel` is an online duel's (server/duel.ts): the server steps the duel itself and its
+// clients send inputs (binary 'I' frames) instead of poses; seats 0 and 1 play, the other slots watch. A duel's hello
+// to a jogo's room, or a jogo's to a duel's, is refused (`error mode`). /duels lists the duels' measurements.
 import http from 'node:http';
 import { serveSite, type Site } from './site.ts';
 import crypto from 'node:crypto';
 import { WebSocketServer, type WebSocket, type RawData } from 'ws';
-import { PROTOCOL, SEATS, SLOTS, MAX_FRAME, NAME_MAX, isPose, stampSlot, type ClientMsg, type ServerMsg, type Role } from '../shared/protocol.ts';
+import { PROTOCOL, SEATS, SLOTS, MAX_FRAME, NAME_MAX, isPose, stampSlot, isDuelInputs, decodeDuelInputs, type ClientMsg, type ServerMsg, type Role } from '../shared/protocol.ts';
+import { DuelRoom, loadDuelEngine, duelHelloOk, type DuelEngine } from './duel.ts';
 import { createSession, tick, setPresent, setAway, route, publicState, piecesOf, type Session, type To } from '../shared/rules.ts';
 
 export const SERVER_PARAMS = {
@@ -31,20 +36,27 @@ export const SERVER_PARAMS = {
   STATE_DRAIN_MS: 250,
   /** poses a socket may send per second before the rest are dropped (20 Hz is the rate; this allows bursts) */
   POSES_PER_S: 40,
+  /** a duel's input frames a socket may send per second (60 Hz is the rate) */
+  INPUTS_PER_S: 150,
+  /** how often the duels' clock is looked at (ms): every tick due by then is stepped */
+  DUEL_PUMP_MS: 4,
+  /** a duel's snapshot is skipped for a socket with this much still unsent (bytes) */
+  DUEL_BACKED_UP: 65536,
 };
 
 const CODE_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ';   // A-Z without I and O
 const now = () => Math.round((performance.timeOrigin + performance.now()) * 10) / 10;
 
 interface Seat { token: string; ws: WebSocket | null; graceTimer: ReturnType<typeof setTimeout> | null }
-interface Room { code: string; s: Session; slots: (Seat | null)[]; lastState: number }
+interface Room { code: string; s: Session; slots: (Seat | null)[]; lastState: number; duel: DuelRoom | null }
 interface Conn { room: Room; slot: number }
 interface Sock { ws: WebSocket; conn: Conn | null; bad: number; alive: boolean; helloTimer: ReturnType<typeof setTimeout> | null; poses: number; poseWindow: number }
 
 export interface RoomServer { port: number; close(): Promise<void>; rooms(): number }
 
-export function startRooms({ port = 5417, host = '127.0.0.1', site = null as Site | null, log = (...a: unknown[]) => console.log(new Date().toISOString(), ...a) } = {}): Promise<RoomServer> {
+export async function startRooms({ port = 5417, host = '127.0.0.1', site = null as Site | null, duels = true, log = (...a: unknown[]) => console.log(new Date().toISOString(), ...a) } = {}): Promise<RoomServer> {
   const P = SERVER_PARAMS;
+  const E: DuelEngine | null = duels ? await loadDuelEngine(log) : null;
   const rooms = new Map<string, Room>();
   const socks = new Map<WebSocket, Sock>();
 
@@ -86,14 +98,29 @@ export function startRooms({ port = 5417, host = '127.0.0.1', site = null as Sit
     let room: Room | undefined, slot = -1;
     const code = msg.room?.toUpperCase();
     if (code) room = rooms.get(code);
+    if (room && !!room.duel !== !!msg.duel) return send(ws, { t: 'error', code: 'mode', why: room.duel ? 'this room is a duel' : 'this room is a jogo' });
     if (!room) {
       if (code && !msg.create) return send(ws, { t: 'error', code: 'gone' });
       if (rooms.size >= P.MAX_ROOMS) return send(ws, { t: 'error', code: 'full' });
-      room = { code: code ?? newCode(), s: createSession(msg.stage || 'void', now(), msg.world || null), slots: new Array(SLOTS).fill(null), lastState: 0 };
+      let duelHello = null;
+      if (msg.duel) {
+        if (!E) return send(ws, { t: 'error', code: 'duel', why: 'this server runs no online duels' });
+        duelHello = duelHelloOk(msg.duel, E.ONLINE_WORLDS);
+        if (!duelHello) return send(ws, { t: 'error', code: 'duel', why: `online duels play in ${E.ONLINE_WORLDS.join(', ')}` });
+      }
+      room = { code: code ?? newCode(), s: createSession(msg.stage || 'void', now(), msg.world || null), slots: new Array(SLOTS).fill(null), lastState: 0, duel: null };
+      if (duelHello) {
+        const r = room;
+        r.duel = new DuelRoom(E!, duelHello, now(), {
+          slots: () => r.slots.flatMap((s, i) => (s?.ws ? [i] : [])),
+          text: (to, data) => { if (to === 'all') toAll(r, data); else sendRaw(r.slots[to]?.ws, data); },
+          binary: (to, data) => { const w = r.slots[to]?.ws; if (w && w.readyState === 1 && w.bufferedAmount < P.DUEL_BACKED_UP) w.send(data); },
+        });
+      }
       rooms.set(room.code, room);
-      log('room', room.code, room.s.stage, 'created;', rooms.size, 'rooms');
+      log('room', room.code, room.duel ? `a duel in ${room.duel.a.welcome().world}` : room.s.stage, 'created;', rooms.size, 'rooms');
     } else if (typeof msg.token === 'string') slot = room.slots.findIndex((s) => s?.token === msg.token);
-    let seat: Seat;
+    let seat: Seat, fresh = false;
     if (slot >= 0) {                                       // reclaim
       seat = room.slots[slot]!;
       if (seat.graceTimer) clearTimeout(seat.graceTimer);
@@ -105,11 +132,22 @@ export function startRooms({ port = 5417, host = '127.0.0.1', site = null as Sit
       if (slot < 0 && role !== 'player') slot = free(SEATS, SLOTS);
       if (slot < 0) return send(ws, { t: 'error', code: 'full' });
       seat = room.slots[slot] = { token: crypto.randomBytes(12).toString('base64url'), ws: null, graceTimer: null };
+      fresh = true;
     }
     seat.ws = ws;
     sock.conn = { room, slot };
     if (sock.helloTimer) clearTimeout(sock.helloTimer);
     const t = now(), s = room.s, player = slot < SEATS;
+    if (room.duel) {
+      // (a duel: no jogo here; its seat comes back to its body, or a new player takes a body that was left)
+      if (player) { if (fresh) room.duel.a.reseat(slot); room.duel.a.seat(slot, true); }
+      send(ws, { t: 'joined', room: room.code, slot, seat: slot, player, stage: s.stage, world: room.duel.a.welcome().world, token: seat.token, now: t, duel: room.duel.a.welcome() });
+      room.duel.greet(slot);
+      for (let j = 0; j < SLOTS; j++) if (j !== slot && room.slots[j]?.ws) send(ws, { t: 'peer', slot: j, present: true, player: j < SEATS });
+      for (const o of others(room, slot)) send(o, { t: 'peer', slot, present: true, player });
+      toAll(room, JSON.stringify({ t: 'droom', ...room.duel.roomState() } satisfies ServerMsg));
+      return;
+    }
     deliver(room, slot, evOut(setPresent(s, slot, true, t, msg.world ?? null)));
     send(ws, { t: 'joined', room: room.code, slot, seat: slot, player, stage: s.stage, world: s.slots[slot]?.world ?? s.world, token: seat.token, now: t });
     send(ws, { t: 'pieces', list: piecesOf(s) });
@@ -126,13 +164,17 @@ export function startRooms({ port = 5417, host = '127.0.0.1', site = null as Sit
     if (!seat || seat.ws !== sock.ws) return;
     seat.ws = null;
     for (const o of others(room, slot)) send(o, { t: 'peer', slot, present: false, player: slot < SEATS });
-    setAway(room.s, slot);
+    if (room.duel) {
+      if (slot < SEATS) room.duel.a.seat(slot, false);
+      toAll(room, JSON.stringify({ t: 'droom', ...room.duel.roomState() } satisfies ServerMsg));
+    } else setAway(room.s, slot);
     seat.graceTimer = setTimeout(() => {
       if (room.slots[slot] !== seat || seat.ws) return;
       room.slots[slot] = null;
+      if (room.slots.every((x) => !x)) { rooms.delete(room.code); log('room', room.code, 'deleted;', rooms.size, 'rooms'); return; }
+      if (room.duel) { toAll(room, JSON.stringify({ t: 'droom', ...room.duel.roomState() } satisfies ServerMsg)); return; }
       const ev = setPresent(room.s, slot, false, now());
-      if (room.slots.every((x) => !x)) { rooms.delete(room.code); log('room', room.code, 'deleted;', rooms.size, 'rooms'); }
-      else { deliver(room, slot, evOut(ev)); broadcastState(room); }
+      deliver(room, slot, evOut(ev)); broadcastState(room);
     }, P.GRACE_MS);
   }
 
@@ -141,8 +183,17 @@ export function startRooms({ port = 5417, host = '127.0.0.1', site = null as Sit
     if (isBinary) {
       const b = data as Buffer;
       const c = sock.conn;
+      if (Buffer.isBuffer(b) && c?.room.duel && isDuelInputs(b)) {
+        // (a duel's inputs: a seat's go to the authority; a watcher has none to send)
+        const t = performance.now();
+        if (t - sock.poseWindow > 1000) { sock.poseWindow = t; sock.poses = 0; }
+        if (++sock.poses > P.INPUTS_PER_S || c.slot >= SEATS) return;
+        const list = decodeDuelInputs(b);
+        if (list) c.room.duel.a.receive(c.slot, list);
+        return;
+      }
       if (!Buffer.isBuffer(b) || !isPose(b)) { if (++sock.bad >= P.MAX_BAD) ws.close(1008, 'malformed'); return; }
-      if (!c) return;
+      if (!c || c.room.duel) return;
       const t = performance.now();
       if (t - sock.poseWindow > 1000) { sock.poseWindow = t; sock.poses = 0; }
       if (++sock.poses > P.POSES_PER_S) return;
@@ -159,7 +210,7 @@ export function startRooms({ port = 5417, host = '127.0.0.1', site = null as Sit
     if (msg.t === 'ping') return send(ws, { t: 'pong', c: msg.c, s: now() });
     if (msg.t === 'hello') return sock.conn ? undefined : hello(sock, msg);
     const c = sock.conn;
-    if (!c) return;
+    if (!c || c.room.duel) return;
     const r = route(c.room.s, c.slot, msg, now());
     deliver(c.room, c.slot, r.out);
     if (c.room.s.changed) broadcastState(c.room);
@@ -168,6 +219,10 @@ export function startRooms({ port = 5417, host = '127.0.0.1', site = null as Sit
   const server = http.createServer((req, res) => {
     const path = (req.url ?? '/').split('?')[0];
     if (path === '/health') { res.writeHead(200, { 'Content-Type': 'text/plain', 'Cache-Control': 'no-cache' }); res.end('ok'); return; }
+    if (path === '/duels') {
+      const list = [...rooms.values()].filter((r) => r.duel).map((r) => ({ room: r.code, ...r.duel!.stats() }));
+      res.writeHead(200, { 'Content-Type': 'application/json', 'Cache-Control': 'no-cache' }); res.end(JSON.stringify({ engine: !!E, duels: list })); return;
+    }
     if (path === '/rooms') { res.writeHead(200, { 'Content-Type': 'text/plain', 'Cache-Control': 'no-cache' }); res.end(`Energy Bending rooms (protocol ${PROTOCOL}, WebSocket at /ws); ${rooms.size} rooms\n`); return; }
     if (site && serveSite(site, req, res)) return;
     if (path === '/') { res.writeHead(200, { 'Content-Type': 'text/plain' }); res.end(`Energy Bending rooms (protocol ${PROTOCOL}, WebSocket at /ws); ${rooms.size} rooms\n`); return; }
@@ -196,12 +251,18 @@ export function startRooms({ port = 5417, host = '127.0.0.1', site = null as Sit
   const ticker = setInterval(() => {
     const t = now();
     for (const room of rooms.values()) {
+      if (room.duel) continue;
       const s = room.s;
       deliver(room, -1, evOut(tick(s, t)));
       const every = s.form.some(Boolean) || s.phase === 'fusion' ? P.STATE_DRAIN_MS : P.STATE_EVERY_MS;
       if (s.changed || t - room.lastState >= every) broadcastState(room);
     }
   }, P.TICK_MS);
+  // the duels: every tick due is stepped (a timer on its own, much finer than the rules' tick)
+  const duelPump = E && setInterval(() => {
+    const t = now();
+    for (const room of rooms.values()) room.duel?.pump(t);
+  }, P.DUEL_PUMP_MS);
 
   return new Promise((resolve, reject) => {
     server.once('error', reject);
@@ -213,7 +274,7 @@ export function startRooms({ port = 5417, host = '127.0.0.1', site = null as Sit
         port: bound,
         rooms: () => rooms.size,
         close: () => new Promise<void>((done) => {
-          clearInterval(heartbeat); clearInterval(ticker);
+          clearInterval(heartbeat); clearInterval(ticker); if (duelPump) clearInterval(duelPump);
           for (const room of rooms.values()) for (const s of room.slots) if (s?.graceTimer) clearTimeout(s.graceTimer);
           for (const ws of wss.clients) ws.terminate();
           wss.close();

@@ -148,7 +148,7 @@ export type Role = 'player' | 'guest' | 'any';
 export type ClientMsg =
   /** join `room`, or make one (room null: a fresh 4-letter code; `create`: make `room` if it doesn't exist).
    *  `role`: a jogo seat, a guest slot, or whichever is free (seats first). `token` reclaims a slot after a drop. */
-  | { t: 'hello'; v: number; room: string | null; create?: boolean; stage?: string; world?: string; token?: string; role?: Role }
+  | { t: 'hello'; v: number; room: string | null; create?: boolean; stage?: string; world?: string; token?: string; role?: Role; duel?: DuelHello }
   | { t: 'ping'; c: number }
   | MoveMsg
   /** from the dancer being attacked, about the other seat's move `id` */
@@ -167,7 +167,8 @@ export type ClientMsg =
   | { t: 'shatter'; id: string };
 
 // ---------------------------------------------------------------- server to client
-export type ErrorCode = 'full' | 'bad' | 'gone';
+/** `mode`: a duel's hello to a jogo's room or the other way; `duel`: this server cannot run online duels */
+export type ErrorCode = 'full' | 'bad' | 'gone' | 'mode' | 'duel';
 
 export type RulesEvent =
   | { k: 'echo' | 'unison'; move: string; ids: [string, string] }
@@ -188,8 +189,8 @@ export interface XchBody {
 export type ServerMsg =
   /** `slot` is this client's place in the room (0..SLOTS-1); `seat` is the same number (the prototype's name);
    *  `player` says whether it is a jogo seat */
-  | { t: 'joined'; room: string; slot: number; seat: number; player: boolean; stage: string; world: string | null; token: string; now: number }
-  | { t: 'error'; code: ErrorCode }
+  | { t: 'joined'; room: string; slot: number; seat: number; player: boolean; stage: string; world: string | null; token: string; now: number; duel?: DuelWelcome }
+  | { t: 'error'; code: ErrorCode; why?: string }
   /** someone came or went; `slot` says who */
   | { t: 'peer'; slot: number; present: boolean; player: boolean }
   | { t: 'pong'; c: number; s: number }
@@ -200,7 +201,13 @@ export type ServerMsg =
   | ({ t: 'ev' } & RulesEvent)
   | { t: 'fx'; from: number; k: string; [extra: string]: unknown }
   /** every set piece in the room: sent once on joining (and on rejoining), then kept up to date by events */
-  | { t: 'pieces'; list: SetPiece[] };
+  | { t: 'pieces'; list: SetPiece[] }
+  /** an online duel's events of one tick, in order, the same to everyone in the room (DuelTickEvents) */
+  | ({ t: 'dev' } & DuelTickEvents)
+  /** an online duel's room: who sits, and whether the set is running (sent on every change) */
+  | ({ t: 'droom' } & DuelRoomState)
+  /** an online duel's rules' state and powers' state, sent whenever they change (the fast numbers ride the snapshots) */
+  | ({ t: 'dst' } & DuelSlowState);
 
 export type ServerType = ServerMsg['t'];
 export type MsgOf<T extends ServerType> = Extract<ServerMsg, { t: T }>;
@@ -361,4 +368,201 @@ export function decodePose(b: Uint8Array): PoseFrame | null {
   } catch { return null; }        // ran off the end: a truncated frame
   if (at !== b.length) return null;   // short (a string cut off) or with bytes nobody wrote
   return { slot: b[1], flags: flags & (POSE.GAME | POSE.TELEPORT), ts, root, yaw: fromTurn(v.getUint16(24, true)), energy: b[26], world, p, prev, move };
+}
+
+// ---------------------------------------------------------------- the duel online (server authoritative)
+/**
+ * An online duel (docs/extending/network.md, "The duel online"): the room server steps the duel itself, the bodies,
+ * the contact, the powers and the rules, at DUEL_NET.TICK_HZ. Each client sends its Intents as numbered inputs
+ * (binary 'I' frames, each repeating the last few, so a lost frame costs nothing), the server consumes one per seat
+ * per tick and sends every client a snapshot (binary 'S' frames) at SNAP_HZ: both bodies as pose frames (the codec
+ * above) with their velocities, which input of the receiver's it has applied (`ack`), and a JSON tail with the rules'
+ * state, the link and the powers' effects; and each tick's events as one text message ('dev'), reliable and the same
+ * for everyone. Seats 0 and 1 play; slots 2 to 7 watch.
+ */
+export const DUEL_NET = {
+  /** the server's step and the clients' own (one input a tick) */
+  TICK_HZ: 60,
+  /** snapshots a second (every TICK_HZ / SNAP_HZ ticks) */
+  SNAP_HZ: 20,
+  /** earlier inputs each input frame repeats */
+  REDUNDANT: 3,
+  /** inputs waiting at the server for a seat, at most (past it the oldest are merged away: a client running fast) */
+  QUEUE_MAX: 10,
+  /** how far back the server judges a catch as the catcher saw it (ms), and how far the other may have gone since
+   *  (m, from the catcher's hands: the catch's rope then pulls it in) */
+  REWIND_MS: 600,
+  REWIND_M: 2.2,
+};
+
+/** what the first to join a duel's room says it is (the rest are told it in DuelWelcome) */
+export interface DuelHello {
+  world: string;
+  /** each seat's dress (the ?dress= presets) and the matter its powers are (the dress's biggest layer) */
+  dress: [string, string];
+  matter: [string, string];
+  /** locked to the arena's stage plane (&lock), else free in 3D */
+  locked: boolean;
+  /** a set's length (s) */
+  setS?: number;
+}
+/** a duel's room as the joiner is told it: its hello, the tick's length, when tick 0 was (server ms), the music */
+export interface DuelWelcome extends DuelHello {
+  setMs: number;
+  tickMs: number;
+  t0: number;
+  music: MusicClock;
+}
+/** who sits in a duel's room, and the set: `running` once both seats have come (the match then goes on its own clock) */
+export interface DuelRoomState { seats: [boolean, boolean]; watchers: number; running: boolean; tick: number }
+/** a tick's events (the duel's rules', the contact's, the powers' rules' and their effects' moments), as the server
+ *  made them; the client types them (src/net/duel-client.ts) */
+export interface DuelTickEvents { n: number; ev?: unknown[]; tc?: unknown[]; pe?: unknown[]; fx?: unknown[] }
+
+/** the rules' state (shared/duel.ts DuelState without its stats and the numbers that change every tick, which the
+ *  snapshots carry as `e`) and the powers' rules' state, at tick `n` */
+export interface DuelSlowState { n: number; d?: unknown; pw?: unknown; full?: boolean }
+
+/** a seat's thumbs for one tick */
+export interface DuelInput {
+  seq: number;
+  /** the sticks (-1 … 1) and the cartwheel's way (auDir: -1, 0, 1) */
+  mx: number; my: number; mz: number; au: number;
+  /** DUEL_BTN bits */
+  b: number;
+  /** the camera's yaw (a free stick is camera-relative) */
+  yaw: number;
+  /** the bending hand's aim (-1 … 1) */
+  ax: number; ay: number;
+  /** the server tick (fractional) the sender's screen showed the other body at: a catch is judged there */
+  view: number;
+}
+export const DUEL_BTN = {
+  jump: 1, jumpHeld: 2, punch: 4, punchHeld: 8, kick: 16, spin: 32, dodge: 64, dodgeHeld: 128, dash: 256,
+  power1: 512, power2: 1024, form: 2048, walk: 4096, aimActive: 8192, flick: 16384,
+} as const;
+
+/** the flags a duel body's pose frame carries (the game's bits, beside POSE's) */
+export const DUEL_FLAG = {
+  AIRBORNE: POSE.AIRBORNE, FACING_LEFT: POSE.FACING_LEFT,
+  ON_WALL: 32, HELD: 64, HOLDING: 128, REFORMING: 256, DASHING: 512,
+  /** moved by something other than its own thumbs this tick (held, carried or launched by a power, the finale): a
+   *  client shows its own body from the server's while this is set */
+  CARRIED: 1024,
+  /** frozen: the count-in, reforming, the finale (no input reaches the body) */
+  FROZEN: 2048,
+  /** moved by the other or a power since the last snapshot (a vault off its head, a wave, a catch's rope): its own
+   *  player's prediction couldn't know (corrected, and counted apart) */
+  PUSHED: 16,
+} as const;
+
+/** one body in a snapshot: a pose frame (landmarks in the body's frame, root, yaw, flags, its move) and its motion */
+export interface DuelBodySnap {
+  seat: number;
+  ts: number;
+  root: V3;
+  yaw: number;
+  /** 39 floats, metres, in the body's frame (x its left, y up, z forward: see Character.yaw) */
+  p: Float64Array;
+  flags: number;
+  move: [string, number] | null;
+  v: V3;
+  /** the height of the ground it last stood on (m), and the retargeter's hints (feet and hands: two bits each) */
+  lgy: number;
+  style: number;
+  /** how hard the body moves (Character.energy, 0 … 1) */
+  energy: number;
+}
+export interface DuelSnap {
+  tick: number;
+  /** the tick's server time (ms) */
+  ts: number;
+  /** the receiver's last input applied (seq), or -1 */
+  ack: number;
+  bodies: DuelBodySnap[];
+  /** the JSON tail: the rules' state, the link, the powers (src/net/duel-authority.ts says what) */
+  x: Record<string, unknown>;
+}
+
+const IN_MAGIC = 0x49;   // 'I'
+const SNAP_MAGIC = 0x53; // 'S'
+const IN_SIZE = 16;
+const i8 = (x: number) => Math.max(-127, Math.min(127, Math.round((Number.isFinite(x) ? x : 0) * 127)));
+
+/** inputs into an input frame (consecutive seqs, oldest first): 6 bytes, then 16 an input */
+export function encodeDuelInputs(list: readonly DuelInput[]): Uint8Array {
+  const n = Math.min(255, list.length), buf = new Uint8Array(6 + n * IN_SIZE), v = new DataView(buf.buffer);
+  v.setUint8(0, IN_MAGIC); v.setUint8(1, n); v.setUint32(2, n ? list[0].seq >>> 0 : 0, true);
+  for (let i = 0; i < n; i++) {
+    const x = list[i], at = 6 + i * IN_SIZE;
+    v.setInt8(at, i8(x.mx)); v.setInt8(at + 1, i8(x.my)); v.setInt8(at + 2, i8(x.mz)); v.setInt8(at + 3, Math.sign(x.au || 0));
+    v.setUint16(at + 4, x.b & 0xffff, true); v.setUint16(at + 6, turn16(x.yaw), true);
+    v.setFloat32(at + 8, Number.isFinite(x.view) ? x.view : 0, true);
+    v.setInt8(at + 12, i8(x.ax)); v.setInt8(at + 13, i8(x.ay));
+  }
+  return buf;
+}
+export const isDuelInputs = (b: Uint8Array) => b.length >= 6 && b[0] === IN_MAGIC && b.length === 6 + b[1] * IN_SIZE;
+/** an input frame back into inputs, or null */
+export function decodeDuelInputs(b: Uint8Array): DuelInput[] | null {
+  if (!isDuelInputs(b)) return null;
+  const v = new DataView(b.buffer, b.byteOffset, b.byteLength), n = b[1], seq0 = v.getUint32(2, true), out: DuelInput[] = [];
+  for (let i = 0; i < n; i++) {
+    const at = 6 + i * IN_SIZE, view = v.getFloat32(at + 8, true);
+    out.push({
+      seq: seq0 + i, mx: v.getInt8(at) / 127, my: v.getInt8(at + 1) / 127, mz: v.getInt8(at + 2) / 127, au: Math.sign(v.getInt8(at + 3)),
+      b: v.getUint16(at + 4, true), yaw: fromTurn(v.getUint16(at + 6, true)), view: Number.isFinite(view) ? view : 0,
+      ax: v.getInt8(at + 12) / 127, ay: v.getInt8(at + 13) / 127,
+    });
+  }
+  return out;
+}
+
+const cm16 = (x: number) => Math.max(-I16, Math.min(I16, Math.round((Number.isFinite(x) ? x : 0) * 100)));
+/** a snapshot into its frame: 19 bytes of header, each body (its pose frame, then velocity cm/s, last ground mm off
+ *  the root, style), then the JSON tail (already a string: the server shares it between receivers) */
+export function encodeDuelSnap(s: Omit<DuelSnap, 'x'>, tail: string): Uint8Array {
+  const poses = s.bodies.map((b) => encodePose({ ts: b.ts, pose: b, flags: b.flags, move: b.move, energy: b.energy * 255 }));
+  const json = enc.encode(tail);
+  const n = 19 + poses.reduce((a, p) => a + 3 + p.length + 9, 0) + 4 + json.length;
+  const buf = new Uint8Array(n), v = new DataView(buf.buffer);
+  v.setUint8(0, SNAP_MAGIC); v.setUint8(1, 1);
+  v.setUint32(2, s.tick >>> 0, true); v.setInt32(6, s.ack | 0, true); v.setFloat64(10, s.ts, true);
+  v.setUint8(18, poses.length);
+  let at = 19;
+  s.bodies.forEach((b, i) => {
+    const P = poses[i];
+    v.setUint8(at, b.seat); v.setUint16(at + 1, P.length, true); at += 3;
+    buf.set(P, at); at += P.length;
+    for (let k = 0; k < 3; k++, at += 2) v.setInt16(at, cm16(b.v[k]), true);
+    v.setInt16(at, mm16(b.lgy - b.root[1]), true); at += 2;
+    v.setUint8(at++, b.style & 255);
+  });
+  v.setUint32(at, json.length, true); at += 4;
+  buf.set(json, at);
+  return buf;
+}
+export const isDuelSnap = (b: Uint8Array) => b.length >= 23 && b[0] === SNAP_MAGIC;
+/** a snapshot frame back, or null */
+export function decodeDuelSnap(b: Uint8Array): DuelSnap | null {
+  if (!isDuelSnap(b)) return null;
+  try {
+    const v = new DataView(b.buffer, b.byteOffset, b.byteLength);
+    const tick = v.getUint32(2, true), ack = v.getInt32(6, true), ts = v.getFloat64(10, true), nb = v.getUint8(18);
+    let at = 19;
+    const bodies: DuelBodySnap[] = [];
+    for (let i = 0; i < nb; i++) {
+      const seat = v.getUint8(at), len = v.getUint16(at + 1, true); at += 3;
+      const f = decodePose(b.subarray(at, at + len)); at += len;
+      if (!f) return null;
+      const vel: V3 = [v.getInt16(at, true) / 100, v.getInt16(at + 2, true) / 100, v.getInt16(at + 4, true) / 100]; at += 6;
+      const lgy = f.root[1] + v.getInt16(at, true) / 1000; at += 2;
+      const style = v.getUint8(at++);
+      bodies.push({ seat, ts: f.ts, root: f.root, yaw: f.yaw, p: f.p, flags: f.flags, move: f.move, v: vel, lgy, style, energy: f.energy / 255 });
+    }
+    const jl = v.getUint32(at, true); at += 4;
+    if (at + jl !== b.length) return null;
+    const x = jl ? JSON.parse(dec.decode(b.subarray(at, at + jl))) : {};
+    return { tick, ack, ts, bodies, x: x && typeof x === 'object' ? x : {} };
+  } catch { return null; }
 }

@@ -12,6 +12,8 @@
 //     set         a set's length in seconds (default 60); go: start at once without waiting for the human seats' devices
 //     keys        the power keys the panels show for virtual players (one, or "a,b": solo | left | right | pad), as if
 //                 people played them (a film's: &keys=left,right); a human seat shows its own device's
+//     net         online: &net=ROOM[&server=wss://…/ws][&bot] (online.ts): the room server plays the duel, this page
+//                 one seat of it (the first to come seat 1, the second seat 2, more watch); p1, p2, go are ignored
 //   The grab (the duel's scheme): keyboard J (solo and left layouts, the mouse's left button on solo), , (right layout);
 //   gamepad the punch button; touch the punch button. The fling's aim is the stick.
 //   The powers (phase 2, shared/powers.ts and powers.ts; drawn by power-fx.ts), two by the body's matter, aimed by the
@@ -181,6 +183,9 @@ export async function startDuel(app: PlayApp, opts: { joined?: Joined } = {}) {
 
   // ---------------------------------------------------------------- the seats: humans and virtual players
   const kinds = [q.get('p1') ?? 'human', q.get('p2') ?? 'bot'].map((x) => (x === 'bot' || x === 'ai' || x === 'cpu' ? 'bot' : 'human'));
+  // online (&net=ROOM, online.ts): no virtual player here but this page's own seat's with &bot (set below)
+  const online = q.has('net');
+  if (online) kinds.splice(0, 2, 'human', 'human');
   let started = false;
   const gates = [0, 1].map((k) => new SeatGate(k, () => !started || match.frozen(k) || finale.holds(k), (it) => splitIntent(chars[k], it, match.contact.holding(k), match.contact.held(k))));
   for (let k = 0; k < 2; k++) ctl[k].source = gates[k];
@@ -210,7 +215,7 @@ export async function startDuel(app: PlayApp, opts: { joined?: Joined } = {}) {
     if (gates[k].inner) gates[k].inner!.mode = ctl[k].locked ? 'locked' : 'free';
     return brains[k];
   };
-  for (let k = 0; k < 2; k++) if (kinds[k] === 'bot') setBrain(k, specOf(k));
+  for (let k = 0; k < 2; k++) if (kinds[k] === 'bot' || (online && q.has('bot'))) setBrain(k, specOf(k));
   /** a ghost: a virtual player that thinks for a seat each frame without driving it (the playtest presses real keys
    *  from what it wants: scripts/playtest.mjs) */
   const ghosts: (BrainDriver | null)[] = [null, null];
@@ -230,7 +235,7 @@ export async function startDuel(app: PlayApp, opts: { joined?: Joined } = {}) {
     if (!brains[k]) gates[k].inner = src;
     console.info(`duel: seat ${k + 1} is ${src.name}`);
     app.wake();
-    if (!started && humanSeats.every((s) => devices[s])) begin();
+    if (!started && !online && humanSeats.every((s) => devices[s])) begin();
   };
   hub.onJoin = (p) => seatDevice(p.index, p.source);
   hub.onChange = (p) => seatDevice(p.index, p.source);
@@ -296,10 +301,18 @@ export async function startDuel(app: PlayApp, opts: { joined?: Joined } = {}) {
     match.restart(now);
   };
   // only bots: at once; a human seat waits for its device (or &go). A film (stepped by hand) starts on its first frame
-  if (!humanSeats.length || q.has('go')) begin();
+  if (!online && (!humanSeats.length || q.has('go'))) begin();
   // the lobby (play/menu.ts): a card per seat, how to join a waiting one; the press that began the duel on the front
-  // joins seat 1; a second human seat nobody takes can go to a virtual partner; a touch player's buttons
-  if (!app.film && !q.has('go')) duelLobby({ hub, frame, canvas: app.canvas, humanSeats, bot: (k) => !!brains[k], started: () => started, joined: opts.joined, partner: (k) => { setBrain(k, specOf(k)); begin(); } });
+  // joins seat 1; a second human seat nobody takes can go to a virtual partner; a touch player's buttons. (Online the
+  // room is the lobby: online.ts shows its card)
+  if (!online && !app.film && !q.has('go')) duelLobby({ hub, frame, canvas: app.canvas, humanSeats, bot: (k) => !!brains[k], started: () => started, joined: opts.joined, partner: (k) => { setBrain(k, specOf(k)); begin(); } });
+
+  // ---------------------------------------------------------------- online: the server plays the duel (online.ts)
+  const net = online ? await (await import('./online')).startOnline({
+    app, q, chars, ctl, match, powers, finale, plane, arena, world: W.id, dress: [show.dress[0], show.dress[1]], matter: [kindOf(0), kindOf(1)],
+    powerSolids, music, begin: () => begin(),
+    source: (k) => (brains[k] ? gates[k].inner : devices[0] ?? devices[1]),
+  }) : null;
 
   // ---------------------------------------------------------------- each frame
   let frameEvents: DuelEvent[] = [];
@@ -312,7 +325,8 @@ export async function startDuel(app: PlayApp, opts: { joined?: Joined } = {}) {
   let danceReal = 0;
   frame.tick('input', (f: FrameCtx) => {
     danceReal = f.danceDt;
-    if (started) f.danceDt *= match.warp.step(f.dt);
+    // (online the bodies' time is the room server's, the same on both pages: no warp of this page's own)
+    if (started && !net) f.danceDt *= match.warp.step(f.dt);
   }, 'duel: the weight of contact (the bodies\' time)');
   frame.tick('input', (f: FrameCtx) => {
     beat = f.beat.beats; bpm = f.beat.bpm || bpm0;
@@ -365,15 +379,22 @@ export async function startDuel(app: PlayApp, opts: { joined?: Joined } = {}) {
   frame.tick('travel', (f: FrameCtx) => {
     glows.clear();
     if (!started) { for (let k = 0; k < 2; k++) chars[k].events.length = 0; return; }
-    // (the set's clock kept with the music: sound.ts SetMusic.nudge, 12 % at most, nothing in a film)
-    now += f.danceDt * 1000 + sound.music.nudge(f.dt, f.danceDt);
-    powers.gripInputs([gates[0].contact, gates[1].contact]);
-    const ev = match.step(now, beat, bpm, f.danceDt * 1000, [gates[0].contact, gates[1].contact]);
-    // the powers after the contact (a catch at range joins the two through it), their effects drawn
-    powers.step(now, f.danceDt * 1000, [0, 1].map((k) => castNext[k] ?? gates[k].power), ev, onBeat(beat, bpm));
-    castNext[0] = castNext[1] = null;
+    let ev: DuelEvent[];
+    if (net) { ev = net.frame(f.danceDt); now = net.now(); }
+    else {
+      // (the set's clock kept with the music: sound.ts SetMusic.nudge, 12 % at most, nothing in a film; online the
+      // set's clock is the room server's)
+      now += f.danceDt * 1000 + sound.music.nudge(f.dt, f.danceDt);
+      powers.gripInputs([gates[0].contact, gates[1].contact]);
+      ev = match.step(now, beat, bpm, f.danceDt * 1000, [gates[0].contact, gates[1].contact]);
+      // the powers after the contact (a catch at range joins the two through it), their effects drawn
+      powers.step(now, f.danceDt * 1000, [0, 1].map((k) => castNext[k] ?? gates[k].power), ev, onBeat(beat, bpm));
+      castNext[0] = castNext[1] = null;
+      ev.push(...powers.duelEvents);
+    }
+    // (online the server's hazards move the bodies; this page's, on the room's beat, keep the world's floor and stones
+    // where the server has them and draw the hazard)
     hazards.step(beat, f.danceDt * 1000);
-    ev.push(...powers.duelEvents);
     for (const e of ev) {
       // (the finale: the set's powers end and fade, nothing of them runs on under the duet)
       if (e.k === 'finale') { finale.start(e.fused, bpm, [match.state.seats[0].style, match.state.seats[1].style]); powers.settle(); }
@@ -430,6 +451,8 @@ export async function startDuel(app: PlayApp, opts: { joined?: Joined } = {}) {
   const sound = duelSound({ frame, music, listener: kit.camera, film: app.film, world: () => app.main.world, duel: () => api, wake: () => { app.wake(); if (!music.live && !app.film) music.start(show.program.key); } });
   const api = {
     match, arena, plane, finale, powers, hazards, sound,
+    /** online (&net): the room, this page's seat, the measurements (net.stats()), the client; null offline */
+    net,
     /** the free camera (camera.ts): its choice, what it framed, how clear its eye stood */
     camera: dcam, camSpace,
     /** cast a seat's power now (slot 0 or 1; the stick as a world x, z), or the form: as its buttons would */

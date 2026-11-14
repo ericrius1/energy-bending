@@ -13,7 +13,7 @@
 // the snapshots' velocities more carefully (see PoseBuffer, and docs/reports/1-net.md for what each change bought).
 import {
   PROTOCOL, SEATS, SLOTS, NLM, POSE, MAX_PREV, encodePose, decodePose,
-  type ClientMsg, type ServerMsg, type ServerType, type MsgOf, type PublicState, type PoseLike, type PoseFrame, type Role,
+  type ClientMsg, type ServerMsg, type ServerType, type MsgOf, type PublicState, type PoseLike, type PoseFrame, type Role, type DuelHello, type DuelWelcome,
 } from '../../shared/protocol.ts';
 import { createSession, tick, setPresent, route, publicState, piecesOf, type Session, type To } from '../../shared/rules.ts';
 
@@ -472,6 +472,8 @@ abstract class Base implements NetLike {
   private tmp = new Float64Array(DIM);
   /** every pose frame decoded here, for probes (src/net/demo.ts measures pose error with it) */
   onPose: ((f: PoseFrame, now: number) => void) | null = null;
+  /** any other binary frame from the server (an online duel's snapshots: src/net/duel-client.ts) */
+  onFrame: ((b: Uint8Array) => void) | null = null;
 
   constructor(opts: NetOptions) {
     const c = { ...urlConditioner(), ...opts };
@@ -538,6 +540,7 @@ abstract class Base implements NetLike {
 
   /** a pose frame arrived (binary) */
   protected recvPose(b: Uint8Array) {
+    if (b[0] !== 0x50) { this.onFrame?.(b); return; }
     const f = decodePose(b);
     if (!f || f.slot >= SLOTS || f.slot === this.slot) return;
     const buf = (this.bufs[f.slot] ??= new PoseBuffer(this.bufParams));
@@ -573,7 +576,9 @@ export class Net extends Base {
   private timers = new Set<ReturnType<typeof setTimeout>>();
   private pingTimer: ReturnType<typeof setInterval> | null = null;
   private pend: { resolve: (i: OpenInfo) => void; reject: (e: Error) => void } | null = null;
-  private want: { room: string | null; create: boolean; stage: string; world: string | null; role: Role } = { room: null, create: false, stage: 'void', world: null, role: 'any' };
+  private want: { room: string | null; create: boolean; stage: string; world: string | null; role: Role; duel?: DuelHello } = { room: null, create: false, stage: 'void', world: null, role: 'any' };
+  /** an online duel's room as the server described it on joining (null in a jogo's) */
+  duel: DuelWelcome | null = null;
   private mine: Sent = { last: -Infinity, sent: [] };
 
   /** url: ws(s)://host:port/ws; in a browser it defaults to the page's own host */
@@ -590,8 +595,8 @@ export class Net extends Base {
   now() { return this.clock.now(); }
 
   /** join (or with create, make) a room; room null makes one with a fresh code. Reconnects with its token after */
-  connect({ room = null, create = false, stage = 'void', world = null, role = 'any' }: { room?: string | null; create?: boolean; stage?: string; world?: string | null; role?: Role } = {}) {
-    this.want = { room, create, stage, world, role };
+  connect({ room = null, create = false, stage = 'void', world = null, role = 'any', duel }: { room?: string | null; create?: boolean; stage?: string; world?: string | null; role?: Role; duel?: DuelHello } = {}) {
+    this.want = { room, create, stage, world, role, duel };
     return new Promise<OpenInfo>((resolve, reject) => { this.pend = { resolve, reject }; this.open(); });
   }
 
@@ -604,7 +609,7 @@ export class Net extends Base {
       const w = this.world ?? this.want.world;
       this.raw({
         t: 'hello', v: PROTOCOL, room: this.room ?? this.want.room, create: this.want.create, stage: this.stage ?? this.want.stage,
-        role: this.want.role, ...(w != null ? { world: w } : {}), ...(this.token ? { token: this.token } : {}),
+        role: this.want.role, ...(w != null ? { world: w } : {}), ...(this.token ? { token: this.token } : {}), ...(this.want.duel ? { duel: this.want.duel } : {}),
       });
     };
     ws.onmessage = (ev) => {
@@ -638,7 +643,7 @@ export class Net extends Base {
   private msg(m: ServerMsg) {
     switch (m.t) {
       case 'joined': {
-        Object.assign(this, { room: m.room, slot: m.slot, stage: m.stage, world: m.world, token: m.token, connected: true });
+        Object.assign(this, { room: m.room, slot: m.slot, stage: m.stage, world: m.world, token: m.token, connected: true, duel: m.duel ?? null });
         this.attempt = 0;
         this.present.clear();
         this.clock.coarse(m.now);
@@ -653,7 +658,7 @@ export class Net extends Base {
         return;
       }
       case 'error':
-        if (this.pend) { const e = Object.assign(new Error(m.code), { code: m.code }); this.pend.reject(e); this.pend = null; this.closed = true; this.ws?.close(); }
+        if (this.pend) { const e = Object.assign(new Error(m.why ?? m.code), { code: m.code }); this.pend.reject(e); this.pend = null; this.closed = true; this.ws?.close(); }
         else if (m.code === 'gone' || m.code === 'full') { this.closed = true; this.ws?.close(); }   // the slot is lost for good
         this.emit('error', m);
         return;
@@ -678,6 +683,14 @@ export class Net extends Base {
     const fr = this.poseFrame(pose, o, backed ? NET_PARAMS.SLOW_SEND_MS : NET_PARAMS.SEND_MS, this.mine);
     if (!fr || !this.connected) return;
     const go = () => { if (this.ws && this.ws.readyState === 1) this.ws.send(fr); };
+    if (this.up.active) this.up.push(go, true); else go();
+  }
+
+  /** a binary frame through the conditioner as a pose goes (it may be lost there): an online duel's inputs */
+  sendBinary(b: Uint8Array) {
+    this.pump();
+    if (!this.connected) return;
+    const go = () => { if (this.ws && this.ws.readyState === 1) this.ws.send(b); };
     if (this.up.active) this.up.push(go, true); else go();
   }
 

@@ -6,6 +6,9 @@ scored or shared: flow, tension, streak, axé, the power forms, fusion, the phas
 clock, which world each dancer is in, and the set pieces. Nobody sends a meter's value; the rules
 (`shared/rules.ts`) decide what each event is worth, on the server, or in the page when `LocalNet` plays alone.
 
+The duel is the other way round (below, "The duel online"): the server runs the whole duel, bodies and all, and each
+page sends only its thumbs.
+
 ```
 shared/protocol.ts   every message, both ways, as one union each (ClientMsg, ServerMsg); the binary pose codec
 shared/rules.ts      the jogo, guests, worlds, building: pure functions over a Session
@@ -15,6 +18,13 @@ src/net/net.ts       Net (the server's client), LocalNet (no server), PoseBuffer
 src/net/session.ts   Session: what the game holds (sendPose from a skeleton, remote(), pieces, the beat)
 src/net/controller.ts NetController: a dancer posed from the network
 src/net/demo.ts      ?net=ROOM
+server/duel.ts       the online duels: the duel's code bundled at start-up, DuelRoom (ticks, events, snapshots)
+src/net/duel-authority.ts  DuelAuthority: one room's duel stepped by the server (input queues, the judged catch)
+src/net/duel-client.ts     DuelClient: one page's side (inputs, its own body predicted and replayed, the other played
+                     back, catches felt at once, the events and the mirror); pure, the tests run two of them
+src/net/duel-body.ts       a Character into a snapshot and back, an Intent into an input and back, the kit
+src/net/duel-entry.ts      what the bundle exports (the server's authority, the tests' clients and brains)
+src/duel/online.ts   ?duel&net=ROOM: the page's side (puppets, the mirror, the room's beat, the waiting card)
 ```
 
 ## A room
@@ -79,3 +89,67 @@ Every client honours `?lag=200&jitter=80&loss=10` (ms, ms, percent; loss applies
 options to `new Net(url, { lag, jitter, loss })`. `npm test` runs the rules, the codec, LocalNet, the server with real
 clients, and the smoothness test (virtual time, and real time through the server). `node test/two-pages.mjs` runs the
 `?net` demo in two headless browsers against a dev server and reads the measurements from inside each page.
+
+## The duel online
+
+`?duel&net=ROOM` (the front's online duel opens `?duel&net=<ROOM>&world=<w>&dress=<a,b>`, with `&lock` for the side
+view; 3D is the default, `&free` is accepted too), optionally `&server=wss://…/ws` (default: the page's own host, as
+the jogo's: `src/net/where.ts`), `&set=S` (a set's length), `&bot` (this page's seat played by a virtual player, for
+films and tests) and the conditioner. The first to come is seat 1, the second seat 2, anyone after watches (slots 2 to
+7: both bodies shown, no thumbs), and past eight the room is full. One alone sees a card with the room's code and its
+link to share; it goes when the other comes and comes back if one leaves (a dropped seat keeps its body for the grace,
+20 s, and a reload in the same tab takes it back: the token is kept in sessionStorage). The first page's world,
+dresses, lock and set length are the room's; a page opened on another world goes to the room's.
+
+**The server is the authority.** `server/duel.ts` bundles `src/net/duel-entry.ts` with esbuild (Vite's) when it starts
+(about 100 ms; without esbuild duels are off and a duel's hello gets `error duel`; `DUELS=0` turns them off) and each
+duel room runs a `DuelAuthority`: the game's own `Character`s on the duel's profile in the world's arena, `DuelMatch`
+(the contact and the rules), `DuelPowers` and the finale's `Finale`, stepped at 60 Hz on the room's clock (tick n is
+server time t0 + n × 16.7 ms; the music's epoch is t0 at the world's tempo, so both pages hear the same bar). Online
+worlds are those Node can build (`src/duel/stages.ts`: the temple, the geode, the pool); the redwoods are refused
+with a clear reason. The time warp (`match.warp`, the weight of contact) is the page's own and is off online.
+
+**Inputs** (binary, `I`): each tick a page samples its Intent into a numbered input (sticks, buttons as bits, the
+camera's yaw, and `view`: the server tick its screen showed the other body at) and sends it with the three before it,
+so a lost frame costs nothing (6 + 16 bytes each, 3.9 to 4.1 KB/s up). The server queues them per seat and takes one a
+tick; an empty queue repeats the last input without its presses (for a quarter second; then the body stands, so a
+hidden tab doesn't run on); past ten the oldest is folded into the next. The client leans its tick rate a few percent
+to keep the queue near 3 + jitter / tick.
+
+**Snapshots** (binary, `S`, 20 Hz, about 550 bytes): each body as a pose frame (the jogo's codec: landmarks in its frame,
+root, yaw, flags, its move) with its velocity, last ground and the retargeter's hints; `ack`, the receiver's last input
+applied; and a JSON tail: the receiver's own body's kit (`kitOf`: the counters and timers a replay needs), its queue,
+the rules' fast numbers (energy, merge, peak, the stretch near the top, each seat's ground), the link, the fling in
+flight, the powers' clock and live effects (with their temporary solids), the finale. **The rest of the rules' state**
+(`dst`, JSON, reliable) goes only when it changes, as the fields that changed (`full` on joining). **Events** (`dev`,
+JSON, reliable): each tick's rules', contact's and powers' events and the powers' moments, one message to everyone,
+so every page plays the same events in the same order. `droom`: who sits and whether the set runs.
+
+**On the page** (`DuelClient`, `src/duel/online.ts`): this seat's body is a real `Character` stepped with the same
+inputs at the same tick as the server's, so it answers at once. At each snapshot the prediction for the acknowledged
+input is compared with the server's body; off by more than 2 cm (or in the kit: grounded, the air jump, the dash, the
+wall), the body goes back to the server's state there and the later inputs are stepped again, the shift on screen
+eased out over about 90 ms (a jump of metres is a cut). The other body is played back by the jogo's `PoseBuffer`
+(about two snapshot intervals plus jitter in the past). While the two are joined or this body is carried (a power,
+the finale), this body is shown from the snapshots too, in the same past as the other, so the hands that hold meet on
+screen. The page's two `Character`s are puppets of what is shown; the server's rules' state, link, powers and finale
+are copied into the page's `DuelMatch`, `DuelPowers` and `Finale` each frame, and index.ts plays the server's events
+exactly as it plays the local duel's.
+
+**Catches** are judged where the catcher saw them. A grab pressed with this body's hand within reach of the other as
+shown is felt at once (its CATCH, its sound, its flash: `local` events), and the input carries the tick that was
+shown; the server tests the catch against the other body as it was at that tick (up to 600 ms back, and only while the
+other is still within 2.2 m of the hands: the rope then pulls it in) when the present misses it. The server's own catch
+event then confirms it and is not played twice; a mutual catch (both at once, the other's hand first) joins all the
+same; no confirmation within rtt + 400 ms or 14 ticks is a denial (nothing of the body was changed for it).
+
+**Measuring.** `node test/duel.test.ts [seconds]` (in `npm run test:net`): codecs, a whole set in the authority (the
+tick's cost), two virtual players over the real server at 0, 80 and 200 ms of lag (bytes, the prediction's error at
+each acknowledged input, corrections, catches felt and confirmed, the two event logs compared), watchers, refusals, a
+dropped seat. `node test/two-duel-pages.mjs --lags 0,80,200` does the same with two headless Chromes on the GPU
+(`bend.duel.net.stats()` in each page, `/duels` on the server). docs/reports/14-online.md has the numbers.
+
+**Adding to it.** A rule or a power changes in `shared/duel.ts`, `shared/powers.ts`, `src/duel/*`: the server runs the
+same code (restart it). A new field the page must see goes in the authority's `shared()` (each snapshot) or
+`slowParts()` (when it changes) and in the client's mirror; a new kind of event is already carried (`dev` takes them
+as they come). A new world online needs a Node build of it in `src/duel/stages.ts`.
