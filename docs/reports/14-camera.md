@@ -1,7 +1,7 @@
 # 14: the duel's camera and seat colours (phase 3, Juice): a clean eye, the impulse, who is who
 
 Branch `worktree-agent-a9701961fe5f23c88`, from master `ac4e6fe` (phase 2, report 13), with master `48d72de` (the feel
-track, report 14-feel) merged in. One of six phase 3 tracks: report 13's issue 4 (the camera in the pieces), the first
+track, report 14-feel) and `4a6d80b` (the arenas track) merged in. One of six phase 3 tracks: report 13's issue 4 (the camera in the pieces), the first
 half of issue 5 (who is who), and the camera half of the juice (`DuelCamera.impulse`, the time base under a hit-stop).
 
 The tone holds: the impulse is an ease and a settle toward two bodies meeting, never a shake; the seat colours are
@@ -10,7 +10,7 @@ rose and fern.
 **Measured:** `scripts/cam-sim.mjs` (new), 24 seeded Node sets of 40 s before and after (temple, redwoods, geode, Pool;
 six each; skill 0.85; four style pairs; six dress pairs, so the ice steps and gem pillars are in the solids while they
 stand), every frame judged; the same with an impulse at every catch, fling, lift and merge; `src/duel/camera.test.ts`
-(5 new tests) and `src/duel/seat.test.ts` (new, 4 tests); `npm run typecheck`; `node scripts/test-ts.mjs` (16 of 16
+(5 new tests) and `src/duel/seat.test.ts` (new, 4 tests); `npm run typecheck`; `node scripts/test-ts.mjs` (18 of 18
 files); headless 720p stills of the page on my dev server (port 5434), before and after, and of the seat colours.
 **Not measured:** a person playing; a phone; the lock (unchanged); the near fade's dissolve in the numbers (the Node
 judge sees every solid as solid, the page dissolves some); `npm run test:net` (port clash). The before and after stills
@@ -44,6 +44,23 @@ in the air, its head inside the frame below the top 8 %. A reforming body is not
 | redwoods | 15.9 → 6.1 % | 6.8 → 2.4 % | 8.9 → 0.8 % | 0.8 → 0.6 % | 5.1 → 4.0 % | 21.9 → 23.7 | 19° → 25° |
 | geode | 14.0 → 9.8 % | 7.4 → 6.3 % | 16.5 → 1.2 % | 0.9 → 1.6 % | 9.0 → 7.7 % | 20.6 → 24.2 | 19° → 25° |
 | Pool | 8.1 → 2.7 % | 4.0 → 1.0 % | 0.3 → 0 % | 0.1 → 0 % | 14.5 → 10.7 % | 28.1 → 35.4 | 14° → 32° |
+
+**Again on master with the arenas track merged** (`4a6d80b`: the Pool's water a floor, the hazards, the brains that
+balance their powers; the play changes, so the same 24 sets were run again, the old camera against the new):
+
+| | before | after |
+|---|---|---|
+| a piece in the near frame | 14.3 % | **6.9 %** |
+| … over a tenth of the frame | 6.4 % | **3.5 %** |
+| eye past the room | 5.9 % | **0.4 %** |
+| eye within 0.6 m of a solid | 0.5 % | 0.4 % |
+| a body hidden | 7.6 % | **5.6 %** |
+| flyer in frame | 17,251 / 17,262 | **17,262 / 17,262** |
+
+By world (near frame over a tenth, before → after): temple 2.2 → 1.1 %, redwoods 2.9 → 0.6 %, geode 10.5 → 8.3 %, Pool
+10.0 → 4.2 %. The geode is now the one that is left (below); its one bad set in the test (the pair behind the great
+crystal trunk under the high shelves: 24 % of its frames, the flyer's head in the top 8 % for 2 frames of 741) is why
+the test allows 7.5 % and 0.2 %.
 
 With an impulse at every catch, fling, lift and merge (`--impulses`): near frame 5.3 %, over a tenth 2.8 %, eye within
 0.6 m 0.5 %, flyer 19,106 / 19,106: the impulses cost the clean eye nothing measurable. The largest turn a frame stays
@@ -154,7 +171,7 @@ node scripts/cam-sim.mjs [--world temple,redwoods,geode,pool] [--sets 6] [--set-
 
 ## Not done
 
-- **The geode is still the hardest**: a piece in the near frame 9.8 % of frames (6.3 % over a tenth), the eye within
+- **The geode is still the hardest**: a piece in the near frame 9.8 % of frames (6.3 % over a tenth; 14.7 and 8.3 % on master with the arenas track; the pair often dances behind the great crystal trunk), the eye within
   0.6 m of a solid 1.6 % (worse than before's 0.9 %: kept inside the hollow, the eye has less room). Its shelves reach
   across the plane at 2.7, 5.5 and 7.1 m and a high flyer is framed among them; `--why` names the top shelf and the
   standing beams. A closer, wider camera for the geode, or the near fade dissolving what crosses the near frame (not

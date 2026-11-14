@@ -47,7 +47,7 @@ for (const id of worlds) {
   const { arena, world } = nodeWorld(id);
   const T = blank();
   for (let s = 0; s < sets; s++) {
-    const seed = seed0 + s * 101, pair = PAIRS[s % PAIRS.length], dress = DRESS[s % DRESS.length];
+    const seed = seed0 + s * 101, pair = PAIRS[s % PAIRS.length], dress = (argv.includes('--dress') ? arg('dress', '').split(',') : DRESS[s % DRESS.length]) as [string, string];
     const cam = new DuelCamera();
     cam.debug = why;
     let space: CamSpace | null = null, version = -1, prev: number | null = null, lastSign = 0, lastT = -9;
