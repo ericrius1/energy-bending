@@ -389,7 +389,7 @@ export class DuelCamera {
     if (I.space?.local) {
       const c: V3 = [0, 0, 0];
       for (const b of I.bodies) { c[0] += b.root[0] / I.bodies.length; c[1] += b.root[1] / I.bodies.length; c[2] += b.root[2] / I.bodies.length; }
-      I = { ...I, space: I.space.local(c, Math.min(P.maxDist, I.maxDist ?? Infinity) * 1.25 + 6) ?? I.space };
+      I = { ...I, space: I.space.local(c, Math.min(P.maxDist, I.maxDist ?? Infinity, I.room + P.roomOver) * 1.25 + 3) ?? I.space };
     }
     const pts = this.pointsOf(I);
     this.framed = pts;
@@ -567,7 +567,8 @@ export class DuelCamera {
     for (const b of I.bodies) for (let j = 0; j < 3; j++) vel[j] += b.vel[j] / I.bodies.length;
     const vl = Math.hypot(...vel), vk = vl > 6 ? 6 / vl : 1, ta = P.lookAhead;
     const lookOn: V3 = [look[0] + vel[0] * vk * ta, look[1] + Math.max(-1, Math.min(1, vel[1] * vk * ta)), look[2] + vel[2] * vk * ta];
-    const badBoth = (p: number) => Math.max(bad(eyeAt(p, this.dist), p), vl > 0.5 ? bad(eyeAt(p, this.dist, lookOn), p) : 0);
+    // (where it is already unclean, a moment on is not asked: the least unclean is judged on now alone)
+    const badBoth = (p: number) => { const b = bad(eyeAt(p, this.dist), p); return b > 0 || vl <= 0.5 ? b : bad(eyeAt(p, this.dist, lookOn), p); };
     let riseWant = 0, found = false;
     const bad0 = sp ? badBoth(this.pitch) : 0;
     if (bad0 > 0) {
@@ -628,7 +629,8 @@ export class DuelCamera {
     if (outOf(eyeAt(pitch, D)) > 0 && outOf(look) < 0) {
       let lo = 0, hi = D;
       for (let i = 0; i < 14; i++) { const m = (lo + hi) / 2; if (outOf(eyeAt(pitch, m)) > 0) hi = m; else lo = m; }
-      D = Math.max(lo, Math.min(D, 2.5));
+      // (never in past what the widest lens needs to hold every body: the flyer in frame wins over the shell)
+      D = Math.max(lo, Math.min(D, Math.max(2.5, boomFor(pts, look, this.yaw, pitch, P.widest, I.aspect, hard))));
     }
     let fov = this.fov;
     if (boomFor(pts, look, this.yaw, pitch, fov, I.aspect, hard) > D) {
