@@ -33,6 +33,7 @@ import { Portals } from './portals/portals';
 import { gatesDebug } from './portals/debug';
 import { LIMITS } from './engine/limits';
 import { BASELINE_LIMITS } from './engine/baseline';
+import { installArenaLayer } from './duel/arena-layer';
 import { installHud } from './hud';
 
 import.meta.glob(['./matter/*/index.ts', './worlds/*/index.ts'], { eager: true });
@@ -103,6 +104,8 @@ for (const k of matterKinds.all()) {
 const gems = kinds.find((k) => k.id === 'gems') as GemPasses | undefined;
 
 // ---------------------------------------------------------------- the scene, per view, and the post chain
+// the duel arena's rim light and debug lines (a scene layer: src/duel)
+installArenaLayer(kit, frame, { locked: () => rig.locked, solids: (id) => worldOf(id).solids ?? [] }, query);
 // (the HUD over the stage, src/hud: laid into a film's frames by the post chain, into a still by bend.grab)
 const hud = installHud({ kit, frame, stage: canvas, query, film: FILM, dancers: () => show.dancers });
 for (const v of drawn) { declareScene(v, worlds, kinds); frame.add('scene', v.scene, `view ${v.id}`); }
@@ -136,6 +139,10 @@ if (query.has('npcs') && !query.has('play')) await (await import('./ai/demo')).n
 gatesDebug(gates, frame, query, () => show.dancers);
 // the jogo, its modes and menus (src/play): ?jogo=…, or the front of the game on a plain page
 await (await import('./play')).registerPlay({ kit, frame, show, rig, gates, music, field, kinds, main, query, canvas, motion, travel: travelling, coarse, film: FILM, wake, worldOf, setWorld });
+// ?arena=<world>: a duel arena on its own, the camera locked to it; ?play&duel: the world's arena shown under the
+// players (src/duel/arena-view.ts)
+if (query.has('arena') && !query.has('play')) await (await import('./duel/arena-view')).arenaView({ query, show, rig, worldOf, setWorld });
+else if (query.has('play') && query.has('duel') && query.get('arena') !== 'test') (await import('./duel/arena-view')).arenaInPlay(frame, () => main.world);
 // the music owns time: FrameCtx.beat is its clock, live and filming
 const beat = music.clock;
 

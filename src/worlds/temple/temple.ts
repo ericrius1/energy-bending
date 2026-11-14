@@ -22,6 +22,8 @@ import { stagePlane, spawnsOf, type StagePlane } from '../stage';
 import { layoutTemple, MOON_BEARING, packStones, solidsOf, STAGE_Z, type TempleLayout } from './layout';
 import { clearOf, type Solid } from '../solids';
 import { JOINT } from '../../skeleton/rig';
+import { arenaShown, dropsUniform, inDrop } from '../../duel/arena';
+import { templeDuel } from './arena';
 
 export const templeParams = defineParams('temple', {
   /** the tide: its lowest and highest (m over the floor), and over how many bars it comes in and goes out */
@@ -113,8 +115,12 @@ export class Temple implements World {
   readonly room = 16;
   readonly maxDist = 18;
   readonly layout: TempleLayout;
-  /** the stones as simple shapes for the camera (World.solids): boxes and cylinders, from the layout */
-  readonly solids: readonly Solid[];
+  /** the stones as simple shapes for the camera (World.solids): boxes and cylinders, from the layout; with the duel
+   *  arena's stones while it is shown */
+  get solids(): readonly Solid[] { return arenaShown(this.id) ? this.duelSolids : this.courtSolids; }
+  private courtSolids: readonly Solid[];
+  private duelSolids: readonly Solid[];
+  private duelBuf: ReturnType<Kit['storage']>;
   /** the tide now (m over the floor), as last set by update */
   tide = 0;
   private u: LightSlot<TempleU>;
@@ -136,7 +142,11 @@ export class Temple implements World {
     const { kit, frame, coarse } = ctx;
     this.layout = layoutTemple({ coarse });
     this.packed = packStones(this.layout.stones);
-    this.solids = solidsOf(this.layout.stones);
+    this.courtSolids = solidsOf(this.layout.stones);
+    // the duel's stones (arena.ts), drawn only while its arena is shown
+    const duel = templeDuel();
+    this.duelSolids = [...this.courtSolids, ...duel.arena.pieces!];
+    this.duelBuf = kit.storage({ label: 'temple.duel', data: duel.data, usage: ['storage'] });
     this.buf = kit.storage({ label: 'temple.stones', data: this.packed.data, usage: ['storage'] });
     this.u = lightSlot(kit, 'temple');
     this.waves = new Ripples(kit, frame, {
@@ -206,7 +216,9 @@ export class Temple implements World {
     // where the tide's cycle is (for how long the stone above the water has been drying)
     const ph = P.tideHold >= 0 ? P.tideHold : f.beat.beats / (P.tideBars * 4);
     v.tide[0] = P.tideLow; v.tide[1] = P.tideHigh; v.tide[2] = ph - Math.floor(ph); v.tide[3] = P.dry;
-    this.u.set(v);
+    // the duel arena's drops in the court (empty unless it is shown)
+    const duel = templeDuel(), drops = dropsUniform(duel.arena.plane, duel.arena.drops!, arenaShown(this.id));
+    this.u.set({ ...v, drops: drops.rects, dropFrame: drops.frame });
   }
 
   declareScene(s: ScenePass) {
@@ -228,6 +240,15 @@ export class Temple implements World {
         label: 'temple.drums.far', vertex: 'vs_drum', bind: { stones: this.buf }, count: 32 * (6 - 1 + 2 * 2) * 6, instances: k.farDrums,
         constants: { FIRST: k.blocks + k.drums, SIDES: 32, RINGS: 6, CAPR: 2 }, cull: 'none', enabled: on,
       });
+      // the duel arena's stones (arena.ts), as the court's but its drums in less (their flutes in the light only, as a
+      // phone draws the court's): with the court's detail its forty drums cost the scene pass 0.23 ms at 1080p
+      const duel = templeDuel(), shown = () => on() && arenaShown(this.id);
+      const DS = coarse ? 32 : 48, DR = coarse ? 4 : 6, DC = coarse ? 2 : 3;
+      pass.draw(stoneShader, { label: 'temple.duel.blocks', vertex: 'vs_block', bind: { stones: this.duelBuf }, count: 6 * N * N * 6, instances: duel.blocks, constants: { FIRST: 0, N }, cull: 'none', enabled: shown });
+      pass.draw(stoneShader, {
+        label: 'temple.duel.drums', vertex: 'vs_drum', bind: { stones: this.duelBuf }, count: DS * (DR - 1 + DC * 2) * 6, instances: duel.drums,
+        constants: { FIRST: duel.blocks, SIDES: DS, RINGS: DR, CAPR: DC }, cull: 'none', enabled: shown,
+      });
     }
   }
 
@@ -237,6 +258,8 @@ export class Temple implements World {
   clear(a: [number, number, number], b: [number, number, number]) { return clearOf(this.solids, a, b); }
   /** the floor, or the top of a solid stone standing there (the altar, a stump) */
   groundAt(x: number, z: number) {
+    // (the duel arena's drops fall away to the sea bed, past its kill floor)
+    if (arenaShown(this.id)) { const a = templeDuel().arena; if (inDrop(a.plane, a.drops!, x, z)) return -2.6; }
     for (const [x0, x1, z0, z1, top] of this.layout.tops) if (x >= x0 && x <= x1 && z >= z0 && z <= z1) return top;
     return 0;
   }

@@ -2,10 +2,12 @@
 // of worn flagstones (each a little higher or lower than its neighbours, so the low ones hold the last of the water at
 // low tide), a carved ring round the middle, the pillars' long moon shadows across it; beyond the court's edge the sea
 // bed, deep and dark. Under the tide it is seen through the water (templeUnder); the surface is laid over it in the
-// air pass. Drawn first, with no depth; alpha the view distance (half floats: under 30 km).
+// air pass. Drawn first, with no depth; alpha the view distance (half floats: under 30 km). In the duel, its arena's
+// drops open in the court (worlds/drops.wgsl): pits lined with courses of ashlar down to the sea bed, flooded by the tide.
 #include "weft/frame"
 #include "weft/fullscreen"
 #include "../light"
+#include "../drops"
 
 const CX: f32 = 12.5;
 const CZ0: f32 = -10.8;
@@ -43,6 +45,31 @@ fn flagAt(xz: vec2f) -> Flag {
   var col = vec3f(0.0);
   let up = vec3f(0.0, 1.0, 0.0);
   let moonL = worldLight.temple.moonCol.rgb * worldLight.temple.moonCol.w;
+  // the duel's drops: down into a pit, its sides courses of ashlar, its bottom the sea bed's sand
+  let dh = dropHit(cam, d, t, 0.0, -SEA, worldLight.temple.dropFrame, worldLight.temple.drops[0], worldLight.temple.drops[1]);
+  if (inCourt && dh.inside) {
+    let q = cam + d * dh.t;
+    var albedo = worldLight.temple.stone.rgb * vec3f(0.6, 0.58, 0.54);
+    if (dh.floor < 0.5) {
+      let along = dot(q.xz, vec2f(-dh.n.z, dh.n.x));
+      let course = floor(dh.below / 0.52);
+      let bw = 1.3;
+      let shift = hash2i(vec2i(i32(course), 3)) * bw;
+      let u = fract((along + shift) / bw);
+      let v = fract(dh.below / 0.52);
+      let joint = max(smoothstep(0.03, 0.0, min(v, 1.0 - v) * 0.52), smoothstep(0.03, 0.0, min(u, 1.0 - u) * bw));
+      albedo *= (0.75 + 0.35 * hash2i(vec2i(i32(course), i32(floor((along + shift) / bw)) + 11))) * (1.0 - 0.65 * joint);
+      albedo *= 0.85 + 0.3 * vnoise2(vec2f(along, dh.below) * 3.0);
+    } else {
+      let sand = 0.5 + 0.5 * sin(q.x * 2.3 + vnoise2(q.xz * 0.4) * 5.0);
+      albedo = worldLight.temple.stone.rgb * vec3f(0.5, 0.48, 0.4) * (0.6 + 0.4 * sand);
+    }
+    // the moon reaches only the top of the far side; below, the pit's own dark
+    let lit = moonL * max(dot(dh.n, worldLight.temple.moon.xyz), 0.0) * smoothstep(1.4, 0.0, dh.below) * 0.6;
+    var c = albedo * (lit + templeAmbient(dh.n, 1.0, q, 1.0) * exp(-dh.below * 0.45));
+    c = templeUnder(c, q, albedo * lit);
+    return vec4f(c, min(dh.t * dot(d, frame.camFwd), 30000.0));
+  }
   if (inCourt) {
     let f = flagAt(p.xz);
     t = (f.h - cam.y) / d.y;

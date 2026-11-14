@@ -18,6 +18,8 @@ import { ledgeY, stagePlane, spawnsOf, type StagePlane } from '../stage';
 import { floorAt, layoutForge, solidsOfForge, STAGE_SLABS, type ForgeLayout } from './layout';
 import { clearOf, type Solid } from '../solids';
 import { JOINT } from '../../skeleton/rig';
+import { arenaShown } from '../../duel/arena';
+import { forgeDuel } from './arena';
 
 export const forgeParams = defineParams('forge', {
   zenith: '#020209',
@@ -78,8 +80,11 @@ export class Forge implements World {
   readonly room = 24;
   readonly maxDist = 22;
   readonly layout: ForgeLayout;
-  /** the stage's columns as simple shapes (World.solids) */
-  readonly solids: readonly Solid[];
+  /** the stage's columns as simple shapes (World.solids), and with the duel arena's stones while it is shown */
+  get solids(): readonly Solid[] { return arenaShown(this.id) ? this.duelSolids : this.stageSolids; }
+  private stageSolids: readonly Solid[];
+  private duelSolids: readonly Solid[];
+  private duelBuf: ReturnType<Kit['storage']>;
   private u: LightSlot<ForgeU>;
   private buf: ReturnType<Kit['storage']>;
   private beat = 0;
@@ -92,8 +97,12 @@ export class Forge implements World {
   constructor(ctx: WorldCtx) {
     const { kit, coarse } = ctx;
     this.layout = layoutForge({ coarse });
-    this.solids = solidsOfForge(this.layout);
+    this.stageSolids = solidsOfForge(this.layout);
     this.buf = kit.storage({ label: 'forge.columns', data: this.layout.columns, usage: ['storage'] });
+    // the duel's floating stones (arena.ts), drawn only while its arena is shown
+    const duel = forgeDuel();
+    this.duelSolids = [...this.stageSolids, ...duel.arena.pieces!];
+    this.duelBuf = kit.storage({ label: 'forge.duel', data: duel.columns, usage: ['storage'] });
     this.u = lightSlot(kit, 'forge');
     this.shared = {};
     if (coarse) forgeParams.embers = 400;
@@ -150,6 +159,7 @@ export class Forge implements World {
     else if (s.phase === 'opaque') {
       pass.draw(slabShader, { label: 'forge.slabs', bind: { columns: this.buf }, count: 108, instances: L.stageColumns, constants: { FIRST: 0 }, cull: 'none', enabled: on });
       pass.draw(slabShader, { label: 'forge.islands', bind: { columns: this.buf }, count: 108, instances: L.count - L.stageColumns, constants: { FIRST: L.stageColumns }, cull: 'none', enabled: on });
+      pass.draw(slabShader, { label: 'forge.duel', bind: { columns: this.duelBuf }, count: 108, instances: forgeDuel().count, constants: { FIRST: 0 }, cull: 'none', enabled: () => on() && arenaShown(this.id) });
     } else {
       pass.draw(emberShader, { label: 'forge.embers', count: 6, instances: () => forgeParams.embers, blend: 'add', depthWrite: false, cull: 'none', enabled: on });
     }

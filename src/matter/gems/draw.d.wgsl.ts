@@ -171,6 +171,8 @@ export interface Geode {
   pad0: number;
   pad1: number;
   pad2: number;
+  drops: ArrayLike<number> | Vec4[];
+  dropFrame: Vec4;
 }
 export interface Forest {
   pad: number;
@@ -200,6 +202,8 @@ export interface Forest {
   lamps: ArrayLike<number> | Vec4[];
   anchors: ArrayLike<number> | Vec4[];
   trunks: ArrayLike<number> | Vec4[];
+  drops: ArrayLike<number> | Vec4[];
+  dropFrame: Vec4;
 }
 export interface Pool {
   zenith: Vec4;
@@ -235,6 +239,8 @@ export interface Temple {
   lights: ArrayLike<number> | Vec4[];
   glow: ArrayLike<number> | Vec4[];
   cols: ArrayLike<number> | Vec4[];
+  drops: ArrayLike<number> | Vec4[];
+  dropFrame: Vec4;
 }
 export interface Forge {
   zenith: Vec4;

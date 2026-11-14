@@ -28,6 +28,8 @@ import { fillTexture } from './textures';
 import { defineParams } from '../../engine/params';
 import { layoutStage, liftLanterns, packPieces, solidsOfStage, type RedwoodsStage } from './stage';
 import { solidsOfWoods } from './layout';
+import { arenaShown, dropsUniform, inDrop, onArena } from '../../duel/arena';
+import { redwoodsDuel } from './arena';
 import { clearOf, type Solid } from '../solids';
 import { stagePlane, spawnsOf, toPlane } from '../stage';
 import { JOINT } from '../../skeleton/rig';
@@ -81,8 +83,12 @@ export class Redwoods implements World {
   readonly room = ROOM;
   readonly maxDist = ROOM;
   readonly woods: Woods;
-  /** the trees, the fallen log and the boughs as simple shapes for the camera (World.solids), from their layouts */
-  readonly solids: readonly Solid[];
+  /** the trees, the fallen log and the boughs as simple shapes for the camera (World.solids), from their layouts; with
+   *  the duel arena's wood (and its lanterns hung higher) while it is shown */
+  get solids(): readonly Solid[] { return arenaShown(this.id) ? this.duelSolids : this.stageSolids; }
+  private stageSolids: readonly Solid[];
+  private duelSolids: readonly Solid[];
+  private duelBuf: ReturnType<Kit['storage']> | null = null;
   private forest: LightSlot<Forest>;
   private tex: { bark: Texture; barkH: Texture; ground: Texture };
   private loading: Promise<void> | null = null;
@@ -104,7 +110,18 @@ export class Redwoods implements World {
     liftLanterns(this.woods.layout.lanterns, this.stage.right);
     this.woods.values.stageLog = [...this.stage.log];
     this.woods.values.stagePlate = [...this.stage.plate];
-    this.solids = [...solidsOfStage(this.stage.pieces), ...solidsOfWoods(this.woods.layout)];
+    this.stageSolids = [...solidsOfStage(this.stage.pieces), ...solidsOfWoods(this.woods.layout)];
+    // the duel arena (arena.ts): its pieces, and the lanterns over its space hung as high on their limbs as they go (a
+    // lantern at head height in the middle of it is in every jump's way); back again when it is hidden
+    const lanterns = this.woods.layout.lanterns, cords = lanterns.map((l) => l.cord), space = redwoodsDuel().arena.space;
+    const lift = (on: boolean) => lanterns.forEach((l, k) => {
+      const inside = Math.hypot(l.anchor[0] - space.center[0], l.anchor[2] - space.center[2]) < space.radius + 1;
+      l.cord = on && inside ? Math.min(cords[k], Math.max(0.6, l.anchor[1] - space.yTop)) : cords[k];
+    });
+    lift(true);
+    this.duelSolids = [...solidsOfStage(this.stage.pieces), ...solidsOfWoods(this.woods.layout), ...redwoodsDuel().arena.pieces!];
+    lift(false);
+    onArena((w) => lift(w === this.id));
     this.stages = [stagePlane({
       id: 'clearing', origin: [0, 0, 0], right: this.stage.right, halfWidth: 5.75, ground: 0, ledges: this.stage.ledges,
       spawns: [[-1.2, 0], [1.2, 0]], lens: 22,
@@ -136,7 +153,9 @@ export class Redwoods implements World {
     if (P.dayGoes && !this.ctx.film) P.hour = (P.hour + (f.dt * 24) / (P.dayMinutes * 60)) % 24;
     this.woods.update(f.danceDt, P);
     this.watch(f);
-    this.forest.set(this.woods.values);
+    // the duel arena's drops in the meadow (empty unless it is shown)
+    const duel = redwoodsDuel(), drops = dropsUniform(duel.arena.plane, duel.arena.drops!, arenaShown(this.id));
+    this.forest.set({ ...this.woods.values, drops: drops.rects, dropFrame: drops.frame });
   }
 
   /** the dancers here, for the fireflies to gather round, and their landings, for the dust they kick up: a landing is
@@ -186,6 +205,16 @@ export class Redwoods implements World {
       pass.draw(trunkShader, {
         label: 'redwoods.boughs', vertex: 'vs_stage', fragment: 'fs_stage', bind: { stage: this.pieces(), barkTex: this.tex.bark, barkH: this.tex.barkH }, count: 20 * (2 + 2 * 2 - 1) * 6,
         instances: boughs, constants: { SIDES: 20, RINGS: 2, CAPR: 2, SFIRST: big }, cull: 'none', enabled: on,
+      });
+      // the duel arena's wood (arena.ts), as the stage's: its stumps and log in detail, its boughs in less
+      const duel = redwoodsDuel(), shown = () => on() && arenaShown(this.id), dbuf = (this.duelBuf ??= this.ctx.kit.storage({ label: 'redwoods.duel', data: duel.pieces, usage: ['storage'] }));
+      pass.draw(trunkShader, {
+        label: 'redwoods.duel.big', vertex: 'vs_stage', fragment: 'fs_stage', bind: { stage: dbuf, barkTex: this.tex.bark, barkH: this.tex.barkH }, count: 48 * (14 + 14 * 2 - 1) * 6,
+        instances: duel.big, constants: { SIDES: 48, RINGS: 14, CAPR: 14, SFIRST: 0 }, cull: 'none', enabled: shown,
+      });
+      pass.draw(trunkShader, {
+        label: 'redwoods.duel.boughs', vertex: 'vs_stage', fragment: 'fs_stage', bind: { stage: dbuf, barkTex: this.tex.bark, barkH: this.tex.barkH }, count: 20 * (2 + 2 * 2 - 1) * 6,
+        instances: duel.count - duel.big, constants: { SIDES: 20, RINGS: 2, CAPR: 2, SFIRST: duel.big }, cull: 'none', enabled: shown,
       });
       // what grows on them: ferns and shelf fungus down the log's flanks, ferns along the boughs
       pass.draw(fernShader, {
@@ -242,6 +271,8 @@ export class Redwoods implements World {
   clear(a: [number, number, number], b: [number, number, number]) { return clearOf(this.solids, a, b); }
   /** the meadow, or the fallen log's top where it lies */
   groundAt(x: number, z: number) {
+    // (the duel arena's drops fall away, past its kill floor)
+    if (arenaShown(this.id)) { const a = redwoodsDuel().arena; if (inDrop(a.plane, a.drops!, x, z)) return -2.6; }
     const [px, , across] = toPlane(this.stages[0], [x, 0, z]);
     const log = this.stage.ledges[0], R = this.stage.plate[0], cy = log.y - R;
     if (px >= log.x0 && px <= log.x1 && Math.abs(across) < R) return Math.max(0, cy + Math.sqrt(R * R - across * across));
