@@ -78,7 +78,17 @@ export interface ContactInput {
 export const noInput = (): ContactInput => ({ grab: false, grabEdge: false, jump: false, dodge: false, stick: [0, 0] });
 
 export type ContactKind = 'catch' | 'aerial' | 'swing' | 'fling' | 'flown' | 'lift' | 'counter' | 'vault' | 'landed' | 'release';
-export interface ContactEvent { kind: ContactKind; seat: number; other: number; perfect: boolean; at: V3; speed?: number; /** a fling's velocity (world) */ v?: V3; /** a release's cause: stretched past BREAK, or a body re-forming */ why?: 'stretched' | 'reform' }
+export interface ContactEvent {
+  kind: ContactKind; seat: number; other: number; perfect: boolean; at: V3; speed?: number;
+  /** a fling's velocity (world) */
+  v?: V3;
+  /** a release's cause: stretched past BREAK, or a body re-forming */
+  why?: 'stretched' | 'reform';
+  /** a flight's end ('landed', the flinger's): on its feet, on a wall, or caught by the other */
+  how?: 'feet' | 'wall' | 'catch';
+  /** a swing's count in its hold (1, 2, …: one SWING pop per hold, counting up) */
+  n?: number;
+}
 
 export interface Link {
   holder: number;
@@ -177,7 +187,7 @@ export class Contact {
         this.link = { holder, held, part: c.part, rest, since: this.t, arc: 0, swings: 0, beatPump: false, at: c.at, flying: false, c: this.centre(F0), v: [F0.v[0], F0.v[1], F0.v[2]], sense: 1 };
         this.grabT[k] = -1;
         // (a fling caught: the flight ends in a catch, which the flinger is credited for)
-        if (this.flown && this.flown.flyer === (1 - k)) { out.push({ kind: 'landed', seat: this.flown.flinger, other: this.flown.flyer, perfect: false, at: c.at }); this.flown = null; }
+        if (this.flown && this.flown.flyer === (1 - k)) { out.push({ kind: 'landed', seat: this.flown.flinger, other: this.flown.flyer, perfect: false, at: c.at, how: 'catch' }); this.flown = null; }
         out.push({ kind: b.grounded ? 'catch' : 'aerial', seat: k, other: 1 - k, perfect: onBeat, at: c.at });
         break;
       }
@@ -218,8 +228,8 @@ export class Contact {
           if (sp > CONTACT.MAX_SPEED) for (let a = 0; a < 3; a++) fv[a] *= CONTACT.MAX_SPEED / sp;
           this.setV(F, fv);
           this.flown = { flinger: L.holder, flyer: L.held, since: this.t };
+          // (the flown body's own link comes when it lands the flight, 'flown' below: being flung is not its move)
           out.push({ kind: 'fling', seat: L.holder, other: L.held, perfect: onBeat, at: L.at, speed: len(fv), v: [fv[0], fv[1], fv[2]] });
-          out.push({ kind: 'flown', seat: L.held, other: L.holder, perfect: onBeat, at: L.at });
         } else out.push({ kind: 'release', seat: L.holder, other: L.held, perfect: false, at: L.at, why: F.reforming || H.reforming ? 'reform' : 'stretched' });
         this.noGrab[L.holder] = this.t + CONTACT.REGRAB;
         this.link = null;
@@ -300,15 +310,21 @@ export class Contact {
       L.arc += (tang / rl) * dt;
       if (L.arc >= CONTACT.SWING_ARC && L.swings < CONTACT.SWINGS) {
         L.arc = 0; L.swings++;
-        out.push({ kind: 'swing', seat: L.holder, other: L.held, perfect: L.beatPump, at: L.at });
+        out.push({ kind: 'swing', seat: L.holder, other: L.held, perfect: L.beatPump, at: L.at, n: L.swings });
         L.beatPump = false;
       }
     }
-    // ---- a fling's flight: landed (on its feet or a wall) or fallen
+    // ---- a fling's flight: landed (on its feet or a wall: the flinger's lead, and the flown body's own link, `flown`,
+    // on the beat if it lands on it) or fallen
     const fl = this.flown;
     if (fl) {
       const f = C[fl.flyer];
-      if ((f.grounded || f.onWall) && this.t - fl.since > 0.15) { out.push({ kind: 'landed', seat: fl.flinger, other: fl.flyer, perfect: false, at: [f.root[0], f.root[1], f.root[2]] }); this.flown = null; }
+      if ((f.grounded || f.onWall) && this.t - fl.since > 0.15) {
+        const at: V3 = [f.root[0], f.root[1], f.root[2]];
+        out.push({ kind: 'landed', seat: fl.flinger, other: fl.flyer, perfect: false, at, how: f.grounded ? 'feet' : 'wall' });
+        out.push({ kind: 'flown', seat: fl.flyer, other: fl.flinger, perfect: onBeat, at });
+        this.flown = null;
+      }
       else if (f.reforming || this.t - fl.since > CONTACT.FLOWN_MAX) this.flown = null;
     }
     // ---- vaults: a body falling onto the other's head and shoulders bounces off them
