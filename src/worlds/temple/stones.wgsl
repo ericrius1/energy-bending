@@ -411,5 +411,5 @@ fn carving(kind: f32, u: f32, v: f32, hw: f32, height: f32, seed: f32) -> f32 {
   // (dry stone is rough: it only mirrors the sky when it's wet)
   col += templeSky(normalize(vec3f(R.x, abs(R.y), R.z)), 0.0) * fres * gloss * mix(0.06, 0.5, wet);
   col = templeUnder(col, wp, albedo * moon * diff);
-  return vec4f(col, dot(wp - frame.camPos, frame.camFwd));
+  return vec4f(sightLit(col), dot(wp - frame.camPos, frame.camFwd));
 }

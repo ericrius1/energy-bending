@@ -29,6 +29,7 @@ import { COLOURS, mixRGB } from '../play/feel';
 import type { Element } from '../play/jogo';
 import type { DuelPowers, Live, PowerFx } from './powers';
 import { formLook, type Matter } from '../../shared/powers.ts';
+import type { Solid } from '../worlds/solids';
 
 type V3 = [number, number, number];
 
@@ -49,6 +50,8 @@ export interface PowerFxCtx {
   sfx?: (name: string, o: Record<string, unknown>) => void;
   ear?: (p: V3) => { pan: number; dist: number };
   rumble?: (seat: number, strength: number, ms: number) => void;
+  /** how strongly the near fade dissolves a solid now (worlds/fade.ts): a pillar standing in the near frame dims */
+  fadeOf?: (s: Solid | null | undefined) => number;
 }
 
 const WARM: RGB = [1.7, 0.78, 0.26], EMBER: RGB = [1.9, 0.62, 0.14], GOLDEN: RGB = [1.8, 1.25, 0.55];
@@ -408,19 +411,23 @@ export class PowerFxDraw {
         const g = L.at[1], top = L.top!, R = L.r!, h = top - g;
         if (h < 0.05) break;
         const n = Math.max(2, Math.round(h / 0.32)), seed = L.id * 5;
+        // (standing in the near part of the frame, the near fade dissolves it as it does the arena's pieces: its
+        // crystals and its core thin to almost nothing, a faint ring at its foot and its top keeps its outline)
+        const f = this.ctx.fadeOf?.(L.solid) ?? 0;
         for (let i = 0; i < n; i++) {
           // a crystal: a long gem leaning a little, round the column
           const v = (i + 0.5) / n, y = g + h * v, ang = seed + i * 2.4, r = R * 0.55;
           const x = L.at[0] + Math.cos(ang) * r, z = L.at[2] + Math.sin(ang) * r;
-          G.seg([x, y - 0.22, z], [x + Math.cos(ang) * 0.06, y + 0.22, z + Math.sin(ang) * 0.06], R * 0.42, GEMS[(seed + i) % GEMS.length], 0.75 * a, 'gem');
+          G.seg([x, y - 0.22, z], [x + Math.cos(ang) * 0.06, y + 0.22, z + Math.sin(ang) * 0.06], R * 0.42, GEMS[(seed + i) % GEMS.length], 0.75 * a * (1 - 0.85 * f), 'gem');
         }
-        G.seg([L.at[0], g, L.at[2]], [L.at[0], top, L.at[2]], R * 0.85, [0.55, 0.45, 0.9], 0.35 * a, 'soft');
+        G.seg([L.at[0], g, L.at[2]], [L.at[0], top, L.at[2]], R * 0.85, [0.55, 0.45, 0.9], 0.35 * a * (1 - 0.9 * f), 'soft');
         // its crown: points leaning out
         for (let j = 0; j < 5; j++) {
           const ang = seed + j * 1.2566, x = L.at[0] + Math.cos(ang) * R * 0.5, z = L.at[2] + Math.sin(ang) * R * 0.5;
-          G.seg([x, top - 0.1, z], [x + Math.cos(ang) * 0.18, top + 0.32, z + Math.sin(ang) * 0.18], 0.07, GEMS[(j + seed) % GEMS.length], 0.95 * a, 'gem');
+          G.seg([x, top - 0.1, z], [x + Math.cos(ang) * 0.18, top + 0.32, z + Math.sin(ang) * 0.18], 0.07, GEMS[(j + seed) % GEMS.length], 0.95 * a * (1 - 0.6 * f), 'gem');
         }
-        G.dot([L.at[0], top + 0.05, L.at[2]], 0.12, [1.6, 1.4, 1.7], (0.6 + 0.4 * Math.sin(t * 6)) * a, 'spark');
+        G.dot([L.at[0], top + 0.05, L.at[2]], 0.12, [1.6, 1.4, 1.7], (0.6 + 0.4 * Math.sin(t * 6)) * a * (1 - 0.6 * f), 'spark');
+        if (f > 0.01) for (const y of [g + 0.04, top]) G.flat([L.at[0], y, L.at[2]], R, GEMS[1], 0.4 * a * f, 'ring');
         break;
       }
       case 'prism': {

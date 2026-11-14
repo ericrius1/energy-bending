@@ -17,8 +17,9 @@
 //
 // The near fade rides here too (`sight`, filled by worlds/fade.ts): a world's solid draws call `sightDrop(p, px)` and
 // discard, so a column, a trunk, a stub or a blade near the eye or standing between it and the dancers is dissolved,
-// pixel by pixel, instead of filling the frame. Opaque stays opaque: what is left is drawn whole, with its distance
-// in alpha (the depth contract), and what is dropped shows what stands behind it. No binding of its own.
+// pixel by pixel, instead of filling the frame; in the duel so is a piece standing in the near part of the frame, its
+// edges kept (`sightLit` makes them a faint line of light). Opaque stays opaque: what is left is drawn whole, with its
+// distance in alpha (the depth contract), and what is dropped shows what stands behind it. No binding of its own.
 #include "weft/frame"
 #include "weft/lodfade"
 #include "../engine/limits"
@@ -47,9 +48,15 @@ struct WorldLight {
  *  nothing fades, it is the floor it stands on) to `hi` (its top) of radius lo.w; hi.w how strongly what stands
  *  between the eye and it is faded now (0 … 1, eased by the CPU; 0: this one is off) */
 struct SightBody { lo: vec4f, hi: vec4f }
+/** a piece the frame test dissolves (worlds/fade-frame.ts: one standing in the near part of the duel's frame): a box
+ *  (a.xyz its middle, x.xyz and y.xyz two of its unit axes, h.xyz its half sizes) or, x.w 1, a capsule (a.xyz to x.xyz,
+ *  radius h.w); a.w how strongly (0 … 1; 0: an empty slot) */
+struct SightPiece { a: vec4f, x: vec4f, y: vec4f, h: vec4f }
 /** the near fade: the framed bodies; k.x: fade within this of the eye (m), k.y: the height below which nothing fades
- *  near the eye, k.z: how strongly (0 … 1), k.w: 1 while anything may fade (0: the draws skip it all) */
-struct Sight { body: array<SightBody, 2>, k: vec4f }
+ *  near the eye, k.z: how strongly (0 … 1), k.w: 1 while anything may fade (0: the draws skip it all); the pieces the
+ *  frame test dissolves; f.x: nothing further from the eye than this dissolves as a piece (the pair's own depth), f.w: 1
+ *  while any piece dissolves; glow.rgb: the light a dissolved piece's outline adds (the arena's rim light) */
+struct Sight { body: array<SightBody, 2>, k: vec4f, piece: array<SightPiece, 16>, f: vec4f, glow: vec4f }
 
 @group(2) @binding(0) var<uniform> worldLight: WorldLight;
 // the ripples' height fields of the worlds with water (each world's own texture, in its World.shared)
@@ -151,20 +158,66 @@ fn worldScene(src: texture_2d<f32>, px: vec2i, d: vec3f) -> vec4f {
   return textureLoad(src, px, 0);
 }
 
-/** how much of a world's solid thing at p the camera fades away (0 … 1): what is near the eye, and what stands well in
- *  front of a framed body across the line of sight to it. Only in the view that `sight` describes (the main view sets
- *  frame.user.x to 1, worlds/fade.ts; a gate's view, the inset leave it 0), and only while worlds/fade.ts finds
- *  something to fade (k.w), so most frames it costs one uniform branch */
+/** how much of a dissolved piece's outline is at this fragment (sightFade sets it, sightLit reads it) */
+var<private> sightEdge: f32 = 0.0;
+
+/** how much of a world's solid thing at p the camera fades away (0 … 1): what is near the eye, what stands well in
+ *  front of a framed body across the line of sight to it, and (the duel) a piece standing in the near part of the
+ *  frame, whole but for its edges. Only in the view that `sight` describes (the main view sets frame.user.x to 1,
+ *  worlds/fade.ts; a gate's view, the inset leave it 0), and only while worlds/fade.ts finds something to fade (k.w),
+ *  so most frames it costs one uniform branch. Call it in uniform control flow (first in the fragment shader): a
+ *  piece's outline takes the surface's facet from the derivatives */
 fn sightFade(p: vec3f) -> f32 {
-  let S = worldLight.sight;
-  if (frame.user.x < 0.5 || S.k.w <= 0.0) { return 0.0; }
+  let K = worldLight.sight.k;
+  if (frame.user.x < 0.5 || K.w <= 0.0) { return 0.0; }
   let e = fromEye(p);
   let dist = length(e);
   // near the eye (above the floor under it)
-  var f = select(0.0, (1.0 - smoothstep(S.k.x * 0.5, S.k.x, dist)) * S.k.z, p.y > S.k.y);
+  var f = select(0.0, (1.0 - smoothstep(K.x * 0.5, K.x, dist)) * K.z, p.y > K.y);
   let d = e / max(dist, 1e-4);
+  // the pieces in the near part of the frame: the whole piece dissolves (patch by patch, a front moving through a noise
+  // in the stone as its strength rises, so a half-dissolved piece is whole patches and holes, not a screen door the lens
+  // blurs into a veil), but its edges and its outline against what is behind (where the surface turns away from the
+  // eye) stay as a faint line, which sightLit brightens; no line within a metre of the eye (there it is only a blur), and
+  // nothing at the pair's own depth
+  let F = worldLight.sight.f;
+  if (F.w > 0.0) {
+    let facet = normalize(cross(dpdx(p), dpdy(p)));
+    let rim = 1.0 - smoothstep(0.06, 0.18, abs(dot(facet, d)));
+    let w = clamp(dist * 0.003, 0.01, 0.04);
+    let away = 1.0 - smoothstep(F.x - 0.6, F.x, dist);
+    let faint = smoothstep(0.6, 1.4, dist);
+    let grain = vnoise(p * 2.7);
+    for (var j = 0u; j < 16u; j++) {
+      let P = worldLight.sight.piece[j];
+      if (P.a.w <= 0.0) { continue; }
+      var out = 0.0;
+      var line = rim;
+      if (P.x.w > 0.5) {
+        let ab = P.x.xyz - P.a.xyz;
+        let t = clamp(dot(p - P.a.xyz, ab) / max(dot(ab, ab), 1e-6), 0.0, 1.0);
+        out = length(p - P.a.xyz - ab * t) - P.h.w;
+      } else {
+        let l = p - P.a.xyz;
+        let z = cross(P.x.xyz, P.y.xyz);
+        // how far in from each face: on a face the least is about 0, on an edge the middle one is too. A surface on the
+        // box's faces (a blade, a beam, a slab) keeps its edges; one inside it (a round column stood in for by a box) keeps
+        // its outline against what is behind, where it turns away from the eye
+        let q = P.h.xyz - abs(vec3f(dot(l, P.x.xyz), dot(l, P.y.xyz), dot(l, z)));
+        out = -min(q.x, min(q.y, q.z));
+        let mid = q.x + q.y + q.z - min(q.x, min(q.y, q.z)) - max(q.x, max(q.y, q.z));
+        let edge = 1.0 - smoothstep(w, w * 2.0, max(mid, 0.0));
+        line = max(edge, rim * smoothstep(0.03, 0.06, -out));
+      }
+      if (out > 0.12) { continue; }
+      let k = smoothstep(grain - 0.08, grain + 0.08, P.a.w * 1.2 - 0.1) * away;
+      line *= faint;
+      f = max(f, k * (1.0 - 0.7 * line));
+      sightEdge = max(sightEdge, k * line);
+    }
+  }
   for (var k = 0u; k < 2u; k++) {
-    let b = S.body[k];
+    let b = worldLight.sight.body[k];
     if (b.hi.w <= 0.0 || p.y < b.lo.y + 0.12) { continue; }
     // the ray from the eye through p at its closest to the body's axis: within its radius, and p well before it
     let A = b.lo.xyz - frame.camPos - frame.camLo;
@@ -187,8 +240,15 @@ fn sightFade(p: vec3f) -> f32 {
 
 /** whether a solid draw's fragment at p (pixel px) is dropped by the near fade: a dither (weft/lodfade's interleaved
  *  noise), so a half-faded column is half its pixels, and MSAA's resolve softens the dots. Call it first in the
- *  fragment shader: `if (sightDrop(i.wp, i.pos.xy)) { discard; }` */
+ *  fragment shader, in uniform control flow: `if (sightDrop(i.wp, i.pos.xy)) { discard; }` */
 fn sightDrop(p: vec3f, px: vec2f) -> bool {
   let f = sightFade(p);
   return f > 0.0 && f > ign(px) * 0.98 + 0.01;
+}
+
+/** a solid draw's colour with what is left of a dissolved piece (its edges) glowing a little in the arena's rim light,
+ *  so the piece reads as a faint line of light. After sightDrop: `return vec4f(sightLit(col), …)` */
+fn sightLit(c: vec3f) -> vec3f {
+  if (sightEdge <= 0.0) { return c; }
+  return c * (1.0 + 0.6 * sightEdge) + worldLight.sight.glow.rgb * sightEdge;
 }

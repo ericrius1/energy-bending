@@ -266,6 +266,7 @@ export async function startDuel(app: PlayApp, opts: { joined?: Joined } = {}) {
     ripple: (x, z, s, r) => { (world() as unknown as { ripple?: (x: number, z: number, s: number, r: number) => void }).ripple?.(x, z, s, r); },
     sfx: (name, o) => sound.jogo(name, o), ear,
     rumble: (k, s, ms) => { const i = humanSeats.indexOf(k); if (i >= 0) hub.rumble(i, s, ms); },
+    fadeOf: (s) => app.fade?.strengthOf(s) ?? 0,
   }, (k) => powers.rules.seats[k].matter);
   const hazardFx = new HazardFxDraw({ glows, eye: () => cam.position, ground: (x, z) => world().groundAt(x, z), field: field as unknown as ConstructorParameters<typeof HazardFxDraw>[0]['field'], ripple: (x, z, s, r) => { (world() as unknown as { ripple?: (x: number, z: number, s: number, r: number) => void }).ripple?.(x, z, s, r); } });
   const duelHud = new DuelHud();
