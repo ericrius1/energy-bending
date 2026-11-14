@@ -40,6 +40,33 @@
 > **The HUD** shows each dancer's style and combo (with its multiplier and the links as small icons), the shared
 > energy between them, the beat, the set's time, and pops for named moves ("CATCH", "SWING", "FLING ×3",
 > "PERFECT", "MERGE"). No hit pips, no KO marks.
+>
+> **The HUD's state, version 2.** This replaces the per-player `hits`, `hitsMax` and `kos` and the round below. Old
+> fields may stay optional for the jogo.
+> ```ts
+> interface HudState {
+>   mode: 'duel' | 'jogo' | 'none';
+>   players: {
+>     seat: 0 | 1; name: string; color: string; matter: string;
+>     style: number;                  // the battle's score this set
+>     combo: { n: number; mult: number; links: string[]; live: boolean; perfect: number };
+>       // n moves chained, the multiplier, the last few links ('catch'|'swing'|'fling'|'lift'|'vault'|'walljump'|
+>       // 'wallrun'|'dash'|'flip'|'kick'|'aerial'), live while the combo is going, perfect = links on the beat
+>     dash: number;                   // 0..1 ready
+>     holding: boolean; held: boolean; // in a link: this one holds (the base) / is held (the flyer)
+>     reforming: number;              // 0..1 after a fall, else 0
+>     screen?: [number, number];
+>   }[];
+>   link: { on: boolean; energy: number; from?: [number, number]; to?: [number, number] }; // the two joined, on screen
+>   shared: { energy: number; peak: number; merge: number };  // 0..1: the dance's intensity, its peak this set, the
+>                                                             // merge (fusion) charge
+>   set: { time: number; length: number; phase: 'intro' | 'play' | 'finale' | 'done'; countdown?: number;
+>          winner?: number };
+>   beat: { phase: number; bpm: number; window: number };
+>   pops: { text: string; seat?: number; at: [number, number]; age: number;
+>           kind: 'catch' | 'swing' | 'fling' | 'perfect' | 'combo' | 'merge' | 'info' }[];
+> }
+> ```
 
 > **Correction from the owner (13 Nov 2026), which overrides anything below that reads otherwise.**
 > It is still a dance, and it is **3D native**. It is not a 2D arena brawler.
