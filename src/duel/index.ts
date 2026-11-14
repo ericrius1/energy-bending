@@ -63,6 +63,10 @@ import { DuelHud, screenOf, type HudSeat, type HudState, type HudWord } from './
 // imported from src/hud lands in main.ts's own chunk, and the duel's chunk importing it waits for main.ts to finish
 // evaluating, which awaits the duel at the top level: a production build hung, the page never ready)
 import type { DuelEvent } from '../../shared/duel.ts';
+import type { Joined } from '../play';
+import { duelLobby } from '../play/menu';
+import { installHelp } from './help';
+import { startLesson } from './lesson';
 
 type V3 = [number, number, number];
 
@@ -96,7 +100,7 @@ export interface BrainSpec { style?: DuelStyle; skill?: number; seed?: number }
 
 const perSeat = (v: string | null, k: number) => { if (v == null) return null; const xs = v.split(','); return xs[k] ?? xs[0]; };
 
-export async function startDuel(app: PlayApp) {
+export async function startDuel(app: PlayApp, opts: { joined?: Joined } = {}) {
   const { kit, frame, show, rig, music, field, query: q } = app;
   const world = () => app.worldOf(app.main.world);
   const W = world();
@@ -283,6 +287,9 @@ export async function startDuel(app: PlayApp) {
   };
   // only bots: at once; a human seat waits for its device (or &go). A film (stepped by hand) starts on its first frame
   if (!humanSeats.length || q.has('go')) begin();
+  // the lobby (play/menu.ts): a card per seat, how to join a waiting one; the press that began the duel on the front
+  // joins seat 1; a second human seat nobody takes can go to a virtual partner; a touch player's buttons
+  if (!app.film && !q.has('go')) duelLobby({ hub, frame, canvas: app.canvas, humanSeats, bot: (k) => !!brains[k], started: () => started, joined: opts.joined, partner: (k) => { setBrain(k, specOf(k)); begin(); } });
 
   // ---------------------------------------------------------------- each frame
   let frameEvents: DuelEvent[] = [];
@@ -466,6 +473,10 @@ export async function startDuel(app: PlayApp) {
       powers: { flow: powers.rules.seats.map((s) => +s.flow.toFixed(2)), form: [0, 1].map((k) => +powers.hud(k).form.toFixed(2)), casts: powers.rules.seats.map((s) => s.casts), forms: powers.rules.seats.map((s) => s.forms), reactions: { ...powers.rules.reactions }, live: powers.live.map((L) => L.kind), felt: { ...powers.felt } },
     }),
   };
+  // the first duel's lesson (lesson.ts, once) and the controls card (help.ts: ?, F1, Start, the ? chip)
+  const lesson = startLesson({ frame, duel: api, query: q, film: app.film, humanSeats, bot: (k) => !!brains[k], device: (k) => gates[k].inner?.name ?? null, root: (k) => chars[k].root, held: (k) => match.contact.held(k), joined: (k) => match.contact.held(k) || match.contact.holding(k) });
+  if (!app.film) installHelp({ frame, device: () => gates[humanSeats[0] ?? 0].inner?.name ?? null, matters: () => powers.rules.seats.map((s) => s.matter), lesson, split: () => gates.some((g) => g.inner?.name === 'keyboard-right') });
+  Object.assign(api, { lesson });
   frame.tick('input', () => { const b = (window as unknown as { bend?: Record<string, unknown> }).bend; if (b && b.duel !== api) b.duel = api; }, 'duel: bend.duel');
   console.info(`duel: ${W.id} (${arenaFor(W.id) ? 'its arena' : 'a fallback arena from its stage'}), ${kinds.join(' v ')}`);
   return api;
