@@ -7,6 +7,8 @@
 import { Character, PHYS, DUEL_PHYS, type CharEvent } from '../character';
 import { type StagePlane } from '../../engine/camera';
 import { makeIntent, type Intent } from '../../input/intent';
+import { box, cylinder, type Solid } from '../../worlds/solids';
+import { layoutTemple, solidsOf } from '../../worlds/temple/layout';
 import { test, assert, near, done } from './check';
 
 const I = (o: Partial<Intent> = {}): Intent => Object.assign(makeIntent(), o);
@@ -49,7 +51,7 @@ test('run: top speed in about 0.1 s, a stop in about 0.08 s, a reversal near-ins
   // air control: from a standing jump, how long the stick takes to reach top speed in the air
   const a = make(FLAT);
   let air = 0;
-  run(a, 0.02, () => ({ jump: true, jumpHeld: true }));
+  run(a, 0.02, (t) => ({ jump: t === 0, jumpHeld: true }));
   air = run(a, 1, () => ({ moveX: 1, jumpHeld: true }), 240, (c) => vs(c) >= 0.99 * DUEL_PHYS.runSpeed);
   assert(top >= 0.07 && top <= 0.13, 'top speed in ' + top);
   assert(stop >= 0.05 && stop <= 0.11, 'stop in ' + stop);
@@ -101,7 +103,7 @@ test('fast fall: down in the air falls faster and further than letting go', () =
   let vMin = 0;
   const c = make(FLAT);
   const ff = jumpArc(c, () => true, (t) => ({ moveY: t > 0.33 ? -1 : 0 }));
-  const d = make(FLAT); run(d, 0.02, () => ({ jump: true, jumpHeld: true })); run(d, 1, (t) => ({ moveY: t > 0.31 ? -1 : 0, jumpHeld: true }), 240, (c) => { vMin = Math.min(vMin, c.v[1]); if (c.grounded) return true; });
+  const d = make(FLAT); run(d, 0.02, (t) => ({ jump: t === 0, jumpHeld: true })); run(d, 1, (t) => ({ moveY: t > 0.31 ? -1 : 0, jumpHeld: true }), 240, (c) => { vMin = Math.min(vMin, c.v[1]); if (c.grounded) return true; });
   assert(ff.land < plain.land - 0.07, 'fast fall lands sooner: ' + ff.land + ' vs ' + plain.land);
   assert(-vMin > DUEL_PHYS.maxFall, 'faster than the plain fall cap: ' + vMin);
   row('fast fall: apex to floor from 2.2 m', `${ms(ff.land - ff.tApex)} (plain ${ms(plain.land - plain.tApex)})`, 'down = fall fast');
@@ -111,7 +113,7 @@ test('fast fall: down in the air falls faster and further than letting go', () =
 
 test('landing: no lag (the stick moves the body the frame it lands)', () => {
   const c = make(FLAT); let landT = -1, sAt = 0;
-  run(c, 0.02, () => ({ jump: true, jumpHeld: true }));
+  run(c, 0.02, (t) => ({ jump: t === 0, jumpHeld: true }));
   run(c, 2, () => ({ jumpHeld: true }), 240, (c, t) => { if (c.grounded) { landT = t; sAt = c.s; return true; } });
   run(c, 1 / 60, () => ({ moveX: 1 }), 240);
   assert(landT > 0 && c.s - sAt > 0.01, 'moved after landing: ' + (c.s - sAt));
@@ -124,7 +126,7 @@ test('wall slide: pushing into a wall while falling slides down it at its capped
   c.events.length = 0;
   // jump up against the plane's right end and push into it
   let vSlide = 0, n = 0, wallEv: CharEvent | undefined;
-  run(c, 0.02, () => ({ jump: true, jumpHeld: true, moveX: 1 }));
+  run(c, 0.02, (t) => ({ jump: t === 0, jumpHeld: true, moveX: 1 }));
   run(c, 2, () => ({ moveX: 1, jumpHeld: true }), 240, (c, t) => {
     wallEv ??= c.events.find((e) => e.type === 'wall');
     if (c.onWall && t > 0.6) { vSlide += c.v[1]; n++; }
@@ -135,7 +137,7 @@ test('wall slide: pushing into a wall while falling slides down it at its capped
   near(-vSlide, DUEL_PHYS.wallSlideSpeed, 0.05, 'slide speed');
   // a fall from higher is braked to the cap; letting the stick go keeps the body there wallStick, then it falls
   const d = make(FLAT, 28);
-  run(d, 0.02, () => ({ jump: true, jumpHeld: true, moveX: 1 }));
+  run(d, 0.02, (t) => ({ jump: t === 0, jumpHeld: true, moveX: 1 }));
   run(d, 0.5, () => ({ moveX: 1, jumpHeld: true }));
   assert(d.onWall, 'sliding');
   let off = 0;
@@ -143,7 +145,7 @@ test('wall slide: pushing into a wall while falling slides down it at its capped
   near(off, DUEL_PHYS.wallStick, 0.02, 'the stick let go: held');
   // down lets go at once
   const e = make(FLAT, 28);
-  run(e, 0.02, () => ({ jump: true, jumpHeld: true, moveX: 1 }));
+  run(e, 0.02, (t) => ({ jump: t === 0, jumpHeld: true, moveX: 1 }));
   run(e, 0.5, () => ({ moveX: 1, jumpHeld: true }));
   run(e, 1 / 240, () => ({ moveX: 1, moveY: -1 }));
   assert(!e.onWall, 'down lets go');
@@ -157,13 +159,13 @@ test('wall slide: pushing into a wall while falling slides down it at its capped
 
 test('wall jump: up and away, refreshes the air jump and the dash, locks the stick out briefly', () => {
   const c = make(FLAT, 28);
-  run(c, 0.02, () => ({ jump: true, jumpHeld: true, moveX: 1 }));
+  run(c, 0.02, (t) => ({ jump: t === 0, jumpHeld: true, moveX: 1 }));
   run(c, 0.4, () => ({ moveX: 1, jumpHeld: true }));
   // spend the air jump and the dash first
   run(c, 1 / 240, () => ({ jump: true, jumpHeld: true, moveX: 1 }));
   assert(c.events.some((e) => e.type === 'wallJump'), 'a jump beside the wall kicks off it');
   const d = make(FLAT, 28);
-  run(d, 0.02, () => ({ jump: true, jumpHeld: true, moveX: 1 }));
+  run(d, 0.02, (t) => ({ jump: t === 0, jumpHeld: true, moveX: 1 }));
   run(d, 0.12, () => ({ jumpHeld: true }));
   run(d, 1 / 240, () => ({ jump: true, jumpHeld: true }));                 // the air jump, away from the wall
   run(d, 1 / 240, () => ({ dash: true, moveX: 1, moveY: 1 }));             // the dash, back up at it
@@ -184,7 +186,7 @@ test('wall jump: up and away, refreshes the air jump and the dash, locks the sti
   assert(peak > 1.4 && peak < 2.5, 'kick height ' + peak);
   // the refresh: after the kick, the air jump and the dash work again
   const e = make(FLAT, 28);
-  run(e, 0.02, () => ({ jump: true, jumpHeld: true, moveX: 1 }));
+  run(e, 0.02, (t) => ({ jump: t === 0, jumpHeld: true, moveX: 1 }));
   run(e, 0.12, () => ({ jumpHeld: true }));
   run(e, 1 / 240, () => ({ jump: true, jumpHeld: true }));
   run(e, 1 / 240, () => ({ dash: true, moveX: 1, moveY: 1 }));
@@ -265,7 +267,7 @@ test('dash: 8-way, about 0.15 s and 3 m; one per airtime, refreshed on landing; 
   near(inv, DUEL_PHYS.dashIframes, 0.01, 'i-frames');
   // in the air: up-right is a diagonal; a second one waits for the landing
   const a = make(FLAT, 0); a.events.length = 0;
-  run(a, 0.02, () => ({ jump: true, jumpHeld: true }));
+  run(a, 0.02, (t) => ({ jump: t === 0, jumpHeld: true }));
   const ay = a.y, as = a.s;
   run(a, DUEL_PHYS.dashTime + 1 / 240, (t) => ({ dash: t === 0, moveX: 1, moveY: 1, jumpHeld: true }));
   const diag = [a.s - as, a.y - ay];
@@ -307,7 +309,7 @@ test('dash: into a wall stops it; on a wall it refreshes; a dash down lands and 
   near(c.s, FLAT.halfWidth - DUEL_PHYS.wallMargin, 1e-6, 'at the end');
   assert(!c.dashing, 'ended at the wall');
   const d = make(FLAT, 0); d.events.length = 0;
-  run(d, 0.02, () => ({ jump: true, jumpHeld: true }));
+  run(d, 0.02, (t) => ({ jump: t === 0, jumpHeld: true }));
   run(d, 0.3, () => ({ jumpHeld: true }));
   run(d, 1, (t) => ({ dash: t === 0, moveX: 1, moveY: -1 }), 240, (c) => c.grounded);
   assert(d.grounded && !d.dashing, 'a down dash lands and ends');
@@ -357,7 +359,7 @@ test('the jogo\'s body has none of the kit (PHYS untouched); the duel profile is
   const c = new Character({ plane: FLAT }); c.reset(28, 0); settle(c);
   run(c, 0.3, (t) => ({ dash: t === 0, moveX: 1 }));
   assert(!c.events.some((e) => e.type === 'dash'), 'no dash in the jogo');
-  run(c, 0.02, () => ({ jump: true, jumpHeld: true, moveX: 1 }));
+  run(c, 0.02, (t) => ({ jump: t === 0, jumpHeld: true, moveX: 1 }));
   run(c, 1, () => ({ moveX: 1, jumpHeld: true }), 240, (c) => { assert(!c.onWall, 'no slide in the jogo'); });
   const k = new Character({ plane: FLAT, phys: 'duel' });
   assert(k.phys === DUEL_PHYS, 'phys: "duel"');
@@ -366,7 +368,7 @@ test('the jogo\'s body has none of the kit (PHYS untouched); the duel profile is
 
 test('the poses: the wall lean and the dash lunge show on the body', () => {
   const c = make(FLAT, 28);
-  run(c, 0.02, () => ({ jump: true, jumpHeld: true, moveX: 1 }));
+  run(c, 0.02, (t) => ({ jump: t === 0, jumpHeld: true, moveX: 1 }));
   run(c, 0.6, () => ({ moveX: 1, jumpHeld: true }));
   assert(c.onWall && c.wallW > 0.9, 'leaning: ' + c.wallW);
   for (const v of c.pose) assert(Number.isFinite(v), 'NaN');
@@ -380,6 +382,170 @@ test('the poses: the wall lean and the dash lunge show on the body', () => {
   const q = d.pose2D(), head = q[1], hipY = (q[2 * 7 + 1] + q[2 * 8 + 1]) / 2;
   assert(head - hipY < 0.6, 'low: the head ' + (head - hipY) + ' m over the hips');
   return `wrist ${f3(face - wrist)} m off the wall face; lunge: head ${f2(head - hipY)} m over the hips (standing ~0.75)`;
+});
+
+// ---------------------------------------------------------------- free 3D: the world's solids are the walls
+const TEMPLE = solidsOf(layoutTemple({ coarse: false }).stones);
+/** a free body on flat ground among `solids`, at (x, z) facing yaw; the stick is world-aligned (inputYaw 0: moveX +x,
+ *  moveZ -z) */
+const free = (solids: Solid[], x: number, z: number, yaw = 0) => {
+  const c = new Character({ plane: null, terrain: { groundAt: () => 0, solids }, phys: DUEL_PHYS });
+  c.reset(x, 0, z); c.yaw = yaw; settle(c); return c;
+};
+const stick = (dx: number, dz: number) => ({ moveX: dx, moveZ: -dz });
+const hsp = (c: Character) => Math.hypot(c.v[0], c.v[2]);
+
+test('free 3D: a wall jump off a temple column (World.solids), up and out along its normal', () => {
+  // the tall column in the temple's back row (x 0.58, z -9.76, 0.6 m round, to 6 m): from 3.5 m east, run at it, jump
+  const cx = 0.58, cz = -9.76;
+  const c = free(TEMPLE, cx + 3.5, cz, -Math.PI / 2);
+  let wallEv: CharEvent | undefined, slideV = 0, n = 0;
+  run(c, 1.6, (t) => ({ ...stick(-1, 0), jump: t > 0.2 && t < 0.21, jumpHeld: true }), 240, (c, t) => {
+    wallEv ??= c.events.find((e) => e.type === 'wall');
+    if (c.onWall && t > 1.0) { slideV += c.v[1]; n++; }
+    if (c.grounded && t > 0.4) return true;
+  });
+  assert(!!wallEv, 'met the column as a wall');
+  const wn = wallEv!.n as number[];
+  assert(wn[0] > 0.95, 'its normal faces east: ' + JSON.stringify(wn));
+  // kick off it, from mid-slide
+  const d = free(TEMPLE, cx + 3.5, cz, -Math.PI / 2);
+  run(d, 0.6, (t) => ({ ...stick(-1, 0), jump: t > 0.2 && t < 0.21, jumpHeld: true }), 240, (c) => c.onWall && c.v[1] < 0);
+  assert(d.onWall, 'sliding on the column');
+  d.events.length = 0;
+  const x0 = d.x, y0 = d.y; let peak = 0, out = 0, tPeak = 0;
+  run(d, 1.2, (t) => ({ jump: t === 0, jumpHeld: true, ...stick(-1, 0) }), 240, (c, t) => { if (c.y - y0 > peak) { peak = c.y - y0; out = c.x - x0; tPeak = t; } });
+  const wj = d.events.find((e) => e.type === 'wallJump');
+  assert(!!wj && (wj.n as number[])[0] > 0.95 && String(wj.wall).startsWith('solid.'), 'wallJump off the column ' + JSON.stringify(wj));
+  assert(peak > 1.2 && out > 1.0, `kick: +${peak} m, ${out} m out`);
+  void slideV; void n;
+  row('free 3D: wall jump off a temple column (r 0.6 m)', `met at its face (normal ${wn.map((v) => v.toFixed(2)).join(', ')}); kick +${f2(peak)} m at ${ms(tPeak)}, ${f2(out)} m out by then (stick held back at it)`, 'walls are the world\'s solids');
+  return `normal (${wn.map((v) => v.toFixed(2)).join(', ')}), kick +${f2(peak)} m, ${f2(out)} m out`;
+});
+
+/** kick up between two solids: the stick toward the one it's heading for, a jump the moment a wall is kickable whose
+ *  normal faces back the way it came; height after `secs` and the rate from the first kick */
+function climb3d(solids: Solid[], x: number, z: number, ax: number, az: number, secs: number, ceiling = Infinity) {
+  const c = free(solids, x, z);
+  let tg = 1, kicks = 0, t0 = -1, y0 = 0, pressed = false, top = 0, tTop = -1;
+  run(c, secs, (t) => {
+    const o: Partial<Intent> = { ...stick(ax * tg, az * tg), jumpHeld: true };
+    if (t < 1e-9) o.jump = true;
+    const wn = c.wallNormal;
+    if (!pressed && c.wallKick && wn && (wn[0] * ax + wn[1] * az) * tg < -0.5) { o.jump = true; pressed = true; }
+    return o;
+  }, 240, (c, t) => {
+    if (c.events.splice(0).some((e) => e.type === 'wallJump')) { kicks++; tg = -tg; pressed = false; if (t0 < 0) { t0 = t; y0 = c.y; } }
+    if (c.y > top) top = c.y;
+    if (tTop < 0 && c.y + DUEL_PHYS.bodyH >= ceiling - 0.02) tTop = t;
+  });
+  return { rate: (c.y - y0) / (secs - t0), kicks, top, tTop, y: c.y };
+}
+test('free 3D: a climb between two close solids (two columns 1.8 m apart; the temple\'s stage pillars to the lintel)', () => {
+  const two: Solid[] = [cylinder([-1.4, 0, 0], [-1.4, 40, 0], 0.5), cylinder([1.4, 0, 0], [1.4, 40, 0], 0.5)];
+  const a = climb3d(two, 0, 0, 1, 0, 4);
+  assert(a.kicks >= 6 && a.rate > 1.5, `columns: ${a.kicks} kicks, ${a.rate} m/s`);
+  // the temple's stage: two pillars (x 0.9 and 3.3, z -4.15) under a lintel from 2.6 m: kick up between them to it
+  const b = climb3d(TEMPLE, 2.1, -4.15, 1, 0, 2, 2.6);
+  assert(b.kicks >= 1 && b.tTop > 0, `temple pillars: ${b.kicks} kicks, head at the lintel at ${b.tTop}`);
+  assert(b.top + DUEL_PHYS.bodyH <= 2.6 + 0.03, 'the lintel stops the head: ' + (b.top + DUEL_PHYS.bodyH));
+  row('free 3D: climb between two columns 1.8 m apart', `${f2(a.rate)} m/s up (${a.kicks} kicks in 4 s, ${f2(a.y)} m)`, 'climbable by kicking');
+  row('free 3D: the temple\'s stage pillars (1.7 m apart)', `head at the lintel (2.6 m) in ${ms(b.tTop)}, ${b.kicks} kick(s); the lintel stops it`, '');
+  return `columns ${f2(a.rate)} m/s (${a.kicks} kicks); temple pillars: the lintel in ${ms(b.tTop)}`;
+});
+
+test('free 3D: a wall run along a face met fast, then the slide; a kick out of it keeps the run\'s speed along the face', () => {
+  // a wall 12 m long along x at z = -1 (its face toward +z), 5 m high
+  const wall: Solid[] = [box([0, 2.5, -1.5], [6, 2.5, 0.5])];
+  const c = free(wall, -5, 0.2, Math.PI / 2);
+  let ev: CharEvent | undefined, peakY = 0, t0 = 0, t1 = 0, x0 = 0, x1 = 0;
+  run(c, 0.3, () => stick(1, 0));
+  run(c, 0.02, (t) => ({ jump: t === 0, jumpHeld: true, ...stick(1, -0.6) }));
+  run(c, 1.2, () => ({ jumpHeld: true, ...stick(1, -0.6) }), 240, (c, t) => {
+    if (!ev && (ev = c.events.find((e) => e.type === 'wall'))) { t0 = t; x0 = c.x; }
+    if (c.wallRunT > 0) { t1 = t; x1 = c.x; }
+    if (ev) peakY = Math.max(peakY, c.y);
+  });
+  assert(!!ev && ev.run === true, 'a wall run: ' + JSON.stringify(ev));
+  const runFor = t1 - t0, along = x1 - x0;
+  // a kick out of a run along the face
+  const d = free(wall, -5, 0.2, Math.PI / 2);
+  run(d, 0.3, () => stick(1, 0));
+  run(d, 0.02, (t) => ({ jump: t === 0, jumpHeld: true, ...stick(1, -0.6) }));
+  run(d, 0.6, () => ({ jumpHeld: true, ...stick(1, -0.6) }), 240, (c) => c.onWall);
+  run(d, 0.1, () => ({ jumpHeld: true, ...stick(1, -0.6) }));
+  run(d, 1 / 240, () => ({ jump: true, jumpHeld: true, ...stick(1, -0.6) }));
+  assert(d.v[2] > DUEL_PHYS.wallJumpX * 0.9 && d.v[0] > 2, `kicked out (+z) still running along (+x): ${d.v.map((v) => v.toFixed(2))}`);
+  row('free 3D: wall run along a flat face', `${ms(runFor)} running, ${f2(along)} m along it, peak ${f2(peakY)} m`, 'a short wall run');
+  row('free 3D: kick out of the run', `${f2(d.v[2])} m/s out, ${f2(d.v[0])} m/s still along the face, ${f2(d.v[1])} up`, '');
+  return `ran ${ms(runFor)}, ${f2(along)} m along; kick (${d.v.map((v) => v.toFixed(1)).join(', ')})`;
+});
+
+test('free 3D: the dash along the camera-relative stick, up with jump held, down with the stick down', () => {
+  const c = free([], 0, 0);
+  const x0 = c.x, z0 = c.z;
+  run(c, DUEL_PHYS.dashTime + 1 / 240, (t) => ({ dash: t === 0, ...stick(Math.SQRT1_2, Math.SQRT1_2) }));
+  const ev = c.events.find((e) => e.type === 'dash')!;
+  const dx = c.x - x0, dz = c.z - z0;
+  assert(Math.abs(Math.atan2(dz, dx) - Math.PI / 4) < 0.05 && Math.hypot(dx, dz) > 2.5, `along the stick: (${dx}, ${dz})`);
+  const u = free([], 0, 0);
+  run(u, 0.02, (t) => ({ jump: t === 0, jumpHeld: true }));
+  const y0 = u.y, ux0 = u.x;
+  run(u, DUEL_PHYS.dashTime + 1 / 240, (t) => ({ dash: t === 0, jumpHeld: true, ...stick(1, 0) }));
+  const up = [u.x - ux0, u.y - y0];
+  assert(up[0] > 1.5 && up[1] > 1.5, 'up and along: ' + up);
+  // camera-relative: the camera turned a quarter (inputYaw), the same stick goes another way
+  const r = free([], 0, 0); r.inputYaw = Math.PI / 2;
+  run(r, DUEL_PHYS.dashTime + 1 / 240, (t) => ({ dash: t === 0, moveX: 1 }));
+  assert(Math.abs(r.x) < 0.05 && Math.abs(r.z) > 2.5, `camera-relative: (${r.x}, ${r.z})`);
+  row('free 3D: dash along the stick (45°)', `${f2(Math.hypot(dx, dz))} m, dir (${(ev.dir as number[]).map((v) => v.toFixed(2)).join(', ')})`, 'camera-relative');
+  row('free 3D: dash with jump held', `${f2(up[0])} m along, ${f2(up[1])} m up`, 'up by jump');
+  return `flat ${f2(Math.hypot(dx, dz))} m; up-diagonal (${f2(up[0])}, ${f2(up[1])})`;
+});
+
+test('flow: run → jump → air kick → dash → land → kick on the run, with no stop in between', () => {
+  const c = free([], 0, 0, Math.PI / 2);
+  run(c, 0.4, () => stick(1, 0));
+  const sp0 = hsp(c);
+  run(c, 0.02, (t) => ({ jump: t === 0, jumpHeld: true, ...stick(1, 0) }));
+  run(c, 0.12, () => ({ jumpHeld: true, ...stick(1, 0) }));
+  const before = hsp(c);
+  run(c, 1 / 240, () => ({ kick: true, jumpHeld: true, ...stick(1, 0) }));
+  assert(c.move?.name === 'martelo', 'an air kick: ' + c.move?.name);
+  run(c, 0.05, () => ({ jumpHeld: true, ...stick(1, 0) }));
+  const during = hsp(c);
+  // the dash cuts the kick once its active window opens (the kick is thrown)
+  let cut = -1;
+  run(c, 0.5, () => ({ dash: true, ...stick(1, 0) }), 240, (c, t) => { if (c.dashing) { cut = t; return true; } });
+  assert(cut > 0 && cut < 0.4, 'dash cut the kick at ' + cut);
+  run(c, 2, () => stick(1, 0), 240, (c) => c.grounded);
+  const land = hsp(c);
+  // a kick started at a run slides on with the run (slideK 3): how far it carries in its first 0.2 s
+  const s0 = c.x;
+  run(c, 1 / 240, () => ({ kick: true, ...stick(1, 0) }));
+  run(c, 0.2, () => stick(1, 0));
+  const carried = c.x - s0;
+  const types = c.events.map((e) => e.type).filter((t) => t !== 'step');
+  assert(during > before * 0.95, `the air kick keeps the momentum: ${before} → ${during}`);
+  assert(carried > 0.4, 'the ground kick carries the run: ' + carried);
+  row('flow: speed into a jump → air kick', `${f2(sp0)} → ${f2(before)} → ${f2(during)} m/s (kept)`, 'aerials keep momentum');
+  row('flow: a dash cuts the air kick', `${ms(cut)} after asking (as its active window opens)`, 'moves cancel into each other');
+  row('flow: a kick on the run slides on', `${f2(carried)} m in its first 0.2 s (landed at ${f2(land)} m/s)`, 'no stop-start');
+  return `${types.join(' → ')}`;
+});
+
+test('flow: kick or spin on a wall kicks off it into a martelo or an aú', () => {
+  for (const [b, move] of [['kick', 'martelo'], ['spin', 'au']] as const) {
+    const c = make(FLAT, 28);
+    run(c, 0.02, (t) => ({ jump: t === 0, jumpHeld: true, moveX: 1 }));
+    run(c, 0.6, () => ({ moveX: 1, jumpHeld: true }), 240, (c) => c.onWall);
+    assert(c.onWall, 'on the wall');
+    c.events.length = 0;
+    run(c, 1 / 240, () => ({ [b]: true, moveX: 1 }));
+    const types = c.events.map((e) => e.type + (e.type === 'move' ? `:${e.move}` : ''));
+    assert(types[0] === 'wallJump' && types[1] === `move:${move}` && c.v[1] > 5 && vs(c) < -5, `${b}: ${types.join()} v ${c.v.map((v) => v.toFixed(1))}`);
+  }
+  return 'wallJump → martelo; wallJump → au';
 });
 
 test('the feel table', () => {

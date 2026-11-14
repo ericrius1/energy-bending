@@ -28,6 +28,7 @@ import { MOVES, LOCO, J, NJ, NP, BONE, FU, ANKLE_H, tempoScale, travelAt, asMove
 import { ledgeY as defaultLedgeY, planeNormal, type Ledge, type StagePlane } from '../engine/camera';
 import { makeIntent, type Intent, type Limb } from '../input/intent';
 import { wallPose, dashPose } from './kit-poses';
+import { solidContact, solidTop, solidBound, type Solid } from './solid-contact';
 import { defineParams } from '../engine/params';
 
 const TAU = Math.PI * 2;
@@ -102,7 +103,7 @@ export const PHYS = defineParams('dancer', {
   wallSlide: false,
   /** the slide's top speed down a wall (m/s), and how hard a faster fall is braked to it (m/s²) */
   wallSlideSpeed: 2.6,
-  wallFriction: 55,
+  wallFriction: 110,
   /** a slide begins only below this upward speed (m/s): pushing in while still rising fast just rises */
   wallStartVy: 1.5,
   /** a wall jump reaches a wall this far off (m), and still works this long after leaving one (s) */
@@ -128,6 +129,29 @@ export const PHYS = defineParams('dancer', {
   dashBuffer: 0.1,
   /** a jump during a dash keeps this much of the dash's speed along the plane */
   dashJumpKeep: 0.75,
+  // ---- free 3D (the duel is 3D native: docs/design/duel.md's correction)
+  /** free, the body is a cylinder this wide (m) against the world's solids (Terrain.solids: World.solids, columns,
+   *  trunks, blades, slabs): their faces stop it and are its walls, their tops are floors it can stand on, a top at most
+   *  stepUp above its feet stepped onto (the jogo: solids are the brains' business, the body passes them) */
+  solidsCollide: false,
+  bodyR: 0.25,
+  stepUp: 0.35,
+  /** the stick's run in free 3D as in the lock (accelerate, stop, turn, over top speed and the air each their own rate);
+   *  off: the jogo's one rate toward the stick */
+  snappy: false,
+  /** a kick off a wall keeps this much of the speed along the face (free 3D) */
+  wallKeep: 0.7,
+  /** a wall run: meeting a face this fast along it (m/s) while pushing in runs along it for wallRunTime (s), gravity at
+   *  wallRunGravity, before it slides */
+  wallRunSpeed: 3.5,
+  wallRunTime: 0.45,
+  wallRunGravity: 0.3,
+  /** and starts it rising at least this fast (m/s): a few steps up the face */
+  wallRunLift: 3.5,
+  /** moves flow: a move's recovery cancels into anything, a jump or a dash cuts it once its active window opens
+   *  (an attack thrown is committed until then), kick or spin on a wall kicks off it into a martelo or an aú; ground
+   *  moves carry their momentum (slideK) */
+  flow: false,
 }, {
   runSpeed: { min: 1, max: 8, label: 'run (m/s)' },
   jumpV: { min: 4, max: 14, label: 'jump speed' },
@@ -153,6 +177,10 @@ export const DUEL_PHYS: Phys = defineParams('duel.move', {
   landSquash: 0.12, landHuge: 26, landLag: 0.1,
   wallJumpX: 7.5, wallJumpY: 12,
   wallSlide: true, dash: true, airTurn: true,
+  solidsCollide: true, snappy: true, flow: true,
+  /** a move started at a run slides on with it (the jogo's 8 stops it in about 0.15 s) */
+  slideK: 3,
+  moveBuffer: 0.2,
   /** the body faces where the stick points at once (the jogo back-steps from its partner first) */
   faceRunDelay: 0,
   turnRate: 22,
@@ -173,7 +201,11 @@ export const COMBAT = defineParams('combat', { PARRY_MS: 150, PERFECT_MS: 90, NE
 /** where a free dancer stands: the floor's height under (x, z) (a World's groundAt) */
 /** the ground for free movement: its height under (x, z), and (where it can be fallen off: the forge) the height below
  *  which a body has fallen out and re-forms at its spawn */
-export interface Terrain { groundAt(x: number, z: number): number; fallY?: number }
+export interface Terrain {
+  groundAt(x: number, z: number): number; fallY?: number;
+  /** the world's big solid things (World.solids): walls and floors for a body whose profile has solidsCollide */
+  solids?: readonly Solid[];
+}
 export const FLAT: Terrain = { groundAt: () => 0 };
 
 export interface Capsule { ax: number; ay: number; az: number; bx: number; by: number; bz: number; r: number; move?: string; id?: number; part?: string }
@@ -185,8 +217,10 @@ interface MoveState {
   limb: Limb | null; camera: boolean; ground: boolean; perfect: boolean; off?: boolean;
   /** the gravity an air move falls by (the body's profile's) */
   g: number;
+  /** how fast the momentum it started with dies on the ground (the profile's slideK) */
+  k: number;
 }
-interface MoveOpts { dir?: number; dirVec?: [number, number]; yaw?: number; aim?: [number, number]; limb?: Limb | null; camera?: boolean }
+interface MoveOpts { dir?: number; dirVec?: [number, number]; yaw?: number; aim?: [number, number]; limb?: Limb | null; camera?: boolean; /** may start in the air though the move is a ground one (an aú kicked off a wall) */ air?: boolean }
 interface Choice extends MoveOpts { name: string; blink?: boolean }
 
 const yawOf = (fx: number, fz: number) => Math.atan2(fx, fz);
@@ -264,13 +298,18 @@ export class Character {
   groundY = 0;
   /** the body's physics profile: the jogo's PHYS, or the duel's DUEL_PHYS (wall slides and kicks, the dash, its feel) */
   phys: Phys = PHYS;
-  /** sliding down a wall now: which way the wall is along the plane (+1 at +s), else 0; and the wall's id */
+  /** sliding down a wall now: locked, which way the wall is along the plane (+1 at +s); free, 1; else 0. The wall's id
+   *  (a plane wall's, '_left' / '_right' for the plane's ends, 'solid.<i>' for World.solids[i]) */
   wallSide = 0;
   wallId: string | null = null;
-  /** the dash: time left in it (s, 0 when not dashing), its velocity along the plane and up (m/s), dashes left this
-   *  airtime, and the time since it began */
+  /** the wall slid on (or last in reach): its face's normal, world x and z, pointing out of it toward the body */
+  wallN: [number, number] = [0, 0];
+  /** running along the wall's face (s left of the wall run), free 3D */
+  wallRunT = 0;
+  /** the dash: time left in it (s, 0 when not dashing), its velocity (world, m/s), dashes left this airtime, and the
+   *  time since it began */
   dashT = 0;
-  dashV: [number, number] = [0, 0];
+  dashV: V3 = [0, 0, 0];
   dashes = 1;
   dashAge = 0;
   /** the dash's way up (-1..1: the lunge's pose) */
@@ -294,6 +333,9 @@ export class Character {
    *  its way, the dash's buffer and cooldown, a huge landing's skid */
   private wallNear = 0; private wallNearId: string | null = null; private wallCoyoteT = 0; private wallLast = 0; private wallLastId: string | null = null;
   private wallStickT = 0; private lockT = 0; private lockDir = 0;
+  /** free 3D: the normals of the wall in reach, the last one in reach, and the one kicked off (the lockout's) */
+  private wallNearN: [number, number] = [0, 0]; private wallLastN: [number, number] = [0, 0]; private lockN: [number, number] = [0, 0];
+  private _ct: { d: number; n: V3 } = { d: 0, n: [0, 0, 0] };
   private dashBuf = 0; private dashCoolT = 0; private landLagT = 0;
   private awayT = 0;
   private blockStart = -1;
@@ -347,8 +389,9 @@ export class Character {
   setProfile(p: Phys | 'jogo' | 'duel') { this.phys = typeof p === 'string' ? PROFILES[p] : p; }
   private _resetKit() {
     this.wallSide = 0; this.wallId = null; this.wallNear = 0; this.wallNearId = null; this.wallCoyoteT = 0; this.wallLast = 0; this.wallLastId = null;
-    this.wallStickT = 0; this.lockT = 0; this.lockDir = 0;
-    this.dashT = 0; this.dashV = [0, 0]; this.dashes = 1; this.dashAge = 0; this.dashBuf = 0; this.dashCoolT = 0; this.landLagT = 0;
+    this.wallStickT = 0; this.lockT = 0; this.lockDir = 0; this.wallRunT = 0;
+    this.wallN = [0, 0]; this.wallNearN = [0, 0]; this.wallLastN = [0, 0]; this.lockN = [0, 0];
+    this.dashT = 0; this.dashV = [0, 0, 0]; this.dashes = 1; this.dashAge = 0; this.dashBuf = 0; this.dashCoolT = 0; this.landLagT = 0;
     this.wallW = 0; this.dashW = 0;
   }
 
@@ -427,8 +470,15 @@ export class Character {
   /** which way a wall a jump would kick off now lies along the plane (+1 at +s, -1, or 0 none): in reach, or left
    *  less than wallCoyote ago. For the virtual players: what a jump means now */
   get wallKick() {
-    if (!this.phys.wallSlide || !this.plane || this.grounded || this.coyote > 0) return 0;
+    if (!this.phys.wallSlide || this.grounded || this.coyote > 0) return 0;
     return this.wallNear || (this.wallCoyoteT > 0 ? this.wallLast : 0);
+  }
+  /** the normal (world x, z: out of the face toward the body) of the wall slid on, or the one a jump would kick off
+   *  now; null when there is none */
+  get wallNormal(): [number, number] | null {
+    if (this.wallSide) return this.wallN.slice() as [number, number];
+    if (!this.wallKick) return null;
+    return (this.wallNear ? this.wallNearN : this.wallLastN).slice() as [number, number];
   }
   /** the dash for a HUD: 1 ready, 0 spent (in a dash, or used this airtime), between while it cools down */
   get dashReady() {
@@ -488,7 +538,7 @@ export class Character {
   startMove(nameOrDef: string | MoveDef | MoveInput, opts: MoveOpts = {}) {
     const def = typeof nameOrDef === 'string' ? MOVES[nameOrDef] : ((nameOrDef as MoveDef).windup === undefined ? asMove(nameOrDef) : (nameOrDef as MoveDef));
     if (!def || this.reformT >= 0 || this.stagger > 0) return false;
-    if (!this.grounded && !def.airOk) return false;
+    if (!this.grounded && !def.airOk && !opts.air) return false;
     if (opts.dir && this.plane) this.dir = sgn(opts.dir);
     let yaw: number;
     if (this.plane) yaw = this._yawForDir(this.dir);
@@ -508,7 +558,7 @@ export class Character {
       def, name: def.name, t: 0, dur: def.dur * tempoScale(bpm), serial: ++this.serial, yaw, f,
       p0: [this.root[0], this.root[1], this.root[2]], v0: still ? [0, air ? this.v[1] : 0, 0] : air ? [this.v[0], this.v[1], this.v[2]] : [this.v[0], 0, this.v[2]], air, aim3, aimW,
       aimN: [aimW[0] / l, aimW[1] / l, aimW[2] / l], hand: this.aimHand, bpm, startTime: this.time, limb: opts.limb || null, camera: !!opts.camera,
-      ground: !air, perfect: false, g: this.phys.gravity,
+      ground: !air, perfect: false, g: this.phys.gravity, k: this.phys.slideK,
     };
     // the real limb already wound up: the move starts at its active window, and the root stays the player's
     if (opts.camera && def.active) { m.t = def.active[0] * m.dur; m.off = true; }
@@ -521,7 +571,7 @@ export class Character {
     m.perfect = Math.abs(offMs) <= COMBAT.PERFECT_MS;
     this.events.push({ type: 'move', move: def.name, serial: m.serial, perfect: m.perfect, offMs: Math.round(offMs), x: this.root[0], y: this.root[1], z: this.root[2],
       dir: this.dir, yaw, aim: this._aimScreen(aimW), aim3: aim3.slice(), fdir: f.slice(), vx: m.v0[0], vy: m.v0[1], vz: m.v0[2], air, bpm, hand: this.aimHand > 0 ? 'R' : 'L',
-      camera: m.camera || undefined, limb: m.limb || undefined, ...(m.g !== PHYS.gravity ? { g: m.g } : {}) });
+      camera: m.camera || undefined, limb: m.limb || undefined, ...(m.g !== PHYS.gravity ? { g: m.g } : {}), ...(m.k !== PHYS.slideK ? { k: m.k } : {}) });
     this._crossfade('move' + m.serial, def.sampled ? 0.2 : 0.08);
     return true;
   }
@@ -636,13 +686,17 @@ export class Character {
     const m = this.move;
     const u = m ? m.t / m.dur : 0;
     const inRecovery = m && (m.def.active ? u > m.def.active[1] : u > 0.55);
-    const canCancel = (name: string) => !m || m.def.loop || (m.name === 'block' && !it.dodgeHeld) ||
-      (inRecovery && (m.def.cancelInto.includes('*') || m.def.cancelInto.includes(name)));
-    // jump (from the ground, off a wall, in the air; during a dash, keeping its speed along the plane)
     const P = this.phys;
+    // (flow: the duel's moves chain: any move from another's recovery, a jump or a dash once its active window
+    // opens, whatever its own list says)
+    const flowAt = m ? (m.def.active ? m.def.active[0] : 0.25) : 0;
+    const canCancel = (name: string) => !m || m.def.loop || (m.name === 'block' && !it.dodgeHeld) ||
+      (inRecovery && (m.def.cancelInto.includes('*') || m.def.cancelInto.includes(name))) ||
+      (P.flow && (!!inRecovery || ((name === 'jump' || name === 'dash') && u >= flowAt)));
+    // jump (from the ground, off a wall, in the air; during a dash, keeping its speed)
     if (this.jumpBuf > 0 && canCancel('jump')) {
-      const dash = this.dashT > 0 && !!this.plane;
-      const wall = P.wallSlide && this.plane ? (this.wallNear || (this.wallCoyoteT > 0 ? this.wallLast : 0)) : 0;
+      const dash = this.dashT > 0;
+      const wall = this.wallKick;
       if (this.grounded || this.coyote > 0) {
         const sup = this.support?.L;
         const supVy = sup && sup.bob ? (this._ledgeY(sup, beat + 0.01) - this._ledgeY(sup, beat - 0.01)) / ((0.02 * 60) / this._bpm()) : 0;
@@ -652,8 +706,8 @@ export class Character {
         if (m) this._endMove();
         this.events.push({ type: 'jump', x: this.root[0], y: this.root[1], z: this.root[2], air: false, ...(dash ? { dash: true } : {}) });
       } else if (wall) {
-        this._wallJump(wall, this.wallNear ? this.wallNearId : this.wallLastId);
         if (m) this._endMove();
+        this._wallJump();
       } else if (this.airJumps > 0) {
         if (dash) this._dashJump();
         this.v[1] = P.airJumpV; this.airJumps--; this.jumpBuf = 0; this.fastFalling = false;
@@ -662,12 +716,21 @@ export class Character {
       }
     }
     // the dash: whenever a jump could start, and the dash is ready (one per airtime, cooled down)
-    if (P.dash && this.plane && this.dashBuf > 0 && this.dashT <= 0 && this.dashCoolT <= 0 && (this.grounded || this.dashes > 0) && (canCancel('jump') || canCancel('dash'))) {
+    if (P.dash && this.dashBuf > 0 && this.dashT <= 0 && this.dashCoolT <= 0 && (this.grounded || this.dashes > 0) && (canCancel('jump') || canCancel('dash'))) {
       if (this.move) this._endMove();
       this._dash(it);
     }
     const bb = this.btnBuf;
     if (!bb) return;
+    // flow: kick or spin on a wall (sliding, or one in reach in the air) kicks off it into a martelo or an aú
+    if (P.flow && P.wallSlide && (bb.b === 'kick' || bb.b === 'spin') && !this.grounded && this.wallKick && canCancel(bb.b === 'kick' ? 'martelo' : 'au')) {
+      if (this.move) this._endMove();
+      this._wallJump();
+      const away = this.plane ? { dir: this.dir } : { dirVec: [this.wallLastN[0], this.wallLastN[1]] as [number, number] };
+      this.startMove(bb.b === 'kick' ? 'martelo' : 'au', { ...away, air: true });
+      this.btnBuf = null;
+      return;
+    }
     const choice = this._choose(bb, it);
     if (!choice) { this.btnBuf = null; return; }
     if (!canCancel(choice.name)) return;          // stays buffered
@@ -747,41 +810,64 @@ export class Character {
     if (this.grounded) this._snapToSupport(this._beat);
   }
   // ------------------------------------------------------------ the duel's kit: the dash, the wall jump
-  /** a dash: 8-way (the stick snapped to the nearest 45°; too little stick: the facing). On the ground, down is along
-   *  it; up leaves it. Spends the airtime's dash in the air (refreshed on landing and on a wall) */
+  /** a dash. Locked: 8-way, the stick snapped to the nearest 45° (too little stick: the facing). Free 3D: along the
+   *  stick (camera-relative; none: the facing), up with jump held, down with the stick down (crouch), 45° with both, or
+   *  straight up or down alone. On the ground, down is along it; up leaves it. Spends the airtime's dash in the air
+   *  (refreshed on landing and on a wall) */
   private _dash(it: Intent) {
     const P = this.phys;
-    let dx = 0, dy = 0;
-    const mx = clamp(it.moveX, -1, 1), my = clamp(it.moveY, -1, 1);
-    if (Math.hypot(mx, my) >= 0.35) {
-      const a = Math.round(Math.atan2(my, mx) / (Math.PI / 4)) * (Math.PI / 4);
-      dx = Math.abs(Math.cos(a)) < 1e-6 ? 0 : Math.cos(a); dy = Math.abs(Math.sin(a)) < 1e-6 ? 0 : Math.sin(a);
-    } else dx = this.dir;
-    if (this.grounded && dy < 0) { dy = 0; dx = dx ? sgn(dx) : this.dir; }
-    if (dy > 0) { this.grounded = false; this.support = null; this.coyote = 0; }
+    let dir: V3, ds = 0;
+    if (this.plane) {
+      let dx = 0, dy = 0;
+      const mx = clamp(it.moveX, -1, 1), my = clamp(it.moveY, -1, 1);
+      if (Math.hypot(mx, my) >= 0.35) {
+        const a = Math.round(Math.atan2(my, mx) / (Math.PI / 4)) * (Math.PI / 4);
+        dx = Math.abs(Math.cos(a)) < 1e-6 ? 0 : Math.cos(a); dy = Math.abs(Math.sin(a)) < 1e-6 ? 0 : Math.sin(a);
+      } else dx = this.dir;
+      if (this.grounded && dy < 0) { dy = 0; dx = dx ? sgn(dx) : this.dir; }
+      if (dx) this.dir = sgn(dx);
+      const r = this.plane.right;
+      dir = [r[0] * dx, dy, r[2] * dx]; ds = dx;
+    } else {
+      const mv = this._moveVec(it), l = Math.hypot(mv[0], mv[1]);
+      let up = it.jumpHeld ? 1 : !this.grounded && it.moveY < -0.5 ? -1 : 0;
+      let hx = 0, hz = 0;
+      if (l >= 0.35) { hx = mv[0] / l; hz = mv[1] / l; } else if (!up) { const f = fwdOf(this.yaw); hx = f[0]; hz = f[1]; }
+      if (this.grounded && up < 0) up = 0;
+      const k = hx || hz ? Math.SQRT1_2 : 1;
+      dir = up ? [hx * k, up * k, hz * k] : [hx, 0, hz];
+      if (hx || hz) this.yaw = yawOf(hx, hz);
+    }
+    if (dir[1] > 0) { this.grounded = false; this.support = null; this.coyote = 0; }
     if (!this.grounded) this.dashes = Math.max(0, this.dashes - 1);
-    this.dashV = [dx * P.dashSpeed, dy * P.dashSpeed]; this.dashT = P.dashTime; this.dashAge = 0; this.dashBuf = 0; this.dashUp = dy;
-    this.fastFalling = false; this.wallSide = 0; this.wallId = null; this.lockT = 0;
-    if (dx) this.dir = sgn(dx);
-    this.events.push({ type: 'dash', x: this.root[0], y: this.root[1], z: this.root[2], dir: [dx, dy], air: !this.grounded });
+    this.dashV = [dir[0] * P.dashSpeed, dir[1] * P.dashSpeed, dir[2] * P.dashSpeed];
+    this.dashT = P.dashTime; this.dashAge = 0; this.dashBuf = 0; this.dashUp = dir[1];
+    this.fastFalling = false; this.wallSide = 0; this.wallId = null; this.wallRunT = 0; this.lockT = 0;
+    this.events.push({ type: 'dash', x: this.root[0], y: this.root[1], z: this.root[2], dir, air: !this.grounded, ...(this.plane ? { s: ds } : {}) });
   }
-  /** a jump out of a dash keeps dashJumpKeep of its speed along the plane (the jump itself sets the rise) */
+  /** a jump out of a dash keeps dashJumpKeep of its speed across the ground (the jump itself sets the rise) */
   private _dashJump() {
-    const r = this.plane!.right, vs = this.dashV[0] * this.phys.dashJumpKeep;
-    this.v[0] = r[0] * vs; this.v[2] = r[2] * vs;
+    const k = this.phys.dashJumpKeep;
+    this.v[0] = this.dashV[0] * k; this.v[2] = this.dashV[2] * k;
     this.dashT = 0; this.dashCoolT = this.phys.dashCool;
   }
-  /** kick off the wall that lies `way` along the plane: up and away, the air jump and the dash back, and for wallLock
-   *  the stick can't pull the body back toward it */
-  private _wallJump(way: number, id: string | null) {
-    const P = this.phys, r = this.plane!.right, away = -sgn(way);
-    this.v = [r[0] * away * P.wallJumpX, P.wallJumpY, r[2] * away * P.wallJumpX];
+  /** kick off the wall slid on (or in reach, or just left): up and out along its normal, keeping wallKeep of the speed
+   *  along its face (free 3D: a wall run carries on), the air jump and the dash back, and for wallLock the stick can't
+   *  pull the body back toward it */
+  private _wallJump() {
+    const P = this.phys;
+    const n = (this.wallSide ? this.wallN : this.wallNear ? this.wallNearN : this.wallLastN).slice() as [number, number];
+    const id = this.wallSide ? this.wallId : this.wallNear ? this.wallNearId : this.wallLastId;
+    const vn = this.v[0] * n[0] + this.v[2] * n[1];
+    const tx = (this.v[0] - n[0] * vn) * P.wallKeep, tz = (this.v[2] - n[1] * vn) * P.wallKeep;
+    this.v = [n[0] * P.wallJumpX + tx, P.wallJumpY, n[1] * P.wallJumpX + tz];
     this.grounded = false; this.support = null; this.coyote = 0; this.jumpBuf = 0; this.fastFalling = false;
     this.airJumps = 1; this.dashes = 1; this.dashT = 0;
-    this.lockT = P.wallLock; this.lockDir = sgn(way);
-    this.wallSide = 0; this.wallId = null; this.wallNear = 0; this.wallCoyoteT = 0; this.wallStickT = 0;
-    this.dir = away;
-    this.events.push({ type: 'wallJump', x: this.root[0], y: this.root[1], z: this.root[2], dir: away, wall: id });
+    this.lockT = P.wallLock; this.lockN = n; this.wallLastN = n.slice() as [number, number];
+    let away = 0;
+    if (this.plane) { const r = this.plane.right; away = sgn(n[0] * r[0] + n[1] * r[2]); this.lockDir = -away; this.dir = away; }
+    this.wallSide = 0; this.wallId = null; this.wallNear = 0; this.wallCoyoteT = 0; this.wallStickT = 0; this.wallRunT = 0;
+    this.events.push({ type: 'wallJump', x: this.root[0], y: this.root[1], z: this.root[2], n, wall: id, ...(this.plane ? { dir: away } : {}) });
   }
   /** the plane's walls in its own coordinates (plane y from its origin), its ends among them: a face at s looking
    *  toward `side`, spanning y0..y1 */
@@ -816,8 +902,8 @@ export class Character {
   }
 
   /** the kinematic root of a move from its start state (identical to Character.shapesAt) */
-  static _moveRoot(m: Pick<MoveState, 'def' | 'dur' | 'p0' | 'v0' | 'air' | 'f'> & { g?: number }, t: number): V3 {
-    const k = PHYS.slideK;
+  static _moveRoot(m: Pick<MoveState, 'def' | 'dur' | 'p0' | 'v0' | 'air' | 'f'> & { g?: number; k?: number }, t: number): V3 {
+    const k = m.k ?? PHYS.slideK;
     const tr = travelAt(m.def, clamp(t / m.dur, 0, 1));
     if (!m.air) {
       const sl = (1 - Math.exp(-k * t)) / k;
@@ -836,7 +922,7 @@ export class Character {
     const dashing = this.dashT > 0;
     if (dashing) {
       // the dash drives the body: straight, no gravity; it leaves at dashEndMul of its speed
-      vs = this.dashV[0]; vy = this.dashV[1];
+      vs = this.dashV[0] * r[0] + this.dashV[2] * r[2]; vy = this.dashV[1];
       this.dashT -= h; this.dashAge += h;
       if (this.dashT <= 0) { this.dashT = 0; this.dashCoolT = P.dashCool; vs *= P.dashEndMul; vy *= P.dashEndMul; }
     } else if (kin) {
@@ -896,8 +982,8 @@ export class Character {
       if (side * (s0 - face) >= -1e-3 && side * (s - face) < 0) { s = face; if (vs * side < 0) vs = 0; }
     }
     // a dash into a wall loses its way along the plane (and ends, if that was all of it)
-    if (dashing && this.dashT > 0 && this.dashV[0] !== 0 && vs === 0) {
-      this.dashV[0] = 0;
+    if (dashing && this.dashT > 0 && (this.dashV[0] !== 0 || this.dashV[2] !== 0) && vs === 0) {
+      this.dashV[0] = 0; this.dashV[2] = 0;
       if (!this.dashV[1]) { this.dashT = 0; this.dashCoolT = P.dashCool; }
     }
     // vertical
@@ -959,21 +1045,37 @@ export class Character {
         if (d < -0.05 || d > P.wallReach || d >= best) continue;
         best = d; near = -w.side; nearId = w.id;
       }
-      // the wall just kicked off isn't in reach again until the lockout is over (no second kick off it from afar)
-      if (near && this.lockT > 0 && near === this.lockDir) { near = 0; nearId = null; best = Infinity; }
     }
+    const r = this.plane!.right;
+    this._wallState(near, nearId, [-near * r[0], -near * r[2]], near !== 0 && best <= 0.02, it.moveX * near > 0.3, vy, 0, it, h);
+  }
+
+  /** the wall slide's state, both views. `near`: a wall in reach (locked: its way along the plane; free: 1), its id and
+   *  normal (out of it, world x z), whether the body touches it and pushes into it, the speed along its face. A slide
+   *  begins pushing into a touched climbable wall while falling (or nearly), or meeting it fast along its face (free:
+   *  a wall run first), refreshing the air jump and the dash; it holds while the body touches a wall, isn't pulled down
+   *  off it, and the stick has been off it less than wallStick. Events: 'wall' as it begins */
+  private _wallState(near: number, nearId: string | null, n: [number, number], touch: boolean, push: boolean, vy: number, along: number, it: Intent, h: number) {
+    const P = this.phys;
+    // the wall just kicked off isn't in reach again until the lockout is over (no second kick off it from afar)
+    if (near && this.lockT > 0 && n[0] * this.lockN[0] + n[1] * this.lockN[1] > 0.7) { near = 0; nearId = null; touch = false; push = false; }
     this.wallNear = near; this.wallNearId = nearId;
-    if (near) { this.wallCoyoteT = P.wallCoyote; this.wallLast = near; this.wallLastId = nearId; }
-    const touch = near !== 0 && best <= 0.02, push = it.moveX * near > 0.3, down = it.moveY < -0.6;
+    if (near) { this.wallNearN = n; this.wallCoyoteT = P.wallCoyote; this.wallLast = near; this.wallLastId = nearId; this.wallLastN = n; }
+    const down = it.moveY < -0.6;
     const busy = this.grounded || this.dashT > 0 || !!this.move || this.stagger > 0;
     if (this.wallSide) {
-      if (!touch || near !== this.wallSide || down || busy) { this.wallSide = 0; this.wallId = null; }
-      else if (!push) { this.wallStickT += h; if (this.wallStickT > P.wallStick) { this.wallSide = 0; this.wallId = null; } }
-      else this.wallStickT = 0;
-    } else if (touch && push && !down && !busy && vy <= P.wallStartVy) {
-      this.wallSide = near; this.wallId = nearId; this.wallStickT = 0;
+      if (!touch || down || busy || (this.plane && near !== this.wallSide)) { this.wallSide = 0; this.wallId = null; this.wallRunT = 0; }
+      else {
+        this.wallId = nearId; this.wallN = n;
+        if (!push) { this.wallStickT += h; if (this.wallStickT > P.wallStick) { this.wallSide = 0; this.wallId = null; this.wallRunT = 0; } }
+        else this.wallStickT = 0;
+      }
+    } else if (touch && push && !down && !busy && (vy <= P.wallStartVy || (!this.plane && Math.abs(along) >= P.wallRunSpeed))) {
+      this.wallSide = near; this.wallId = nearId; this.wallN = n; this.wallStickT = 0;
+      this.wallRunT = !this.plane && Math.abs(along) >= P.wallRunSpeed ? P.wallRunTime : 0;
+      if (this.wallRunT > 0) this.v[1] = Math.max(this.v[1], P.wallRunLift);
       this.airJumps = 1; this.dashes = 1; this.fastFalling = false;
-      this.events.push({ type: 'wall', x: this.root[0], y: this.root[1], z: this.root[2], side: near, wall: nearId });
+      this.events.push({ type: 'wall', x: this.root[0], y: this.root[1], z: this.root[2], n, wall: nearId, run: this.wallRunT > 0, ...(this.plane ? { side: near } : {}) });
     }
   }
 
@@ -989,9 +1091,16 @@ export class Character {
   }
 
   private _physFree(h: number, it: Intent, env: Character['env']) {
+    const P = this.phys;
     let [x, y, z] = this.root, [vx, vy, vz] = this.v;
     const m = this.move, kin = !!(m && !m.off);
-    if (kin) {
+    const dashing = this.dashT > 0;
+    if (dashing) {
+      // the dash drives the body: straight, no gravity; it leaves at dashEndMul of its speed
+      [vx, vy, vz] = this.dashV;
+      this.dashT -= h; this.dashAge += h;
+      if (this.dashT <= 0) { this.dashT = 0; this.dashCoolT = P.dashCool; vx *= P.dashEndMul; vy *= P.dashEndMul; vz *= P.dashEndMul; }
+    } else if (kin) {
       const p = Character._moveRoot(m!, m!.t);
       vx = (p[0] - x) / h; vz = (p[2] - z) / h; if (m!.air) vy = (p[1] - y) / h;
     } else if (this.stagger > 0) {
@@ -1003,37 +1112,154 @@ export class Character {
       const mv = this._moveVec(it);
       const crouch = this.grounded && it.moveY < -0.5;
       let tx = mv[0], tz = mv[1]; const l = Math.hypot(tx, tz); if (l > 1) { tx /= l; tz /= l; }
-      const sp = crouch || env.still ? 0 : it.walk ? this.phys.walkSpeed : this.phys.runSpeed;
+      // just kicked off a wall: the stick can't pull the body back toward it
+      if (this.lockT > 0) { const d = tx * this.lockN[0] + tz * this.lockN[1]; if (d < 0) { tx -= this.lockN[0] * d; tz -= this.lockN[1] * d; } }
+      const sp = crouch || env.still ? 0 : it.walk ? P.walkSpeed : P.runSpeed;
       tx *= sp; tz *= sp;
-      const a = (this.grounded ? this.phys.groundAccel * (1 - this.phys.slickGrip * (env.slick || 0)) : this.phys.airAccel) * h * (l > 0.05 ? 1 : 1.3);
-      const dx = tx - vx, dz = tz - vz, dl = Math.hypot(dx, dz);
-      if (dl > a) { vx += (dx / dl) * a; vz += (dz / dl) * a; } else { vx = tx; vz = tz; }
+      // (what's left of the stick after the lockout must be a real push, not the sliver along the face)
+      if (P.snappy) [vx, vz] = this._steer(vx, vz, tx, tz, Math.hypot(tx, tz) > 0.3 * sp && l > 0.1, h, env);
+      else {
+        const a = (this.grounded ? P.groundAccel * (1 - P.slickGrip * (env.slick || 0)) : P.airAccel) * h * (l > 0.05 ? 1 : 1.3);
+        const dx = tx - vx, dz = tz - vz, dl = Math.hypot(dx, dz);
+        if (dl > a) { vx += (dx / dl) * a; vz += (dz / dl) * a; } else { vx = tx; vz = tz; }
+      }
     }
-    if (!this.grounded && !(kin && m!.air)) vy = this._gravity(h, vy, it, m);
+    // gravity; on a wall, the run along it or the slide down it (held against it, its speed along the face kept)
+    if (this.wallSide && !this.grounded && !dashing) {
+      const n = this.wallN, vn = vx * n[0] + vz * n[1];
+      if (vn > -0.5) { vx -= n[0] * (vn + 0.5); vz -= n[1] * (vn + 0.5); }
+      if (this.wallRunT > 0) {
+        this.wallRunT = Math.max(0, this.wallRunT - h);
+        vy -= P.gravity * P.wallRunGravity * h;
+      } else {
+        if (vy < -P.wallSlideSpeed) vy = Math.min(-P.wallSlideSpeed, vy + P.wallFriction * h);
+        else vy = Math.max(vy - P.gravity * P.fallMul * h, -P.wallSlideSpeed);
+        // the speed along the face dies away as it slides
+        const k = Math.exp(-3 * h), vn2 = vx * n[0] + vz * n[1];
+        vx = n[0] * vn2 + (vx - n[0] * vn2) * k; vz = n[1] * vn2 + (vz - n[1] * vn2) * k;
+      }
+    } else if (!this.grounded && !(kin && m!.air) && !dashing) vy = this._gravity(h, vy, it, m);
     x += vx * h; z += vz * h;
-    const g0 = this.terrain.groundAt(x, z);
+    // the world's solids: their faces stop the body (and are its walls), their tops are floors
+    const solids = P.solidsCollide ? this.terrain.solids : undefined;
+    let wall: { near: number; id: string | null; n: [number, number]; gap: number } | null = null;
+    if (solids && solids.length) {
+      const r = this._solidsPush(solids, x, y, z);
+      x = r.x; z = r.z;
+      for (const n of r.pushed) {
+        const vn = vx * n[0] + vz * n[1];
+        if (vn < 0) { vx -= n[0] * vn; vz -= n[1] * vn; }
+        if (dashing && this.dashT > 0) {
+          const dn = this.dashV[0] * n[0] + this.dashV[2] * n[1];
+          if (dn < 0) { this.dashV[0] -= n[0] * dn; this.dashV[2] -= n[1] * dn; }
+          if (Math.hypot(this.dashV[0], this.dashV[2]) < 1 && !this.dashV[1]) { this.dashT = 0; this.dashCoolT = P.dashCool; }
+        }
+      }
+      wall = r.wall;
+    }
+    const g0 = this._floorAt(solids, x, z, this.grounded ? y + P.stepUp : y + 0.02);
     this.groundY = g0;
     let landed: number | null = null;
     if (this.grounded) {
-      if (y - g0 > 0.25) { this.grounded = false; this.coyote = this.phys.coyote; vy = 0; if (m) m.off = true; }
+      if (y - g0 > 0.25) { this.grounded = false; this.coyote = P.coyote; vy = 0; if (m) m.off = true; }
       else { y = g0; vy = 0; }
     }
     if (!this.grounded) {
       y += vy * h;
       if (y <= g0 && vy <= 0.006) { landed = vy; y = g0; vy = 0; this.grounded = true; this.support = { id: '_free' }; }
+      // a solid's underside (a lintel, a bough) stops the head
+      else if (solids && vy > 0) {
+        const ct = this._ct;
+        for (const s of solids) {
+          const b = solidBound(s);
+          if (b.y0 > y + P.bodyH + 0.1 || b.y1 < y || Math.hypot(x - b.c[0], z - b.c[2]) > b.R + P.bodyR) continue;
+          solidContact(s, x, y + P.bodyH, z, ct);
+          if (ct.d < 0 && ct.n[1] < -0.6) { y -= -ct.d; vy = 0; if (this.dashT > 0) this.dashV[1] = Math.min(0, this.dashV[1]); }
+        }
+      }
     }
     this.root = [x, y, z];
-    if (!kin) { const sp = Math.hypot(vx, vz), most = 3 * this.phys.runSpeed; if (sp > most) { vx *= most / sp; vz *= most / sp; } }
+    if (!kin) { const sp = Math.hypot(vx, vz), most = Math.max(3 * P.runSpeed, P.dash ? P.dashSpeed : 0); if (sp > most) { vx *= most / sp; vz *= most / sp; } }
     this.v = [vx, vy, vz];
     if (landed != null) this._onLand(landed);
     if (this.grounded) this.lastGroundY = y;
+    if (P.wallSlide && solids) {
+      // the wall: touched and pushed into by the stick (camera-relative), its speed along the face for a wall run
+      const mv = this._moveVec(it);
+      const w = !this.grounded && this.reformT < 0 ? wall : null;
+      const n = w ? w.n : [0, 0] as [number, number];
+      const push = !!w && -(mv[0] * n[0] + mv[1] * n[1]) > 0.3;
+      const along = w ? Math.hypot(vx - n[0] * (vx * n[0] + vz * n[1]), vz - n[1] * (vx * n[0] + vz * n[1])) : 0;
+      this._wallState(w ? 1 : 0, w ? w.id : null, n, !!w && w.gap <= 0.03, push, vy, along, it, h);
+    }
+  }
+
+  /** the duel's run in free 3D (P.snappy): along the stick's way the speed rises at groundAccel (from a reversal at
+   *  turnAccel), bleeds off over top speed at groundOver, and across it the old way dies at turnAccel (near-instant); in
+   *  the air at airAccel, over top speed airOver; no stick: stopped at groundDecel, or airDrag in the air; just kicked off
+   *  a wall, momentum kept */
+  private _steer(vx: number, vz: number, tx: number, tz: number, stick: boolean, h: number, env: Character['env']): [number, number] {
+    const P = this.phys, ground = this.grounded, grip = ground ? 1 - P.slickGrip * (env.slick || 0) : 1;
+    if (ground && this.landLagT > 0) stick = false;
+    if (!stick) {
+      if (!ground && this.lockT > 0) return [vx, vz];
+      const sp = Math.hypot(vx, vz), d = (ground ? (this.landLagT > 0 ? P.groundOver || P.groundDecel : P.groundDecel) * grip : P.airDrag) * h;
+      if (sp <= d) return [0, 0];
+      return [vx * (sp - d) / sp, vz * (sp - d) / sp];
+    }
+    const T = Math.hypot(tx, tz), ux = tx / T, uz = tz / T;
+    let par = vx * ux + vz * uz, px = vx - ux * par, pz = vz - uz * par;
+    const acc = (ground ? (par < 0 ? P.turnAccel : P.groundAccel) : P.airAccel) * grip * h;
+    const over = (ground ? P.groundOver || P.groundDecel : P.airOver || P.airAccel) * grip * h;
+    if (par > T) par = Math.max(T, par - over); else par = Math.min(T, par + acc);
+    const cross = (ground ? P.turnAccel : P.airAccel) * grip * h, pl = Math.hypot(px, pz);
+    if (pl <= cross) { px = 0; pz = 0; } else { px *= (pl - cross) / pl; pz *= (pl - cross) / pl; }
+    return [ux * par + px, uz * par + pz];
+  }
+
+  /** the body (a cylinder bodyR wide, stepUp up to bodyH) pushed out of the solids' sides, sampled at three heights;
+   *  the faces it was pushed off (their normals, world x z), and the nearest climbable face in reach at the body's
+   *  middle: a wall (its gap, normal and id 'solid.<i>') */
+  private _solidsPush(solids: readonly Solid[], x: number, y: number, z: number) {
+    const P = this.phys, R = P.bodyR, ct = this._ct, pushed: [number, number][] = [];
+    let wall: { near: number; id: string | null; n: [number, number]; gap: number } | null = null;
+    const hs = [y + P.stepUp + 0.1, y + P.bodyH * 0.55, y + P.bodyH - 0.1], reach = R + P.wallReach + 0.05;
+    for (let pass = 0; pass < 2; pass++) {
+      for (let i = 0; i < solids.length; i++) {
+        const s = solids[i], b = solidBound(s);
+        if (b.y1 < hs[0] || b.y0 > hs[2] || Math.hypot(x - b.c[0], z - b.c[2]) > b.R + reach) continue;
+        let pen = 0, nx = 0, nz = 0;
+        for (let k = 0; k < 3; k++) {
+          solidContact(s, x, hs[k], z, ct);
+          const hl = Math.hypot(ct.n[0], ct.n[2]);
+          if (hl < 0.6) continue;                       // over or under it: a floor or a ceiling, not a face
+          const ux = ct.n[0] / hl, uz = ct.n[2] / hl, gap = ct.d - R;
+          if (-gap > pen) { pen = -gap; nx = ux; nz = uz; }
+          if (k === 1 && pass === 1 && gap <= P.wallReach && (!wall || gap < wall.gap)) wall = { near: 1, id: `solid.${i}`, n: [ux, uz], gap: Math.max(0, gap) };
+        }
+        if (pen > 0) { x += nx * pen; z += nz * pen; pushed.push([nx, nz]); }
+      }
+    }
+    return { x, z, pushed, wall };
+  }
+
+  /** the floor under (x, z): the world's ground, or a solid's top no higher than `maxTop` (what the feet can reach) */
+  private _floorAt(solids: readonly Solid[] | undefined, x: number, z: number, maxTop: number) {
+    let g = this.terrain.groundAt(x, z);
+    if (solids) for (const s of solids) {
+      const b = solidBound(s);
+      if (b.y1 <= g || b.y0 > maxTop || Math.hypot(x - b.c[0], z - b.c[2]) > b.R + 0.2) continue;
+      const t = solidTop(s, x, z, this.phys.bodyR * 0.4);
+      if (t > g && t <= maxTop) g = t;
+    }
+    return g;
   }
 
   private _onLand(vy: number) {
     this.airJumps = 1; this.fastFalling = false;
     // the kit: the dash back; a dash down into the floor ends there; a huge landing skids
     const P = this.phys;
-    this.dashes = 1; this.wallSide = 0; this.wallId = null; this.lockT = 0;
+    this.dashes = 1; this.wallSide = 0; this.wallId = null; this.lockT = 0; this.wallRunT = 0;
     if (this.dashT > 0 && this.dashV[1] < 0) {
       this.dashT = 0; this.dashCoolT = P.dashCool;
       this.v[0] *= P.dashEndMul; this.v[2] *= P.dashEndMul;
@@ -1063,7 +1289,13 @@ export class Character {
     } else {
       const sp = Math.hypot(this.v[0], this.v[2]);
       let target = this.yaw;
-      if (sp > 0.7) target = yawOf(this.v[0], this.v[2]);
+      // on a wall: turned to it (running along it, half toward the way it runs)
+      if (this.wallSide) {
+        const n = this.wallN, t = [this.v[0] - n[0] * (this.v[0] * n[0] + this.v[2] * n[1]), this.v[2] - n[1] * (this.v[0] * n[0] + this.v[2] * n[1])];
+        const run = this.wallRunT > 0 ? 1 : 0, tl = Math.hypot(t[0], t[1]) || 1;
+        target = yawOf(-n[0] + run * t[0] / tl, -n[1] + run * t[1] / tl);
+      } else if (this.dashT > 0 && Math.hypot(this.dashV[0], this.dashV[2]) > 0.5) target = yawOf(this.dashV[0], this.dashV[2]);
+      else if (sp > 0.7) target = yawOf(this.v[0], this.v[2]);
       else if (this.lookAt) { const dx = this.lookAt[0] - this.root[0], dz = this.lookAt[2] - this.root[2]; if (Math.hypot(dx, dz) > 0.12) target = yawOf(dx, dz); }
       this._turnToward(target, h);
       this.dir = Math.sin(this.yaw) < 0 ? -1 : 1;
@@ -1304,7 +1536,7 @@ export class Character {
       const c = Math.cos(-yaw), s = Math.sin(-yaw);
       aim3 = [a[0] * c, a[1], -a[0] * s];
     }
-    const m = { def, dur, p0: [ev.x, ev.y, ev.z || 0] as V3, v0: [ev.vx || 0, ev.air ? ev.vy || 0 : 0, ev.vz || 0] as V3, air: !!ev.air, f, g: ev.g ?? PHYS.gravity };
+    const m = { def, dur, p0: [ev.x, ev.y, ev.z || 0] as V3, v0: [ev.vx || 0, ev.air ? ev.vy || 0 : 0, ev.vz || 0] as V3, air: !!ev.air, f, g: ev.g ?? PHYS.gravity, k: ev.k ?? PHYS.slideK };
     const root = Character._moveRoot(m, t);
     const L = new Float32Array(NP), W = new Float32Array(NP);
     def.pose(u, { hand, aim: aim3, air: !!ev.air, beat: 0, groove: 1, t }, L);
