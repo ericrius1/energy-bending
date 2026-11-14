@@ -50,8 +50,11 @@ export async function adapterName(page) {
 const LOCK = process.env.RENDER_LOCK ?? (win ? 'C:/Users/ericr/render-lock' : '/tmp/render-lock');
 let held = false;
 
-/** take the lock (a directory: mkdir is atomic), waiting while another capture holds it; released on any exit */
-export async function takeLock({ waitMs = 5000, say = console.log } = {}) {
+/** take the lock (a directory: mkdir is atomic), waiting while another capture holds it; released on any exit.
+ *  Only heavy renders take it (a master film, long full-resolution work): Eric's rule is no two of those at once.
+ *  Test captures, stills and previews run alongside each other and skip it, unless RENDER_LOCK_ALL=1. */
+export async function takeLock({ waitMs = 5000, say = console.log, heavy = false } = {}) {
+  if (!heavy && process.env.RENDER_LOCK_ALL !== '1') return () => {};
   for (let tries = 0; ; tries++) {
     try { mkdirSync(LOCK); held = true; break; } catch (e) {
       if (e.code !== 'EEXIST') throw e;

@@ -199,8 +199,11 @@ code on GitHub, the room server on Railway, the site at ericlevin.dev/energybend
 
 ## Shared habits
 
-- The RTX 5090 on this PC is shared with other agents. Take the render lock for any headless GPU capture:
-  `mkdir /c/Users/ericr/render-lock` (retry while it exists), remove it when done, always (`trap`).
+- The RTX 5090 on this PC is shared with other agents. Only **heavy renders** take the render lock (a master film,
+  long full-resolution work): never two of those at once. `mkdir /c/Users/ericr/render-lock` (retry while it exists),
+  remove it when done, always (`trap`); `scripts/film.mjs` without `--preview` does this itself. Test captures,
+  stills, timings and previews don't take it: agents run them alongside each other (`takeLock()` in
+  scripts/lib/browser.mjs skips them; `RENDER_LOCK_ALL=1` makes every capture take it again).
 - Each agent leaves a report in `docs/reports/<wave>-<name>.md`: what was built, what was measured,
   honest weak points, what was not done.
 - Do not commit other agents' folders. Do not push. Do not deploy.
