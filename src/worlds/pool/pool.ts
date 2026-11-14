@@ -19,7 +19,7 @@ import { stagePlane, spawnsOf, type StagePlane } from '../stage';
 import stoneShader from './stones.wgsl';
 import type { Solid } from '../solids';
 import { arenaShown } from '../../duel/arena';
-import { poolDuel, poolGround } from './arena';
+import { poolDuel, poolGround, poolStonesNow } from './arena';
 
 export const poolParams = defineParams('pool', {
   zenith: '#010207',
@@ -92,6 +92,7 @@ export class Pool implements World {
   /** nothing solid in the Pool, but the duel arena's stones and floes while it is shown (arena.ts) */
   get solids(): readonly Solid[] { return arenaShown(this.id) ? poolDuel().arena.pieces! : []; }
   private duelBuf: ReturnType<WorldCtx['kit']['storage']>;
+  private stonesNow = poolDuel().data.slice();
   readonly room = 40;
   readonly maxDist = 16;
   private u: LightSlot<PoolU>;
@@ -146,6 +147,8 @@ export class Pool implements World {
 
   update(f: FrameCtx, c: { x: number; z: number }) {
     this.seen = f.kit.frameIndex;
+    // the duel's stones where the swell has them (hazards.ts moves their solids; the draw follows)
+    if (arenaShown(this.id) && poolStonesNow(this.stonesNow)) this.duelBuf.write(this.stonesNow);
     this.waves.update(f, c.x, c.z, 0);
     this.live.waves = this.waves.window();
     this.live.march[2] = f.t;
@@ -160,7 +163,7 @@ export class Pool implements World {
     else if (s.phase === 'opaque') s.pass.draw(stoneShader, { label: 'pool.duel', bind: { stones: this.duelBuf }, count: 6 * 6 * 6 * 6, instances: poolDuel().count, cull: 'none', enabled: () => s.on() && arenaShown(this.id) });
   }
 
-  /** the shallow water's floor; in the duel the water is deep, but for the stones and floes standing in it */
+  /** the shallow water's floor; in the duel the water is deep, a floor to float on (and the stones and floes in it) */
   groundAt(x: number, z: number) { return arenaShown(this.id) ? poolGround(x, z) : 0; }
   /** the water is the floor: fire's mirror copy reflects about it */
   waterY() { return 0; }
