@@ -54,7 +54,6 @@ struct Post {
 @group(1) @binding(4) var focusTex: texture_2d<f32>;
 @group(1) @binding(5) var blurTex: texture_2d<f32>;
 fn tap(uv: vec2f) -> vec3f { return textureSampleLevel(src, samp_linear, uv, 0.0).rgb; }
-fn hash2(p: vec2f) -> f32 { return fract(sin(dot(p, vec2f(127.1, 311.7))) * 43758.5453); }
 
 // ---------------------------------------------------------------- the lens
 // The blur (in full-resolution pixels, at most 16) of something at view distance `depth`
@@ -97,7 +96,7 @@ fn beyondStage(depth: f32) -> f32 {
   var acc = centre.rgb;
   var wsum = 1.0;
   var blur = c0;
-  let spin = hash2(vec2f(px)) * 6.2831853;
+  let spin = pixelRnd(px, 7u) * 6.2831853;
   let n = 28;
   for (var k = 1; k <= n; k++) {
     let r = sqrt(f32(k) / f32(n)) * 8.0;
@@ -275,7 +274,8 @@ fn grade(c: vec3f) -> vec3f {
   let v = distance(i.uv, vec2f(0.5));
   c *= 1.0 - post.vignette * smoothstep(0.25, 0.85, v);
   var g = pow(clamp(c, vec3f(0.0), vec3f(1.0)), vec3f(1.0 / 2.2));
-  let n = fract(sin(dot(i.uv * vec2f(frame.res) + frame.time * 61.0, vec2f(12.9898, 78.233))) * 43758.5453);
+  // (an integer hash per pixel and frame: the sine hash this was made diagonal streaks across whole frames)
+  let n = pixelRnd(vec2i(i.uv * frame.res), frame.frame);
   g += (n - 0.5) * post.grain;
   return vec4f(g, 1.0);
 }

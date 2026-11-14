@@ -272,7 +272,11 @@ fn waterAt(q: vec2f, wdims: vec2i) -> vec4f {
 }
 
 // ---------------------------------------------------------------- the world's light on the surface
-/** the dancers' fire seen in a surface at p: highlights in the reflected direction R and a rim on the side facing it */
+/** the dancers' fire seen in a surface at p: highlights in the reflected direction R and a rim on the side facing it.
+ *  Warm, never pale: the highlight is a flame's (it moves over the ripples as streaks of the fire's colour) and the
+ *  rim a thin warm edge, and the sum rolls off at its brightest channel, so it saturates at the flame's own hue. (It
+ *  was a broad lobe and a wide rim at a fire's full strength a metre off: (2.5, 1, 0.3) added over the whole half of a
+ *  water body facing the fire, which the blue under it summed to grey-white, the pale side, Report 10) */
 fn fireSpec(p: vec3f, R: vec3f, N: vec3f, rimK: f32) -> vec3f {
   var sum = vec3f(0.0);
   var lights = worldLight.fire.lights;
@@ -282,10 +286,10 @@ fn fireSpec(p: vec3f, R: vec3f, N: vec3f, rimK: f32) -> vec3f {
     let d2 = dot(v, v);
     let L = v * inverseSqrt(max(d2, 1e-6));
     let fall = 1.0 / (d2 + l.pos.w * l.pos.w);
-    // a body of flame is a broad light: a soft highlight, and a rim where the surface turns toward it
-    sum += l.col.rgb * fall * (pow(max(dot(R, L), 0.0), 40.0) * 1.2 + rimK * smoothstep(-0.15, 0.6, dot(N, L)) * 0.5);
+    let rl = max(dot(R, L), 0.0);
+    sum += l.col.rgb * fall * (pow(rl, 140.0) * 2.2 + rimK * rimK * smoothstep(0.1, 0.7, dot(N, L)) * 0.15);
   }
-  return sum;
+  return sum / (1.0 + 0.8 * max(sum.r, max(sum.g, sum.b)));
 }
 
 struct Shade {
@@ -385,8 +389,14 @@ fn shade(qf: vec2f, wdims: vec2i, W: vec4f, keep: f32) -> Shade {
     // (water scatters little: most of what it gives is what it reflects. The worlds' ambient is generous, made for
     // stones and bark; in water only a little of it scatters back, while a key or a fire beside it lights it up)
     // (and compressed: a world's key or a fire a metre off must tint it, not turn it into a lit solid)
-    let li = amb * 0.06 + keyD * 0.3 + fireD * 0.6 + heartL * 0.4;
-    wc = surf.tint.rgb * li / (1.0 + luma(li)) * milk * 0.35;
+    // A fire's part rolls off at its brightest channel and is held under a quarter: compressed by luminance with the
+    // rest, a fire close by (its light falls as 1/d², ten times stronger at 30 cm than at a metre) scattered up to
+    // twice white in red into the water's pale tint, and over the water's blue that summed to a grey-white wash on the
+    // side facing the fire (Report 10). Warm light inside blue water is a warm cast on it, not a lamp
+    let li = amb * 0.06 + keyD * 0.3 + heartL * 0.4;
+    let lfire = fireD * 0.6;
+    wc = surf.tint.rgb * li / (1.0 + luma(li)) * milk * 0.35
+       + vec3f(1.0, 0.8, 0.62) * lfire / (1.0 + max(lfire.r, max(lfire.g, lfire.b))) * milk * 0.22;
     wc += surf.glow.rgb * surf.glow.w * (0.3 + 1.6 * rp * rp) * (0.25 + milk);
     // the world reflected, and its lights: the key's highlight (sharp, and a broad sheen), each fire's, the view's fill
     wc += worldEnv(R, wp) * surf.reflect * F;
@@ -397,11 +407,19 @@ fn shade(qf: vec2f, wdims: vec2i, W: vec4f, keep: f32) -> Shade {
     let rimL = key.col * rimK * smoothstep(-0.15, 0.6, dot(N, key.dir)) * 1.6;
     wc += (rimL * surf.rim.rgb) * surf.rim.w;
     wc += fireSpec(wp, R, N, rimK * surf.rim.w) * surf.glint;
-    // foam: churned water turns white and dull where it is thin, lit like anything else
+    // foam: churned water turns white and dull where it is thin, lit like anything else, but compressed as the light
+    // scattered inside is, and the fire's part of it apart, so it keeps the flame's hue. Lit at a fire's full strength
+    // (a fire a metre off) white foam over most of the water was a grey-white wash over the half of the body facing
+    // the fire, the blue under it hidden (Report 10, the pale side); now that side is blue water with warm foam on it
     let foamy = clamp(W.z / max(W.y, 1e-5), 0.0, 1.0) * (1.0 - smoothstep(0.4, 1.2, Wr));
     let foam = smoothstep(0.35, 0.9, foamy * (0.6 + 0.8 * grain)) * surf.foam;
-    wc = mix(wc, vec3f(0.85, 0.92, 1.0) * (lightIn * 0.7 + surf.glow.rgb * surf.glow.w * 0.5), foam);
-    wt *= 1.0 - foam * 0.8;
+    let lw = (amb + keyD + heartL) * 0.7;
+    let lfoam = fireD * 0.35;
+    let foamCol = vec3f(0.85, 0.92, 1.0) * lw / (1.0 + luma(lw)) + lfoam / (1.0 + max(lfoam.r, max(lfoam.g, lfoam.b)));
+    // (over the water's own colour, not in place of it: foam in place of the water's light, wherever a fire churns it,
+    // left no blue on that side at all)
+    wc = mix(wc, wc * 0.7 + foamCol + surf.glow.rgb * surf.glow.w * 0.3, foam * 0.6);
+    wt *= 1.0 - foam * 0.4;
   }
 
   // ---------------------------------------------------------------- ice
