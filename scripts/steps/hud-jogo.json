@@ -1,0 +1,4 @@
+[
+ { "name": "jogo-plain", "query": "jogo=script&world=temple", "frames": 420 },
+ { "name": "jogo-beat", "query": "jogo=script&world=temple&hud=beat", "frames": 420 }
+]

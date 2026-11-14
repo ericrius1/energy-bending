@@ -55,6 +55,8 @@ export interface ShotSpec {
   from?: At;
   preroll?: number;
   seed?: number;
+  /** the jogo's in-world meters (off unless true); false also hides the screen's HUD (src/hud), which is otherwise in
+   *  the frames whenever a mode shows it (`?hud=0` in the shot's query hides it too) */
   hud?: boolean;
   set?: Record<string, Record<string, unknown>>;
   curves?: Record<string, [At, number, Ease?][]>;
@@ -120,6 +122,8 @@ async function run(api: FilmApi, recorder: Recorder, shot: ShotSpec, plan: ShotP
   // ---------------------------------------------------------------- set-up
   for (const [g, patch] of Object.entries(shot.set ?? {})) B.set(g, patch);
   if (!shot.hud) B.set('jogo', { hudLocked: 0, hudFree: 0 });
+  // the screen's HUD (src/hud: a duel's panels, the beat) is in the frames unless the shot says "hud": false
+  if (shot.hud === false && B.hud) B.hud.visible = false;
   if (shot.music?.level != null) B.music.holdLevel(shot.music.level);
   if (shot.music?.key != null) B.music.engine.setKey(shot.music.key);
   if (shot.music?.mood) B.music.engine.setMood(moodIndex(shot.music.mood));

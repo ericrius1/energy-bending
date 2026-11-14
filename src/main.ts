@@ -33,6 +33,7 @@ import { Portals } from './portals/portals';
 import { gatesDebug } from './portals/debug';
 import { LIMITS } from './engine/limits';
 import { BASELINE_LIMITS } from './engine/baseline';
+import { installHud } from './hud';
 
 import.meta.glob(['./matter/*/index.ts', './worlds/*/index.ts'], { eager: true });
 
@@ -102,8 +103,10 @@ for (const k of matterKinds.all()) {
 const gems = kinds.find((k) => k.id === 'gems') as GemPasses | undefined;
 
 // ---------------------------------------------------------------- the scene, per view, and the post chain
+// (the HUD over the stage, src/hud: laid into a film's frames by the post chain, into a still by bend.grab)
+const hud = installHud({ kit, frame, stage: canvas, query, film: FILM, dancers: () => show.dancers });
 for (const v of drawn) { declareScene(v, worlds, kinds); frame.add('scene', v.scene, `view ${v.id}`); }
-const post = new PostChain(kit, frame, main, worlds, { film: filmSize, coarse });
+const post = new PostChain(kit, frame, main, worlds, { film: filmSize, coarse, overlay: hud.overlay });
 if (pip) { post.declareAir(pip.view, worlds); post.inset(pip.view, pip.rect); }
 gates.declare(kinds, post);
 for (const k of kinds) k.declarePost?.(post);   // translucent matter over the focused image (steam)
@@ -267,8 +270,9 @@ const bend = installHooks({
   kit, frame, rig, show, kinds, hand, views, worlds, music, setWorld, wake, lock, failed: ready.failed, adapter,
   pending: () => gems?.pending ?? null,
   grabYuv: () => post.grabYuv(),
+  overlay: hud.compose,
 });
-Object.assign(bend, { gates, device, fade, post });
+Object.assign(bend, { gates, device, fade, post, hud: hud.api });
 if (query.has('perfgroup')) void import('./engine/perfrun').then((m) => m.perfRun({ bend, kit, frame, views, choice: device, ready }));
 if (FILM) {
   kit.manual = true;
