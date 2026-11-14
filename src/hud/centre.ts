@@ -56,6 +56,8 @@ export function warmCentre(L: Layout, dpr: number, st?: HudState): (() => void)[
 }
 
 export class Centre {
+  /** what the centre drew last frame (its word and ring, or the banner), for the pops to keep off; null: nothing */
+  last: Box | null = null;
   private t = 0;
   private lastPhase = '';
   private goAt = -1;
@@ -79,7 +81,9 @@ export class Centre {
 
   /** the countdown, the finale's word and the winner's banner; returns the boxes drawn */
   draw(g: Ctx, st: HudState, L: Layout, dpr: number, out: Box[]) {
-    const u = L.u, { x: cx, y: cy } = L.centre, S = st.set;
+    const u = L.u, { x: cx, y: cy0 } = L.centre, S = st.set;
+    const n0 = out.length;
+    let cy = cy0;
     const size = (L.compact ? 92 : 150) * u;
     // the countdown: each digit drops in and settles, a ring opening behind it
     let text: string | null = null, k = 0;
@@ -88,18 +92,21 @@ export class Centre {
     else if (this.finAt >= 0 && this.t - this.finAt < 1.3) { text = FIN; k = (this.t - this.finAt) / 1.3; }
     if (text) {
       const word = text.length > 1;
+      // (the finale's word stands high, over the two's duet, which happens about the middle: finale.ts)
+      cy = text === FIN ? L.top + (cy0 - L.top) * 0.32 : cy0;
       const s = word ? size * (text === FIN ? 0.36 : 0.42) : size;
       const spr = bigWord(text, s, dpr, word ? GOLD : '#b9a8ff');
       const sc = word ? 0.92 + 0.08 * easeOut(k * 3) + 0.06 * k : 1.28 - 0.28 * easeOut(k * 3.2);
       const a = clamp01(k * 7) * (1 - clamp01((k - (word ? 0.55 : 0.72)) / (word ? 0.45 : 0.28)));
       // the ring: opens out from the digit and fades
-      const rr = s * (0.5 + 0.55 * easeOut(k)) * (text === FIN ? 1.6 : 1);
+      const rr = s * (0.5 + 0.55 * easeOut(k)) * (text === FIN ? 1.15 : 1);
       g.lineWidth = Math.max(1, 1.5 * u);
       g.strokeStyle = word ? rgba(GOLD, 0.5 * (1 - k)) : `rgba(220,210,255,${(0.35 * (1 - k)).toFixed(3)})`;
       g.beginPath(); g.arc(cx, cy, rr, 0, Math.PI * 2); g.stroke();
       stamp(g, spr, cx, cy, sc, a);
       const half = Math.max(spr.w * sc, rr * 2 + 8) / 2 + 4, halfH = Math.max(spr.h * sc, rr * 2 + 8) / 2 + 4;
       out.push({ x: cx - half, y: cy - halfH, w: half * 2, h: halfH * 2 });
+      cy = cy0;
     }
     // the winner: a band across the middle opening from the centre, the name tracking in, the battle's numbers
     if (S.phase === 'done' && this.doneAt >= 0) {
@@ -161,5 +168,11 @@ export class Centre {
       }
       out.push({ x: 0, y: y0 - 20 * u, w: L.W, h: H + 40 * u });
     }
+    // (what was drawn, as one box: the pops keep off it next frame)
+    if (out.length > n0) {
+      let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+      for (let i = n0; i < out.length; i++) { const b = out[i]; x0 = Math.min(x0, b.x); y0 = Math.min(y0, b.y); x1 = Math.max(x1, b.x + b.w); y1 = Math.max(y1, b.y + b.h); }
+      this.last = { x: x0, y: y0, w: x1 - x0, h: y1 - y0 };
+    } else this.last = null;
   }
 }
