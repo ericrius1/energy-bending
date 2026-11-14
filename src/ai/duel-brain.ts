@@ -660,8 +660,11 @@ export class DuelBrain implements Brain {
     }
     if (held && L) {
       this.grabUntil = -1;
-      const hold = L.age, above = c.root[1] > O.root[1] + 0.9;
-      if (above && hold > 0.25 && this.rng.chance(K.leap * 0.08 * 60 * S.dt)) { it.jump = true; this.count('lift'); this.why = 'lift'; }
+      // (held, a jump or a dodge is the contact's: the lift or the counter, chosen here, not the legs' habits)
+      it.jump = false; it.dodge = false; this.jumpUntil = -1;
+      const hold = L.age, above = c.root[1] > O.root[1] - 0.1 && !c.grounded;
+      const onBeatNow = Math.abs(S.beat * 2 - Math.round(S.beat * 2)) < 0.25;
+      if (above && hold > 0.8 && (onBeatNow || !this.rng.chance(this.skill)) && this.rng.chance(K.leap * 0.015 * 60 * S.dt)) { it.jump = true; this.jumpNow(t, 0.5); this.count('lift'); this.why = 'lift'; }
       else if (hold > 1.6 && this.rng.chance((0.3 + K.showy) * 0.02 * 60 * S.dt)) {
         it.dodge = true; this.count('counter'); this.why = 'counter';
         if (D && !pl) { const C = D.space.center; stickFor(c, C[0] - c.root[0], C[2] - c.root[2], 1, it); }

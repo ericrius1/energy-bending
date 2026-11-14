@@ -18,6 +18,7 @@
 // While joined the base stands braced (its stick is the pump, not its run), and both reach for the contact: the pose
 // pass (`pose`) puts the holding hand and the held part on it, the held body's arms stretched out.
 import { Character } from '../dancer/character';
+import { solidBound, solidContact } from '../dancer/solid-contact';
 import { J } from '../dancer/moves';
 import { planeNormal } from '../engine/camera';
 
@@ -77,7 +78,7 @@ export interface ContactInput {
 export const noInput = (): ContactInput => ({ grab: false, grabEdge: false, jump: false, dodge: false, stick: [0, 0] });
 
 export type ContactKind = 'catch' | 'aerial' | 'swing' | 'fling' | 'flown' | 'lift' | 'counter' | 'vault' | 'landed' | 'release';
-export interface ContactEvent { kind: ContactKind; seat: number; other: number; perfect: boolean; at: V3; speed?: number }
+export interface ContactEvent { kind: ContactKind; seat: number; other: number; perfect: boolean; at: V3; speed?: number; /** a release's cause: stretched past BREAK, or a body re-forming */ why?: 'stretched' | 'reform' }
 
 export interface Link {
   holder: number;
@@ -112,6 +113,7 @@ export class Contact {
   private noGrab = [0, 0];
   private vaultT = [0, 0];
   private t = 0;
+  private ct = { d: 0, n: [0, 0, 0] as [number, number, number] };
 
   constructor(readonly chars: readonly [Character, Character]) {}
 
@@ -192,7 +194,8 @@ export class Contact {
       const tooLong = this.t - L.since > CONTACT.HOLD_MAX, broken = d > CONTACT.BREAK || F.reforming || H.reforming;
       // the held body's own moves: a lift (above the contact) or a counter, its jump or dodge
       if ((fin.jump || fin.dodge) && !broken) {
-        const above = c[1] > p[1] + 0.15;
+        // (at the contact's height or above: swung round at chest height counts, its feet off the ground)
+        const above = c[1] > p[1] - 0.35;
         const s = fin.stick;
         if (above && fin.jump) {
           this.setV(F, [F.v[0] + s[0] * 3, CONTACT.LAUNCH, F.v[2] + s[1] * 3]);
@@ -217,7 +220,7 @@ export class Contact {
           this.flown = { flinger: L.holder, flyer: L.held, since: this.t };
           out.push({ kind: 'fling', seat: L.holder, other: L.held, perfect: onBeat, at: L.at, speed: len(fv) });
           out.push({ kind: 'flown', seat: L.held, other: L.holder, perfect: onBeat, at: L.at });
-        } else out.push({ kind: 'release', seat: L.holder, other: L.held, perfect: false, at: L.at });
+        } else out.push({ kind: 'release', seat: L.holder, other: L.held, perfect: false, at: L.at, why: F.reforming || H.reforming ? 'reform' : 'stretched' });
         this.noGrab[L.holder] = this.t + CONTACT.REGRAB;
         this.link = null;
         return out;
@@ -272,8 +275,15 @@ export class Contact {
         const vr = fv[0] * nq[0] + fv[1] * nq[1] + fv[2] * nq[2];
         let nv: V3 = [fv[0] - nq[0] * vr, fv[1] - nq[1] * vr, fv[2] - nq[2] * vr];
         // its feet kept off the ground below
-        const low = H.root[1] + (F.plane ? 0.55 : 1.05);
+        const low = F.plane ? Math.max(H.root[1] + 0.55, F.groundY + 1.02) : H.root[1] + 1.05;
         if (q[1] < low) { q[1] = low; if (nv[1] < 0) nv = [nv[0], 0, nv[2]]; }
+        // (free, the world's solids stop the swing: a body swung into a block or a column stays out of it, bounced off)
+        const hit = F.plane ? null : this.into(F, q);
+        if (hit) {
+          q = [L.c[0], L.c[1], L.c[2]];
+          const vn = nv[0] * hit[0] + nv[1] * hit[1] + nv[2] * hit[2];
+          if (vn < 0) nv = [nv[0] - hit[0] * vn * 1.4, nv[1] - hit[1] * vn * 1.4, nv[2] - hit[2] * vn * 1.4];
+        }
         const step: V3 = [q[0] - L.c[0], q[1] - L.c[1], q[2] - L.c[2]];
         if (wH) this.move(H, [-step[0] * wH * 0.5, -step[1] * wH * 0.5, -step[2] * wH * 0.5]);
         L.c = q; L.v = nv;
@@ -328,6 +338,22 @@ export class Contact {
     const f = this.flat(c, d);
     c.root[0] += f[0]; c.root[1] += f[1]; c.root[2] += f[2];
     if (f[1] > 0.02 && c.grounded) { c.grounded = false; c.support = null; }
+  }
+
+  /** a carried body's centre at q inside one of the world's solids: the way out of it (the normal), else null */
+  private into(F: Character, q: V3): V3 | null {
+    const solids = F.terrain.solids;
+    if (!solids || !solids.length) return null;
+    const R = F.phys.bodyR + 0.05;
+    for (const s of solids) {
+      const b = solidBound(s);
+      if (Math.hypot(q[0] - b.c[0], q[2] - b.c[2]) > b.R + 1 || b.y1 < q[1] - 1 || b.y0 > q[1] + 0.8) continue;
+      for (const dy of [-0.6, 0, 0.55]) {
+        solidContact(s, q[0], q[1] + dy, q[2], this.ct);
+        if (this.ct.d < R) return [this.ct.n[0], this.ct.n[1], this.ct.n[2]];
+      }
+    }
+    return null;
   }
 
   /** the pose pass, after a body's own pose (Character.update): the holder's nearer hand on the contact, the held

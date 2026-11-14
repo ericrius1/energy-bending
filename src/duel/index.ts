@@ -75,6 +75,18 @@ export interface BrainSpec { style?: DuelStyle; skill?: number; seed?: number }
 
 const perSeat = (v: string | null, k: number) => { if (v == null) return null; const xs = v.split(','); return xs[k] ?? xs[0]; };
 
+/** the version 2 state with the version 1 fields the HUD on master still reads (until src/hud is redrawn to v2: the
+ *  contract keeps old fields optional): hits ← the combo, kos ← style, superMeter ← the shared energy, the round ← the
+ *  set. Extra fields, which a v2 HUD ignores */
+function withV1(s: HudState): HudState {
+  const phase = { intro: 'countdown', play: 'play', finale: 'ko', done: 'won' }[s.set.phase];
+  return {
+    ...s,
+    players: s.players.map((p) => ({ ...p, hits: Math.min(p.combo.n, 9), hitsMax: 9, kos: p.style, superMeter: s.shared.energy, charges: [] })),
+    round: { koTarget: Math.round(s.set.length), time: s.set.time, phase, ...(s.set.countdown != null ? { countdown: s.set.countdown } : {}), ...(s.set.winner != null ? { winner: s.set.winner } : {}) },
+  } as HudState;
+}
+
 export async function startDuel(app: PlayApp) {
   const { kit, frame, show, rig, music, field, query: q } = app;
   const world = () => app.worldOf(app.main.world);
@@ -300,7 +312,7 @@ export async function startDuel(app: PlayApp) {
     duelHud.events(pendingHud.splice(0, pendingHud.length), pendingTouches.splice(0, pendingTouches.length), seats, linkAt);
     const link = L ? { on: true, from: project(fx.chest(L.holder)), to: project(fx.chest(L.held)) } : { on: false };
     hudState = duelHud.build(match.state, now, f.dt, seats, beat, bpm, setMs, link);
-    (window as unknown as { bend?: { hud?: { set?: (s: HudState) => void } } }).bend?.hud?.set?.(hudState);
+    (window as unknown as { bend?: { hud?: { set?: (s: HudState) => void } } }).bend?.hud?.set?.(withV1(hudState));
   }, 'duel: its glows to the GPU, its HUD state');
 
   // ---------------------------------------------------------------- bend.duel

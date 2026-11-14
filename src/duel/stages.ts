@@ -36,7 +36,10 @@ export function worldFor(id: string): NodeWorld | null {
       const L = layoutForge({ coarse: false }), A = forgeDuel().arena;
       return {
         id, room: A.camera?.maxDist ?? 24, fallY: -4, arena: A, solids: [...solidsOfForge(L), ...(A.pieces ?? [])],
-        groundAt: (x, z) => floorAt(L, x, z, (_s, top) => top, -12),
+        // (the crown hangs over the middle at 3.1 m: forge.ts's groundAt counts it as the floor under it, so a free body
+        // walking under it is put on top (reported to the integrator). Here it is left to the solids, which stand on it
+        // from above and stop a body from the side, as the forge's fix would)
+        groundAt: (x, z) => floorAt(L, x, z, (s, top) => (s.id === 'crown' ? -Infinity : top), -12),
         stage: stagePlane({ id: 'anvil', origin: [0, 0, 0], right: [1, 0, 0], halfWidth: 5.75, ground: null, ledges: L.ledges, spawns: [[-2.3, 0], [2.3, 0]], lens: 20 }),
       };
     }

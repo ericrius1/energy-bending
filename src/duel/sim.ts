@@ -57,6 +57,8 @@ export interface DuelSimResult {
   /** how long each hold lasted (s), how far apart the two stood (m, each second) */
   holds: number[];
   spread: number[];
+  /** how the holds ended: fling, release (stretched or too long), lift, counter */
+  ends: Record<string, number>;
   match: DuelMatch;
 }
 
@@ -102,7 +104,7 @@ export function simulateDuel(o: DuelSimOptions): DuelSimResult {
   const stage: StageView = { plane: o.locked ? plane : null, stage: plane, terrain, gates: [], room: A.space.radius, solids };
   const drivers = brains.map((b, k) => (b ? new BrainDriver(b, bodies[k], scene, () => stage) : null));
   const seats: [SeatStats, SeatStats] = [blankStats(), blankStats()];
-  const res: DuelSimResult = { seconds: 0, play: 0, sets: [], seats, stats: match.state.stats, holds: [], spread: [], match };
+  const res: DuelSimResult = { seconds: 0, play: 0, sets: [], seats, stats: match.state.stats, holds: [], spread: [], ends: {}, match };
   const maxT = o.seconds ?? 3600, maxSets = o.sets ?? 1;
   const frames = Math.round(maxT / dt);
   let holdFrom = -1;
@@ -125,6 +127,7 @@ export function simulateDuel(o: DuelSimOptions): DuelSimResult {
     const L = match.contact.link;
     if (L && holdFrom < 0) holdFrom = t;
     else if (!L && holdFrom >= 0) { res.holds.push(t - holdFrom); holdFrom = -1; }
+    for (const x of match.touches) if (x.kind === 'fling' || x.kind === 'release' || x.kind === 'lift' || x.kind === 'counter') { const k = x.kind === 'release' ? `release (${x.why})` : x.kind; res.ends[k] = (res.ends[k] ?? 0) + 1; }
     for (const e of ev) {
       if (e.k === 'link') seats[e.seat].links[e.kind] = (seats[e.seat].links[e.kind] ?? 0) + 1;
       else if (e.k === 'combo') { const S = seats[e.seat]; if (e.why !== 'fall') { S.combos++; S.comboLinks += e.n; } S.longest = Math.max(S.longest, e.n); }

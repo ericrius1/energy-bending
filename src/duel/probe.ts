@@ -55,6 +55,8 @@ for (const world of worlds) for (const view of views) {
       }
     }
     const holds = all.flatMap((r) => r.holds);
+    const ends: Record<string, number> = {};
+    for (const r of all) for (const [k, v] of Object.entries(r.ends)) ends[k] = (ends[k] ?? 0) + v;
     const peaks = all.flatMap((r) => r.sets.map((x) => x.peak)), fused = all.reduce((a, r) => a + r.sets.filter((x) => x.fused).length, 0);
     const merges = all.reduce((a, r) => a + r.stats.merges, 0);
     const line = {
@@ -64,11 +66,12 @@ for (const world of worlds) for (const view of views) {
       flingsPerMin: (links.fling ?? 0) / min, swingsPerMin: (links.swing ?? 0) / min, liftsPerMin: (links.lift ?? 0) / min, vaultsPerMin: (links.vault ?? 0) / min,
       countersPerMin: (links.counter ?? 0) / min, wallJumpsPerMin: (links.walljump ?? 0) / playerMin, holdS: mean(holds),
       airShare: air / (play * 2), fallsPerMin: falls / min, style: mean(styles), peak: mean(peaks), fused, merges,
+      ends,
       linksPerMin: Object.fromEntries(KINDS.filter((k) => links[k]).map((k) => [k, +(links[k] / min).toFixed(1)])),
     };
     report.push(line);
     console.log(`\n${world} ${view}: ${line.styles} (skill ${line.skills}), ${line.sets} sets of ${setMs / 1000} s, wins ${wins.join('-')}`);
-    console.log(`  per minute of play: ${f1(line.catchesPerMin)} catches (${(line.aerialShare * 100).toFixed(0)}% out of the air), ${f1(line.swingsPerMin)} swings, ${f1(line.flingsPerMin)} flings, ${f1(line.liftsPerMin)} lifts, ${f1(line.vaultsPerMin)} vaults, ${f1(line.countersPerMin)} counters; a hold ${f1(line.holdS)} s`);
+    console.log(`  per minute of play: ${f1(line.catchesPerMin)} catches (${(line.aerialShare * 100).toFixed(0)}% out of the air), ${f1(line.swingsPerMin)} swings, ${f1(line.flingsPerMin)} flings, ${f1(line.liftsPerMin)} lifts, ${f1(line.vaultsPerMin)} vaults, ${f1(line.countersPerMin)} counters; a hold ${f1(line.holdS)} s (ended by ${Object.entries(ends).map(([k, v]) => `${k} ${v}`).join(', ')})`);
     console.log(`  combos: ${f1(line.combosPerMin)} a player-minute, ${f1(line.linksPerCombo)} links each, the longest ${longest}; ${(line.airShare * 100).toFixed(0)}% of the time in the air; ${f1(line.wallJumpsPerMin)} wall jumps a player-minute; ${f1(line.fallsPerMin)} falls a minute`);
     console.log(`  style ${f1(line.style)} a dancer a set; the shared energy's peak ${line.peak.toFixed(2)}; ${fused} of ${all.length} finales fused; ${merges} merges`);
     console.log(`  links a minute: ${Object.entries(line.linksPerMin).map(([k, v]) => `${k} ${v}`).join(', ')}`);

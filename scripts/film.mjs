@@ -126,7 +126,7 @@ function pageQuery(s) {
     const cast = [0, 1].map((k) => s.cast?.[k] ?? { brain: 'duel' });
     const bot = (c) => !!(c.brain || c.style || c.skill != null);
     q.set('p1', bot(cast[0]) ? 'bot' : 'human'); q.set('p2', bot(cast[1]) ? 'bot' : 'human');
-    q.set('style', cast.map((c, k) => c.style ?? (['aggressive', 'showy'][k])).join(','));
+    q.set('style', cast.map((c, k) => c.style ?? (['lead', 'flyer'][k])).join(','));
     q.set('skill', cast.map((c) => String(c.skill ?? 0.7)).join(','));
     q.set('seed', String(s.seed ?? 5));
     q.set('go', '');
