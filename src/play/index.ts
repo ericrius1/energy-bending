@@ -144,6 +144,9 @@ export async function startJogo(app: PlayApp, mode: string, opts: { joined?: Joi
   const play = await playDemo({
     show, rig, frame, kit, canvas: app.canvas, world, motion: app.motion, travel: app.travel, coarse: app.coarse, wake: app.wake,
     seen: (d) => gates.seen(app.main.world, [d]).joints[0] ?? null,
+    // each seat walks on its own world's ground (the gates': a dancer crossing a gate stands on the far world's floor,
+    // not the main view's), as ?play's dancers do
+    worldOf: (d) => app.worldOf(gates.worldOf(d)),
   });
   escapeToFront();
 

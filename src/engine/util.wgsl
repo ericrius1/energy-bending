@@ -8,6 +8,11 @@ fn pcg(v: u32) -> u32 {
   return (w >> 22u) ^ w;
 }
 fn rnd(v: u32) -> f32 { return f32(pcg(v)) * (1.0 / 4294967295.0); }
+/** a random number per pixel and salt (a frame number for noise that changes every frame): integer hashing, so it
+ *  stays white noise at every pixel and any time. (fract(sin(x) × 43758) falls into regular diagonal bands on the GPU
+ *  once x reaches the hundreds of thousands: a pixel's coordinates × 78 plus a running time get there, and the film
+ *  grain did, faint streaks across whole frames, Report 10) */
+fn pixelRnd(px: vec2i, salt: u32) -> f32 { return rnd(pcg(u32(px.x) ^ pcg(u32(px.y) ^ (salt * 0x9e3779b9u)))); }
 fn rnd3(v: u32) -> vec3f { return vec3f(rnd(v), rnd(v ^ 0x9e3779b9u), rnd(v ^ 0x85ebca6bu)); }
 /** a random direction on the unit sphere */
 fn sphereDir(v: u32) -> vec3f {

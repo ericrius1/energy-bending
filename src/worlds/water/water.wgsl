@@ -161,7 +161,7 @@ fn waterMirrorBend(p: vec3f, r: vec3f, t: f32, wy: f32, uv: vec2f) -> vec2f {
 fn waterFresnel(cosI: f32) -> f32 { return 0.02 + 0.98 * pow(1.0 - clamp(cosI, 0.0, 1.0), 5.0); }
 
 /** a hash for a pixel and the frame (the march's jitter) */
-fn waterJitter(px: vec2i) -> f32 { return fract(sin(dot(vec2f(px), vec2f(12.9898, 78.233)) + fract(frame.time * 3.17) * 61.0) * 43758.5453); }
+fn waterJitter(px: vec2i) -> f32 { return pixelRnd(px, frame.frame * 3u + 1u); }
 
 /** what a pixel at px sees of a water surface at height y. s: the scene there (alpha its view distance), d the view
  *  ray. Returns the surface point (w: its distance along the ray, or -1 if the ray doesn't meet the water in front of

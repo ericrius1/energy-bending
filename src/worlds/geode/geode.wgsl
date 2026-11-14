@@ -234,7 +234,6 @@ fn geodeFixtureTint(p: vec3f, fade: bool) -> vec3f {
 }
 
 // ---------------------------------------------------------------- the air
-fn geodeHash(p: vec2f) -> f32 { return fract(sin(dot(p, vec2f(127.1, 311.7))) * 43758.5453); }
 
 /** the air in the geode: march the view ray through the cone of light that falls on the stage (it stops at whatever
  *  is in front), then fog what's far towards the haze. s: the scene (alpha its view distance); d: the view ray */
@@ -262,7 +261,7 @@ fn geodeAir(s: vec4f, px: vec2i, d: vec3f) -> vec3f {
     if (t1 > t0) {
       let n = 16;
       let dtm = (t1 - t0) / f32(n);
-      var t = t0 + dtm * geodeHash(vec2f(px) + frame.time);
+      var t = t0 + dtm * pixelRnd(px, frame.frame * 3u + 2u);
       var acc = 0.0;
       for (var k = 0; k < n; k++) {
         let p = frame.camPos + d * t;
