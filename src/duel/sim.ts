@@ -39,6 +39,9 @@ export interface DuelSimOptions {
   /** the two seats' matters (default fire and water): their powers; `powers: false` plays without any */
   dress?: [string, string];
   powers?: boolean;
+  /** the weight of contact's time warp, as the page plays it (weight.ts: holds on a catch, a beat slowed on a pair tier);
+   *  off by default (the tests' sets are the bodies' plain time), on in the probe (scripts/duel-sim.mjs) */
+  warp?: boolean;
   each?: (f: { t: number; beat: number; match: DuelMatch; powers: DuelPowers | null; bodies: readonly Character[]; intents: Intent[]; events: DuelEvent[] }) => void;
 }
 
@@ -130,10 +133,14 @@ export function simulateDuel(o: DuelSimOptions): DuelSimResult {
   const popSeen = new Map<number, string>(), popTimes: number[] = [];
   const maxT = o.seconds ?? 3600, maxSets = o.sets ?? 1;
   const frames = Math.round(maxT / dt);
-  let holdFrom = -1;
+  let holdFrom = -1, lostMs = 0;
   for (let i = 1; i <= frames; i++) {
-    const t = i * dt, now = t * 1000, beat = (now * bpm) / 60000;
-    scene.update({ t, dt, beat, bpm, music: { level: 0.7, breakdown: false }, rules: null });
+    // (the weight of contact: the bodies' time held a few frames on a catch, slowed a beat on a pair tier: weight.ts. The
+    // beat is the music's, on the real clock; the duel's own clock is the bodies')
+    const t = i * dt, beat = (t * 1000 * bpm) / 60000, gdt = dt * (o.warp ? match.warp.step(dt) : 1);
+    lostMs += (dt - gdt) * 1000;
+    const now = t * 1000 - lostMs;
+    scene.update({ t: now / 1000, dt: gdt, beat, bpm, music: { level: 0.7, breakdown: false }, rules: null });
     chars[0].lookAt = chars[1].root; chars[1].lookAt = chars[0].root;
     const intents: Intent[] = [], ins: ContactInput[] = [], pins: PowerInput[] = [];
     for (let k = 0; k < 2; k++) {
@@ -143,17 +150,20 @@ export function simulateDuel(o: DuelSimOptions): DuelSimResult {
       ins.push(match.frozen(k) ? noInput() : splitIntent(chars[k], it, match.contact.holding(k), match.contact.held(k)));
       pins.push(match.frozen(k) ? noPower() : { p1: !!it.power1, p2: !!it.power2, form: !!it.form, stick: ins[k].stick });
       intents.push(it);
-      chars[k].update(dt, it, { beats: beat, bpm });
-      if (!chars[k].grounded && !chars[k].reforming && !match.frozen(k)) seats[k].airTime += dt;
+      chars[k].update(gdt, it, { beats: beat, bpm });
+      if (!chars[k].grounded && !chars[k].reforming && !match.frozen(k)) seats[k].airTime += gdt;
     }
     powers?.gripInputs(ins);
-    const ev = match.step(now, beat, bpm, dt * 1000, [ins[0], ins[1]]);
+    const ev = match.step(now, beat, bpm, gdt * 1000, [ins[0], ins[1]]);
     if (powers) {
-      powers.step(now, dt * 1000, pins, ev, onBeat(beat, bpm));
+      powers.step(now, gdt * 1000, pins, ev, onBeat(beat, bpm));
       ev.push(...powers.duelEvents);
       for (const e of powers.events) powerEvents.push({ t: Math.round(now), e });
     }
-    if (match.state.phase === 'play') res.play += dt;
+    // (the moments of weight, after the powers: a catch at range, a geyser's top; the finale clears the powers' effects)
+    ev.push(...match.juice(now, [], powers?.fx ?? [], powers?.live ?? []));
+    if (powers && ev.some((e) => e.k === 'finale')) powers.settle();
+    if (match.state.phase === 'play') res.play += gdt;
     const L = match.contact.link;
     if (L && holdFrom < 0) holdFrom = t;
     else if (!L && holdFrom >= 0) { res.holds.push(t - holdFrom); holdFrom = -1; }

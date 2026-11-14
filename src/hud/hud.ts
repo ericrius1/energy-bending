@@ -3,8 +3,8 @@
 //   base   what changes seldom: the dancers' panels (glass, emblem, name, style, dash). Each panel is drawn again
 //          alone, only when a value it shows changes or a piece of it is moving (the style rolling, the dash filling)
 //   live   what moves every frame: the link's line of light, the tags over the heads, the combos under the panels and
-//          the link's ring and chip, the shared energy and the set's orb, the beat, the pops, the countdown and the
-//          banner. Only the boxes drawn last frame are cleared
+//          the link's ring and chip, the shared energy and the set's orb, the pair combo under it (pair.ts), the beat,
+//          the pops, the countdown and the banner. Only the boxes drawn last frame are cleared
 // Both are kept at the device's pixel ratio (or, filming, the render's: the film is graded bigger than it is shown)
 // so the type is crisp. `compose` lays both over a captured frame (bend.grab) and `flatten` gives one image for the
 // film's GPU composite (index.ts).
@@ -13,6 +13,7 @@ import { layout, type Layout, type Box } from './layout';
 import { PlayerPanel, warmPanel } from './panel';
 import { Centre, warmCentre } from './centre';
 import { Shared, warmShared } from './shared';
+import { PairChain } from './pair';
 import { LinkLine } from './link';
 import { drawBeat } from './beat';
 import { Pops, drawTags, warmPops } from './pops';
@@ -44,6 +45,7 @@ export class Hud {
   private panels = [new PlayerPanel(0), new PlayerPanel(1)];
   private centre = new Centre();
   private shared = new Shared();
+  private pair = new PairChain();
   private link = new LinkLine();
   private pops = new Pops();
   private wasDuel = false;
@@ -140,6 +142,7 @@ export class Hud {
       for (const p of st.players) if (p.seat === 0 || p.seat === 1) { if (this.panels[p.seat].update(p, dt)) dirty[p.seat] = true; }
       this.centre.update(st, dt);
       this.shared.update(st, dt);
+      this.pair.update(st, dt);
       this.link.update(st, dt);
       this.pops.update(st, L, dt);
     }
@@ -180,6 +183,8 @@ export class Hud {
       this.part('combo');
       this.shared.draw(gl, st, L, r, out);
       this.part('shared');
+      this.pair.draw(gl, st, L, r, out);
+      this.part('pair');
     }
     drawBeat(gl, st.beat, L, r, out);
     this.part('beat');

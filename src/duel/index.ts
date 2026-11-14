@@ -56,6 +56,7 @@ import type { WaterPasses } from '../matter/water/pool';
 import type { PlasmaPasses } from '../matter/plasma/plasma';
 import { Finale } from './finale';
 import { DuelCamera, type CamBody, type CamSpace } from './camera';
+import { camKind } from './weight';
 import { DuelHud, screenOf, type HudSeat, type HudState, type HudWord } from './hud-state';
 import { duelSound, phraseSetMs } from './sound';
 import { trackFor } from '../audio/track';
@@ -289,6 +290,15 @@ export async function startDuel(app: PlayApp) {
   let frameEvents: DuelEvent[] = [];
   let hudState: HudState | null = null;
   let beat = 0, bpm = bpm0;
+  // the weight of contact (weight.ts): the frame's dance time scaled before anything steps with it (the bodies, the
+  // matter, the field, the powers, the rules), held a few frames on a catch and slowed a beat on a pair tier. The
+  // page's own time (f.dt: the HUD, the camera, the music) is left alone, and so is `danceReal`, what the contact's
+  // ring and the link's beads (fx.ts) run on, so they keep moving through a hold
+  let danceReal = 0;
+  frame.tick('input', (f: FrameCtx) => {
+    danceReal = f.danceDt;
+    if (started) f.danceDt *= match.warp.step(f.dt);
+  }, 'duel: the weight of contact (the bodies\' time)');
   frame.tick('input', (f: FrameCtx) => {
     beat = f.beat.beats; bpm = f.beat.bpm || bpm0;
     // what the brains see this frame (before the bodies step: the drivers think as the controllers ask)
@@ -358,13 +368,19 @@ export async function startDuel(app: PlayApp) {
     powers.step(now, f.danceDt * 1000, [0, 1].map((k) => castNext[k] ?? gates[k].power), ev, onBeat(beat, bpm));
     castNext[0] = castNext[1] = null;
     ev.push(...powers.duelEvents);
-    frameEvents = ev;
     for (const e of ev) {
-      if (e.k === 'finale') finale.start(e.fused, bpm, [match.state.seats[0].style, match.state.seats[1].style]);
+      // (the finale: the set's powers end and fade, nothing of them runs on under the duet)
+      if (e.k === 'finale') { finale.start(e.fused, bpm, [match.state.seats[0].style, match.state.seats[1].style]); powers.settle(); }
       else if (e.k === 'set') finale.stop();
     }
-    finale.update(f.danceDt);
-    fx.update(f.danceDt, ev, match.touches, match.contact, match.state);
+    const top = finale.update(f.danceDt);
+    // the moments of weight (juice events) into the frame's events; the camera eases toward each
+    const juice = match.juice(now, [], powers.fx, powers.live, top ? { base: finale.base, flyer: finale.flyer, at: finale.topAt() } : null);
+    ev.push(...juice);
+    const impulse = (dcam as unknown as { impulse?: (e: { at: V3; kind: ReturnType<typeof camKind>; k: number }) => void }).impulse;
+    for (const j of juice) if (j.at) impulse?.call(dcam, { at: j.at, kind: camKind(j.what), k: j.w });
+    frameEvents = ev;
+    fx.update(danceReal, ev, match.touches, match.contact, match.state);
     powerFx.update(f.danceDt, powers);
     for (const e of powers.events) pendingPowers.push(e);
     for (const x of powers.fx) if (x.k === 'react') reactAt.set(x.kind, project(x.at));
@@ -424,7 +440,7 @@ export async function startDuel(app: PlayApp) {
     restart: () => { finale.stop(); if (!started) begin(); else match.restart(now); },
     /** the duel's end: the arena off, the world's room back */
     stop: () => {
-      started = false; showArena(null); field.fuse(null); powerFx.clear(); powers.clear();
+      started = false; match.warp.reset(); showArena(null); field.fuse(null); powerFx.clear(); powers.clear();
       if (solidsWas) Object.defineProperty(W, 'solids', solidsWas); else delete (W as { solids?: unknown }).solids;
       rig.pose = null; rig.apexG = 0; rig.headroom = 0;
       app.gates.open(...W.portals.filter((p) => shut.includes(p.id)).map((p) => ({ ...p, world: W.id })));

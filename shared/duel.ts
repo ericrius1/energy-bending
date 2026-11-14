@@ -10,7 +10,15 @@
 //           runs and dashes don't (the contact carries it), and a flown body's link is for what it does with the
 //           flight (landing it, a wall jump, a catch of its own), not for being flung. The combo is banked into style
 //           when it ends (grounded a while, idle a while, held more than a beat or two; a fall drops it). Past the
-//           multiplier's cap a long combo climbs tiers (TIERS: a word and a colour each), each worth more when banked
+//           multiplier's cap a long combo climbs tiers (TIERS: a word and a colour each), each worth more when banked.
+//           A run of a dancer's own moves (a dash, a wall jump or run, a flip, a kick, an aú) adds only SOLO_RUN in a
+//           row: past it they keep the combo going but add nothing, until a contact link (a catch, a swing, a fling, a
+//           lift, a vault, a counter, a flight landed) comes again. So the tiers come from the dance with the other
+//   pair    the two's chain: every contact link either dancer makes (a hold's catch, swings and fling, the partner's
+//           landing, a lift, a vault, a counter, a whip's or an arc's catch) goes on one chain shared by both, the
+//           pair combo, while the two keep meeting (PAIR_IDLE_MS between links when apart). It has its own tiers
+//           (PAIR_TIERS: a word and a colour each), and when it ends each dancer banks its share of it (the worth of
+//           the links it made) times the pair's multiplier
 //   style   the battle's score, mostly for leading: starting a catch, catching the other out of the air, a fling the
 //           flown one lands from; and the banked combos
 //   energy  shared, the dance's intensity: it rises only when the two play together (a link while joined or while
@@ -59,6 +67,26 @@ export const DUEL = {
     { at: 36, name: 'SUBLIME', color: '#efe6ff' },
   ] as readonly { at: number; name: string; color: string }[],
   TIER_BONUS: 0.25,
+  /** a dancer's own moves (not contact) add to its combo at most this many in a row; past it they keep it going (its
+   *  idle clock) but add nothing until a contact link comes */
+  SOLO_RUN: 4,
+  /** the pair combo: the two's chain of contact links. It ends PAIR_IDLE_MS after its last link while the two are
+   *  apart (never while joined), and with a fall (dropped) or the set. Its multiplier is 1 + n × PAIR_STEP (at most
+   *  PAIR_MAX); banked, each dancer gets PAIR_BANK × its share of the links' worth × the multiplier × (1 + PAIR_BONUS
+   *  × tier). Tiers at this many varied links (a link the same as the pair's last two not counted), a word and a
+   *  colour (CSS) each */
+  PAIR_IDLE_MS: 2000,
+  PAIR_GROUND_MS: 900,
+  PAIR_STEP: 0.2,
+  PAIR_MAX: 3,
+  PAIR_BANK: 0.2,
+  PAIR_BONUS: 0.3,
+  PAIR_TIERS: [
+    { at: 14, name: 'DUET', color: '#b8f28a' },
+    { at: 28, name: 'CURRENT', color: '#7ad0ff' },
+    { at: 48, name: 'MURMURATION', color: '#c9a8ff' },
+    { at: 108, name: 'AURORA', color: '#e6fff2' },
+  ] as readonly { at: number; name: string; color: string }[],
   /** what each link is worth before the multiplier */
   LINK: {
     catch: 6, aerial: 8, swing: 3, fling: 6, flown: 4, lift: 7, vault: 6, counter: 5,
@@ -112,9 +140,14 @@ export const DUEL = {
 } as const;
 
 export type LinkKind = 'catch' | 'aerial' | 'swing' | 'fling' | 'flown' | 'lift' | 'vault' | 'counter' | 'walljump' | 'wallrun' | 'dash' | 'flip' | 'kick' | 'au' | 'jump';
+/** the links made with the other (the contact's, and a power's catch): the pair combo's, and what ends a solo run */
+export const CONTACT_LINKS: ReadonlySet<LinkKind> = new Set<LinkKind>(['catch', 'aerial', 'swing', 'fling', 'flown', 'lift', 'vault', 'counter']);
+/** the pair combo: the two's chain of contact links (n of them, `varied` toward its tiers), the links' worth by who
+ *  made them (`share`) and how many each made, the last few links and whose they were */
+export interface PairCombo { n: number; varied: number; tier: number; score: number; share: [number, number]; made: [number, number]; links: LinkKind[]; by: number[]; perfect: number; live: boolean; since: number; last: number }
 
 /** a combo: n links, its multiplier and score, the last few links and which of them were on the beat (aligned) */
-export interface Combo { n: number; mult: number; score: number; links: LinkKind[]; beats: boolean[]; perfect: number; live: boolean; since: number; last: number; /** the tier reached (0: none yet; DUEL.TIERS[tier - 1]), and the links that count toward it (all but repeats) */ tier: number; varied: number }
+export interface Combo { n: number; mult: number; score: number; links: LinkKind[]; beats: boolean[]; perfect: number; live: boolean; since: number; last: number; /** the tier reached (0: none yet; DUEL.TIERS[tier - 1]), and the links that count toward it (all but repeats) */ tier: number; varied: number; /** the dancer's own moves in a row since its last contact link (SOLO_RUN) */ solo: number }
 export interface DuelSeat {
   style: number;
   combo: Combo;
@@ -156,13 +189,17 @@ export interface DuelState {
   highBest: number;
   /** whether the finale fused */
   fused: boolean;
+  /** the pair combo (both dancers' contact links on one chain), and the longest this set */
+  pair: PairCombo;
+  pairBest: number;
   stats: { catches: number; aerials: number; swings: number; flings: number; lifts: number; vaults: number; counters: number; falls: number; perfect: number; links: number; merges: number; sets: number };
 }
 
 export type DuelEvent =
   | { k: 'count'; n: number }
   | { k: 'go'; set: number }
-  | { k: 'link'; seat: number; kind: LinkKind; perfect: boolean; n: number; mult: number; value: number }
+  /** (capped: a dancer's own move past SOLO_RUN in a row: it kept the combo going and added nothing) */
+  | { k: 'link'; seat: number; kind: LinkKind; perfect: boolean; n: number; mult: number; value: number; capped?: boolean }
   | { k: 'lead'; seat: number; why: 'catch' | 'aerial' | 'fling'; style: number }
   | { k: 'combo'; seat: number; n: number; mult: number; banked: number; why: 'ground' | 'idle' | 'held' | 'fall' | 'set'; tier: number }
   /** a combo reached a tier (past the multiplier's cap) */
@@ -174,9 +211,25 @@ export type DuelEvent =
   | { k: 'finale'; fused: boolean; peak: number }
   | { k: 'done'; winner: number; style: [number, number]; set: number }
   /** a set's count-in begins: both bodies (re)form at their spawns */
-  | { k: 'set'; set: number };
+  | { k: 'set'; set: number }
+  /** the pair combo reached a tier (PAIR_TIERS), on the link of `seat` */
+  | { k: 'pairTier'; seat: number; tier: number; name: string; color: string; n: number }
+  /** the pair combo ended: banked into each dancer's style (its share), or dropped by a fall */
+  | { k: 'pairCombo'; n: number; varied: number; mult: number; tier: number; banked: [number, number]; why: 'idle' | 'ground' | 'fall' | 'set' }
+  /** a moment of weight (src/duel/weight.ts makes them, from the contact, the powers, the rules and the finale): the
+   *  page holds the bodies' time for `hold` frames (a 60th of a second each) and slows it to `slow` for `slowS`
+   *  seconds after, the camera eases toward `at`, and the sound keys off `what`. `w` 0 … 1 is how big the moment is.
+   *    catch   a catch on the ground          aerial  a catch out of the air (`via: 'geyser'` at a geyser's top)
+   *    range   a catch at range (`via`: the whip or the arc)
+   *    fling   a fling's release              tier    a dancer's combo reached a tier
+   *    pair    the pair combo reached a tier (a flash of the two's colours, a beat of slow motion)
+   *    merge   the energies merged            fusion  the finale will fuse (as FINALE fires)
+   *    lift    the finale's lift at its top (the fused duet held a moment) */
+  | { k: 'juice'; what: JuiceWhat; w: number; hold: number; slow?: number; slowS?: number; seat?: number; other?: number; at?: [number, number, number]; via?: 'whip' | 'arc' | 'geyser'; tier?: number };
+export type JuiceWhat = 'catch' | 'aerial' | 'range' | 'fling' | 'tier' | 'pair' | 'merge' | 'fusion' | 'lift';
 
-const combo0 = (): Combo => ({ n: 0, mult: 1, score: 0, links: [], beats: [], perfect: 0, live: false, since: 0, last: -1e9, tier: 0, varied: 0 });
+const combo0 = (): Combo => ({ n: 0, mult: 1, score: 0, links: [], beats: [], perfect: 0, live: false, since: 0, last: -1e9, tier: 0, varied: 0, solo: 0 });
+const pair0 = (): PairCombo => ({ n: 0, varied: 0, tier: 0, score: 0, share: [0, 0], made: [0, 0], links: [], by: [], perfect: 0, live: false, since: 0, last: -1e9 });
 const seat0 = (): DuelSeat => ({ style: 0, combo: combo0(), best: 0, links: 0, led: 0, fellAt: -1, groundSince: 0 });
 const countMs = (bpm: number) => Math.max(DUEL.COUNT_MIN_MS, 60000 / Math.max(40, bpm || 112));
 const stats0 = () => ({ catches: 0, aerials: 0, swings: 0, flings: 0, lifts: 0, vaults: 0, counters: 0, falls: 0, perfect: 0, links: 0, merges: 0, sets: 0 });
@@ -186,7 +239,7 @@ export function newDuel(now: number, bpm = 112): DuelState {
   return {
     phase: 'done', set: 0, since: now - DUEL.DONE_MS, countMs: countMs(bpm), count: DUEL.COUNT_FROM, playFrom: now, winner: null,
     seats: [seat0(), seat0()], energy: 0, peak: 0, merge: 0, joined: false, joinedSince: 0, held: -1, heldSince: 0, recent: [],
-    merges: 0, mergeRest: -1e9, highSince: -1, highBest: 0, fused: false, stats: stats0(),
+    merges: 0, mergeRest: -1e9, highSince: -1, highBest: 0, fused: false, pair: pair0(), pairBest: 0, stats: stats0(),
   };
 }
 /** from set 1 again (the next step's 'set' event places the bodies) */
@@ -212,6 +265,41 @@ export function tierOf(n: number) {
 }
 /** a tier's word and colour (null for 0) */
 export const tierInfo = (t: number) => (t > 0 ? DUEL.TIERS[Math.min(t, DUEL.TIERS.length) - 1] : null);
+/** the pair combo's tier at n varied links (0: none), and its word and colour */
+export function pairTierOf(n: number) {
+  let t = 0;
+  for (let i = 0; i < DUEL.PAIR_TIERS.length; i++) if (n >= DUEL.PAIR_TIERS[i].at) t = i + 1;
+  return t;
+}
+export const pairTierInfo = (t: number) => (t > 0 ? DUEL.PAIR_TIERS[Math.min(t, DUEL.PAIR_TIERS.length) - 1] : null);
+/** the pair combo's multiplier */
+export const pairMult = (P: PairCombo) => Math.min(DUEL.PAIR_MAX, 1 + P.n * DUEL.PAIR_STEP);
+
+/** the pair combo ends: each dancer banks its share (nothing on a fall) */
+const bankPair = (d: DuelState, why: 'idle' | 'ground' | 'fall' | 'set', out: DuelEvent[]) => {
+  const P = d.pair;
+  if (!P.live) return;
+  const mult = pairMult(P), k = DUEL.PAIR_BANK * mult * (1 + DUEL.PAIR_BONUS * P.tier);
+  const banked: [number, number] = why === 'fall' ? [0, 0] : [Math.round(P.share[0] * k), Math.round(P.share[1] * k)];
+  d.seats[0].style += banked[0]; d.seats[1].style += banked[1];
+  out.push({ k: 'pairCombo', n: P.n, varied: P.varied, mult, tier: P.tier, banked, why });
+  d.pair = pair0();
+};
+/** a contact link on the pair's chain (a link the same as the pair's last two counts little and not toward a tier) */
+function pairLink(d: DuelState, seat: number, kind: LinkKind, perfect: boolean, now: number, out: DuelEvent[]) {
+  const P = d.pair;
+  if (!P.live) { P.live = true; P.since = now; }
+  const repeat = P.links.length >= 2 && P.links[P.links.length - 1] === kind && P.links[P.links.length - 2] === kind;
+  const value = (DUEL.LINK[kind] ?? 1) * (perfect ? DUEL.PERFECT_MUL : 1) * (repeat ? DUEL.REPEAT : 1);
+  P.n++; P.score += value; P.share[seat] += value; P.made[seat]++; P.last = now;
+  if (perfect) P.perfect++;
+  P.links.push(kind); P.by.push(seat);
+  if (P.links.length > 8) { P.links.shift(); P.by.shift(); }
+  if (!repeat) P.varied++;
+  d.pairBest = Math.max(d.pairBest, P.n);
+  const tier = pairTierOf(P.varied);
+  if (tier > P.tier) { P.tier = tier; const T = pairTierInfo(tier)!; out.push({ k: 'pairTier', seat, tier, name: T.name, color: T.color, n: P.n }); }
+}
 
 const bank = (d: DuelState, k: number, why: 'ground' | 'idle' | 'held' | 'fall' | 'set', out: DuelEvent[]) => {
   const S = d.seats[k], C = S.combo;
@@ -233,6 +321,15 @@ export function duelLink(d: DuelState, seat: number, kind: LinkKind, perfect: bo
   if (d.phase !== 'play' || d.seats[seat].fellAt >= 0) return out;
   const S = d.seats[seat], C = S.combo;
   if (!C.live) { C.live = true; C.since = now; }
+  const contact = CONTACT_LINKS.has(kind);
+  // (a dancer's own moves past SOLO_RUN in a row: the combo goes on, nothing is added; the energy reads it as before)
+  if (!contact && C.solo >= DUEL.SOLO_RUN) {
+    C.last = now; S.links++; d.stats.links++;
+    out.push({ k: 'link', seat, kind, perfect, n: C.n, mult: C.mult, value: 0, capped: true });
+    shareEnergy(d, seat, kind, perfect, now, setMs);
+    return out;
+  }
+  C.solo = contact ? 0 : C.solo + 1;
   const repeat = C.links.length >= 2 && C.links[C.links.length - 1] === kind && C.links[C.links.length - 2] === kind;
   const value = (DUEL.LINK[kind] ?? 1) * (perfect ? DUEL.PERFECT_MUL : 1) * (repeat ? DUEL.REPEAT : 1);
   C.n++; C.score += value; C.last = now; C.mult = Math.min(DUEL.MULT_MAX, 1 + C.n * DUEL.MULT_STEP);
@@ -247,9 +344,18 @@ export function duelLink(d: DuelState, seat: number, kind: LinkKind, perfect: bo
   if (!repeat) C.varied++;
   const tier = tierOf(C.varied);
   if (tier > C.tier) { C.tier = tier; const T = tierInfo(tier)!; out.push({ k: 'tier', seat, tier, name: T.name, color: T.color, n: C.n }); }
-  // the shared energy: a link while joined, or while the other's combo is live too, is playing together; one the pair
-  // hasn't made lately counts more, one it keeps making takes away (a swing after a swing in one hold is the same
-  // swing going on: it neither counts again nor repeats)
+  if (contact) pairLink(d, seat, kind, perfect, now, out);
+  shareEnergy(d, seat, kind, perfect, now, setMs);
+  // leading
+  const lead = (why: 'catch' | 'aerial' | 'fling', v: number) => { S.style += v; S.led += v; out.push({ k: 'lead', seat, why, style: v }); };
+  if (kind === 'catch') lead('catch', DUEL.LEAD_CATCH);
+  else if (kind === 'aerial') lead('aerial', DUEL.LEAD_AERIAL);
+  return out;
+}
+/** the shared energy for a link: a link while joined, or while the other's combo is live too, is playing together;
+ *  one the pair hasn't made lately counts more, one it keeps making takes away (a swing after a swing in one hold is
+ *  the same swing going on: it neither counts again nor repeats) */
+function shareEnergy(d: DuelState, seat: number, kind: LinkKind, perfect: boolean, now: number, setMs: number) {
   const O = d.seats[1 - seat].combo;
   const goingOn = kind === 'swing' && d.joined && d.recent[d.recent.length - 1] === 'swing';
   if (!goingOn) {
@@ -262,11 +368,6 @@ export function duelLink(d: DuelState, seat: number, kind: LinkKind, perfect: bo
     d.recent.push(kind);
     if (d.recent.length > DUEL.RECENT) d.recent.shift();
   }
-  // leading
-  const lead = (why: 'catch' | 'aerial' | 'fling', v: number) => { S.style += v; S.led += v; out.push({ k: 'lead', seat, why, style: v }); };
-  if (kind === 'catch') lead('catch', DUEL.LEAD_CATCH);
-  else if (kind === 'aerial') lead('aerial', DUEL.LEAD_AERIAL);
-  return out;
 }
 /** a fling one seat made has been landed well by the other (its feet, a wall, a catch): the flinger leads */
 export function duelFlingLanded(d: DuelState, flinger: number): DuelEvent[] {
@@ -294,7 +395,7 @@ export function duelStep(d: DuelState, now: number, dt: number, bodies: readonly
   if (d.phase === 'done' && now - d.since >= DUEL.DONE_MS) {
     d.set += 1; d.phase = 'intro'; d.since = now; d.countMs = countMs(arena.bpm); d.count = DUEL.COUNT_FROM; d.winner = null;
     d.seats = [seat0(), seat0()]; d.energy = 0; d.peak = 0; d.merge = 0; d.fused = false;
-    d.recent = []; d.merges = 0; d.mergeRest = -1e9; d.highSince = -1; d.highBest = 0;
+    d.recent = []; d.merges = 0; d.mergeRest = -1e9; d.highSince = -1; d.highBest = 0; d.pair = pair0(); d.pairBest = 0;
     out.push({ k: 'set', set: d.set }, { k: 'count', n: d.count });
   }
   if (d.phase === 'intro') {
@@ -304,6 +405,7 @@ export function duelStep(d: DuelState, now: number, dt: number, bodies: readonly
   }
   if (d.phase === 'play' && now - d.playFrom >= setMs) {
     for (let k = 0; k < 2; k++) bank(d, k, 'set', out);
+    bankPair(d, 'set', out);
     d.phase = 'finale'; d.since = now; d.fused = fusionEarned(d);
     out.push({ k: 'finale', fused: d.fused, peak: d.peak });
   }
@@ -324,6 +426,7 @@ export function duelStep(d: DuelState, now: number, dt: number, bodies: readonly
     if (d.phase !== 'play') continue;
     if (b.y < arena.yKill) {
       bank(d, k, 'fall', out);
+      bankPair(d, 'fall', out);
       const cost = Math.min(S.style, DUEL.FALL_COST);
       S.style -= cost; S.fellAt = now; d.stats.falls++;
       out.push({ k: 'fall', seat: k, style: cost });
@@ -333,6 +436,12 @@ export function duelStep(d: DuelState, now: number, dt: number, bodies: readonly
     if (C.live && d.held === k && now - d.heldSince >= DUEL.HELD_BANK_BEATS * beatMs) bank(d, k, 'held', out);
     else if (C.live && !d.joined && S.groundSince >= 0 && now - S.groundSince >= DUEL.COMBO_GROUND_MS) bank(d, k, 'ground', out);
     else if (C.live && now - C.last >= DUEL.COMBO_IDLE_MS) bank(d, k, 'idle', out);
+  }
+  // ---- the pair combo ends a while after its last link, the two apart
+  if (d.phase === 'play' && d.pair.live && !d.joined) {
+    const g0 = d.seats[0].groundSince, g1 = d.seats[1].groundSince;
+    const grounded = g0 >= 0 && g1 >= 0 && now - Math.max(g0, g1) >= DUEL.PAIR_GROUND_MS;
+    if (grounded || now - d.pair.last >= DUEL.PAIR_IDLE_MS) bankPair(d, grounded ? 'ground' : 'idle', out);
   }
   // ---- the shared energy: a hold's first moments fill it, it ebbs apart (the further, the faster; more when the pair
   // repeats itself); the merge charges while joined and high, and rests after each; the stretch near the top is timed

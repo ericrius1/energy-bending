@@ -18,6 +18,9 @@ const styleArg = arg('styles', 'mix');
 const skills = arg('skills', '0.7,0.7').split(',').map(Number) as [number, number];
 const verbose = argv.includes('-v');
 const jsonOut = arg('json', '');
+// (the weight of contact's time warp: holds on a catch, a beat slowed on a pair tier, as the page plays it; --warp off
+// for the bodies' plain time)
+const warp = arg('warp', 'on') !== 'off';
 
 const pairs: [DuelStyle, DuelStyle][] = styleArg === 'mix'
   ? [['lead', 'flyer'], ['base', 'flyer'], ['lead', 'lead'], ['flyer', 'base']]
@@ -35,7 +38,7 @@ for (const world of worlds) for (const view of views) {
     const all: DuelSimResult[] = [];
     for (let r = 0; r < sets; r++) {
       const seed = seed0 + r * 101;
-      const res = simulateDuel({ arena, world: W, locked: view === 'locked', brains: makeBrains(pair, skills, [seed, seed + 7]), sets: 1, setMs, seconds: setMs / 1000 + 30 });
+      const res = simulateDuel({ arena, world: W, locked: view === 'locked', brains: makeBrains(pair, skills, [seed, seed + 7]), sets: 1, setMs, seconds: setMs / 1000 + 30, warp });
       all.push(res);
       if (verbose) {
         const S = res.sets[0];

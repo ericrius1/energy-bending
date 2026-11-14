@@ -80,6 +80,12 @@
 > or rewritten in place keeps it (one SWING per hold, its text going `SWING`, `SWING ×2`, …; one PERFECT per dancer
 > counting up; past the budget of about three new words a second a fresh pop of the same dancer's is rewritten), so
 > the HUD updates the pop rather than adding one. A tier reached pops its word (`FLOW ×12`, kind `combo`).
+> Phase 3 (Juice: report 14) adds: `pair?: { n, mult, live, tier, tierName?, tierColor?, links, by, best, colors,
+> ended?, cashed? }` (the pair combo: the two's chain of contact links, `by` the seat of each link in `links`, `colors`
+> the two dancers', `ended` and `cashed: [number, number]` on the frame it ends, as a combo's), pops of kind `'pair'` (a
+> pair tier's word, `DUET ×14`, nobody's lane, above the pair in both colours), `shared.high?` (s: the set's longest
+> stretch at `FUSE_AT`), `shared.highFor?` (s: the `FUSE_HOLD_MS` the fusion asks), `shared.highAt?` (`FUSE_AT`),
+> `shared.merges?` and `set.fused?` (from the finale on): the banner's "nearly" for a set that didn't fuse.
 
 > **Correction from the owner (13 Nov 2026), which overrides anything below that reads otherwise.**
 > It is still a dance, and it is **3D native**. It is not a 2D arena brawler.
@@ -197,6 +203,32 @@ Hit-stop (a few frames frozen on a hit), screen shake, slow motion on a round's 
 floor, wind through the redwoods leaning a body off its line, a swell in the pool rocking its stepping stones), online
 duels with the server authoritative.
 
+Read through the owner's tone (no damage, no KO: juice is weight and breath, never violence; a shake is a soft settle
+or sway, not a jolt), report 13's issues 1 and 3 became these (report 14):
+
+- **The weight of contact** (`src/duel/weight.ts`). Hit-stop adapted to contact: on a catch both bodies' time all but
+  stops (`WEIGHT.HOLD_SCALE`, 0.06: a breath, not a frozen page) for 3 frames on the ground, 4 out of the air, 6 at
+  range (a whip's or an arc's catch) or at a geyser's top, then eases back over `EASE_S`; 3 frames for a fling's
+  release, 6 for the finale's lift at its top. A time scale for the bodies and the sim: the page multiplies the
+  frame's dance time (`f.danceDt`: the bodies, the matter, the field, the powers, the rules' clock) by
+  `match.warp.step(f.dt)` at the start of its input phase; the music, the HUD and the camera keep the page's own time,
+  and the contact's ring and the link's beads (fx.ts) run on the unscaled dance time, so they keep moving through a
+  hold. The camera eases toward each moment (`DuelCamera.impulse?.({ at, kind, k })`, called when the camera has it).
+  The sets' clock is the bodies', so a 60 s set takes about 64 s of the page's time (the Node harness: `warp: true`).
+- **Pair combos** (shared/duel.ts). Every contact link either dancer makes (a catch, an air catch, a swing, a fling,
+  the flown one's landing, a lift, a vault, a counter, a power's catch) also goes on one chain shared by both, the pair
+  combo, with its own tiers (`DUEL.PAIR_TIERS`: DUET 14 varied links, CURRENT 28, MURMURATION 48, AURORA 108) and its
+  own chip under the set's orb (a dot of each dancer's colour, the tier's word in its colour). It ends 2 s after its
+  last link with the two apart, or when both have stood on the ground 0.9 s, or with a fall (dropped) or the set; each
+  dancer banks its share (the worth of the links it made) × the pair's multiplier × `PAIR_BANK`. A pair tier is the
+  loudest moment: a flash of the two's colours in from the screen's sides, a ring of the tier's colour from the orb, and
+  a beat of slow motion (the bodies at 0.4 for one beat; the HUD's pops run on the page's time, so none hang). A solo
+  chain stops adding after `SOLO_RUN` (4) of a dancer's own moves in a row (a dash, a wall jump or run, a flip, a kick,
+  an aú): past it they keep the combo going but add nothing until a contact link comes, so the tiers come from contact.
+- **The finale** settles the powers' effects as FINALE fires (`DuelPowers.settle`: each ends and fades), and a set that
+  didn't fuse says how near it came under the banner ("NEARLY · HELD 2.1 S OF 3 AT THE TOP", "· NO MERGE YET"; a set
+  never at the top: "FUSION · HOLD 90% FOR 3 S · AND MERGE").
+
 ## The contracts the parallel work shares
 
 These are the seams between phase 1's agents. Change one only by agreement, and say so in your report.
@@ -271,6 +303,27 @@ interface HudState {
 }
 // hud.set(state) each frame; hud.visible; bend.hud
 ```
+
+### The duel's events, phase 3 (`shared/duel.ts DuelEvent`)
+
+The rules' event stream (`bend.duel.events()` each frame, `bend.duel.history`, the film's `info.json` duel log, what
+the HUD's pops and the effects read) keeps every phase 2 name as it was and gains:
+
+```ts
+| { k: 'pairTier'; seat; tier; name; color; n }          // the pair combo reached a tier, on `seat`'s link
+| { k: 'pairCombo'; n; varied; mult; tier; banked: [number, number]; why: 'idle' | 'ground' | 'fall' | 'set' }
+| { k: 'juice'; what: JuiceWhat; w: number; hold: number; slow?: number; slowS?: number; seat?; other?;
+    at?: [number, number, number]; via?: 'whip' | 'arc' | 'geyser'; tier? }
+// JuiceWhat: 'catch' (on the ground) | 'aerial' (out of the air; via 'geyser' at a geyser's top) | 'range' (via the
+// whip or the arc) | 'fling' (the release) | 'tier' (a dancer's combo) | 'pair' (the pair's tier) | 'merge' |
+// 'fusion' (as FINALE fires, fused) | 'lift' (the finale's lift at its top)
+```
+
+A `juice` event is a moment of weight: `w` 0 … 1 how big, `hold` the frames the bodies' time is held, `slow` and
+`slowS` a slow motion after it, `at` where (the contact, the pair's middle, the lifted body). It is made after the
+powers' step by `DuelMatch.juice(now, extra, powers.fx, powers.live, lift)` and appended to the frame's events, so the
+sound (a catch's weight, an air catch, a catch at range, a fling's release, a tier, a merge, the fusion, the finale's
+hold) and the camera key off the same moment. A `link` past a solo run carries `capped: true` (value 0).
 
 ### Virtual players (`src/ai/duel-brain.ts`)
 
