@@ -15,7 +15,7 @@ import { DUEL, fusionCharge, tierInfo, type DuelEvent, type DuelState } from '..
 import type { ContactEvent } from './contact';
 import type { HudState as HudContract } from '../hud/state';
 
-export type PopKind = 'catch' | 'swing' | 'fling' | 'perfect' | 'combo' | 'merge' | 'info';
+export type PopKind = 'catch' | 'swing' | 'fling' | 'perfect' | 'combo' | 'merge' | 'info' | 'power' | 'react';
 export interface HudPlayer {
   seat: 0 | 1; name: string; color: string; matter: string;
   /** the battle's score this set */
@@ -38,7 +38,12 @@ export interface HudPlayer {
   /** 0 … 1 after a fall, else 0 */
   reforming: number;
   screen?: [number, number];
+  /** the powers (phase 2): the flow 0 … 1, the power form left 0 … 1, the two powers (ready, cost, the key) */
+  flow?: number; form?: number; powers?: { id: string; name: string; ready: boolean; cost: number; key?: string }[];
 }
+/** a word from elsewhere (the powers) for the pops, with its priority (events' `pop`: 3 always, 2 within the budget or
+ *  rewriting, 1 within the budget) */
+export interface HudWord { text: string; kind: PopKind; seat?: number; at?: [number, number]; prio?: number }
 export interface HudPop { text: string; seat?: number; at: [number, number]; age: number; kind: PopKind; id?: number; dir?: [number, number] }
 export interface HudState {
   mode: 'duel' | 'jogo' | 'none';
@@ -83,6 +88,8 @@ export interface HudSeat {
   dash: number;
   holding: boolean;
   held: boolean;
+  /** the powers, when the duel has them (src/duel/powers.ts hud()) */
+  bend?: { flow: number; form: number; powers: { id: string; name: string; ready: boolean; cost: number; key?: string }[] };
 }
 
 const POP_LIFE = 1.1;
@@ -113,7 +120,7 @@ export class DuelHud {
 
   /** the frame's events as pops, at the bodies' screen places (or the screen's middle); `project` puts a world point
    *  on screen (a fling's direction) */
-  events(ev: readonly DuelEvent[], touches: readonly ContactEvent[], seats: readonly HudSeat[], linkAt: [number, number] | null, project?: Project) {
+  events(ev: readonly DuelEvent[], touches: readonly ContactEvent[], seats: readonly HudSeat[], linkAt: [number, number] | null, project?: Project, words: readonly HudWord[] = []) {
     const at = (s: number | undefined): [number, number] => { const p = s != null ? seats[s]?.screen : null; return p ? [p[0], Math.max(0.08, p[1] - 0.08)] : [0.5, 0.42]; };
     const live = (id: number) => (id ? this.pops.find((p) => p.id === id) ?? null : null);
     while (this.born.length && this.born[0].t <= this.clock - POP_WINDOW) this.born.shift();
@@ -184,6 +191,8 @@ export class DuelHud {
         case 'done': pop(`P${e.winner + 1} WINS`, 'info', e.winner, [0.5, 0.38], undefined, 3); break;
       }
     }
+    // (others' words through the same budget: the powers' casts, the power form, a reaction)
+    for (const w of words) pop(w.text, w.kind, w.seat, w.at, undefined, w.prio ?? 2);
   }
 
   /** this frame's HudState */
@@ -208,6 +217,7 @@ export class DuelHud {
         dash: s?.dash ?? 1, holding: !!s?.holding, held: !!s?.held,
         reforming: S.fellAt >= 0 ? Math.min(1, (now - S.fellAt) / DUEL.REFORM_MS) : 0,
         ...(s?.screen ? { screen: s.screen } : {}),
+        ...(s?.bend ? { flow: s.bend.flow, form: s.bend.form, powers: s.bend.powers } : {}),
       };
     });
     // (the count-in left, in counts and fractional: the HUD shows ceil(left) and drops each digit in over its count by

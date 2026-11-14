@@ -42,6 +42,14 @@ worlds' own gates are always open), `?fly`, `?field` (the field overlay), `?aura
 only), `?vortex=4`. Keys: space wakes, then shatters; `n`
 next dance; `w` next world; `f` fullscreen.
 
+The duel (`?duel&world=temple&dress=fire,water&p1=human&p2=bot`, src/duel; docs/design/duel.md): solo or left
+keyboard W A S D move (free; locked A D, W jumps), Space jump, J the grab (held; let go: the fling), K or Shift dash,
+L kick, I spin, O dodge, **U power 1, H power 2, E the power form** (at full flow); right layout arrows, ' jump, , grab,
+. or right Shift dash, / kick, ; spin, ' dodge, **P power 1, [ power 2, Enter the form**; gamepad A jump, X grab, B
+dash, Y kick, LB spin, RB dodge, **RT power 1, LT power 2, both stick clicks the form**; touch the buttons. Powers by
+matter: fire flare and ribbon, water whip and wave, ice step and slide, plasma blink and arc, gems pillar and prism
+(shared/powers.ts the rules, src/duel/powers.ts on the bodies, src/duel/power-fx.ts drawn).
+
 Links for Eric: never localhost. Serve tailnet-only with `tailscale serve --bg --https=<port> http://127.0.0.1:<port>`
 and give `https://portal-windows.tail4a295a.ts.net:<port>/energybending/`.
 

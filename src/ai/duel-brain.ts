@@ -18,6 +18,11 @@
 //              ledges and off its walls. The dash (Intent.dash) to close a gap, to get away, back from the void
 //   holding    a person's thumbs: the stick in eight directions, held a while once moved (no flicker), a jump committed
 //              to once pressed, the grab held as long as the hold lasts
+//   powers     (the duel's phase 2: shared/powers.ts, src/duel/powers.ts) cast as a person would, when one makes contact
+//              happen and the flow is there, a few a minute: a whip at a flyer out of reach, a step under a falling
+//              partner (or under its own feet over a drop), a flare into a catch, a pillar under the other to launch it
+//              into a catch, an arc at it in the air, a prism on a flung partner's path, a wave or a slide to ride to
+//              it; the power form a moment after the bar fills
 //
 // The knobs: `skill` 0 … 1 (reaction time, aim error, beat accuracy, how well it times a catch and a fling) and `style`:
 // lead (a generous lead: catches, swings, flings), flyer (showy: runs at the other to be caught, lifts off, vaults,
@@ -52,6 +57,11 @@ export interface DuelSight {
   /** the world's solids and the arena's pieces, and the floor's height (World.groundAt) */
   solids: readonly Solid[];
   groundAt(x: number, z: number): number;
+  /** each seat's powers (src/duel/powers.ts sight()): its flow, the form left, its two powers and whether each is
+   *  ready; absent: no powers */
+  powers?: { flow: number; form: number; ids: [string, string]; ready: [boolean, boolean]; matter: string }[];
+  /** the powers' effects standing now (powers.ts liveSight): a wave's crest, a step's or a pillar's top, a geyser */
+  bends?: { kind: string; seat: number; at: [number, number, number] }[];
 }
 
 export interface DuelBrainOptions {
@@ -132,12 +142,18 @@ export class DuelBrain implements Brain {
   private flipT = -1;
   private avoidSide = 1;
   private hadDash: boolean;
+  /** the powers' own dice (so a duel without powers plays exactly as before), the next cast's earliest time, when the
+   *  form will be pressed */
+  private prng: Rng;
+  private nextCast = 0;
+  private formAt = -1;
 
   constructor(o: DuelBrainOptions = {}) {
     this.skill = clamp(o.skill ?? 0.6, 0, 1);
     this.style = STYLE_ALIAS[o.style as string] ?? o.style ?? 'lead';
     this.name = `duel-${this.style}`;
     this.rng = new Rng(o.seed ?? 7);
+    this.prng = new Rng((o.seed ?? 7) * 31 + 5);
     this.duel = o.duel ?? null;
     const k = this.skill;
     // want: how near it stays; seek: how keen to catch; leap: how keen to jump at the other to be caught; hold: how
@@ -226,6 +242,7 @@ export class DuelBrain implements Brain {
     // the contact: the grab, the pump, the fling, the lift, the counter, the leap at the other (over the legs)
     if (!otherOut) this.partner(S, c, O, mine, o, D, it, holding, held);
     else this.grabUntil = -1;
+    if (!otherOut && D?.powers) this.bend(S, c, mine, o, D, it, !!L);
     it.punch = this.grabPress; it.punchHeld = this.grabPress || t <= this.grabUntil;
     this.grabPress = false;
 
@@ -682,6 +699,80 @@ export class DuelBrain implements Brain {
       this.leapT = t; this.jumpNow(t, holdFor(1.3 + this.rng.range(0, 0.6), c.phys));
       this.goal = { x: o.x, y: o.y, z: o.z, s: o.s, why: 'leap' }; this.nextDecide = t + 0.8;
       this.count('leap'); this.why = 'leap';
+    }
+  }
+
+  // ---------------------------------------------------------------- the powers
+  /** a power when it makes contact happen (each power's moment below), at most one every few seconds (sooner in the
+   *  power form, when they are free); the form a moment after the bar fills */
+  private bend(S: Sight, c: Character, me: Snap, o: Snap, D: DuelSight, it: Intent, linked: boolean) {
+    const P = D.powers?.[S.seat];
+    if (!P) return;
+    const t = S.t, R = this.prng;
+    if (P.flow >= 0.999 && P.form <= 0) {
+      if (this.formAt < 0) this.formAt = t + R.range(0.3, 1.8);
+      if (t >= this.formAt && !linked) { it.form = true; this.formAt = -1; this.count('form'); }
+    } else this.formAt = -1;
+    const dx = o.x - me.x, dz = o.z - me.z, dist = c.plane ? Math.abs(o.s - me.s) : Math.hypot(dx, dz), dy = o.y - me.y;
+    const falling = !c.grounded && me.vy < 0 && groundOf(D, me.x, me.z, me.y) < D.yKill + 0.6;
+    // (a save from the void doesn't wait its turn)
+    if (linked || (t < this.nextCast && !falling)) return;
+    const toward: [number, number] = c.plane ? [c.plane.right[0] * sgn(o.s - me.s), c.plane.right[2] * sgn(o.s - me.s)] : dist > 1e-3 ? [dx / dist, dz / dist] : [Math.sin(c.yaw), Math.cos(c.yaw)];
+    const oAir = !o.grounded, flown = D.flown === 1 - S.seat;
+    const overVoid = groundOf(D, me.x, me.z, me.y) < D.yKill + 0.6;
+    // the other's effects nearby, for a reaction: its wave to set alight (a geyser), its step to melt or to lash
+    const theirs = (kind: string) => {
+      let best: { at: [number, number, number]; d: number } | null = null;
+      for (const b of D.bends ?? []) if (b.kind === kind && b.seat !== S.seat) { const d = Math.hypot(b.at[0] - me.x, b.at[2] - me.z); if (!best || d < best.d) best = { at: b.at, d }; }
+      return best;
+    };
+    const wave = theirs('wave'), step = theirs('step'), other = D.powers?.[1 - S.seat]?.matter;
+    const to = (p: [number, number, number]): [number, number] => { const x = p[0] - me.x, z = p[2] - me.z, l = Math.hypot(x, z) || 1; return [x / l, z / l]; };
+    for (const slot of [0, 1] as const) {
+      if (!P.ready[slot]) continue;
+      // the moment for it (how keen, a second), and which way the stick points: at the other, or none (null)
+      let keen = 0, aim: [number, number] | null = toward;
+      switch (P.ids[slot]) {
+        case 'flare':
+          if (wave && wave.d < 1.6) { keen = 4; aim = null; }
+          else if (step && step.d < 1.4 && c.grounded) { keen = 2.5; aim = null; }
+          else keen = c.grounded && dist < 2.0 && Math.abs(dy) < 0.8 ? 0.6 : oAir && dist < 3 && dy > 0.5 && dy < 3.5 ? 1.2 : 0;
+          break;
+        case 'ribbon':
+          if (wave && wave.d > 1 && wave.d < 5) { keen = 2.5; aim = to(wave.at); }
+          else keen = c.grounded && dist > 3.5 && dist < 7 ? 0.35 : 0;
+          break;
+        case 'whip':
+          if (step && step.d > 1.5 && step.d < 6 && step.at[1] > me.y + 1.8) { keen = 1.8; aim = to(step.at); }
+          else keen = dist > 2.2 && dist < 6 ? (oAir ? 1.4 : dist > 3.2 ? 0.35 : 0) : 0;
+          break;
+        case 'wave': keen = c.grounded && o.grounded && dist > (other === 'fire' ? 1.5 : 2) && dist < 5.5 ? (other === 'fire' ? 0.7 : 0.3) : 0; break;
+        case 'step':
+          if (oAir && o.vy < -1.5 && dist < 4.5 && o.y - groundOf(D, o.x, o.z, o.y) > 1.2) keen = 1.4;
+          else if (!c.grounded && me.vy < -2 && (overVoid || this.style === 'flyer')) { keen = overVoid ? 3 : 0.25; aim = null; }
+          else if ((other === 'water' || other === 'fire') && c.grounded && dist > 3 && dist < 6) keen = 0.3;
+          break;
+        case 'slide': keen = c.grounded && dist > 3 && dist < 9 ? 0.5 : 0; break;
+        case 'blink': keen = dist > 2.5 && dist < 7 ? 0.5 : 0; break;
+        case 'arc': keen = dist > 2.5 && dist < 7.5 ? (oAir || !c.grounded ? 1.2 : 0.6) : 0; break;
+        case 'pillar':
+          if (o.grounded && c.grounded && dist > 1.2 && dist < 4) keen = 0.6;
+          else if (oAir && dy > 1.5 && dist < 2 && c.grounded) { keen = 0.6; aim = null; }
+          break;
+        case 'prism': keen = flown && dist > 2 && dist < 7 ? 2 : 0; break;
+      }
+      // over the void and falling: a power that saves it, as a person would reach for one (a rocket jump, a lash or a
+      // tether to the other, a blink toward it; the step under its feet is above)
+      const id = P.ids[slot];
+      if (overVoid && !c.grounded && me.vy < 0 && (id === 'flare' || id === 'blink' || ((id === 'whip' || id === 'arc') && dist < 6))) { keen = Math.max(keen, 4); aim = toward; }
+      // (in the power form they are free: keener, and toward the other whatever the moment, from close enough)
+      if (P.form > 0) keen = Math.max(keen * 3, dist < 7 ? 0.8 : 0);
+      if (keen <= 0 || !R.chance(keen * (0.5 + 0.5 * this.skill) * S.dt)) continue;
+      if (aim) stickFor(c, aim[0], aim[1], 1, it); else { it.moveX = 0; it.moveZ = 0; if (!c.plane) it.moveY = 0; }
+      if (slot === 0) it.power1 = true; else it.power2 = true;
+      this.count(`power-${P.ids[slot]}`); this.why = `power ${P.ids[slot]}`;
+      this.nextCast = t + (P.form > 0 ? R.range(0.8, 1.6) : R.range(4.5, 9) + (1 - this.skill) * 3);
+      return;
     }
   }
 }

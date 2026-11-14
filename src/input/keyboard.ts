@@ -7,9 +7,13 @@
 //              K kick; L spin; Shift dodge/block; E form; F merge (hold); Tab or V lock; G interact; Q walk (free)
 //   right      arrows move, Up jump | Up Down depth, ' jump; Down crouch | ; crouch; , punch; . kick; / spin;
 //              right Shift dodge; Enter form; right Ctrl merge; ] lock; \ interact; 0 (numpad) walk
-// The duel's scheme (`scheme = 'duel'`, docs/design/duel.md) moves four of them over, locked or free:
-//   solo/left  Shift or K dash; L kick; I spin; O dodge/block; W (still jump) also holds the stick up (the dash's way)
-//   right      right Shift or . dash; / kick; ; spin; ' dodge/block; Up (still jump) also holds the stick up
+// The duel's scheme (`scheme = 'duel'`, docs/design/duel.md) moves four of them over, locked or free, and adds the two
+// powers (aimed by the move keys; E / Enter, the jogo's form, is the power form at full flow):
+//   solo/left  Shift or K dash; L kick; I spin; O dodge/block; W (still jump) also holds the stick up (the dash's way);
+//              U power 1, H power 2
+//   right      right Shift or . dash; / kick; ; spin; ' dodge/block; Up (still jump) also holds the stick up;
+//              P power 1, [ power 2
+// (none of them is a key the page takes for itself: main.ts's space, n, w, l, y, f, the panel's /, play.ts's c)
 import { makeIntent, nowMs, hasDOM, type Intent, type IntentSource, type InputMode, type Scheme } from './intent';
 
 export type KeyLayout = 'solo' | 'left' | 'right';
@@ -17,23 +21,25 @@ interface Layout {
   left: string[]; right: string[]; jump: string[]; down: string[]; punch: string[]; kick: string[]; spin: string[];
   dodge: string[]; form: string[]; merge: string[]; lock: string[]; interact: string[];
   fwd: string[]; back: string[]; freeJump: string[]; freeDown: string[]; walk: string[]; mouse: boolean;
-  /** the duel's scheme: these replace the jogo's kick, spin and dodge; `up` holds the stick up */
-  duel: { dash: string[]; kick: string[]; spin: string[]; dodge: string[]; up: string[] };
+  /** the duel's scheme: these replace the jogo's kick, spin and dodge; `up` holds the stick up; the two powers */
+  duel: { dash: string[]; kick: string[]; spin: string[]; dodge: string[]; up: string[]; power1: string[]; power2: string[] };
 }
 export const LAYOUTS: Record<KeyLayout, Layout> = {
   solo: { left: ['KeyA'], right: ['KeyD'], jump: ['KeyW', 'Space'], down: ['KeyS'], punch: ['KeyJ'], kick: ['KeyK'], spin: ['KeyL'],
     dodge: ['ShiftLeft', 'ShiftRight'], form: ['KeyE'], merge: ['KeyF'], lock: ['KeyV', 'Tab'], interact: ['KeyG'],
     fwd: ['KeyW'], back: ['KeyS'], freeJump: ['Space'], freeDown: ['KeyC'], walk: ['KeyQ'], mouse: true,
-    duel: { dash: ['ShiftLeft', 'ShiftRight', 'KeyK'], kick: ['KeyL'], spin: ['KeyI'], dodge: ['KeyO'], up: ['KeyW'] } },
+    duel: { dash: ['ShiftLeft', 'ShiftRight', 'KeyK'], kick: ['KeyL'], spin: ['KeyI'], dodge: ['KeyO'], up: ['KeyW'], power1: ['KeyU'], power2: ['KeyH'] } },
   left: { left: ['KeyA'], right: ['KeyD'], jump: ['KeyW', 'Space'], down: ['KeyS'], punch: ['KeyJ'], kick: ['KeyK'], spin: ['KeyL'],
     dodge: ['ShiftLeft'], form: ['KeyE'], merge: ['KeyF'], lock: ['KeyV', 'Tab'], interact: ['KeyG'],
     fwd: ['KeyW'], back: ['KeyS'], freeJump: ['Space'], freeDown: ['KeyC'], walk: ['KeyQ'], mouse: false,
-    duel: { dash: ['ShiftLeft', 'KeyK'], kick: ['KeyL'], spin: ['KeyI'], dodge: ['KeyO'], up: ['KeyW'] } },
+    duel: { dash: ['ShiftLeft', 'KeyK'], kick: ['KeyL'], spin: ['KeyI'], dodge: ['KeyO'], up: ['KeyW'], power1: ['KeyU'], power2: ['KeyH'] } },
   right: { left: ['ArrowLeft'], right: ['ArrowRight'], jump: ['ArrowUp'], down: ['ArrowDown'], punch: ['Comma'], kick: ['Period'], spin: ['Slash'],
     dodge: ['ShiftRight'], form: ['Enter', 'NumpadEnter'], merge: ['ControlRight'], lock: ['BracketRight'], interact: ['Backslash'],
     fwd: ['ArrowUp'], back: ['ArrowDown'], freeJump: ['Quote'], freeDown: ['Semicolon'], walk: ['Numpad0'], mouse: false,
-    duel: { dash: ['ShiftRight', 'Period'], kick: ['Slash'], spin: ['Semicolon'], dodge: ['Quote'], up: ['ArrowUp'] } },
+    duel: { dash: ['ShiftRight', 'Period'], kick: ['Slash'], spin: ['Semicolon'], dodge: ['Quote'], up: ['ArrowUp'], power1: ['KeyP'], power2: ['BracketLeft'] } },
 };
+/** the keys a layout's powers and power form are on, as the HUD names them */
+export const POWER_KEYS: Record<KeyLayout, [string, string, string]> = { solo: ['U', 'H', 'E'], left: ['U', 'H', 'E'], right: ['P', '[', '↵'] };
 /** every key a layout listens to (either scheme's) */
 export const keysOf = (layout: KeyLayout) => { const L = LAYOUTS[layout]; return new Set([...Object.values(L), ...Object.values(L.duel)].filter(Array.isArray).flat() as string[]); };
 
@@ -117,7 +123,7 @@ export class KeyboardSource implements IntentSource {
     o.punch = edge(punchKeys); o.punchHeld = any(punchKeys);
     o.kick = edge(D ? D.kick : L.kick); o.spin = edge(D ? D.spin : L.spin);
     o.dodge = edge(D ? D.dodge : L.dodge); o.dodgeHeld = any(D ? D.dodge : L.dodge);
-    if (D) o.dash = edge(D.dash);
+    if (D) { o.dash = edge(D.dash); o.power1 = edge(D.power1); o.power2 = edge(D.power2); }
     o.form = edge(L.form); o.merge = any(L.merge);
     o.lock = edge(L.lock); o.interact = edge(L.interact);
     const d = L.mouse && this.opts.dancerScreen ? this.opts.dancerScreen() : null;

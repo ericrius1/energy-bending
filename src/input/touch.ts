@@ -3,7 +3,8 @@
 // what a page should draw (input/touch-pad.ts draws them). Ported from the prototype's input.js; the tests drive it
 // through down / move / up and press / release.
 // The duel's scheme (`scheme = 'duel'`): a swipe of the stick's thumb (from near where it landed to past the rim in
-// under 0.12 s) dashes that way, and the 'dash' button (shown only then) dashes along the stick, or the facing.
+// under 0.12 s) dashes that way, and the 'dash' button (shown only then) dashes along the stick, or the facing; the
+// two power buttons (shown only then) cast the body's powers along the stick, and 'form' is the power form.
 import { Buttons, makeIntent, radialDeadzone, hasDOM, type Intent, type IntentSource, type InputMode, type Scheme } from './intent';
 
 /** a button a touch page draws: its name (what press() takes), whether it is held (not tapped), free mode only, the
@@ -13,6 +14,7 @@ export interface TouchButton { name: string; label: string; hold?: boolean; free
 export const TOUCH_BUTTONS: TouchButton[] = [
   { name: 'jump', label: 'jump' }, { name: 'strike', label: 'strike' }, { name: 'kick', label: 'kick' }, { name: 'spin', label: 'spin' },
   { name: 'dash', label: 'dash', duelOnly: true },
+  { name: 'power1', label: 'power 1', duelOnly: true }, { name: 'power2', label: 'power 2', duelOnly: true },
   { name: 'dodge', label: 'dodge', hold: true }, { name: 'form', label: 'form' }, { name: 'merge', label: 'merge', hold: true },
   { name: 'lock', label: 'lock' }, { name: 'interact', label: 'use' }, { name: 'hand', label: 'hand', hold: true, freeOnly: true },
 ];
@@ -92,7 +94,7 @@ export class TouchSource implements IntentSource {
     o.dodge = B.took('dodge'); o.dodgeHeld = B.held('dodge');
     o.form = B.took('form'); o.merge = B.held('merge');
     o.lock = B.took('lock'); o.interact = B.took('interact');
-    if (this.scheme === 'duel' && B.took('dash')) o.dash = true;
+    if (this.scheme === 'duel') { if (B.took('dash')) o.dash = true; o.power1 = B.took('power1'); o.power2 = B.took('power2'); }
     B.clear();
     return o;
   }

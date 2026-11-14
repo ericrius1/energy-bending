@@ -154,14 +154,28 @@ can ride: a stage for a high catch); fire on an ice step melts it to a slick pud
 freezes the rope into a bar to swing round. Each reaction pops once ("STEAM!").
 
 **Input.** `Intent.power1`, `Intent.power2` (edges, optional) and the duel's `form` edge for the power form; aimed by the
-move stick (none: the facing). Keys per layout in `src/input/keyboard.ts`, gamepad and touch alike; the HUD's help
-lists them. The virtual players cast too, as people would: a whip at a flyer out of reach, a step under a falling
-partner, a flare into a catch.
+move stick (none: the facing; the stick pointing near the other aims at it: a whip or an arc at it, a step or a pillar
+under it, a prism on its flight). Keyboard: **U** power 1, **H** power 2, **E** the form (solo and left layouts); **P**,
+**[**, **Enter** (right layout). Gamepad: **RT** power 1, **LT** power 2, **both stick clicks** the form (so the dash is
+**B** alone in the duel). Touch: the **power 1** and **power 2** buttons (the duel's only), **form**. The panels show each
+power's key under its icon. The virtual players cast too, as people would: a whip at a flyer out of reach, a step
+under a falling partner, a flare into a catch, a pillar under the other, an arc in the air, a prism on a flung
+partner's path, a fire power into the other's wave (the geyser), a lash at the other's step (the bar), a save when
+falling over the void; a few a minute each, the form a moment after the bar fills.
 
-**HUD.** `players[].flow` (0..1), `players[].powers: { id, name, ready, cost }[]`, `players[].form` (0..1 left),
-pops of kind `'power'` and `'react'`. The rules live beside the duel's (`shared/powers.ts`, pure, run in Node); their
-drawing in `src/duel/power-fx.ts` with the matter and field the game already has; the effects on bodies through
-`Character.env` (`updraft`, `slick`, `carryX`) and temporary solids in `World.solids`.
+**HUD.** `players[].flow?` (0..1; in the power form, the form's time left), `players[].powers?: { id, name, ready, cost,
+key? }[]` (`ready`: castable now: the flow there, not cooling, not joined; `cost` 0 in the form; `key` the seat's
+device's, absent for a virtual player or touch), `players[].form?` (0..1 left), pops of kind `'power'` (a cast's name,
+"POWER FORM") and `'react'` ("STEAM!", "MELT!", "FREEZE!"), through hud-state.ts's pop budget (`DuelHud.events`'
+`words`: a cast only with room, the form within it, a reaction always). The panel draws the flow as a bar along its
+foot (a mark at each cost; gold when full and in the form) and the two powers as icons at its inner end (bright when
+ready, gold-ringed in the form, else grey with the flow's way toward their cost), the key under each. The rules live
+beside the duel's (`shared/powers.ts`, pure, run in Node); the powers on the bodies in `src/duel/powers.ts` (pure, run
+by the page and the Node harness after the match's step); their drawing in `src/duel/power-fx.ts` with the matter and
+field the game already has (glows, the field's heat, wet and vortices, plasma's arcs, water's set ice, the worlds'
+ripples); the effects on bodies through `Character.env` (`updraft`, `slick`, `carryX`, `held` while a power carries a
+body) and temporary solids in `World.solids`. Flow comes only from a body's own dancing: none for the links a carried
+body makes. `bend.duel.cast(seat, 0 | 1 | 'form', stick?)`, `bend.duel.flow(seat, v?)`, `bend.duel.powers`.
 
 **The five fixes** (report 12, "Five things that hold it back"):
 1. **Camera**: frame the higher body with head room (the flyer's apex while launched or flown, not the pair's
