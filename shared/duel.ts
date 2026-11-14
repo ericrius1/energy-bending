@@ -1,21 +1,29 @@
-// The duel's rules (docs/design/duel.md, "Hits, KOs and rounds"): two bodies on one stage plane, three hits scatter
-// a body (a KO), so does falling below the arena's kill floor; the body re-forms at the spawn farthest from the other
-// and is untouchable for a moment; the first to five KOs wins the round, and the next round counts in again. Pure like
-// rules.ts: no clock of its own, no I/O, no body physics. It reads each frame's bodies as plain data (their root and
-// their hit and hurt capsules flattened onto the plane, what move they are in and the beat it started on) and returns
-// events; whoever owns the bodies (src/duel/match.ts in the page and in Node, a server later) applies them: the
-// knockback, the scatter, the re-forming.
+// The duel's rules (docs/design/duel.md, "Hits, KOs and rounds", and the owner's correction: still a dance, 3D native,
+// the 2D lock an option anywhere, dancing well gives you power). Two bodies in a world's play space: three hits scatter
+// a body (a KO), so does falling below the space's kill floor; the body re-forms at the spawn farthest from the other
+// and is untouchable for a moment; the first to five KOs wins the round, and the next round counts in again. Dancing
+// well builds flow: moves on the beat, varied, and travelling through the world as dance (wall jumps, flips in the
+// air, aús); a hit landed builds it, a hit taken costs it (the jogo's flow and streak, shared/rules.ts, with teeth).
+// Flow is what phase 2's spells and the super will spend; for now it is the HUD's super meter.
 //
-//   const d = newDuel(nowMs)                       the first step begins round 1 (the bodies placed, the count-in)
-//   const ev = duelStep(d, nowMs, [b0, b1], { bpm, spawns, yKill })   each frame, after the bodies moved
-//   frozen(d, seat)                                 the seat's controls are held (the countdown, scattered, re-forming)
-//   restartDuel(d, nowMs)                           from round 1 again
+// Pure like rules.ts: no clock of its own, no I/O, no body physics. It reads each frame's bodies as plain data (where
+// they are, which way they face, their hit and hurt capsules in the world: flattened onto the stage plane by whoever
+// reads them when the view is locked, so a locked duel is exactly 2D), what move they are in and the beat it started
+// on, and returns events; whoever owns the bodies (src/duel/match.ts in the page and in Node, a server later) does
+// what they say: the knockback (a horizontal direction and an upward kick), the scatter, the re-forming.
+//
+//   const d = newDuel(nowMs)                     the first step begins round 1 (the bodies placed, the count-in)
+//   const ev = duelStep(d, nowMs, [b0, b1], { spawns, yKill, bpm })   each frame, after the bodies moved
+//   duelMove(d, seat, move, onBeat)              a move a body started (flow); duelTravel(d, seat, 'wall' | 'flip')
+//   frozen(d, seat)                              the seat's controls are held (the count-in, scattered, re-forming)
+//   restartDuel(d, nowMs)                        from round 1 again
 //
 // Hits: a strike's hit capsule meets the other body's hurt capsules. Each attack (a move's serial) lands once. The
-// knockback is the move's own (KNOCK) and doubles when the move started on the beat (within PERFECT_MS of an 8th-note
-// line: the music is a weapon). A body in its own dodge's i-frames dodges; a body blocking takes a push and no hit;
-// two strikes that meet clash (both pushed apart, nobody hit). Each hit costs 1 of HITS_MAX; the third is a KO.
-// Times are milliseconds, distances metres in the plane's own coordinates (s along it, y up from its origin).
+// knockback is the move's own (KNOCK), away from the attacker, and doubles when the move started on the beat (within
+// PERFECT_MS of an 8th-note line: the music is a weapon). A body in its own dodge's i-frames dodges; a body blocking
+// toward the attack takes a push and no hit; two strikes that meet clash (both pushed apart). Each hit costs 1 of
+// HITS_MAX; the third is a KO. Times in milliseconds, distances in metres, the world's frame (y up).
+import { RULES } from './rules.ts';
 
 export const DUEL = {
   HITS_MAX: 3,
@@ -40,27 +48,42 @@ export const DUEL = {
   BLOCK_KNOCK: 0.4,
   /** a clash pushes both apart (along, up, stagger s) */
   CLASH_KNOCK: [3.2, 2.2, 0.18] as [number, number, number],
-  /** each attack's knockback: along the plane (m/s, away from the attacker), up (m/s), the stagger (s) */
+  /** each attack's knockback: along the ground away from the attacker (m/s), up (m/s), the stagger (s) */
   KNOCK: {
-    strike: [4.2, 3.0, 0.24],
-    throw: [4.8, 2.6, 0.26],
-    martelo: [5.4, 5.6, 0.3],
-    'meia-lua': [6.4, 4.2, 0.32],
-    armada: [7.2, 4.6, 0.34],
-    bencao: [8.4, 2.8, 0.32],
-    rasteira: [3.2, 6.8, 0.36],
+    strike: [2.8, 3.0, 0.22],
+    throw: [3.0, 2.6, 0.24],
+    martelo: [3.2, 4.4, 0.26],
+    'meia-lua': [3.6, 3.6, 0.28],
+    armada: [4.0, 4.0, 0.3],
+    bencao: [4.4, 2.6, 0.28],
+    rasteira: [2.2, 5.2, 0.32],
   } as Record<string, [number, number, number]>,
-  KNOCK_DEFAULT: [5, 4, 0.3] as [number, number, number],
+  KNOCK_DEFAULT: [3.6, 3.4, 0.3] as [number, number, number],
+  // ---- flow (the jogo's: RULES.moves' flow per move, more on the beat, less for the same move three times running)
+  FLOW_MAX: RULES.FLOW_MAX,
+  PERFECT_FLOW: RULES.PERFECT_FLOW,
+  REPEAT_FLOW: RULES.REPEAT_FLOW,
+  /** flow for travelling as dance: a wall jump, a flip (a spin in the air) */
+  WALL_FLOW: 5,
+  FLIP_FLOW: 4,
+  /** a hit landed (times PERFECT_FLOW on the beat), a hit taken (the jogo's cost); a KO taken halves what is left */
+  HIT_FLOW: 6,
+  HIT_FLOW_COST: RULES.HIT_FLOW_COST,
+  /** each perfect move in a row adds STREAK_STEP to the flow's multiplier, up to STREAK_MAX; an off-beat one ends it */
+  STREAK_STEP: RULES.STREAK_STEP,
+  STREAK_MAX: RULES.STREAK_MAX,
 } as const;
 
-/** a capsule flattened onto the plane: a segment from (ax, ay) to (bx, by), radius r */
-export interface Seg { ax: number; ay: number; bx: number; by: number; r: number }
+export type V3 = [number, number, number];
+/** a capsule in the world: a segment from a to b, radius r (Character's Capsule has these fields) */
+export interface Seg { ax: number; ay: number; az: number; bx: number; by: number; bz: number; r: number }
 
 /** one body this frame, as the rules read it */
 export interface DuelBody {
-  /** the root (the ground point under the hips), plane coordinates */
-  s: number;
-  y: number;
+  /** the root (the ground point under the hips), world */
+  p: V3;
+  /** which way it faces, a horizontal unit vector (x, z) */
+  fwd: [number, number];
   hurt: readonly Seg[];
   hit: readonly Seg[];
   /** the move its hit capsules belong to, and that move's serial (0: none) */
@@ -68,8 +91,6 @@ export interface DuelBody {
   serial: number;
   /** the beat (music clock) the move started on, for the perfect bonus; null: unknown */
   moveBeat: number | null;
-  /** which way it faces along the plane */
-  facing: 1 | -1;
   /** its own i-frames (a dodge, a blink) */
   invulnerable: boolean;
   blocking: boolean;
@@ -88,8 +109,15 @@ export interface DuelSeat {
   lastHitAt: number;
   /** the attacker's serial that last landed on it, per attacker (each attack lands once) */
   struckBy: [number, number];
-  /** where it re-forms (chosen when the matter starts streaming back) */
-  reformAt: [number, number] | null;
+  /** where it re-forms (chosen at the KO) */
+  reformAt: V3 | null;
+  /** flow 0 … FLOW_MAX: what dancing well has built (phase 2 spends it); its perfect streak; its last two moves */
+  flow: number;
+  streak: number;
+  last: string[];
+  /** moves started this round, and how many on the beat (the stats) */
+  moves: number;
+  perfect: number;
 }
 export type DuelPhase = 'countdown' | 'play' | 'won';
 export interface DuelState {
@@ -106,36 +134,42 @@ export interface DuelState {
   seats: [DuelSeat, DuelSeat];
   /** the attacks that met in a clash, by seat (each clashes once) */
   clashed: [number, number];
-  /** what the last frames did, for the tests and the probes */
   stats: { hits: number; perfect: number; kos: number; falls: number; blocks: number; dodges: number; clashes: number; rounds: number };
 }
+
+/** a knockback: the horizontal direction (unit x, z), along it (m/s), up (m/s), the stagger (s) */
+export interface Knock { dir: [number, number]; along: number; up: number; stagger: number }
 
 export type DuelEvent =
   | { k: 'count'; n: number }
   | { k: 'go'; round: number }
-  | { k: 'hit'; by: number; target: number; move: string; perfect: boolean; hits: number; knock: [number, number, number]; at: [number, number] }
-  | { k: 'block'; by: number; target: number; move: string; knock: [number, number, number]; at: [number, number] }
-  | { k: 'dodge'; by: number; target: number; move: string; at: [number, number] }
-  | { k: 'clash'; a: number; b: number; at: [number, number]; knock: [[number, number, number], [number, number, number]] }
-  | { k: 'ko'; target: number; by: number; how: 'hits' | 'fall'; kos: [number, number]; at: [number, number]; reformAt: [number, number] }
+  | { k: 'hit'; by: number; target: number; move: string; perfect: boolean; hits: number; knock: Knock; at: V3 }
+  | { k: 'block'; by: number; target: number; move: string; knock: Knock; at: V3 }
+  | { k: 'dodge'; by: number; target: number; move: string; at: V3 }
+  | { k: 'clash'; a: number; b: number; at: V3; knock: [Knock, Knock] }
+  | { k: 'ko'; target: number; by: number; how: 'hits' | 'fall'; kos: [number, number]; at: V3; reformAt: V3 }
   /** the matter streams back: the body re-forms at `at` now (and is in play at REFORM_MS) */
-  | { k: 'reform'; seat: number; at: [number, number] }
+  | { k: 'reform'; seat: number; at: V3 }
   | { k: 'ready'; seat: number }
   | { k: 'won'; winner: number; round: number; kos: [number, number]; ms: number }
   /** a round's count-in begins: both bodies re-form at their round spawns */
-  | { k: 'round'; round: number; at: [[number, number], [number, number]] };
+  | { k: 'round'; round: number; at: [V3, V3] };
 
 /** what the rules need of the arena */
 export interface DuelArena {
-  /** [s, y] points to (re)form at, at least 2 (the first two are the round's starts, seat 0 and seat 1) */
-  spawns: readonly (readonly [number, number])[];
-  /** below this (plane y) is a KO */
+  /** where bodies (re)form, world, at least 2 (the first two are the round's starts, seat 0 and seat 1) */
+  spawns: readonly (readonly [number, number, number])[];
+  /** below this (world y) is a KO */
   yKill: number;
   /** the music's tempo (the count-in's beat) */
   bpm: number;
 }
 
-const seat0 = (): DuelSeat => ({ hits: 0, kos: 0, life: 'alive', since: 0, invulnUntil: 0, lastHitBy: -1, lastHitAt: -1e9, struckBy: [0, 0], reformAt: null });
+const seat0 = (): DuelSeat => ({
+  hits: 0, kos: 0, life: 'alive', since: 0, invulnUntil: 0, lastHitBy: -1, lastHitAt: -1e9, struckBy: [0, 0], reformAt: null,
+  flow: 0, streak: 0, last: [], moves: 0, perfect: 0,
+});
+const countMs = (bpm: number) => Math.max(DUEL.COUNT_MIN_MS, 60000 / Math.max(40, bpm || 112));
 
 /** a duel whose first step begins round 1 (a 'round' event places the bodies, then the count-in) */
 export function newDuel(now: number, bpm = 112): DuelState {
@@ -146,7 +180,6 @@ export function newDuel(now: number, bpm = 112): DuelState {
     stats: { hits: 0, perfect: 0, kos: 0, falls: 0, blocks: 0, dodges: 0, clashes: 0, rounds: 0 },
   };
 }
-const countMs = (bpm: number) => Math.max(DUEL.COUNT_MIN_MS, 60000 / Math.max(40, bpm || 112));
 
 /** from round 1 again (the bodies are told by a 'round' event on the next step) */
 export function restartDuel(d: DuelState, now: number, bpm = 112) {
@@ -171,43 +204,78 @@ export function onBeat(beat: number | null, bpm: number) {
   return Math.abs((off * 60000) / Math.max(40, bpm)) <= DUEL.PERFECT_MS;
 }
 
-// ---------------------------------------------------------------- 2D geometry
-function segSeg2(p: [number, number], q: [number, number], r: [number, number], s: [number, number]) {
-  const d1x = q[0] - p[0], d1y = q[1] - p[1], d2x = s[0] - r[0], d2y = s[1] - r[1], rx = p[0] - r[0], ry = p[1] - r[1];
-  const a = d1x * d1x + d1y * d1y, e = d2x * d2x + d2y * d2y, f = d2x * rx + d2y * ry;
-  let u: number, t: number;
+// ---------------------------------------------------------------- flow
+const addFlow = (S: DuelSeat, v: number) => { S.flow = Math.max(0, Math.min(DUEL.FLOW_MAX, S.flow + v)); };
+const streakMul = (S: DuelSeat) => Math.min(DUEL.STREAK_MAX, 1 + DUEL.STREAK_STEP * S.streak);
+
+/** a move a body started (in play): the flow it builds (the jogo's table, on the beat more, the third same move
+ *  running less, a streak of perfect moves multiplying it). Returns the flow gained */
+export function duelMove(d: DuelState, seat: number, move: string, perfect: boolean): number {
+  if (d.phase !== 'play' || d.seats[seat].life !== 'alive') return 0;
+  const S = d.seats[seat], def = (RULES.moves as Record<string, { flow: number }>)[move];
+  S.moves++;
+  if (perfect) { S.perfect++; S.streak++; } else S.streak = 0;
+  if (!def) return 0;
+  const repeat = S.last.length >= 2 && S.last[0] === move && S.last[1] === move;
+  S.last.push(move); if (S.last.length > 2) S.last.shift();
+  const gain = def.flow * (perfect ? DUEL.PERFECT_FLOW : 1) * (repeat ? DUEL.REPEAT_FLOW : 1) * streakMul(S);
+  addFlow(S, gain);
+  return gain;
+}
+/** travelling as dance: a wall jump, a flip in the air */
+export function duelTravel(d: DuelState, seat: number, kind: 'wall' | 'flip'): number {
+  if (d.phase !== 'play' || d.seats[seat].life !== 'alive') return 0;
+  const S = d.seats[seat], gain = (kind === 'wall' ? DUEL.WALL_FLOW : DUEL.FLIP_FLOW) * streakMul(S);
+  addFlow(S, gain);
+  return gain;
+}
+
+// ---------------------------------------------------------------- 3D geometry
+function segSeg(a: Seg, b: Seg) {
+  const p1 = [a.ax, a.ay, a.az], q1 = [a.bx, a.by, a.bz], p2 = [b.ax, b.ay, b.az], q2 = [b.bx, b.by, b.bz];
+  const d1 = [q1[0] - p1[0], q1[1] - p1[1], q1[2] - p1[2]], d2 = [q2[0] - p2[0], q2[1] - p2[1], q2[2] - p2[2]], r = [p1[0] - p2[0], p1[1] - p2[1], p1[2] - p2[2]];
+  const A = d1[0] * d1[0] + d1[1] * d1[1] + d1[2] * d1[2], E = d2[0] * d2[0] + d2[1] * d2[1] + d2[2] * d2[2], F = d2[0] * r[0] + d2[1] * r[1] + d2[2] * r[2];
   const cl = (x: number) => Math.max(0, Math.min(1, x));
-  if (a <= 1e-12 && e <= 1e-12) { u = t = 0; }
-  else if (a <= 1e-12) { u = 0; t = cl(f / e); }
+  let s: number, t: number;
+  if (A <= 1e-12 && E <= 1e-12) { s = t = 0; }
+  else if (A <= 1e-12) { s = 0; t = cl(F / E); }
   else {
-    const c = d1x * rx + d1y * ry;
-    if (e <= 1e-12) { t = 0; u = cl(-c / a); }
+    const C = d1[0] * r[0] + d1[1] * r[1] + d1[2] * r[2];
+    if (E <= 1e-12) { t = 0; s = cl(-C / A); }
     else {
-      const b = d1x * d2x + d1y * d2y, den = a * e - b * b;
-      u = den > 1e-12 ? cl((b * f - c * e) / den) : 0;
-      t = (b * u + f) / e;
-      if (t < 0) { t = 0; u = cl(-c / a); } else if (t > 1) { t = 1; u = cl((b - c) / a); }
+      const B = d1[0] * d2[0] + d1[1] * d2[1] + d1[2] * d2[2], den = A * E - B * B;
+      s = den > 1e-12 ? cl((B * F - C * E) / den) : 0;
+      t = (B * s + F) / E;
+      if (t < 0) { t = 0; s = cl(-C / A); } else if (t > 1) { t = 1; s = cl((B - C) / A); }
     }
   }
-  const cx = p[0] + d1x * u - (r[0] + d2x * t), cy = p[1] + d1y * u - (r[1] + d2y * t);
-  return { d: Math.hypot(cx, cy), at: [(p[0] + d1x * u + r[0] + d2x * t) / 2, (p[1] + d1y * u + r[1] + d2y * t) / 2] as [number, number] };
+  const c1 = [p1[0] + d1[0] * s, p1[1] + d1[1] * s, p1[2] + d1[2] * s], c2 = [p2[0] + d2[0] * t, p2[1] + d2[1] * t, p2[2] + d2[2] * t];
+  return { d: Math.hypot(c1[0] - c2[0], c1[1] - c2[1], c1[2] - c2[2]), at: [(c1[0] + c2[0]) / 2, (c1[1] + c2[1]) / 2, (c1[2] + c2[2]) / 2] as V3 };
 }
 /** the closest two sets of capsules come (negative: overlapping), and where */
 export function touch(A: readonly Seg[], B: readonly Seg[]) {
-  let best = Infinity, at: [number, number] = [0, 0];
+  let best = Infinity, at: V3 = [0, 0, 0];
   for (const a of A) for (const b of B) {
-    const r = segSeg2([a.ax, a.ay], [a.bx, a.by], [b.ax, b.ay], [b.bx, b.by]);
-    const d = r.d - a.r - b.r;
+    const r = segSeg(a, b), d = r.d - a.r - b.r;
     if (d < best) { best = d; at = r.at; }
   }
   return { d: best, at };
 }
 
 /** the spawn farthest from a body (height counts a little less: a ledge above is nearer than it looks) */
-function farthest(arena: DuelArena, o: DuelBody, seat: number): [number, number] {
-  let best: [number, number] = [arena.spawns[seat]?.[0] ?? 0, arena.spawns[seat]?.[1] ?? 0], bd = -1;
-  for (const p of arena.spawns) { const dd = Math.hypot(p[0] - o.s, (p[1] - o.y) * 0.6); if (dd > bd) { bd = dd; best = [p[0], p[1]]; } }
+function farthest(arena: DuelArena, o: DuelBody, seat: number): V3 {
+  const f = arena.spawns[seat] ?? [0, 0, 0];
+  let best: V3 = [f[0], f[1], f[2]], bd = -1;
+  for (const p of arena.spawns) {
+    const dd = Math.hypot(p[0] - o.p[0], (p[1] - o.p[1]) * 0.6, p[2] - o.p[2]);
+    if (dd > bd) { bd = dd; best = [p[0], p[1], p[2]]; }
+  }
   return best;
+}
+/** the horizontal unit direction from a to b, or `or` when they stand on each other */
+function away(a: V3, b: V3, or: [number, number]): [number, number] {
+  const dx = b[0] - a[0], dz = b[2] - a[2], l = Math.hypot(dx, dz);
+  return l > 1e-3 ? [dx / l, dz / l] : or;
 }
 
 // ---------------------------------------------------------------- the frame
@@ -219,7 +287,7 @@ export function duelStep(d: DuelState, now: number, bodies: readonly [DuelBody, 
     d.round += 1; d.phase = 'countdown'; d.since = now; d.countMs = countMs(arena.bpm); d.count = DUEL.COUNT_FROM; d.winner = null;
     d.seats = [seat0(), seat0()]; d.clashed = [0, 0];
     for (const S of d.seats) { S.since = now; S.struckBy = [bodies[0].serial, bodies[1].serial]; }
-    const sp = (k: number): [number, number] => { const p = arena.spawns[k] ?? [k ? 1.5 : -1.5, 0]; return [p[0], p[1]]; };
+    const sp = (k: number): V3 => { const p = arena.spawns[k] ?? [k ? 1.5 : -1.5, 0, 0]; return [p[0], p[1], p[2]]; };
     out.push({ k: 'round', round: d.round, at: [sp(0), sp(1)] });
     out.push({ k: 'count', n: d.count });
   }
@@ -247,9 +315,10 @@ export function duelStep(d: DuelState, now: number, bodies: readonly [DuelBody, 
   }
   if (d.phase !== 'play') return out;
 
-  const ko = (target: number, by: number, how: 'hits' | 'fall', at: [number, number]) => {
+  const ko = (target: number, by: number, how: 'hits' | 'fall', at: V3) => {
     const S = d.seats[target], O = d.seats[1 - target];
-    S.life = 'scattered'; S.since = now; S.hits = DUEL.HITS_MAX;
+    S.life = 'scattered'; S.since = now; S.hits = DUEL.HITS_MAX; S.streak = 0;
+    S.flow = S.flow / 2;
     // where it will re-form: the spawn farthest from the other body now (chosen at once, so a body that falls out and
     // re-forms by itself, Character's own fall-out, goes there too)
     S.reformAt = farthest(arena, bodies[1 - target], target);
@@ -261,9 +330,9 @@ export function duelStep(d: DuelState, now: number, bodies: readonly [DuelBody, 
   // ---- falls
   for (let k = 0; k < 2; k++) {
     const S = d.seats[k], b = bodies[k];
-    if (S.life !== 'alive' || b.y >= arena.yKill) continue;
+    if (S.life !== 'alive' || b.p[1] >= arena.yKill) continue;
     const credited = S.lastHitBy >= 0 && now - S.lastHitAt <= DUEL.FALL_CREDIT_MS ? S.lastHitBy : -1;
-    ko(k, credited, 'fall', [b.s, b.y]);
+    ko(k, credited, 'fall', [b.p[0], b.p[1], b.p[2]]);
   }
 
   // ---- clashes: both strikes live and touching
@@ -274,9 +343,10 @@ export function duelStep(d: DuelState, now: number, bodies: readonly [DuelBody, 
       d.clashed = [A.serial, B.serial];
       // neither lands now
       d.seats[1].struckBy[0] = A.serial; d.seats[0].struckBy[1] = B.serial;
-      const C = DUEL.CLASH_KNOCK, away = (k: number) => (Math.sign(bodies[k].s - bodies[1 - k].s) || -bodies[k].facing) as number;
+      const C = DUEL.CLASH_KNOCK;
+      const kn = (k: number): Knock => ({ dir: away(bodies[1 - k].p, bodies[k].p, [-bodies[k].fwd[0], -bodies[k].fwd[1]]), along: C[0], up: C[1], stagger: C[2] });
       d.stats.clashes++;
-      out.push({ k: 'clash', a: 0, b: 1, at: t.at, knock: [[away(0) * C[0], C[1], C[2]], [away(1) * C[0], C[1], C[2]]] });
+      out.push({ k: 'clash', a: 0, b: 1, at: t.at, knock: [kn(0), kn(1)] });
     }
   }
 
@@ -294,19 +364,22 @@ export function duelStep(d: DuelState, now: number, bodies: readonly [DuelBody, 
     const base = DUEL.KNOCK[move] ?? DUEL.KNOCK_DEFAULT;
     const perfect = onBeat(att.moveBeat, arena.bpm);
     const mul = perfect ? DUEL.PERFECT_KNOCK : 1;
-    // away from the attacker: the way it faces (a strike hits forward), or the way they stand if it faces away
-    const dir = att.facing * Math.sign(def.s - att.s) < 0 && Math.abs(def.s - att.s) > 0.25 ? Math.sign(def.s - att.s) : att.facing;
-    if (def.blocking && def.facing === -dir) {
-      const k: [number, number, number] = [dir * base[0] * DUEL.BLOCK_KNOCK, base[1] * DUEL.BLOCK_KNOCK * 0.5, base[2] * 0.5];
+    // away from the attacker: along the way it faces (a strike hits forward), or the way they stand when it lands
+    // from behind or beside
+    const line = away(att.p, def.p, att.fwd);
+    const dir: [number, number] = line[0] * att.fwd[0] + line[1] * att.fwd[1] > 0.2 ? att.fwd : line;
+    if (def.blocking && def.fwd[0] * dir[0] + def.fwd[1] * dir[1] < -0.2) {
       d.stats.blocks++;
-      out.push({ k: 'block', by: a, target: t, move, knock: k, at: c.at });
+      out.push({ k: 'block', by: a, target: t, move, knock: { dir, along: base[0] * DUEL.BLOCK_KNOCK, up: base[1] * DUEL.BLOCK_KNOCK * 0.5, stagger: base[2] * 0.5 }, at: c.at });
       continue;
     }
     S.hits += 1; S.lastHitBy = a; S.lastHitAt = now;
     d.stats.hits++; if (perfect) d.stats.perfect++;
-    const knock: [number, number, number] = [dir * base[0] * mul, base[1] * (perfect ? 1.4 : 1), base[2] * (perfect ? 1.3 : 1)];
+    addFlow(d.seats[a], DUEL.HIT_FLOW * (perfect ? DUEL.PERFECT_FLOW : 1));
+    addFlow(S, -DUEL.HIT_FLOW_COST); S.streak = 0;
+    const knock: Knock = { dir, along: base[0] * mul, up: base[1] * (perfect ? 1.25 : 1), stagger: base[2] };
     out.push({ k: 'hit', by: a, target: t, move, perfect, hits: S.hits, knock, at: c.at });
-    if (S.hits >= DUEL.HITS_MAX) ko(t, a, 'hits', [def.s, def.y]);
+    if (S.hits >= DUEL.HITS_MAX) ko(t, a, 'hits', [def.p[0], def.p[1], def.p[2]]);
   }
 
   // ---- the round won

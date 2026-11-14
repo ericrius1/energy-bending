@@ -1,0 +1,36 @@
+{
+  "name": "duel-1",
+  "title": "The duel, phase 1 (Move): two virtual players' first duel, in the temple and then the forge, seen as a player sees it (the duel's locked camera, the HUD on screen once src/hud is joined). Each shot is the duel from its first frame: the count-in, then play, the brains seeded, deterministic.",
+  "audio": { "track": "forge" },
+  "size": "1280x720",
+  "fps": 60,
+  "fadeIn": 0.5,
+  "fadeOut": 1.5,
+  "shots": [
+    {
+      "id": "temple",
+      "note": "the temple's court, the fallback arena (the altar and the pillars solid, the lintel one-way): fire, showy (wall-jump chains, flips, cartwheels), against water, aggressive; from the count-in, the camera the duel's own lock",
+      "mode": "duel",
+      "world": "temple",
+      "cast": [{ "dress": "fire", "style": "showy", "skill": 0.85 }, { "dress": "water", "style": "aggressive", "skill": 0.8 }],
+      "seed": 3,
+      "from": "start",
+      "preroll": 0.3,
+      "seconds": 14,
+      "hud": true,
+      "set": { "temple": { "tideHold": 0.42 } }
+    },
+    {
+      "id": "forge",
+      "note": "the sky forge's anvil over the pit (no floor: a fall is a KO), the floats and the crown bobbing: water, evasive, against fire, aggressive",
+      "mode": "duel",
+      "world": "forge",
+      "cast": [{ "dress": "water", "style": "evasive", "skill": 0.85 }, { "dress": "fire", "style": "aggressive", "skill": 0.85 }],
+      "seed": 8,
+      "from": "start",
+      "preroll": 0.3,
+      "seconds": 14,
+      "hud": true
+    }
+  ]
+}

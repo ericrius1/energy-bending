@@ -40,6 +40,8 @@ export interface HudSeat {
   screen: [number, number] | null;
   /** the dash's readiness 0 … 1 (1 where the body has no dash yet) */
   dash: number;
+  /** its flow 0 … 1 (what dancing well built: the super meter until phase 2's super spends it) */
+  flow: number;
 }
 
 const POP_LIFE = 1.1;
@@ -73,7 +75,7 @@ export class DuelHud {
       const reforming = S.life === 'alive' ? 0 : Math.min(1, (now - S.since) / DUEL.REFORM_MS);
       return {
         seat: k as 0 | 1, name: s?.name ?? `P${k + 1}`, color: MATTER_CSS[s?.matter ?? 'gems'] ?? '#ffffff', matter: s?.matter ?? 'gems',
-        hits: S.hits, hitsMax: DUEL.HITS_MAX, kos: S.kos, dash: s?.dash ?? 1, charges: [], superMeter: 0, reforming,
+        hits: S.hits, hitsMax: DUEL.HITS_MAX, kos: S.kos, dash: s?.dash ?? 1, charges: [], superMeter: s?.flow ?? 0, reforming,
         ...(s?.screen ? { screen: s.screen } : {}),
       };
     });

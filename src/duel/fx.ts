@@ -70,7 +70,7 @@ export class DuelFx {
     if (d) { const W = d.skeleton.world, o = JOINT.Spine1 * JOINT_FLOATS; return [W[o], W[o + 1], W[o + 2]]; }
     const c = this.ctx.character(k); return [c.root[0], c.root[1] + 1.1, c.root[2]];
   }
-  private at(p: [number, number], up = 0): V3 { return planePoint(this.ctx.plane(), p[0], p[1] + up); }
+  private at(p: readonly number[], up = 0): V3 { return [p[0], p[1] + up, p[2]]; }
   private col(k: number): RGB { return COLOURS[this.ctx.element(k)]; }
   private add(life: number, draw: (u: number, age: number) => void) { this.fx.push({ t: this.t, life, draw }); }
   private sfx(name: string, p: V3 | null, o: Record<string, unknown> = {}) {
@@ -116,7 +116,7 @@ export class DuelFx {
   private ring(p: V3, col: RGB, r: number, life: number) {
     this.add(life, (u) => this.ctx.glows.dot(p, r * (0.3 + u), col, 0.9 * (1 - u) * (1 - u), 'ring'));
   }
-  private perfect(at: [number, number], by: number) {
+  private perfect(at: V3, by: number) {
     const p = this.at(at), col = mixRGB(this.col(by), WHITE, 0.5);
     this.add(0.5, (u) => {
       const G = this.ctx.glows;
@@ -138,23 +138,22 @@ export class DuelFx {
     this.sfx('clash', c, { element: this.sfxEl(k), vel: 1 });
     this.sfx('hit', c, { element: this.sfxEl(k), vel: 1 });
     for (let s = 0; s < 2; s++) this.ctx.rumble?.(s, s === k ? 1 : 0.5, 260);
-    const P = this.ctx.plane(), r = P.right;
     this.add(1.0, (u, age) => {
       const k1 = 1 - smooth(u);
       G.dot(c, 0.3 + u * 1.8, col, 1.6 * k1 * k1, 'ring');
       G.dot(c, 0.2 + u * 1.1, WHITE, 1.2 * Math.pow(1 - u, 4), 'ring');
       G.dot(c, 0.25 * (1 - u), WHITE, 3 * Math.pow(1 - u, 5), 'spark');
-      // sparks out along the stage and up (it is seen side on)
-      for (let j = 0; j < 22; j++) {
-        const a = j * 2.39996, sp = 3 + (j % 4) * 1.1, ca = Math.cos(a), sa = Math.sin(a);
-        const x = c[0] + r[0] * ca * sp * age, z = c[2] + r[2] * ca * sp * age, y = c[1] + sa * sp * age - 4.9 * age * age;
+      // sparks out every way, falling
+      for (let j = 0; j < 26; j++) {
+        const a = j * 2.39996, e = Math.asin(((j * 0.618) % 1) * 1.6 - 0.6), sp = 3 + (j % 4) * 1.1, ce = Math.cos(e);
+        const x = c[0] + Math.cos(a) * ce * sp * age, z = c[2] + Math.sin(a) * ce * sp * age, y = c[1] + Math.sin(e) * sp * age - 4.9 * age * age;
         G.dot([x, y, z], 0.03, j % 3 ? col : WHITE, 1.8 * k1, 'spark');
       }
     });
   }
 
   /** the matter streams back: motes from where it was to where it re-forms, a ring rising up the new body */
-  private reform(k: number, at: [number, number]) {
+  private reform(k: number, at: V3) {
     const from = this.chest(k), to = this.at(at, 1.0), foot = this.at(at, 0.02), col = this.col(k), G = this.ctx.glows;
     this.sfx('respawn', to, { element: this.sfxEl(k) });
     this.add(0.9, (u) => {

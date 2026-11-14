@@ -1,7 +1,11 @@
-// ?duel: Energy Bending's fast two-player arena mode (docs/design/duel.md), beside the jogo (src/play). Two bodies on
-// one screen on the world's duel arena, the view locked side-on to its plane framing both: three hits scatter a body,
-// so does a fall, it re-forms, and the first to five KOs takes the round.
-//   ?duel&world=temple&dress=fire,water&p1=human&p2=bot&skill=0.7&style=aggressive&seed=3
+// ?duel: Energy Bending's fast two-player mode (docs/design/duel.md, and the owner's correction: still a dance, 3D
+// native), beside the jogo (src/play). Two bodies free in the world's play space, the camera following from third
+// person behind seat 1 and framing both; the 2D lock onto the arena's stage plane is an option anywhere (`l`, a
+// player's lock button, or &lock to start locked). Dancing is fighting: capoeira's kicks are the strikes, esquiva,
+// negativa and the aú the evasions; three hits scatter a body, so does a fall below the space, it re-forms, and the
+// first to five KOs takes the round. Dancing well (on the beat, varied, travelling as dance) builds flow: the HUD's
+// super meter, phase 2's fuel.
+//   ?duel&world=temple&dress=fire,water&p1=human&p2=bot&skill=0.7&style=aggressive&seed=3[&lock]
 //     p1, p2      human (a device: keyboard, split keyboard, gamepad, as the jogo's same screen) or bot (a virtual
 //                 player, src/ai/duel-brain.ts). Default: p1 human, p2 bot. Two humans: the first device to press plays
 //                 seat 1, the next seat 2.
@@ -22,7 +26,7 @@ import type { IntentController } from '../dancer/intent-controller';
 import type { PlasmaPasses } from '../matter/plasma/plasma';
 import type { Music } from '../audio/music';
 import type { PlayApp } from '../play';
-import { makeIntent, type Intent, type IntentSource, type InputMode } from '../input/intent';
+import { makeIntent, EDGES, type Intent, type IntentSource, type InputMode } from '../input/intent';
 import { BotSource } from '../input/touch';
 import { JOINT } from '../skeleton/rig';
 import { Glows } from '../play/glow';
@@ -34,6 +38,7 @@ import type { Brain, StageView } from '../ai/brain';
 import { DuelBrain, DUEL_STYLES, type DuelSight, type DuelStyle } from '../ai/duel-brain';
 import { arenaFor, type Arena } from './arena';
 import { fallbackArena } from './fallback';
+import type { Solid } from '../worlds/solids';
 import { DuelMatch, duelPlane } from './match';
 import { DuelFx } from './fx';
 import { DuelHud, type HudSeat, type HudState } from './hud-state';
@@ -41,8 +46,8 @@ import type { DuelEvent } from '../../shared/duel.ts';
 
 type V3 = [number, number, number];
 
-/** a seat's source, held: nothing gets through while the duel holds the seat (the count-in, scattered), and the lock,
- *  form, merge and interact buttons are the jogo's, never the duel's */
+/** a seat's source, held: nothing gets through while the duel holds the seat (the count-in, scattered), and the form,
+ *  merge and interact buttons are the jogo's, never the duel's (the lock button toggles the lock, as in ?play) */
 class SeatGate implements IntentSource {
   readonly name: string;
   inner: IntentSource | null = null;
@@ -53,7 +58,7 @@ class SeatGate implements IntentSource {
   update(dt: number): Intent {
     const it = this.inner ? this.inner.update(dt) : makeIntent();
     if (this.held()) { const o = makeIntent(); o.source = it.source; return o; }
-    it.lock = false; it.form = false; it.merge = false; it.interact = false;
+    it.form = false; it.merge = false; it.interact = false;
     return it;
   }
 }
@@ -69,7 +74,9 @@ export async function startDuel(app: PlayApp) {
   const W = world();
   // ---------------------------------------------------------------- the arena (the arena work's, or the fallback)
   const stage0: StagePlane = W.stages[0] ?? { id: 'duel.test', origin: [0, 0, 0], right: [1, 0, 0], halfWidth: 5, ground: 0, ledges: [{ id: 't.l', x0: -3.6, x1: -1.8, y: 1.3 }, { id: 't.r', x0: 1.8, x1: 3.6, y: 1.3 }, { id: 't.m', x0: -0.9, x1: 0.9, y: 2.6 }], spawns: [[-2, 0], [2, 0]] };
-  const arena: Arena = arenaFor(W.id) ?? fallbackArena(W.id, stage0);
+  const arena: Arena = arenaFor(W.id) ?? fallbackArena(W, stage0);
+  // the arena's pieces stand in the world while the duel is on (climbed, kicked off, seen round by the camera)
+  const solids = (): Solid[] => [...(world().solids ?? []), ...(arena.pieces ?? [])];
   const plane = duelPlane(arena);
   const dress = (q.get('dress') ?? 'fire,water').split(',');
   show.dress = [dress[0] ?? 'fire', dress[1] ?? dress[0] ?? 'water'];
@@ -85,8 +92,9 @@ export async function startDuel(app: PlayApp) {
   play.addPlayer(new BotSource(null, 'waiting'));
   const ctl = play.controllers as IntentController[];
   const chars = [ctl[0].character, ctl[1].character] as const;
-  for (const c of ctl) c.setPlane(plane);
-  rig.lock(plane);
+  // free in the world (the follow camera behind seat 1, framing both); &lock starts locked to the arena's plane, and
+  // `l` (or a player's lock button: Tab, V, the View button) toggles it anywhere, as in ?play
+  if (q.has('lock')) { for (const c of ctl) c.setPlane(plane); rig.lock(plane); }
   for (const d of play.dancers) music.players.add(d.id);
   // dressed by seat (the show restages the cast when a dancer joins: dress them once both are in)
   for (let k = 0; k < 2; k++) show.setDress(k, show.dress[k]);
@@ -94,10 +102,10 @@ export async function startDuel(app: PlayApp) {
   // ---------------------------------------------------------------- the duel
   let now = 0;
   const bpm0 = 112;
-  const match = new DuelMatch(chars, arena, plane, 0, bpm0);
+  const match = new DuelMatch(chars, arena, plane, 0, bpm0, { solids });
   const sight = (): DuelSight => ({
     untouchable: [match.untouchable(0, now), match.untouchable(1, now)], frozen: [match.frozen(0), match.frozen(1)],
-    yKill: arena.bounds.yKill, spawns: arena.spawns,
+    yKill: arena.space.yKill, space: arena.space, spawns: arena.spawns, solids: solids(), groundAt: (x, z) => world().groundAt(x, z),
   });
 
   // ---------------------------------------------------------------- the seats: humans and virtual players
@@ -128,17 +136,26 @@ export async function startDuel(app: PlayApp) {
       drivers[k] = d;
       gates[k].inner = d.source();
     } else { drivers[k] = null; gates[k].inner = devices[k]; }
-    gates[k].inner && (gates[k].inner!.mode = 'locked');
+    if (gates[k].inner) gates[k].inner!.mode = ctl[k].locked ? 'locked' : 'free';
     return brains[k];
   };
   for (let k = 0; k < 2; k++) if (kinds[k] === 'bot') setBrain(k, specOf(k));
+  /** a ghost: a virtual player that thinks for a seat each frame without driving it (the playtest presses real keys
+   *  from what it wants: scripts/playtest.mjs) */
+  const ghosts: (BrainDriver | null)[] = [null, null];
+  const ghostIntent: (Intent | null)[] = [null, null];
+  const ghost = (k: number, spec: BrainSpec | null) => {
+    ghosts[k] = spec ? new BrainDriver(new DuelBrain({ ...specOf(k), ...spec, duel: sight }), { id: `seat.${k}`, seat: k, character: chars[k] }, scene, stageView) : null;
+    ghostIntent[k] = null;
+    return !!ghosts[k];
+  };
   // the devices: the first to press plays the first human seat, the next the other (the hub numbers them as they come)
   const humanSeats = [0, 1].filter((k) => kinds[k] === 'human');
   const hub = play.hub;
   const seatDevice = (index: number, src: IntentSource) => {
     const k = humanSeats[index];
     if (k == null) return;
-    devices[k] = src; src.mode = 'locked';
+    devices[k] = src; src.mode = ctl[k].locked ? 'locked' : 'free';
     if (!brains[k]) gates[k].inner = src;
     console.info(`duel: seat ${k + 1} is ${src.name}`);
     app.wake();
@@ -179,7 +196,7 @@ export async function startDuel(app: PlayApp) {
     const head = d ? (d.skeleton.pos[JOINT.HeadEnd] as unknown as V3) : null;
     // (the dash's readiness, once the body has one: whatever the movement work names it)
     const dash = typeof c.dashReady === 'number' ? (c.dashReady as number) : typeof c.dashCharge === 'number' ? (c.dashCharge as number) : 1;
-    return { name: brains[k] ? `P${k + 1} · ${(brains[k] as DuelBrain).style ?? 'bot'}` : `P${k + 1}`, matter: elementOf(d), screen: head ? project([head[0], head[1] + 0.12, head[2]]) : null, dash };
+    return { name: brains[k] ? `P${k + 1} · ${(brains[k] as DuelBrain).style ?? 'bot'}` : `P${k + 1}`, matter: elementOf(d), screen: head ? project([head[0], head[1] + 0.12, head[2]]) : null, dash, flow: match.flow(k) };
   });
 
   // ---------------------------------------------------------------- starting
@@ -202,6 +219,13 @@ export async function startDuel(app: PlayApp) {
     // what the brains see this frame (before the bodies step: the drivers think as the controllers ask)
     scene.update({ t: now / 1000, dt: f.danceDt, beat, bpm, music: { level: music.live || app.film ? Math.min(1, music.engine.level / 4 + 0.1) : 0.7, breakdown: false }, rules: null });
     for (let k = 0; k < 2; k++) { chars[k].lookAt = chars[1 - k].root; }
+    // (a ghost's edges gather until they are read: a reader polling slower than the frames misses none)
+    for (let k = 0; k < 2; k++) {
+      if (!ghosts[k]) continue;
+      const it = ghosts[k]!.think(), was = ghostIntent[k];
+      ghostIntent[k] = { ...it };
+      if (was) for (const e of EDGES) if (was[e]) ghostIntent[k]![e] = true;
+    }
   }, 'duel: what the brains see');
 
   frame.tick('travel', (f: FrameCtx) => {
@@ -241,12 +265,21 @@ export async function startDuel(app: PlayApp) {
     brains,
     drivers,
     /** what a virtual player would press for a seat now (for the playtest's brain-driven keys): its last Intent */
-    wish: (k: number) => drivers[k]?.intent ?? null,
+    wish: (k: number) => {
+      const g = ghostIntent[k];
+      if (!g) return drivers[k]?.intent ?? null;
+      const out = { ...g };
+      for (const e of EDGES) g[e] = false;
+      return out;
+    },
+    /** a seat's ghost: a virtual player ({ style, skill, seed }) thinking for it without driving it (null: none) */
+    ghost,
     now: () => now,
     stats: () => ({
       phase: match.state.phase, round: match.state.round, kos: match.state.seats.map((s) => s.kos), hits: match.state.seats.map((s) => s.hits),
       life: match.state.seats.map((s) => s.life), clock: match.clock(now), stats: { ...match.state.stats },
-      seats: [0, 1].map((k) => ({ s: +chars[k].s.toFixed(2), y: +(chars[k].root[1] - plane.origin[1]).toFixed(2), grounded: chars[k].grounded, move: chars[k].move?.name ?? null, source: gates[k].inner?.name ?? null, brain: brains[k]?.name ?? null })),
+      locked: match.locked, flow: [0, 1].map((k) => +match.state.seats[k].flow.toFixed(1)),
+      seats: [0, 1].map((k) => ({ at: chars[k].root.map((v) => +v.toFixed(2)), grounded: chars[k].grounded, move: chars[k].move?.name ?? null, source: gates[k].inner?.name ?? null, brain: brains[k]?.name ?? null })),
       arena: arena.world, fallback: !arenaFor(W.id),
     }),
   };
