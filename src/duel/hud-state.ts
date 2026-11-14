@@ -152,12 +152,15 @@ export class DuelHud {
         ...(s?.screen ? { screen: s.screen } : {}),
       };
     });
+    // (the count-in left, in counts and fractional: the HUD shows ceil(left) and drops each digit in over its count by
+    // the fraction; the whole count, d.count, held its digit at the start of its fade-in, never seen)
+    const countLeft = (D: typeof d, t: number) => Math.max(1e-3, DUEL.COUNT_FROM - (t - D.since) / D.countMs);
     const time = d.phase === 'intro' ? 0 : Math.min(setMs, (d.phase === 'play' ? now : d.playFrom + setMs) - d.playFrom) / 1000;
     const st: HudState = {
       mode: 'duel', players,
       link: { on: link.on, energy: d.energy, ...(link.from ? { from: link.from } : {}), ...(link.to ? { to: link.to } : {}) },
       shared: { energy: d.energy, peak: d.peak, merge: d.merge },
-      set: { time: Math.max(0, time), length: setMs / 1000, phase: d.phase, ...(d.phase === 'intro' ? { countdown: d.count } : {}), ...(d.winner != null ? { winner: d.winner } : {}) },
+      set: { time: Math.max(0, time), length: setMs / 1000, phase: d.phase, ...(d.phase === 'intro' ? { countdown: countLeft(d, now) } : {}), ...(d.winner != null ? { winner: d.winner } : {}) },
       beat: { phase: beat - Math.floor(beat), bpm, window: DUEL.PERFECT_MS / 1000 },
       pops: this.pops.map((p) => ({ ...p, at: [p.at[0], p.at[1]] })),
     };
