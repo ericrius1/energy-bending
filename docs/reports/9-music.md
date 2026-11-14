@@ -28,8 +28,10 @@ and its bar's chord.
   from the track (`trackMood`: its key's pentatonic and seven triads), each bar's chord the triad the analysis heard
   there. The track enters the mix after the limiter (its own low-pass carries the drop's sweep); `Mix.under` turns the
   game's whole bus down 14 dB (the stones, feet and matter 4.4 dB more, the effects 2 dB more, the jogo's sounds 4 dB
-  less) and the players' melody to half: measured, the game's own sounds had been a decibel over the track. Loading: the first world's file is fetched and decoded (OfflineAudioContext, 48 kHz) as the page loads, the
-  others fetched 8 s later and decoded when their world comes; two at most stay decoded. Mute and volume as before.
+  less) and the players' melody to half: measured, the game's own sounds had been a decibel over the track. The
+  stones, feet and pitched matter go on the track's 16ths at any level of the groove (before, only while it ran).
+  Loading: the first world's file is fetched and decoded (OfflineAudioContext, 48 kHz) as the page loads, the others
+  fetched 8 s later and decoded when their world comes; two at most stay decoded. Mute and volume as before.
 - **Rooms** (`shared/rules.ts`, `src/play/index.ts`): a room's tempo is its world's track's (`tempoOf`); its epoch is
   the track's bar 1. A seat's travel to another world re-epochs the room on its next bar line at the new tempo
   (`retempo`; the end of play, a fusion and the intro move to the new grid's next bar line), and both clients switch
@@ -112,7 +114,27 @@ beat puts it (normalised cross-correlation, ±80 ms, to the sample):
 
 ### The films
 
-FILMS
+Both films rendered at `--preview` (960×540, 30 fps) with the real tracks, after master's merges (water, the films):
+
+| film | track | first frame | cuts (s, the track's beat there) | flashes on the track's beats (`--flash`) | the film's audio onsets on its grid | loudness |
+|---|---|---|---|---|---|---|
+| film 1 (`film1-preview.mp4`, 69.8 s) | redwoods, 113.052 bpm | beat -0.518 (bar 7 on the jogo's "1.1", 13 s in) | 48.571 (91), 50.694 (95), 69.801 (131) | 106 of 131 beats (the 25 of the jogo's lead-in, before its grid is known, are dark); each within 30 ms of its beat, median 10.8 (ab-jogo 8.3 / 24.9, c-gate 2.2 / 3.0, d-hub 16 / 30) | 86 % within 20 ms, median +0.6 ms | -17.9 LUFS |
+| film 2 (`film2-preview.mp4`, 74.0 s) | temple, 94.019 bpm | beat 0.070 (bar 1 on "1.1", 45 ms before the first frame) | 73.983 (116) | 114 of 115, each within 23.5 ms, median 8.5 | 78 % within 20 ms, median +6.1 ms (the temple's intro is the loosest stretch of all five tracks: the track alone, there, +1.6 ms) | -17.0 LUFS |
+
+- The flashes are frames (33.3 ms at 30 fps), so "within a frame" is all a preview can show: no flash was more than a
+  frame from its beat, in any shot, after the first frame on the grid.
+- The ab-jogo's cut: rendered a beat long, cut at 48.571 s, beat 91 of the track (the films agent's note asked for
+  the jogo's cut on a whole beat); every later cut on a whole beat too, to the frame.
+- The level of the game's sounds under the track, measured on the 720p clip's span of film 2: the recorded score is
+  -29.7 LUFS (-17.4 with the levels I set first, by the buses alone: a decibel over the track); lifted by 1/0.72 to
+  the game's balance, -26.8, against the track's -18.2 LUFS over the same 38 s: 8.6 dB under it.
+- The limiter on the film's mix had put the track 5 ms late (ffmpeg's alimiter look-ahead, uncompensated by default):
+  compensated; before it, film 2's onsets sat +10.5 ms from the grid.
+- Contact sheets: `docs/reports/media/9-music-film-film1-ab-jogo-sheet.jpg`, `-c-gate-`, `-d-hub-`,
+  `9-music-film-film2-temple-sheet.jpg` (the pictures are the films agent's: the music changed only the tempo, so film
+  2's 29 bars are 74 s, not 77).
+- The clip for Eric: `docs/reports/media/film/music-temple-preview.mp4` (1280×720, 38.2 s: the first 60 beats of film 2,
+  the temple jogo, with the temple's track and the game's sounds under it; -17.9 LUFS).
 
 ### Tests
 
@@ -131,13 +153,13 @@ play on the new grid). All pass (the net smoothness test once failed under load 
   the loop seams (`docs/reports/media/music/<id>-seam.wav`), the level of the game's sounds under the tracks (set by
   integrated loudness: about 8 dB under, which says nothing about whether a footfall or a move still reads), or the
   per-bar chords the voices play from. Eric should listen to the click renders and the seams first.
-- **The downbeat is the weakest measurement.** The beat is solid (89 to 97 % of beats with an onset within 20 ms in
-  four tracks, 73 % in the temple's), but which beat of four is "one" won by a margin of 1.53 in the geode and only
+- **The downbeat is the weakest measurement.** The beat is solid (78 to 97 % of beats with an onset within 20 ms in
+  four tracks, 73 % in the temple's; medians within a millisecond of the grid), but which beat of four is "one" won by a margin of 1.53 in the geode and only
   1.04 to 1.13 in the others. A wrong downbeat moves what lands "on a bar line" (a fusion's landing, a new world's
   track starting, the bar's chord) by a beat or more; the beat itself, the judging and the 16ths are right either way.
   There is no override yet (`TRACKS` would take one: beats to move bar 1 by).
-- **Four of the five tracks are not in the key they were asked for**, and the game follows the track, not the prompt: the temple
-  measured B minor (asked G major; r 0.62, G major next at 0.45), the pool E♭ major (asked C; r 0.71), the forge
+- **Four of the five tracks are not in the key they were asked for**, and the game follows the track, not the
+  prompt: the temple measured B minor (asked G major; r 0.62, G major next at 0.45), the pool E♭ major (asked C; r 0.71), the forge
   F major (asked F♯ minor; r 0.32, a weak fit: it is mostly drums and anvils), the redwoods A minor (asked D minor;
   r 0.43, weak). The tuning measured 5 cents from A440 for all five (the method's own bias, most likely: they are
   at concert pitch). The per-bar triads lean on the tonic (a tie goes to it), so the voices mostly play the tonic chord.
@@ -149,6 +171,9 @@ play on the new grid). All pass (the net smoothness test once failed under load 
 - **The temple's onsets are softer** (73 % within 20 ms against 89 to 97 % elsewhere): a berimbau and hand drums with
   long attacks and a swung (triplet-ish, 0.33 of a 16th) feel. Its judging grid is the 8ths, which the swing doesn't
   move, so the jogo is unaffected; the matter voices' 16ths are swung by the measured amount.
+- **A film's jogo lead-in plays free.** Until a jogo's play begins (film 1's first 13 s: the hold, the comet, the intro)
+  the page can't know where the track's grid will fall, so the stones and matter there are not quantised and sound
+  the track's first chord; from play's first beat they are on the grid.
 - **Memory on phones.** A decoded 3.5-minute track is about 70 MB (48 kHz stereo float); two stay decoded during a
   world change. Not measured on a phone; streaming segments would cut it to a few MB.
 - **The first touch waits for the decode** if the touch comes in the first second or two after load (the hub's file
@@ -164,7 +189,15 @@ play on the new grid). All pass (the net smoothness test once failed under load 
 ## Not done
 
 - **The masters.** Both films were rendered at `--preview` with the real tracks; the masters (1920×1080, 60 fps) are
-  Eric's to render (below).
+  Eric's to render:
+  ```bash
+  node scripts/music-analyze.mjs --no-encode   # only if docs/reports/media/music/<id>.wav is missing (the films' source)
+  node scripts/film-serve.mjs 5435             # in one terminal (restart it after any code change)
+  node scripts/film.mjs films/film1.json       # the master and web copy; the first shot renders first
+  node scripts/film.mjs films/film2.json
+  ```
+  The conformed WAVs (`docs/reports/media/music/redwoods.wav`, `temple.wav`) are git-ignored: on another machine,
+  run the analysis first (with the downloads), or the films fall back to the .m4a.
 - **A downbeat override** in `TRACKS` (beats to move bar 1 by), for when the clicks say the analysis got one wrong.
 - **Streaming the files in segments** (to keep a phone's memory to a few MB instead of ~70 MB a decoded track).
 - **A beat map** instead of conforming: the game's clock is one tempo, so each track is stretched to one tempo. A
