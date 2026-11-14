@@ -1,0 +1,12 @@
+[
+ { "name": "baseline-arena-geode", "query": "baseline&arena=geode", "frames": 90 },
+ { "name": "baseline-arena-redwoods", "query": "baseline&arena=redwoods", "frames": 90 },
+ { "name": "baseline-arena-pool", "query": "baseline&arena=pool", "frames": 90 },
+ { "name": "baseline-arena-temple", "query": "baseline&arena=temple", "frames": 90 },
+ { "name": "baseline-arena-forge", "query": "baseline&arena=forge", "frames": 90 },
+ { "name": "baseline-geode", "query": "baseline&world=geode", "wake": true, "frames": 240 },
+ { "name": "baseline-redwoods", "query": "baseline&world=redwoods", "wake": true, "frames": 240 },
+ { "name": "baseline-pool", "query": "baseline&world=pool", "wake": true, "frames": 240 },
+ { "name": "baseline-temple", "query": "baseline&world=temple", "wake": true, "frames": 240 },
+ { "name": "baseline-forge", "query": "baseline&world=forge", "wake": true, "frames": 240 }
+]

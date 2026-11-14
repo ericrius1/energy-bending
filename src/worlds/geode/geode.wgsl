@@ -23,6 +23,8 @@ struct Geode {
   gates: array<vec4f, 4>,  // the hub's gates: xz where each stands, z its worn path's half width, w which world (its tint)
   rimPower: f32, floorGloss: f32, fog: f32, moteSize: f32,
   floorY: f32, pad0: f32, pad1: f32, pad2: f32,
+  drops: array<vec4f, 2>,  // the duel arena's drops in the agate (worlds/drops.wgsl): s0, t0, s1, t1 on its plane
+  dropFrame: vec4f,        // that plane: its origin's x, z, its right's x, z
 }
 
 // ---------------------------------------------------------------- caustics

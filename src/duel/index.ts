@@ -36,7 +36,7 @@ import { Scene } from '../ai/scene';
 import { BrainDriver } from '../ai/driver';
 import type { Brain, StageView } from '../ai/brain';
 import { DuelBrain, DUEL_STYLES, type DuelSight, type DuelStyle } from '../ai/duel-brain';
-import { arenaFor, type Arena } from './arena';
+import { arenaFor, showArena, type Arena } from './arena';
 import { fallbackArena } from './fallback';
 import type { Solid } from '../worlds/solids';
 import { DuelMatch, duelPlane } from './match';
@@ -78,8 +78,12 @@ export async function startDuel(app: PlayApp) {
   // ---------------------------------------------------------------- the arena (the arena work's, or the fallback)
   const stage0: StagePlane = W.stages[0] ?? { id: 'duel.test', origin: [0, 0, 0], right: [1, 0, 0], halfWidth: 5, ground: 0, ledges: [{ id: 't.l', x0: -3.6, x1: -1.8, y: 1.3 }, { id: 't.r', x0: 1.8, x1: 3.6, y: 1.3 }, { id: 't.m', x0: -0.9, x1: 0.9, y: 2.6 }], spawns: [[-2, 0], [2, 0]] };
   const arena: Arena = arenaFor(W.id) ?? fallbackArena(W, stage0);
-  // the arena's pieces stand in the world while the duel is on (climbed, kicked off, seen round by the camera)
-  const solids = (): Solid[] => [...(world().solids ?? []), ...(arena.pieces ?? [])];
+  // the arena shown (src/duel/arena.ts): the world draws its pieces, lists them in World.solids (the bodies' walls and
+  // floors, the camera, the near fade), opens its drops; the arena's camera range in place of the world's room
+  showArena(arenaFor(W.id) ? W.id : null);
+  const roomWas = Object.getOwnPropertyDescriptor(W, 'room');
+  if (arena.camera?.maxDist) { const room = arena.camera.maxDist; Object.defineProperty(W, 'room', { get: () => room, configurable: true }); }
+  const solids = (): readonly Solid[] => world().solids ?? [];
   const plane = duelPlane(arena);
   const dress = (q.get('dress') ?? 'fire,water').split(',');
   show.dress = [dress[0] ?? 'fire', dress[1] ?? dress[0] ?? 'water'];
@@ -232,6 +236,9 @@ export async function startDuel(app: PlayApp) {
   // little either way of each) it takes the one whose boom the world's solids leave clearest (the forge's crown and
   // floats pulled the boom in to nothing from some sides), keeping the one it has unless another is clearly better.
   // Snapped there on the first frames
+  // (World.clear and the gates' discs, the rig's clearance, pull the boom in the same way: off while free, the lock's own)
+  let clearWas: typeof rig.clearance = rig.clearance;
+  const freeClear = (a: V3, b: V3) => (rig.mode === 'locked' ? clearWas?.(a, b) ?? 1 : 1);
   let camFrames = 0, camYaw: number | null = null, solidsFor: unknown = null, solidSet: Solids | null = null;
   const wrap = (a: number) => Math.atan2(Math.sin(a), Math.cos(a));
   frame.tick('camera', () => {
@@ -255,8 +262,12 @@ export async function startDuel(app: PlayApp) {
     }
     if (camYaw == null || bs > score(camYaw) + 0.3 || Math.abs(wrap(best - camYaw)) < 0.5) camYaw = best;
     if (camFrames++ < 2) rig.yaw = camYaw;
+    // the boom kept long and the look point above the pieces: in a dense arena the rig's clearance pulled the eye in to
+    // its look point; the near fade (worlds/fade.ts) dissolves what stands in front instead (restored when locked)
+    rig.solids = null;
+    if (rig.clearance !== freeClear) { clearWas = rig.clearance; rig.clearance = freeClear; }
     // (the follow swings the eye to its target's yaw + π while its target "runs": that is how it is turned)
-    rig.follow = { ...rig.follow, yaw: wrap(camYaw - Math.PI), speed: 1 };
+    rig.follow = { ...rig.follow, y: rig.follow.y + 0.5, yaw: wrap(camYaw - Math.PI), speed: 1 };
   }, 'duel: the follow camera side-on to the pair');
 
   frame.tick('travel', (f: FrameCtx) => {
@@ -296,6 +307,11 @@ export async function startDuel(app: PlayApp) {
     /** begin now (the human seats' devices not yet in), or from round 1 again */
     start: begin,
     restart: () => { if (!started) begin(); else match.restart(now); },
+    /** the duel's end: the arena off, the world's room back */
+    stop: () => {
+      started = false; showArena(null);
+      if (roomWas) Object.defineProperty(W, 'room', roomWas); else delete (W as { room?: number }).room;
+    },
     /** a seat's brain: { style, skill, seed } for a virtual player, any Brain, or null for the seat's device */
     setBrain,
     brains,

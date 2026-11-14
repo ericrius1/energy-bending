@@ -146,6 +146,15 @@ export class DuelMatch {
     c.home = [at[0], at[1], at[2]];
   }
 
+  /** free, a body re-formed at its home stands at the spawn's own height: Character.spawn puts it on the world's
+   *  groundAt, which knows nothing of the arena's pieces (a spawn on the forge's floating stones, the pool's rocks: it
+   *  re-formed in the void below and fell out again at once) */
+  private standAt(k: number, at: readonly number[]) {
+    const c = this.chars[k];
+    if (c.plane) return;
+    c.root[1] = at[1]; c.lastGroundY = at[1];
+  }
+
   private apply(e: DuelEvent) {
     switch (e.k) {
       case 'hit': case 'block': this.knock(e.target, e.knock); break;
@@ -153,8 +162,8 @@ export class DuelMatch {
       // (the body keeps flying with its knock, or falling, while its matter is scattered; if it falls out of the
       // world on its own it re-forms where the rules chose)
       case 'ko': this.reformAt(e.target, e.reformAt); break;
-      case 'reform': { const c = this.chars[e.seat]; this.reformAt(e.seat, e.at); if (!c.reforming) c.spawn(); break; }
-      case 'round': for (let k = 0; k < 2; k++) { this.reformAt(k, e.at[k]); this.chars[k].spawn(); } break;
+      case 'reform': { const c = this.chars[e.seat]; this.reformAt(e.seat, e.at); if (!c.reforming) c.spawn(); this.standAt(e.seat, e.at); break; }
+      case 'round': for (let k = 0; k < 2; k++) { this.reformAt(k, e.at[k]); this.chars[k].spawn(); this.standAt(k, e.at[k]); } break;
     }
   }
 

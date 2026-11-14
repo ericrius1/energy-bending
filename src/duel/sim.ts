@@ -12,8 +12,8 @@ import { Scene } from '../ai/scene';
 import { BrainDriver } from '../ai/driver';
 import { DuelBrain, type DuelSight, type DuelStyle } from '../ai/duel-brain';
 import { DuelMatch, duelPlane } from './match';
-import { arenaFor, type Arena } from './arena';
-import { fallbackArena, type WorldLike } from './fallback';
+import type { Arena } from './arena';
+import type { WorldLike } from './fallback';
 import { worldFor } from './stages';
 import type { DuelEvent } from '../../shared/duel.ts';
 import type { Solid } from '../worlds/solids';
@@ -66,11 +66,11 @@ export interface DuelSimResult {
   match: DuelMatch;
 }
 
-/** the arena and the world a world id duels in, in Node: its registered arena or the fallback */
+/** the arena and the world a world id duels in, in Node: the world's own arena (worlds/<id>/arena.ts), shown */
 export function nodeArena(id: string): { arena: Arena; world: WorldLike } {
   const w = worldFor(id);
   if (!w) throw new Error(`duel: no world ${id} in Node (temple, forge, pool)`);
-  return { arena: arenaFor(id) ?? fallbackArena(w, w.stage), world: w };
+  return { arena: w.arena, world: w };
 }
 
 /** two DuelBrains by style and skill, with seeds */
@@ -83,7 +83,8 @@ const blankStats = (): SeatStats => ({ moves: {}, jumps: 0, airJumps: 0, wallJum
 export function simulateDuel(o: DuelSimOptions): DuelSimResult {
   const dt = o.dt ?? 1 / 60, bpm = o.bpm ?? 112, A = o.arena, W = o.world;
   const plane = duelPlane(A);
-  const solids: Solid[] = [...(W.solids ?? []), ...(A.pieces ?? [])];
+  // (the world's solids, with the arena's pieces while it is shown, as the page's World.solids)
+  const solids: Solid[] = [...(W.solids ?? [])];
   // (the bodies on the duel's profile, DUEL_PHYS: its run and jump, the dash, wall slides and kicks against the
   // world's solids, which they stand on and can't pass, as ?duel's do; `jogo: true` keeps the jogo's)
   const terrain = { groundAt: (x: number, z: number) => W.groundAt(x, z), fallY: W.fallY, solids };

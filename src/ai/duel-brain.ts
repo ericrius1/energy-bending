@@ -30,6 +30,8 @@ import { makeIntent, type Intent } from '../input/intent';
 import type { Solid } from '../worlds/solids';
 import { Rng, newHints, type Brain, type SeenMove, type Sight } from './brain';
 import { canStart, hypotheticalEvent, pressMove, stickFor } from './body';
+import { groundUnder } from '../duel/arena';
+import { readThreat } from './read';
 
 export type DuelStyle = 'aggressive' | 'evasive' | 'showy';
 export const DUEL_STYLES: readonly DuelStyle[] = ['aggressive', 'evasive', 'showy'];
@@ -58,6 +60,9 @@ export interface DuelBrainOptions {
 }
 
 const clamp = (x: number, a: number, b: number) => Math.max(a, Math.min(b, x));
+/** what stands under (x, z) for a body at height y: the highest top of the world's solids and the arena's pieces no
+ *  more than `up` above it (a step, or a jump's reach when planning one), else the world's floor (with its drops) */
+const groundOf = (D: DuelSight, x: number, z: number, y: number, up = 0.4) => groundUnder(D.solids, x, z, y, D.groundAt(x, z), up);
 const sgn = (x: number) => (x < 0 ? -1 : 1);
 
 /** what a body looked like at a moment (world; s along the plane when locked) */
@@ -289,7 +294,7 @@ export class DuelBrain implements Brain {
     const sense = Math.floor(S.beat / 16) % 2 ? 1 : -1;
     if (why !== 'punish') th += sense * this.rng.range(0.15, 0.5);
     let gx = o.x + Math.cos(th) * want, gz = o.z + Math.sin(th) * want;
-    let gy = D ? D.groundAt(gx, gz) : 0;
+    let gy = D ? groundOf(D, gx, gz, me.y, 2.5) : 0;
     if (D) {
       // inside the space; over solid floor (the other in the air over the pit: the edge it will come back to)
       const C = D.space.center, R = D.space.radius - 0.9, cx = gx - C[0], cz = gz - C[2], cl = Math.hypot(cx, cz);
@@ -297,10 +302,10 @@ export class DuelBrain implements Brain {
       // (and a step back from any edge: the floor a metre further out from the middle stands too)
       const edgy = (x: number, z: number) => {
         const ox = x - C[0], oz = z - C[2], ol = Math.hypot(ox, oz) || 1;
-        return D.groundAt(x, z) < D.yKill + 0.6 || D.groundAt(x + (ox / ol) * 1.1, z + (oz / ol) * 1.1) < D.yKill + 0.6;
+        return groundOf(D, x, z, me.y, 2.5) < D.yKill + 0.6 || groundOf(D, x + (ox / ol) * 1.1, z + (oz / ol) * 1.1, me.y, 2.5) < D.yKill + 0.6;
       };
       for (let k = 0; k < 8 && edgy(gx, gz); k++) { gx += (C[0] - gx) * 0.25; gz += (C[2] - gz) * 0.25; }
-      gy = D.groundAt(gx, gz);
+      gy = groundOf(D, gx, gz, me.y, 2.5);
       // now and then: up onto something (a stump, the altar, a slab), or a solid to kick off (showy most)
       if (!otherOut && (why === 'close' || why === 'poke') && this.rng.chance(0.06 + K.showy * 0.25)) {
         const high = this.highPlace(me, D);
@@ -317,7 +322,7 @@ export class DuelBrain implements Brain {
   private highPlace(me: Snap, D: DuelSight): [number, number, number] | null {
     let best: [number, number, number] | null = null, bh = 0;
     for (let i = 0; i < 12; i++) {
-      const a = (i / 12) * Math.PI * 2, r = 1.2 + (i % 3) * 0.9, x = me.x + Math.cos(a) * r, z = me.z + Math.sin(a) * r, y = D.groundAt(x, z);
+      const a = (i / 12) * Math.PI * 2, r = 1.2 + (i % 3) * 0.9, x = me.x + Math.cos(a) * r, z = me.z + Math.sin(a) * r, y = groundOf(D, x, z, me.y, 1.9);
       const h = y - me.y;
       if (h < 0.6 || h > 1.9 || D.solids.some((s) => distTo(s, [x, y + 1, z]) < 0.4)) continue;
       const C = D.space.center;
@@ -341,7 +346,7 @@ export class DuelBrain implements Brain {
   // ---------------------------------------------------------------- free: the legs
   private legsFree(S: Sight, c: Character, me: Snap, D: DuelSight | null, yKill: number, it: Intent, t: number) {
     const g = this.goal, minHold = 0.13 + (1 - this.skill) * 0.08;
-    const ground = (x: number, z: number) => (D ? D.groundAt(x, z) : 0);
+    const ground = (x: number, z: number, up = 0.4) => (D ? groundOf(D, x, z, me.y, up) : 0);
     const solids = D?.solids ?? [];
     if (c.grounded) this.airUsed = false;
     let dx = g.x - me.x, dz = g.z - me.z;
@@ -353,7 +358,7 @@ export class DuelBrain implements Brain {
     if (want[0] || want[1]) {
       const blocked = (u: [number, number]) => {
         for (const r of [0.45, 0.9, 1.35]) {
-          const x = me.x + u[0] * r, z = me.z + u[1] * r, top = ground(x, z);
+          const x = me.x + u[0] * r, z = me.z + u[1] * r, top = ground(x, z, 3.2);
           if (top - me.y > 2.1 || solids.some((s) => distTo(s, [x, Math.max(me.y, top) + 1.0, z]) < 0.35)) return true;
         }
         return false;
@@ -370,7 +375,7 @@ export class DuelBrain implements Brain {
       }
     }
     if (c.grounded) {
-      const ax = me.x + want[0] * 0.55, az = me.z + want[1] * 0.55, ahead = ground(ax, az);
+      const ax = me.x + want[0] * 0.55, az = me.z + want[1] * 0.55, ahead = ground(ax, az, 3.2);
       // up: a stump, the altar, a slab: jump onto it (the air jump at the top for a tall one)
       if ((want[0] || want[1]) && ahead > me.y + 0.3 && ahead - me.y < 3.2 && t >= this.jumpUntil + 0.05) {
         const h = ahead - me.y;
@@ -381,7 +386,7 @@ export class DuelBrain implements Brain {
       // a pit ahead: a gap it can clear it jumps, running; else it doesn't go
       if ((want[0] || want[1]) && ahead < yKill + 0.6) {
         let land = -1;
-        for (let r = 0.9; r <= 3.4; r += 0.3) { const y = ground(me.x + want[0] * r, me.z + want[1] * r); if (y > yKill + 0.6 && y < me.y + 1.6) { land = r; break; } }
+        for (let r = 0.9; r <= 3.4; r += 0.3) { const y = ground(me.x + want[0] * r, me.z + want[1] * r, 1.6); if (y > yKill + 0.6 && y < me.y + 1.6) { land = r; break; } }
         const edge = ground(me.x + want[0] * 0.25, me.z + want[1] * 0.25) < yKill + 0.6;
         if (land > 0 && edge && t >= this.jumpUntil + 0.05) {
           this.jumpNow(t, holdFor(1.4, c.phys)); this.airJumpAt = land > 2.2 ? t + 0.34 : -1; this.count('jump');
@@ -397,7 +402,7 @@ export class DuelBrain implements Brain {
       if (over) {
         let best = Infinity, bx = me.x, bz = me.z;
         for (let i = 0; i < 16; i++) for (const r of [0.8, 1.6, 2.6]) {
-          const a = (i / 16) * Math.PI * 2, x = me.x + Math.cos(a) * r, z = me.z + Math.sin(a) * r, y = ground(x, z);
+          const a = (i / 16) * Math.PI * 2, x = me.x + Math.cos(a) * r, z = me.z + Math.sin(a) * r, y = ground(x, z, 2.5);
           if (y > yKill + 0.6 && y < me.y + 2.5 && r < best) { best = r; bx = x; bz = z; }
         }
         const l = Math.hypot(bx - me.x, bz - me.z);
@@ -418,6 +423,10 @@ export class DuelBrain implements Brain {
           away = [gx / gl, gz / gl];
         }
       }
+      // (only toward somewhere to land: a kick off a rock out over the pool's water, or off a stone over the forge's
+      // void, is a fall; with nothing that way the body slides down the face instead)
+      const lands = (k: number) => !!away && ground(me.x + away[0] * k, me.z + away[1] * k, 2.5) > yKill + 0.6;
+      if (away && !(lands(1.6) || lands(2.6) || lands(3.6))) away = null;
       if (away && me.vy < 1.5 && t >= this.jumpUntil + 0.12) {
         // (sliding: hold into it a moment, then kick off away from it)
         if (this.rng.chance(this.style === 'showy' || g.why === 'wall kick' ? 0.6 : 0.2 + 0.4 * this.skill)) {
@@ -659,7 +668,7 @@ export class DuelBrain implements Brain {
     // (an aú travels: round the other, never toward a pit; the others turn on the spot)
     const f = this.fwd(c), side: [number, number] = c.plane ? f : [-f[1] * this.avoidSide, f[0] * this.avoidSide];
     const D = this.duel?.();
-    if (move === 'au' && D && D.groundAt(me.x + side[0] * 1.5, me.z + side[1] * 1.5) < D.yKill + 0.6) move = 'macaco';
+    if (move === 'au' && D && groundOf(D, me.x + side[0] * 1.5, me.z + side[1] * 1.5, me.y) < D.yKill + 0.6) move = 'macaco';
     this.pending = { move, at: this.onBeatAt(S, 0.3), dir: side, why: `dance ${move}` };
   }
 
@@ -685,12 +694,17 @@ export class DuelBrain implements Brain {
       const rx = me.x - m.ev.x, rz = me.z - (m.ev.z ?? 0), along = (rx * fd[0] + rz * fd[1]) / fl, lat = Math.abs(-rx * fd[1] + rz * fd[0]) / fl;
       if (along < -0.3 || Math.hypot(rx, rz) > 2.2 || (!c.plane && lat > 0.9)) continue;
       if (!this.rng.chance(K.answer)) { this.count('missed'); continue; }
-      const left = Math.max(0, a0 - m.age);
+      // read it (src/ai/read.ts: the attack replayed against this body's own hurt shapes where it stands): one that will
+      // miss is let go by (and punished in its recovery: deciding sees the opening) rather than answered; a weaker player
+      // misreads some and answers those anyway
+      const th = readThreat(m.ev, c.hurtShapes(), c.plane, m.age);
+      if (th && th.first == null && this.rng.chance(0.3 + 0.7 * this.skill)) { this.count('read-miss'); this.nextDecide = Math.min(this.nextDecide, t + 0.1); continue; }
+      const left = Math.max(0, (th?.first ?? a0) - m.age);
       const rl = Math.hypot(rx, rz) || 1, away: [number, number] = [rx / rl, rz / rl], toward: [number, number] = [-away[0], -away[1]];
       // the answers that work: an evasion whose i-frames, started now, cover the attack's live window; a jump over a
       // low one; a roll or an aú away; a block; a strike back if there is time. A good player takes the best; a weaker
       // one any that comes to mind
-      const win = a1 - Math.max(a0, m.age), bpm = S.bpm;
+      const win = (th?.last ?? a1) - Math.max(th?.first ?? a0, m.age), bpm = S.bpm;
       const covers = (name: string) => {
         const d = MOVES[name];
         if (!d?.iframes || !canStart(c, name)) return false;
