@@ -16,7 +16,7 @@ import { LINK_KINDS } from './state';
 import { linkIcon } from './icons';
 import { FONT, GOLD, GOLD_HI, INK, glow, lift, rgba, sprite, stamp, clamp01, easeOutBack, easeOut, type Ctx } from './style';
 
-const LIFE: Record<PopKind, number> = { catch: 0.95, swing: 1.05, fling: 1.0, perfect: 1.0, combo: 1.2, merge: 1.4, info: 1.6 };
+const LIFE: Record<PopKind, number> = { catch: 0.95, swing: 1.05, fling: 1.0, perfect: 1.0, combo: 1.2, merge: 1.4, info: 1.6, power: 1.0, react: 1.4 };
 export const popLife = (k: PopKind) => LIFE[k] ?? 1.1;
 
 interface Look { size: number; weight: string; top: string; bottom: string; glow: string | null; track: number; across?: [string, string] }
@@ -36,6 +36,9 @@ function lookOf(p: HudPop, st: HudState): Look {
       const [a, b] = [st.players.find((q) => q.seat === 0)?.color ?? '#ff7a4a', st.players.find((q) => q.seat === 1)?.color ?? '#4ab0ff'];
       return { size: 22, weight: '800', top: '#ffffff', bottom: '#ffffff', glow: '#ffffff', track: 0.22, across: [lift(a, 0.4), lift(b, 0.4)] };
     }
+    // (the powers: a cast in the caster's colour, light; a reaction white over cyan, bigger)
+    case 'power': return { size: 15, weight: '700', top: '#ffffff', bottom: lift(col, 0.55), glow: col, track: 0.18 };
+    case 'react': return { size: 21, weight: '800', top: '#ffffff', bottom: '#9fe8ff', glow: '#bff4ff', track: 0.14 };
     default: return { size: 13, weight: '600', top: INK, bottom: INK, glow: null, track: 0.1 };
   }
 }

@@ -194,6 +194,8 @@ export class DuelPowers {
     return out;
   }
 
+  /** the powers' own clock (s): each effect's `born` is on it */
+  get clock() { return this.t; }
   /** a seat's powers as the HUD shows them (flow, the form left, each power's readiness) */
   hud(k: number) { return powersHud(this.rules, k, this.now, this.joined(k)); }
   /** in the power form now */

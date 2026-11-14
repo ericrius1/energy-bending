@@ -12,6 +12,10 @@
 //     set         a set's length in seconds (default 60); go: start at once without waiting for the human seats' devices
 //   The grab (the duel's scheme): keyboard J (solo and left layouts, the mouse's left button on solo), , (right layout);
 //   gamepad the punch button; touch the punch button. The fling's aim is the stick.
+//   The powers (phase 2, shared/powers.ts and powers.ts; drawn by power-fx.ts), two by the body's matter, aimed by the
+//   stick: keyboard U and H (solo, left), P and [ (right); gamepad RT and LT; touch 'power 1' and 'power 2'. The power
+//   form at full flow: E (solo, left), Enter (right), both stick clicks, touch 'form'. Their temporary solids (ice
+//   steps, pillars, the frozen bar) are in World.solids while they stand.
 // The rules are shared/duel.ts, the contact contact.ts, joined in match.ts (pure: the same in Node, sim.ts); what is
 // felt is fx.ts; the HUD is src/hud's, handed a HudState (version 2) each frame through `bend.hud.set(state)`
 // (hud-state.ts). `bend.duel` exposes the state, the events, a restart and the seats' brains.
@@ -41,6 +45,14 @@ import type { Solid } from '../worlds/solids';
 import { DuelMatch, duelPlane } from './match';
 import { noInput, splitIntent, type ContactInput, type ContactEvent } from './contact';
 import { DuelFx, type DuelFxCtx } from './fx';
+import { DuelPowers, noPower, type PowerInput } from './powers';
+import { PowerFxDraw } from './power-fx';
+import { matterOf, POWER_NAME } from '../../shared/powers.ts';
+import { onBeat } from '../../shared/duel.ts';
+import { POWER_KEYS, type KeyLayout } from '../input/keyboard';
+import { POWER_BUTTONS } from '../input/gamepad';
+import type { WaterPasses } from '../matter/water/pool';
+import type { PlasmaPasses } from '../matter/plasma/plasma';
 import { DuelHud, screenOf, type HudSeat, type HudState } from './hud-state';
 // (the HUD is the page's one, reached through bend.hud, and screenOf is hud-state.ts's copy of src/hud's: any value
 // imported from src/hud lands in main.ts's own chunk, and the duel's chunk importing it waits for main.ts to finish
@@ -55,17 +67,21 @@ type V3 = [number, number, number];
 class SeatGate implements IntentSource {
   readonly name: string;
   inner: IntentSource | null = null;
-  /** what the contact reads this frame */
+  /** what the contact reads this frame, and the powers */
   contact: ContactInput = noInput();
+  power: PowerInput = noPower();
   private _mode: InputMode = 'locked';
   constructor(seat: number, private held: () => boolean, private split: (it: Intent) => ContactInput) { this.name = `duel.seat${seat}`; }
   get mode() { return this._mode; }
   set mode(m: InputMode) { this._mode = m; if (this.inner) this.inner.mode = m; }
   update(dt: number): Intent {
     const it = this.inner ? this.inner.update(dt) : makeIntent();
-    if (this.held()) { const o = makeIntent(); o.source = it.source; this.contact = noInput(); return o; }
+    if (this.held()) { const o = makeIntent(); o.source = it.source; this.contact = noInput(); this.power = noPower(); return o; }
+    const p1 = !!it.power1, p2 = !!it.power2, form = !!it.form;
     it.form = false; it.merge = false; it.interact = false;
     this.contact = this.split(it);
+    // (the powers' edges and the form, aimed by the stick as the contact reads it)
+    this.power = { p1, p2, form, stick: this.contact.stick };
     return it;
   }
 }
@@ -87,6 +103,21 @@ export async function startDuel(app: PlayApp) {
   showArena(arenaFor(W.id) ? W.id : null);
   const roomWas = Object.getOwnPropertyDescriptor(W, 'room');
   if (arena.camera?.maxDist) { const room = arena.camera.maxDist; Object.defineProperty(W, 'room', { get: () => room, configurable: true }); }
+  // the world's solids, with the powers' temporary ones (ice steps, pillars, the frozen bar) laid in while they stand:
+  // World.solids is what the bodies, the camera, the near fade and the brains all read
+  const powerSolids: Solid[] = [];
+  const solidsWas = Object.getOwnPropertyDescriptor(W, 'solids');
+  const baseSolids = (): readonly Solid[] => (solidsWas ? (solidsWas.get ? solidsWas.get.call(W) : solidsWas.value) : Object.getPrototypeOf(W) && Reflect.get(Object.getPrototypeOf(W), 'solids', W)) ?? [];
+  let solidsKey: [readonly Solid[] | null, number] = [null, -1], solidsAll: Solid[] = [];
+  let powersVersion = () => 0;
+  Object.defineProperty(W, 'solids', {
+    configurable: true,
+    get: () => {
+      const base = baseSolids(), v = powersVersion();
+      if (solidsKey[0] !== base || solidsKey[1] !== v) { solidsKey = [base, v]; solidsAll = powerSolids.length ? [...base, ...powerSolids] : [...base]; }
+      return solidsAll;
+    },
+  });
   const solids = (): readonly Solid[] => world().solids ?? [];
   const plane = duelPlane(arena);
   const dress = (q.get('dress') ?? 'fire,water').split(',');
@@ -115,12 +146,17 @@ export async function startDuel(app: PlayApp) {
   const bpm0 = 112;
   const setMs = Number(q.get('set') ?? 60) * 1000;
   const match = new DuelMatch(chars, arena, plane, 0, bpm0, { solids, setMs });
+  // the powers by each body's matter (its dress's biggest layer, as dressed: not its form)
+  const kindOf = (k: number) => { const d = play.dancers[k]; let best = show.dress[k], share = -1; if (d) for (const l of d.loadout.layers) if (l.share > share) { share = l.share; best = l.kind; } return matterOf(best); };
+  const powers = new DuelPowers(chars, match, { matter: [kindOf(0), kindOf(1)], sink: powerSolids, groundAt: (x, z) => world().groundAt(x, z), yKill: arena.space.yKill });
+  powersVersion = () => powers.version;
   const sight = (): DuelSight => {
     const L = match.contact.link;
     return {
       frozen: [match.frozen(0), match.frozen(1)], link: L ? { holder: L.holder, held: L.held, age: match.contact.age } : null,
       flown: match.contact.flown?.flyer ?? null,
       yKill: arena.space.yKill, space: arena.space, spawns: arena.spawns, solids: solids(), groundAt: (x, z) => world().groundAt(x, z),
+      powers: powers.sight(), bends: powers.liveSight(),
     };
   };
 
@@ -198,7 +234,23 @@ export async function startDuel(app: PlayApp) {
     rumble: (k, s, ms) => { const i = humanSeats.indexOf(k); if (i >= 0) hub.rumble(i, s, ms); },
     field: field as unknown as DuelFxCtx['field'], burst: app.hand?.burst ?? null,
   });
+  const water = app.kinds.find((k) => k.id === 'water' || k.id === 'ice') as WaterPasses | undefined;
+  const plasma = app.kinds.find((k) => k.id === 'plasma') as PlasmaPasses | undefined;
+  const powerFx = new PowerFxDraw({
+    glows, dancer, field: field as unknown as ConstructorParameters<typeof PowerFxDraw>[0]['field'], arcs: plasma?.arcs ?? null, setIce: water?.setIce ?? null,
+    ripple: (x, z, s, r) => { (world() as unknown as { ripple?: (x: number, z: number, s: number, r: number) => void }).ripple?.(x, z, s, r); },
+    sfx: (name, o) => { music.sfx(name as Parameters<Music['sfx']>[0], o); }, ear,
+    rumble: (k, s, ms) => { const i = humanSeats.indexOf(k); if (i >= 0) hub.rumble(i, s, ms); },
+  }, (k) => powers.rules.seats[k].matter);
   const duelHud = new DuelHud();
+  /** the keys a seat's powers are on (its device's), for the HUD */
+  const powerKeys = (k: number): [string, string, string] | null => {
+    const n = gates[k].inner?.name ?? '';
+    if (brains[k]) return null;
+    if (n.startsWith('keyboard-')) return POWER_KEYS[n.slice(9) as KeyLayout] ?? null;
+    if (n.startsWith('gamepad')) return POWER_BUTTONS;
+    return null;
+  };
   // (the head on screen, past 0 … 1 when it is out of frame: the HUD points an arrow at it from the edge)
   const project = (p: V3): [number, number] => screenOf(cam.viewProj, p);
   const hudSeats = (): HudSeat[] => [0, 1].map((k) => {
@@ -206,7 +258,9 @@ export async function startDuel(app: PlayApp) {
     const head = d ? (d.skeleton.pos[JOINT.HeadEnd] as unknown as V3) : null;
     // (the dash's readiness, once the body has one: whatever the movement work names it)
     const dash = typeof c.dashReady === 'number' ? (c.dashReady as number) : typeof c.dashCharge === 'number' ? (c.dashCharge as number) : 1;
-    return { name: brains[k] ? `P${k + 1} · ${(brains[k] as DuelBrain).style ?? 'bot'}` : `P${k + 1}`, matter: elementOf(d), screen: head ? project([head[0], head[1] + 0.12, head[2]]) : null, dash, holding: match.contact.holding(k), held: match.contact.held(k) };
+    const B = powers.hud(k), keys = powerKeys(k);
+    const bend = { flow: B.flow, form: B.form, powers: B.powers.map((p, i) => ({ ...p, ...(keys ? { key: keys[i] } : {}) })) };
+    return { name: brains[k] ? `P${k + 1} · ${(brains[k] as DuelBrain).style ?? 'bot'}` : `P${k + 1}`, matter: elementOf(d), screen: head ? project([head[0], head[1] + 0.12, head[2]]) : null, dash, holding: match.contact.holding(k), held: match.contact.held(k), bend };
   });
 
   // ---------------------------------------------------------------- starting
@@ -282,9 +336,15 @@ export async function startDuel(app: PlayApp) {
     glows.clear();
     if (!started) { for (let k = 0; k < 2; k++) chars[k].events.length = 0; return; }
     now += f.danceDt * 1000;
+    powers.gripInputs([gates[0].contact, gates[1].contact]);
     const ev = match.step(now, beat, bpm, f.danceDt * 1000, [gates[0].contact, gates[1].contact]);
+    // the powers after the contact (a catch at range joins the two through it), their effects drawn
+    powers.step(now, f.danceDt * 1000, [gates[0].power, gates[1].power], ev, onBeat(beat, bpm));
+    ev.push(...powers.duelEvents);
     frameEvents = ev;
     fx.update(f.danceDt, ev, match.touches, match.contact, match.state);
+    powerFx.update(f.danceDt, powers);
+    for (const e of powers.events) pendingPowers.push(e);
     pendingHud.push(...ev); pendingTouches.push(...match.touches);
     // (the finale and the result stand the camera back a little)
     rig.framePad = match.state.phase === 'finale' || match.state.phase === 'done' ? 0.5 : 0;
@@ -292,12 +352,24 @@ export async function startDuel(app: PlayApp) {
 
   // the HUD's state, after the camera moved (the tags ride the heads where this frame shows them)
   const pendingHud: DuelEvent[] = [], pendingTouches: ContactEvent[] = [];
+  const pendingPowers: (typeof powers.events)[number][] = [];
+  const REACT_WORD = { geyser: 'STEAM!', melt: 'MELT!', freeze: 'FREEZE!' } as const;
   frame.tick('post', (f: FrameCtx) => {
     draw.upload();
     if (!started) return;
     const seats = hudSeats(), L = match.contact.link;
     const linkAt = L ? project(L.at) : null;
     duelHud.events(pendingHud.splice(0, pendingHud.length), pendingTouches.splice(0, pendingTouches.length), seats, linkAt, project);
+    // the powers' pops: a cast's name by the caster, the power form, a reaction where it happened (each once)
+    for (const e of pendingPowers.splice(0, pendingPowers.length)) {
+      const at = (k: number): [number, number] => { const p = seats[k]?.screen; return p ? [p[0], Math.max(0.08, p[1] - 0.11)] : [0.5, 0.42]; };
+      if (e.k === 'cast') duelHud.pops.push({ text: e.free ? `${POWER_NAME[e.power].toUpperCase()}+` : POWER_NAME[e.power].toUpperCase(), kind: 'power', seat: e.seat, at: at(e.seat), age: 0 });
+      else if (e.k === 'form' && e.on) duelHud.pops.push({ text: 'POWER FORM', kind: 'power', seat: e.seat, at: at(e.seat), age: 0 });
+      else if (e.k === 'react') {
+        const fx0 = powers.fx.find((x) => x.k === 'react' && x.kind === e.kind) as { at: V3 } | undefined;
+        duelHud.pops.push({ text: REACT_WORD[e.kind], kind: 'react', at: fx0 ? project(fx0.at) : at(e.seats[0] ?? 0), age: 0 });
+      }
+    }
     // (from: the holder's contact point, its grip; to: the held body's, its chest, which the grip carries)
     const link = L ? { on: true, from: linkAt ?? undefined, to: project(fx.chest(L.held)) } : { on: false };
     hudState = duelHud.build(match.state, now, f.dt, seats, beat, bpm, setMs, link);
@@ -306,7 +378,11 @@ export async function startDuel(app: PlayApp) {
 
   // ---------------------------------------------------------------- bend.duel
   const api = {
-    match, arena, plane,
+    match, arena, plane, powers,
+    /** cast a seat's power now (slot 0 or 1; the stick as a world x, z), or the form: as its buttons would */
+    cast: (k: number, slot: 0 | 1 | 'form', stick: [number, number] = [0, 0]) => { gates[k].power = { p1: slot === 0, p2: slot === 1, form: slot === 'form', stick }; },
+    /** a seat's flow (0 … 1), read or set */
+    flow: (k: number, v?: number) => { if (v !== undefined) powers.rules.seats[k].flow = Math.max(0, Math.min(1, v)); return powers.rules.seats[k].flow; },
     get state() { return match.state; },
     get started() { return started; },
     /** this frame's events, and every event so far with its time (ms of duel time) */
@@ -319,7 +395,8 @@ export async function startDuel(app: PlayApp) {
     restart: () => { if (!started) begin(); else match.restart(now); },
     /** the duel's end: the arena off, the world's room back */
     stop: () => {
-      started = false; showArena(null); field.fuse(null);
+      started = false; showArena(null); field.fuse(null); powerFx.clear(); powers.clear();
+      if (solidsWas) Object.defineProperty(W, 'solids', solidsWas); else delete (W as { solids?: unknown }).solids;
       if (roomWas) Object.defineProperty(W, 'room', roomWas); else delete (W as { room?: number }).room;
     },
     /** a seat's brain: { style, skill, seed } for a virtual player, any Brain, or null for the seat's device */
@@ -344,6 +421,7 @@ export async function startDuel(app: PlayApp) {
       clock: match.clock(now), stats: { ...match.state.stats }, locked: match.locked,
       seats: [0, 1].map((k) => ({ at: chars[k].root.map((v) => +v.toFixed(2)), grounded: chars[k].grounded, move: chars[k].move?.name ?? null, source: gates[k].inner?.name ?? null, brain: brains[k]?.name ?? null })),
       arena: arena.world, fallback: !arenaFor(W.id),
+      powers: { flow: powers.rules.seats.map((s) => +s.flow.toFixed(2)), form: [0, 1].map((k) => +powers.hud(k).form.toFixed(2)), casts: powers.rules.seats.map((s) => s.casts), forms: powers.rules.seats.map((s) => s.forms), reactions: { ...powers.rules.reactions }, live: powers.live.map((L) => L.kind), felt: { ...powers.felt } },
     }),
   };
   frame.tick('input', () => { const b = (window as unknown as { bend?: Record<string, unknown> }).bend; if (b && b.duel !== api) b.duel = api; }, 'duel: bend.duel');

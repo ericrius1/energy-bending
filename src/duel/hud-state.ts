@@ -11,7 +11,7 @@ import { DUEL, type DuelEvent, type DuelState } from '../../shared/duel.ts';
 import type { ContactEvent } from './contact';
 import type { HudState as HudContract } from '../hud/state';
 
-export type PopKind = 'catch' | 'swing' | 'fling' | 'perfect' | 'combo' | 'merge' | 'info';
+export type PopKind = 'catch' | 'swing' | 'fling' | 'perfect' | 'combo' | 'merge' | 'info' | 'power' | 'react';
 export interface HudPlayer {
   seat: 0 | 1; name: string; color: string; matter: string;
   /** the battle's score this set */
@@ -32,6 +32,8 @@ export interface HudPlayer {
   /** 0 … 1 after a fall, else 0 */
   reforming: number;
   screen?: [number, number];
+  /** the powers (phase 2): the flow 0 … 1, the power form left 0 … 1, the two powers (ready, cost, the key) */
+  flow?: number; form?: number; powers?: { id: string; name: string; ready: boolean; cost: number; key?: string }[];
 }
 export interface HudPop { text: string; seat?: number; at: [number, number]; age: number; kind: PopKind; id?: number; dir?: [number, number] }
 export interface HudState {
@@ -76,6 +78,8 @@ export interface HudSeat {
   dash: number;
   holding: boolean;
   held: boolean;
+  /** the powers, when the duel has them (src/duel/powers.ts hud()) */
+  bend?: { flow: number; form: number; powers: { id: string; name: string; ready: boolean; cost: number; key?: string }[] };
 }
 
 const POP_LIFE = 1.1;
@@ -150,6 +154,7 @@ export class DuelHud {
         dash: s?.dash ?? 1, holding: !!s?.holding, held: !!s?.held,
         reforming: S.fellAt >= 0 ? Math.min(1, (now - S.fellAt) / DUEL.REFORM_MS) : 0,
         ...(s?.screen ? { screen: s.screen } : {}),
+        ...(s?.bend ? { flow: s.bend.flow, form: s.bend.form, powers: s.bend.powers } : {}),
       };
     });
     // (the count-in left, in counts and fractional: the HUD shows ceil(left) and drops each digit in over its count by

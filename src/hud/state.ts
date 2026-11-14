@@ -5,7 +5,7 @@
 // (0, 0) the top left, y down, so they don't depend on the device's pixel ratio or the render scale.
 
 export type HudMode = 'duel' | 'jogo' | 'none';
-export type PopKind = 'catch' | 'swing' | 'fling' | 'perfect' | 'combo' | 'merge' | 'info';
+export type PopKind = 'catch' | 'swing' | 'fling' | 'perfect' | 'combo' | 'merge' | 'info' | 'power' | 'react';
 /** a combo's link: one move chained */
 export type LinkKind = 'catch' | 'swing' | 'fling' | 'lift' | 'vault' | 'walljump' | 'wallrun' | 'dash' | 'flip' | 'kick' | 'aerial';
 export const LINK_KINDS: readonly LinkKind[] = ['catch', 'swing', 'fling', 'lift', 'vault', 'walljump', 'wallrun', 'dash', 'flip', 'kick', 'aerial'];
@@ -42,7 +42,14 @@ export interface HudPlayer {
   reforming: number;
   /** the player's head on screen (0 … 1), for its tag */
   screen?: [number, number];
+  /** the duel's powers (phase 2): the flow 0 … 1 (the fuel; full is the power form), the power form's time left
+   *  0 … 1, and the two powers: their id and name, whether each can be cast now, its cost of the flow, its key */
+  flow?: number;
+  form?: number;
+  powers?: HudPower[];
 }
+
+export interface HudPower { id: string; name: string; ready: boolean; cost: number; key?: string }
 
 export interface HudLink {
   /** the two are joined */
