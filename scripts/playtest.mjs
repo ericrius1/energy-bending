@@ -1,7 +1,8 @@
 // The duel's playtest on the real page, in real time: headless Chrome on the GPU (under the shared render lock) opens
 // ?duel with seat 1 a human seat and seat 2 a virtual player, and plays seat 1 with real key presses (puppeteer's
-// keyboard: the page's own keydown and keyup, the solo layout: free, W A S D move (camera-relative), Space jump, C
-// down; locked (&lock: --lock), A D move, W jump, S down; J punch, K kick, L spin, Shift dodge), as a person would, and
+// keyboard: the page's own keydown and keyup, the solo layout on the duel's scheme: free, W A S D move (camera-
+// relative), Space jump, C down; locked (&lock: --lock), A D move, W jump, S down; J punch, L kick, I spin, O dodge,
+// K dash), as a person would, and
 // measures what a person would feel:
 //   key to motion   from the keydown (the event's own time) to the first frame the body moves for it: a run (along
 //                   the plane faster than 0.5 m/s) from standing, a jump (risen 2 cm) from the floor; in ms and frames
@@ -70,9 +71,10 @@ await page.evaluate(() => {
 });
 
 // ---------------------------------------------------------------- the human seat
+// (the duel's scheme on the solo layout, input/keyboard.ts: K or Shift dash, L kick, I spin, O dodge)
 const KEYS = LOCK
-  ? { left: 'KeyA', right: 'KeyD', jump: 'KeyW', down: 'KeyS', fwd: null, back: null, punch: 'KeyJ', kick: 'KeyK', spin: 'KeyL', dodge: 'ShiftLeft' }
-  : { left: 'KeyA', right: 'KeyD', jump: 'Space', down: 'KeyC', fwd: 'KeyW', back: 'KeyS', punch: 'KeyJ', kick: 'KeyK', spin: 'KeyL', dodge: 'ShiftLeft' };
+  ? { left: 'KeyA', right: 'KeyD', jump: 'KeyW', down: 'KeyS', fwd: null, back: null, punch: 'KeyJ', kick: 'KeyL', spin: 'KeyI', dodge: 'KeyO', dash: 'KeyK' }
+  : { left: 'KeyA', right: 'KeyD', jump: 'Space', down: 'KeyC', fwd: 'KeyW', back: 'KeyS', punch: 'KeyJ', kick: 'KeyL', spin: 'KeyI', dodge: 'KeyO', dash: 'KeyK' };
 const held = new Set();
 const hold = async (k, on) => { if (on && !held.has(k)) { held.add(k); await page.keyboard.down(k); } else if (!on && held.has(k)) { held.delete(k); await page.keyboard.up(k); } };
 const tap = async (k) => { await page.keyboard.down(k); await new Promise((r) => setTimeout(r, 45)); await page.keyboard.up(k); };
@@ -94,7 +96,7 @@ while (Date.now() - t0 < SECONDS * 1000) {
     if (KEYS.fwd) { await hold(KEYS.fwd, w.moveZ > 0.3); await hold(KEYS.back, w.moveZ < -0.3); }
     await hold(KEYS.down, w.moveY < -0.5);
     await hold(KEYS.jump, !!(w.jumpHeld || w.jump));
-    for (const b of ['punch', 'kick', 'spin', 'dodge']) if (w[b]) void tap(KEYS[b]);
+    for (const b of ['punch', 'kick', 'spin', 'dodge', 'dash']) if (w[b]) void tap(KEYS[b]);
   } else if (HUMAN === 'script') {
     const d = st.o - st.s, now = Date.now();
     await hold(KEYS.right, d > 0.9); await hold(KEYS.left, d < -0.9);

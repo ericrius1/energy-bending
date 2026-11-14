@@ -20,7 +20,7 @@
 // bodies step (a seat's controls held while the duel says so); travel — the rules judge what the bodies did, the
 // effects and the HUD follow; post — the glows go up to the GPU.
 import type { FrameCtx } from '../engine/frame';
-import type { StagePlane } from '../engine/camera';
+import { Solids, type StagePlane } from '../engine/camera';
 import type { Dancer } from '../dancer/dancer';
 import type { IntentController } from '../dancer/intent-controller';
 import type { PlasmaPasses } from '../matter/plasma/plasma';
@@ -225,6 +225,39 @@ export async function startDuel(app: PlayApp) {
       if (was) for (const e of EDGES) if (was[e]) ghostIntent[k]![e] = true;
     }
   }, 'duel: what the brains see');
+
+  // the free camera, a fighting game's: the rig's own third-person follow (dancer/play.ts aims it at the pair's middle and
+  // stands it back to hold both), turned side-on to the line between the two, a little behind seat 1, so both are seen
+  // across the screen; it swings round (at the rig's own rate) as they circle. Of the side-on turns (either side, and a
+  // little either way of each) it takes the one whose boom the world's solids leave clearest (the forge's crown and
+  // floats pulled the boom in to nothing from some sides), keeping the one it has unless another is clearly better.
+  // Snapped there on the first frames
+  let camFrames = 0, camYaw: number | null = null, solidsFor: unknown = null, solidSet: Solids | null = null;
+  const wrap = (a: number) => Math.atan2(Math.sin(a), Math.cos(a));
+  frame.tick('camera', () => {
+    if (rig.mode === 'locked' || !rig.follow) return;
+    const a = chars[0].root, b = chars[1].root, dx = b[0] - a[0], dz = b[2] - a[2], l = Math.hypot(dx, dz);
+    if (l < 0.3) return;
+    const list = solids();
+    if (list.length !== (solidsFor as Solid[] | null)?.length) { solidsFor = list; solidSet = list.length ? new Solids(list) : null; }
+    const mid: V3 = [(a[0] + b[0]) / 2, Math.max(a[1], b[1]) + 1.0, (a[2] + b[2]) / 2], dist = Math.max(4.6, rig.dist);
+    const behind = Math.atan2(-dx, -dz), c1 = Math.atan2(-dz / l, dx / l);
+    const score = (y: number) => {
+      const e: V3 = [mid[0] + Math.sin(y) * dist, mid[1] + 0.25 * dist, mid[2] + Math.cos(y) * dist];
+      const clear = solidSet ? solidSet.sweep(mid, e, 0.35) : 1;
+      return clear * 2 - Math.abs(wrap(y - (camYaw ?? rig.yaw))) * 0.25;
+    };
+    let best = camYaw ?? rig.yaw, bs = -Infinity;
+    for (const base of [c1, c1 + Math.PI]) for (const off of [0, 0.45, -0.45]) {
+      const y = wrap(base + off + 0.3 * Math.sign(wrap(behind - base)));
+      const sc = score(y);
+      if (sc > bs) { bs = sc; best = y; }
+    }
+    if (camYaw == null || bs > score(camYaw) + 0.3 || Math.abs(wrap(best - camYaw)) < 0.5) camYaw = best;
+    if (camFrames++ < 2) rig.yaw = camYaw;
+    // (the follow swings the eye to its target's yaw + π while its target "runs": that is how it is turned)
+    rig.follow = { ...rig.follow, yaw: wrap(camYaw - Math.PI), speed: 1 };
+  }, 'duel: the follow camera side-on to the pair');
 
   frame.tick('travel', (f: FrameCtx) => {
     glows.clear();

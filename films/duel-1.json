@@ -15,7 +15,7 @@
       "cast": [{ "dress": "fire", "style": "showy", "skill": 0.85 }, { "dress": "water", "style": "aggressive", "skill": 0.8 }],
       "seed": 3,
       "from": "start",
-      "preroll": 0.5,
+      "preroll": 1.2,
       "seconds": 16,
       "hud": true,
       "set": { "temple": { "tideHold": 0.42 } },
@@ -29,7 +29,7 @@
       "cast": [{ "dress": "water", "style": "evasive", "skill": 0.85 }, { "dress": "fire", "style": "aggressive", "skill": 0.85 }],
       "seed": 8,
       "from": "start",
-      "preroll": 0.5,
+      "preroll": 1.2,
       "seconds": 13,
       "hud": true
     }
