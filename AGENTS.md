@@ -204,7 +204,9 @@ pass: additive, never the opaque distance).
   `CameraRig.framePad` (the jogo stands back), `clearance` (gates and `World.clear`), `Dancer.framed` (false: the
   camera ignores it); the lock's clearance is measured from 1.6 m in front of the stage along its boom (a stage's own
   ledges never pull it in), and its distance, lens and dodge are rate-bounded (in at 5 m/s, wider at 30°/s, turning at
-  0.35 rad/s),
+  0.35 rad/s), `CameraRig.pose` (a free pose framed elsewhere, taken as it is: the duel's camera, src/duel/camera.ts,
+  side on with head room over a rising body's apex and its eye clear of the arena's pieces), `apexG` and `headroom`
+  (the lock frames a rising head at the top of its flight, and more margin over it: the duel sets them),
   `Ledge { id, x0, x1, y, solid?, thick?, bob? }`, `ledgeY`, `planeNormal`, `planePoint` (engine/camera.ts).
 - `Field` (`deposit`, `vortex`, `probe`, `updraft`, `forms`, `presence`, `fuse({ dancers, kind, amount, strength,
   tightness })`, `fusionFront`) and `fieldWind / fieldHeat / fieldWet / fieldSteam / fieldDry` (matter/field/field.wgsl,
