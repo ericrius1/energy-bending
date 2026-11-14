@@ -5,7 +5,9 @@
 //           = merge, View = lock, d-pad up = interact.
 //   free:   left stick = moveX/moveZ, d-pad down = crouch, right stick = camera unless LB is held (then it is the
 //           bending hand); everything else as locked.
-import { Buttons, Hysteresis, makeIntent, radialDeadzone, hasDOM, type Intent, type IntentSource, type InputMode } from './intent';
+//   the duel's scheme (`scheme = 'duel'`, docs/design/duel.md): RT or B dash (the left stick's way), Y kick, LB spin
+//           (an aú when the stick is pushed), RB dodge/block (held: it holds); merge only on both stick clicks.
+import { Buttons, Hysteresis, makeIntent, radialDeadzone, hasDOM, type Intent, type IntentSource, type InputMode, type Scheme } from './intent';
 
 export const BTN = { A: 0, B: 1, X: 2, Y: 3, LB: 4, RB: 5, LT: 6, RT: 7, VIEW: 8, MENU: 9, LS: 10, RS: 11, UP: 12, DOWN: 13, LEFT: 14, RIGHT: 15 } as const;
 
@@ -29,6 +31,7 @@ const padsOf = (getPads?: GetPads): (PadLike | null)[] => {
 export class GamepadSource implements IntentSource {
   readonly name: string;
   mode: InputMode = 'locked';
+  scheme: Scheme = 'jogo';
   connected = false;
   id = '';
   deadzone: number;
@@ -79,12 +82,20 @@ export class GamepadSource implements IntentSource {
     if (free) { o.moveX = dpx || lx; o.moveZ = ly; o.moveY = b(BTN.DOWN) ? -1 : 0; }
     else { o.moveX = dpx || lx; o.moveY = (b(BTN.DOWN) ? -1 : 0) || ly; }
     o.jump = B.took('A'); o.jumpHeld = B.held('A');
-    o.kick = B.took('B');
-    o.spin = B.took('Y');
-    if (!free) { if (B.took('LB')) { o.spin = true; o.auDir = -1; } if (B.took('RB')) { o.spin = true; o.auDir = 1; } }
-    o.dodge = B.took('RT'); o.dodgeHeld = B.held('RT');
+    if (this.scheme === 'duel') {
+      o.dash = B.took('RT') || B.took('B');
+      o.kick = B.took('Y');
+      o.spin = B.took('LB');
+      o.dodge = B.took('RB'); o.dodgeHeld = B.held('RB');
+      this.yHeldT = 0;
+    } else {
+      o.kick = B.took('B');
+      o.spin = B.took('Y');
+      if (!free) { if (B.took('LB')) { o.spin = true; o.auDir = -1; } if (B.took('RB')) { o.spin = true; o.auDir = 1; } }
+      o.dodge = B.took('RT'); o.dodgeHeld = B.held('RT');
+      this.yHeldT = B.held('Y') ? this.yHeldT + dt : 0;
+    }
     o.form = B.took('LT');
-    this.yHeldT = B.held('Y') ? this.yHeldT + dt : 0;
     o.merge = B.held('LSRS') || this.yHeldT >= 0.6;
     o.lock = B.took('VIEW'); o.interact = B.took('UP');
     // right stick: the bending hand, or the camera

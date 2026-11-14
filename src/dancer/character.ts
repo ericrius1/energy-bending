@@ -27,6 +27,7 @@
 import { MOVES, LOCO, J, NJ, NP, BONE, FU, ANKLE_H, tempoScale, travelAt, asMove, gingaSteps, type MoveDef, type MoveInput, type MoveStyle } from './moves';
 import { ledgeY as defaultLedgeY, planeNormal, type Ledge, type StagePlane } from '../engine/camera';
 import { makeIntent, type Intent, type Limb } from '../input/intent';
+import { wallPose, dashPose } from './kit-poses';
 import { defineParams } from '../engine/params';
 
 const TAU = Math.PI * 2;
@@ -89,6 +90,44 @@ export const PHYS = defineParams('dancer', {
   blast: 3,
   /** how fast a dancer eases onto a newly locked plane (s, a time constant) */
   lockEase: 0.22,
+  // ---- the duel's movement kit (docs/design/duel.md): off in the jogo, on in DUEL_PHYS. Locked to a plane only.
+  /** over top speed with the stick held the same way, it bleeds off this fast (m/s²): on the ground and in the air
+   *  (0: as fast as groundDecel / airAccel, the jogo's, as before: momentum doesn't carry there) */
+  groundOver: 0,
+  airOver: 0,
+  /** a landing faster than this (m/s) skids for landLag (s) with no grip (the jogo: never) */
+  landHuge: Infinity,
+  landLag: 0,
+  /** wall slide and wall jump, against StagePlane.walls and the plane's ends */
+  wallSlide: false,
+  /** the slide's top speed down a wall (m/s), and how hard a faster fall is braked to it (m/s²) */
+  wallSlideSpeed: 2.6,
+  wallFriction: 55,
+  /** a slide begins only below this upward speed (m/s): pushing in while still rising fast just rises */
+  wallStartVy: 1.5,
+  /** a wall jump reaches a wall this far off (m), and still works this long after leaving one (s) */
+  wallReach: 0.14,
+  wallCoyote: 0.1,
+  /** sliding, the stick let go or pushed away holds the body on the wall this long (s), so jump-away is reliable */
+  wallStick: 0.14,
+  /** the kick off a wall: away (m/s) and up (m/s); the stick can't pull the body back toward that wall this long (s) */
+  wallJumpX: 7.5,
+  wallJumpY: 12.5,
+  wallLock: 0.16,
+  /** the dash: 8-way (the stick; none = the facing), this fast (m/s) for this long (s), the first dashIframes (s)
+   *  hard to hit; it leaves at dashEndMul of its speed, can't be repeated for dashCool (s), and a press counts for
+   *  dashBuffer (s). One per airtime: refreshed on landing and on a wall */
+  /** the stick turns the body in the air too (the jogo: only on the ground) */
+  airTurn: false,
+  dash: false,
+  dashSpeed: 20,
+  dashTime: 0.15,
+  dashIframes: 0.08,
+  dashEndMul: 0.45,
+  dashCool: 0.18,
+  dashBuffer: 0.1,
+  /** a jump during a dash keeps this much of the dash's speed along the plane */
+  dashJumpKeep: 0.75,
 }, {
   runSpeed: { min: 1, max: 8, label: 'run (m/s)' },
   jumpV: { min: 4, max: 14, label: 'jump speed' },
@@ -96,6 +135,38 @@ export const PHYS = defineParams('dancer', {
   gravity: { min: 8, max: 40 },
   turnRate: { min: 2, max: 30 },
 });
+/** a body's physics profile: the jogo's (PHYS) or the duel's (DUEL_PHYS); `Character.phys` */
+export type Phys = typeof PHYS;
+
+/** the duel's feel (docs/design/duel.md "The feel, in numbers"): a run at top speed in 0.1 s and stopped in 0.08 s, a
+ *  snappier, heavier jump (2.2 m in a third of a second, falling faster than it rose, a tap a 0.75 m hop), fast fall,
+ *  momentum that carries, wall slides and kicks, the dash. Measured by src/dancer/test/feel.test.ts (the table in
+ *  docs/reports/11-move.md). The jogo's PHYS is untouched: `character.phys = DUEL_PHYS` (or setProfile('duel')) */
+export const DUEL_PHYS: Phys = defineParams('duel.move', {
+  ...PHYS,
+  runSpeed: 6.5,
+  groundAccel: 65, groundDecel: 82, turnAccel: 140, groundOver: 30,
+  airAccel: 34, airDrag: 10, airOver: 6,
+  gravity: 40, jumpV: 13.3, airJumpV: 11.5, fallMul: 1.45, cutMul: 3.2,
+  maxFall: 15, fastFall: 24, fastFallMul: 2.4,
+  coyote: 0.1, jumpBuffer: 0.12,
+  landSquash: 0.12, landHuge: 26, landLag: 0.1,
+  wallJumpX: 7.5, wallJumpY: 12,
+  wallSlide: true, dash: true, airTurn: true,
+  /** the body faces where the stick points at once (the jogo back-steps from its partner first) */
+  faceRunDelay: 0,
+  turnRate: 22,
+}, {
+  runSpeed: { min: 2, max: 12, label: 'run (m/s)' },
+  jumpV: { min: 6, max: 20, label: 'jump speed' },
+  gravity: { min: 15, max: 80 },
+  wallSlideSpeed: { min: 0.5, max: 6, label: 'wall slide (m/s)' },
+  wallJumpX: { min: 2, max: 14, label: 'wall kick out' },
+  wallJumpY: { min: 4, max: 20, label: 'wall kick up' },
+  dashSpeed: { min: 8, max: 40, label: 'dash (m/s)' },
+  dashTime: { min: 0.05, max: 0.4, label: 'dash (s)' },
+});
+export const PROFILES: Record<'jogo' | 'duel', Phys> = { jogo: PHYS, duel: DUEL_PHYS };
 /** the jogo's timing windows (ms) and how close counts as near (m) */
 export const COMBAT = defineParams('combat', { PARRY_MS: 150, PERFECT_MS: 90, NEAR: 0.14 });
 
@@ -112,6 +183,8 @@ interface MoveState {
   def: MoveDef; name: string; t: number; dur: number; serial: number; yaw: number; f: [number, number];
   p0: V3; v0: V3; air: boolean; aim3: V3; aimW: V3; aimN: V3; hand: number; bpm: number; startTime: number;
   limb: Limb | null; camera: boolean; ground: boolean; perfect: boolean; off?: boolean;
+  /** the gravity an air move falls by (the body's profile's) */
+  g: number;
 }
 interface MoveOpts { dir?: number; dirVec?: [number, number]; yaw?: number; aim?: [number, number]; limb?: Limb | null; camera?: boolean }
 interface Choice extends MoveOpts { name: string; blink?: boolean }
@@ -189,6 +262,21 @@ export class Character {
   camLegW = 0;
   /** the free floor's height under the dancer (or the plane's support) last step */
   groundY = 0;
+  /** the body's physics profile: the jogo's PHYS, or the duel's DUEL_PHYS (wall slides and kicks, the dash, its feel) */
+  phys: Phys = PHYS;
+  /** sliding down a wall now: which way the wall is along the plane (+1 at +s), else 0; and the wall's id */
+  wallSide = 0;
+  wallId: string | null = null;
+  /** the dash: time left in it (s, 0 when not dashing), its velocity along the plane and up (m/s), dashes left this
+   *  airtime, and the time since it began */
+  dashT = 0;
+  dashV: [number, number] = [0, 0];
+  dashes = 1;
+  dashAge = 0;
+  /** the dash's way up (-1..1: the lunge's pose) */
+  dashUp = 0;
+  /** how much the wall's lean and the dash's lunge show (0..1, eased) */
+  wallW = 0; dashW = 0;
 
   private _local = new Float32Array(NP);
   private _tmp = new Float32Array(NP);
@@ -202,6 +290,11 @@ export class Character {
   private coyote = 0; private airJumps = 1; private fastFalling = false;
   private jumpBuf = 0; private btnBuf: { b: string; t: number; auDir?: number; flick?: boolean; limb?: Limb } | null = null;
   private dropT = 0; private dropId: string | null = null;
+  /** the kit's timers: the wall in reach (way, id; 0 none), its coyote, the stick's pull off it, the kick's lockout and
+   *  its way, the dash's buffer and cooldown, a huge landing's skid */
+  private wallNear = 0; private wallNearId: string | null = null; private wallCoyoteT = 0; private wallLast = 0; private wallLastId: string | null = null;
+  private wallStickT = 0; private lockT = 0; private lockDir = 0;
+  private dashBuf = 0; private dashCoolT = 0; private landLagT = 0;
   private awayT = 0;
   private blockStart = -1;
   private aimW = 0; private aimPos: V3 | null = null; private aimVel: V3 = [0, 0, 0];
@@ -214,8 +307,9 @@ export class Character {
   /** where a free dancer re-forms */
   home: V3 = [0, 0, 0];
 
-  constructor(o: { seat?: number; plane?: StagePlane | null; terrain?: Terrain; aimHand?: 'L' | 'R'; x?: number; y?: number; z?: number } = {}) {
+  constructor(o: { seat?: number; plane?: StagePlane | null; terrain?: Terrain; aimHand?: 'L' | 'R'; x?: number; y?: number; z?: number; phys?: Phys | 'jogo' | 'duel' } = {}) {
     this.seat = o.seat || 0;
+    if (o.phys) this.phys = typeof o.phys === 'string' ? PROFILES[o.phys] : o.phys;
     this.aimHand = (o.aimHand || 'R') === 'L' ? -1 : 1;
     this.plane = o.plane ?? null;
     this.terrain = o.terrain ?? FLAT;
@@ -237,6 +331,7 @@ export class Character {
     this.yaw = this.plane ? this._yawForDir(this.dir) : this.yaw;
     this.grounded = false; this.support = null; this.coyote = 0; this.airJumps = 1; this.fastFalling = false;
     this.jumpBuf = 0; this.btnBuf = null; this.dropT = 0; this.dropId = null;
+    this._resetKit();
     this.move = null; this.stagger = 0; this.staggerDur = 0; this.reformT = -1; this.blinkT = 0;
     this.landK = 0; this.airW = 0; this.runW = 0; this.crouchW = 0; this.runPhase = 0; this.awayT = 0;
     this.blockStart = -1; this.aimW = 0; this.aimPos = null; this.aimVel = [0, 0, 0];
@@ -248,9 +343,19 @@ export class Character {
     this._prev.set(this.pose); this.vel.fill(0);
   }
 
+  /** the duel's feel or the jogo's (PROFILES), or a profile of one's own */
+  setProfile(p: Phys | 'jogo' | 'duel') { this.phys = typeof p === 'string' ? PROFILES[p] : p; }
+  private _resetKit() {
+    this.wallSide = 0; this.wallId = null; this.wallNear = 0; this.wallNearId = null; this.wallCoyoteT = 0; this.wallLast = 0; this.wallLastId = null;
+    this.wallStickT = 0; this.lockT = 0; this.lockDir = 0;
+    this.dashT = 0; this.dashV = [0, 0]; this.dashes = 1; this.dashAge = 0; this.dashBuf = 0; this.dashCoolT = 0; this.landLagT = 0;
+    this.wallW = 0; this.dashW = 0;
+  }
+
   /** lock to a plane (or free with null), easing the dancer onto it from where it stands */
   setPlane(p: StagePlane | null) {
     if (p === this.plane) return;
+    this.dashT = 0; this.wallSide = 0; this.wallId = null; this.wallNear = 0; this.wallCoyoteT = 0;
     if (!p) {
       this.plane = null;
       this.easeS = this.easeN = 0;
@@ -260,7 +365,7 @@ export class Character {
     this.plane = p;
     const n = planeNormal(p);
     const s = (this.root[0] - p.origin[0]) * p.right[0] + (this.root[2] - p.origin[2]) * p.right[2];
-    const lim = p.halfWidth - PHYS.wallMargin;
+    const lim = p.halfWidth - this.phys.wallMargin;
     this.easeS = s - clamp(s, -lim, lim);
     this.easeN = (this.root[0] - p.origin[0]) * n[0] + (this.root[2] - p.origin[2]) * n[2];
     const vs = this.v[0] * p.right[0] + this.v[2] * p.right[2];
@@ -283,7 +388,7 @@ export class Character {
   /** height above the plane's origin (locked) or the world's (free) */
   private get py() { return this.root[1] - (this.plane ? this.plane.origin[1] : 0); }
   private _yawForDir(dir: number) {
-    const pl = this.plane, r = pl ? pl.right : [1, 0, 0], n = pl ? planeNormal(pl) : [0, 0, 1], o = pl ? PHYS.viewOpen : 0;
+    const pl = this.plane, r = pl ? pl.right : [1, 0, 0], n = pl ? planeNormal(pl) : [0, 0, 1], o = pl ? this.phys.viewOpen : 0;
     return yawOf(r[0] * dir * Math.cos(o) + n[0] * Math.sin(o), r[2] * dir * Math.cos(o) + n[2] * Math.sin(o));
   }
   private spawnPoint(): [number, number] {
@@ -307,12 +412,31 @@ export class Character {
   get reforming() { return this.reformT >= 0; }
   get staggered() { return this.stagger > 0; }
   private _u() { const m = this.move; return m ? clamp(m.t / m.dur, 0, 1) : 0; }
+  /** hard to hit: re-forming, a blink, a move's i-frames, or the first `phys.dashIframes` of a dash */
   get invulnerable() {
     if (this.reformT >= 0 || this.blinkT > 0) return true;
+    if (this.dashT > 0 && this.dashAge < this.phys.dashIframes) return true;
     const m = this.move; if (!m || !m.def.iframes) return false;
     const u = this._u(); return u >= m.def.iframes[0] && u <= m.def.iframes[1];
   }
   get dodging() { return !!(this.move && this.move.def.evade) || this.blinkT > 0; }
+  /** in a dash now */
+  get dashing() { return this.dashT > 0; }
+  /** sliding down a wall now */
+  get onWall() { return this.wallSide !== 0; }
+  /** which way a wall a jump would kick off now lies along the plane (+1 at +s, -1, or 0 none): in reach, or left
+   *  less than wallCoyote ago. For the virtual players: what a jump means now */
+  get wallKick() {
+    if (!this.phys.wallSlide || !this.plane || this.grounded || this.coyote > 0) return 0;
+    return this.wallNear || (this.wallCoyoteT > 0 ? this.wallLast : 0);
+  }
+  /** the dash for a HUD: 1 ready, 0 spent (in a dash, or used this airtime), between while it cools down */
+  get dashReady() {
+    const P = this.phys;
+    if (!P.dash || this.dashT > 0 || this.reformT >= 0) return 0;
+    if (!this.grounded && this.dashes <= 0) return 0;
+    return 1 - clamp(this.dashCoolT / Math.max(1e-6, P.dashCool), 0, 1);
+  }
   get blocking() { return !!(this.move && this.move.name === 'block' && this._u() < 0.45 && this._u() > 0.04); }
   get blockAge() { return this.blocking ? this.time - this.blockStart : Infinity; }
   get flags() { return (this.dodging ? 1 : 0) | (this.airborne ? 2 : 0) | (this.blocking ? 4 : 0) | (this.dir < 0 ? 8 : 0) | (this.staggered ? 16 : 0); }
@@ -324,7 +448,7 @@ export class Character {
     const out: Surface[] = [], pl = this.plane;
     if (!pl) return out;
     if (pl.ground != null) out.push({ id: '_ground', L: null, y: pl.ground, x0: -Infinity, x1: Infinity, solid: true, thick: 0 });
-    const add = (L: Ledge) => out.push({ id: L.id, L, y: this._ledgeY(L, beat), x0: L.x0, x1: L.x1, solid: !!L.solid, thick: L.thick ?? PHYS.solidThick });
+    const add = (L: Ledge) => out.push({ id: L.id, L, y: this._ledgeY(L, beat), x0: L.x0, x1: L.x1, solid: !!L.solid, thick: L.thick ?? this.phys.solidThick });
     for (const L of pl.ledges) add(L);
     if (this.extraLedges) for (const L of this.extraLedges()) add(L);
     return out;
@@ -337,7 +461,7 @@ export class Character {
     }
     const s = this.s, y = this.py;
     for (const S of this._surfaces(beat)) {
-      if (s >= S.x0 - PHYS.ledgeMargin && s <= S.x1 + PHYS.ledgeMargin && Math.abs(y - S.y) < 0.06) {
+      if (s >= S.x0 - this.phys.ledgeMargin && s <= S.x1 + this.phys.ledgeMargin && Math.abs(y - S.y) < 0.06) {
         this.root[1] = this.plane.origin[1] + S.y; this.grounded = true; this.support = { id: S.id, L: S.L }; return;
       }
     }
@@ -349,6 +473,7 @@ export class Character {
     this.v = [vx, vy, vz];
     if (this.plane) { const r = this.plane.right, vs = vx * r[0] + vz * r[2]; this.v = [r[0] * vs, vy, r[2] * vs]; }
     if (vy > 0) { this.grounded = false; this.support = null; }
+    this.dashT = 0; this.wallSide = 0; this.wallId = null;
     this.stagger = this.staggerDur = Math.max(0.05, stag);
     this._endMove(); this._crossfade('stagger', 0.06);
   }
@@ -383,7 +508,7 @@ export class Character {
       def, name: def.name, t: 0, dur: def.dur * tempoScale(bpm), serial: ++this.serial, yaw, f,
       p0: [this.root[0], this.root[1], this.root[2]], v0: still ? [0, air ? this.v[1] : 0, 0] : air ? [this.v[0], this.v[1], this.v[2]] : [this.v[0], 0, this.v[2]], air, aim3, aimW,
       aimN: [aimW[0] / l, aimW[1] / l, aimW[2] / l], hand: this.aimHand, bpm, startTime: this.time, limb: opts.limb || null, camera: !!opts.camera,
-      ground: !air, perfect: false,
+      ground: !air, perfect: false, g: this.phys.gravity,
     };
     // the real limb already wound up: the move starts at its active window, and the root stays the player's
     if (opts.camera && def.active) { m.t = def.active[0] * m.dur; m.off = true; }
@@ -396,7 +521,7 @@ export class Character {
     m.perfect = Math.abs(offMs) <= COMBAT.PERFECT_MS;
     this.events.push({ type: 'move', move: def.name, serial: m.serial, perfect: m.perfect, offMs: Math.round(offMs), x: this.root[0], y: this.root[1], z: this.root[2],
       dir: this.dir, yaw, aim: this._aimScreen(aimW), aim3: aim3.slice(), fdir: f.slice(), vx: m.v0[0], vy: m.v0[1], vz: m.v0[2], air, bpm, hand: this.aimHand > 0 ? 'R' : 'L',
-      camera: m.camera || undefined, limb: m.limb || undefined });
+      camera: m.camera || undefined, limb: m.limb || undefined, ...(m.g !== PHYS.gravity ? { g: m.g } : {}) });
     this._crossfade('move' + m.serial, def.sampled ? 0.2 : 0.08);
     return true;
   }
@@ -442,11 +567,12 @@ export class Character {
     this._lastBeat = bp;
     this._intent = it;
     // edges into buffers
-    if (it.jump) this.jumpBuf = PHYS.jumpBuffer;
-    for (const b of ['punch', 'kick', 'spin', 'dodge'] as const) if (it[b]) this.btnBuf = { b, t: PHYS.moveBuffer, auDir: it.auDir, flick: it.flick };
+    if (it.jump) this.jumpBuf = this.phys.jumpBuffer;
+    if (it.dash && this.phys.dash) this.dashBuf = this.phys.dashBuffer;
+    for (const b of ['punch', 'kick', 'spin', 'dodge'] as const) if (it[b]) this.btnBuf = { b, t: this.phys.moveBuffer, auDir: it.auDir, flick: it.flick };
     if (it.limb && (it.punch || it.kick) && this.cam && this.btnBuf) this.btnBuf.limb = it.limb;
     if (it.limbs) this.setPoseFromCamera(it.limbs, !!it.hasLegs);
-    const n = Math.max(1, Math.ceil(dt / PHYS.substep - 1e-9)), h = dt / n;
+    const n = Math.max(1, Math.ceil(dt / this.phys.substep - 1e-9)), h = dt / n;
     for (let i = 0; i < n; i++) {
       const b = beat0 + ((bp - beat0) * (i + 1)) / n, bPrev = beat0 + ((bp - beat0) * i) / n;
       this._beat = b;
@@ -463,15 +589,17 @@ export class Character {
     this.coyote = Math.max(0, this.coyote - h);
     this.dropT = Math.max(0, this.dropT - h);
     this.blinkT = Math.max(0, this.blinkT - h);
-    this.landK = Math.max(0, this.landK - h / PHYS.landSquash);
+    this.dashBuf = Math.max(0, this.dashBuf - h); this.dashCoolT = Math.max(0, this.dashCoolT - h);
+    this.wallCoyoteT = Math.max(0, this.wallCoyoteT - h); this.lockT = Math.max(0, this.lockT - h); this.landLagT = Math.max(0, this.landLagT - h);
+    this.landK = Math.max(0, this.landK - h / this.phys.landSquash);
     if (this.easeS || this.easeN) {
-      const k = Math.exp(-h / PHYS.lockEase);
+      const k = Math.exp(-h / this.phys.lockEase);
       this.easeS = Math.abs(this.easeS * k) < 1e-4 ? 0 : this.easeS * k;
       this.easeN = Math.abs(this.easeN * k) < 1e-4 ? 0 : this.easeN * k;
     }
     if (this.reformT >= 0) {
       this.reformT += h;
-      if (this.reformT >= PHYS.reformTime) { this.reformT = -1; this._crossfade('loco', 0.1); }
+      if (this.reformT >= this.phys.reformTime) { this.reformT = -1; this._crossfade('loco', 0.1); }
       return;
     }
     if (this.stagger > 0) { this.stagger = Math.max(0, this.stagger - h); if (this.stagger === 0) this._crossfade('loco', 0.12); }
@@ -499,7 +627,7 @@ export class Character {
     if (!this.move && this.stagger <= 0) this._face(h, it);
     // ----- fallen out
     const floor = this.plane ? this.plane.origin[1] + Math.min(this.plane.ground ?? Infinity, ...this._surfaces(beat).map((S) => S.y), 0) : this.groundY;
-    if (this.root[1] < floor - PHYS.blast || this.root[1] > floor + 60) this._reform();
+    if (this.root[1] < floor - this.phys.blast || this.root[1] > floor + 60) this._reform();
     // (free, off the edge of a world with no ground: re-form at the spawn before landing on the catch floor far below)
     else if (!this.plane && this.terrain.fallY !== undefined && this.root[1] < this.terrain.fallY) this._reform();
   }
@@ -510,20 +638,33 @@ export class Character {
     const inRecovery = m && (m.def.active ? u > m.def.active[1] : u > 0.55);
     const canCancel = (name: string) => !m || m.def.loop || (m.name === 'block' && !it.dodgeHeld) ||
       (inRecovery && (m.def.cancelInto.includes('*') || m.def.cancelInto.includes(name)));
-    // jump
+    // jump (from the ground, off a wall, in the air; during a dash, keeping its speed along the plane)
+    const P = this.phys;
     if (this.jumpBuf > 0 && canCancel('jump')) {
+      const dash = this.dashT > 0 && !!this.plane;
+      const wall = P.wallSlide && this.plane ? (this.wallNear || (this.wallCoyoteT > 0 ? this.wallLast : 0)) : 0;
       if (this.grounded || this.coyote > 0) {
         const sup = this.support?.L;
         const supVy = sup && sup.bob ? (this._ledgeY(sup, beat + 0.01) - this._ledgeY(sup, beat - 0.01)) / ((0.02 * 60) / this._bpm()) : 0;
-        this.v[1] = PHYS.jumpV * (1 + PHYS.updraftJump * (this.env.updraft || 0)) + Math.max(0, supVy);
+        if (dash) this._dashJump();
+        this.v[1] = P.jumpV * (1 + P.updraftJump * (this.env.updraft || 0)) + Math.max(0, supVy);
         this.grounded = false; this.support = null; this.coyote = 0; this.jumpBuf = 0; this.fastFalling = false;
         if (m) this._endMove();
-        this.events.push({ type: 'jump', x: this.root[0], y: this.root[1], z: this.root[2], air: false });
-      } else if (this.airJumps > 0) {
-        this.v[1] = PHYS.airJumpV; this.airJumps--; this.jumpBuf = 0; this.fastFalling = false;
+        this.events.push({ type: 'jump', x: this.root[0], y: this.root[1], z: this.root[2], air: false, ...(dash ? { dash: true } : {}) });
+      } else if (wall) {
+        this._wallJump(wall, this.wallNear ? this.wallNearId : this.wallLastId);
         if (m) this._endMove();
-        this.events.push({ type: 'jump', x: this.root[0], y: this.root[1], z: this.root[2], air: true });
+      } else if (this.airJumps > 0) {
+        if (dash) this._dashJump();
+        this.v[1] = P.airJumpV; this.airJumps--; this.jumpBuf = 0; this.fastFalling = false;
+        if (m) this._endMove();
+        this.events.push({ type: 'jump', x: this.root[0], y: this.root[1], z: this.root[2], air: true, ...(dash ? { dash: true } : {}) });
       }
+    }
+    // the dash: whenever a jump could start, and the dash is ready (one per airtime, cooled down)
+    if (P.dash && this.plane && this.dashBuf > 0 && this.dashT <= 0 && this.dashCoolT <= 0 && (this.grounded || this.dashes > 0) && (canCancel('jump') || canCancel('dash'))) {
+      if (this.move) this._endMove();
+      this._dash(it);
     }
     const bb = this.btnBuf;
     if (!bb) return;
@@ -592,28 +733,77 @@ export class Character {
     let d: [number, number];
     if (this.plane) d = [this.plane.right[0] * (ch.dir || this.dir), this.plane.right[2] * (ch.dir || this.dir)];
     else d = ch.dirVec || fwdOf(this.yaw);
-    const steps = 12, st = PHYS.blinkDist / steps;
+    const steps = 12, st = this.phys.blinkDist / steps;
     for (let i = 0; i < steps; i++) {
       if (this.plane && this._solidAt(this.s + (d[0] * this.plane.right[0] + d[1] * this.plane.right[2]) * st, this.py)) break;
       this.root[0] += d[0] * st; this.root[2] += d[1] * st;
     }
-    if (this.plane && PHYS.walls) this._clampWalls();
-    this.blinkT = PHYS.blinkIframes;
+    if (this.plane && this.phys.walls) this._clampWalls();
+    this.blinkT = this.phys.blinkIframes;
     this.events.push({ type: 'blink', from, to: this.root.slice() });
     // the dodge still counts as a move for the rules; the blink replaces most of it
     this.startMove(ch.name, { dir: ch.dir });
     if (this.move) { this.move.t = this.move.dur * 0.6; this.move.off = true; }
     if (this.grounded) this._snapToSupport(this._beat);
   }
+  // ------------------------------------------------------------ the duel's kit: the dash, the wall jump
+  /** a dash: 8-way (the stick snapped to the nearest 45°; too little stick: the facing). On the ground, down is along
+   *  it; up leaves it. Spends the airtime's dash in the air (refreshed on landing and on a wall) */
+  private _dash(it: Intent) {
+    const P = this.phys;
+    let dx = 0, dy = 0;
+    const mx = clamp(it.moveX, -1, 1), my = clamp(it.moveY, -1, 1);
+    if (Math.hypot(mx, my) >= 0.35) {
+      const a = Math.round(Math.atan2(my, mx) / (Math.PI / 4)) * (Math.PI / 4);
+      dx = Math.abs(Math.cos(a)) < 1e-6 ? 0 : Math.cos(a); dy = Math.abs(Math.sin(a)) < 1e-6 ? 0 : Math.sin(a);
+    } else dx = this.dir;
+    if (this.grounded && dy < 0) { dy = 0; dx = dx ? sgn(dx) : this.dir; }
+    if (dy > 0) { this.grounded = false; this.support = null; this.coyote = 0; }
+    if (!this.grounded) this.dashes = Math.max(0, this.dashes - 1);
+    this.dashV = [dx * P.dashSpeed, dy * P.dashSpeed]; this.dashT = P.dashTime; this.dashAge = 0; this.dashBuf = 0; this.dashUp = dy;
+    this.fastFalling = false; this.wallSide = 0; this.wallId = null; this.lockT = 0;
+    if (dx) this.dir = sgn(dx);
+    this.events.push({ type: 'dash', x: this.root[0], y: this.root[1], z: this.root[2], dir: [dx, dy], air: !this.grounded });
+  }
+  /** a jump out of a dash keeps dashJumpKeep of its speed along the plane (the jump itself sets the rise) */
+  private _dashJump() {
+    const r = this.plane!.right, vs = this.dashV[0] * this.phys.dashJumpKeep;
+    this.v[0] = r[0] * vs; this.v[2] = r[2] * vs;
+    this.dashT = 0; this.dashCoolT = this.phys.dashCool;
+  }
+  /** kick off the wall that lies `way` along the plane: up and away, the air jump and the dash back, and for wallLock
+   *  the stick can't pull the body back toward it */
+  private _wallJump(way: number, id: string | null) {
+    const P = this.phys, r = this.plane!.right, away = -sgn(way);
+    this.v = [r[0] * away * P.wallJumpX, P.wallJumpY, r[2] * away * P.wallJumpX];
+    this.grounded = false; this.support = null; this.coyote = 0; this.jumpBuf = 0; this.fastFalling = false;
+    this.airJumps = 1; this.dashes = 1; this.dashT = 0;
+    this.lockT = P.wallLock; this.lockDir = sgn(way);
+    this.wallSide = 0; this.wallId = null; this.wallNear = 0; this.wallCoyoteT = 0; this.wallStickT = 0;
+    this.dir = away;
+    this.events.push({ type: 'wallJump', x: this.root[0], y: this.root[1], z: this.root[2], dir: away, wall: id });
+  }
+  /** the plane's walls in its own coordinates (plane y from its origin), its ends among them: a face at s looking
+   *  toward `side`, spanning y0..y1 */
+  private _walls(): { id: string; s: number; side: number; y0: number; y1: number; climb: boolean }[] {
+    const pl = this.plane!, P = this.phys, oy = pl.origin[1], lim = pl.halfWidth - P.wallMargin;
+    const out = [
+      { id: '_left', s: -lim - P.halfW, side: 1, y0: -Infinity, y1: Infinity, climb: true },
+      { id: '_right', s: lim + P.halfW, side: -1, y0: -Infinity, y1: Infinity, climb: true },
+    ];
+    for (const w of pl.walls ?? []) out.push({ id: w.id, s: w.s, side: w.side < 0 ? -1 : 1, y0: w.y0 - oy, y1: w.y1 - oy, climb: w.climb !== false });
+    return out;
+  }
+
   private _solidAt(s: number, y: number) {
     for (const S of this._surfaces(this._beat)) {
       if (!S.L || !S.solid) continue;
-      if (s + PHYS.halfW > S.x0 && s - PHYS.halfW < S.x1 && y < S.y - 1e-4 && y + PHYS.bodyH > S.y - S.thick) return true;
+      if (s + this.phys.halfW > S.x0 && s - this.phys.halfW < S.x1 && y < S.y - 1e-4 && y + this.phys.bodyH > S.y - S.thick) return true;
     }
     return false;
   }
   private _clampWalls() {
-    const lim = this.plane!.halfWidth - PHYS.wallMargin, s = this.s;
+    const lim = this.plane!.halfWidth - this.phys.wallMargin, s = this.s;
     if (Math.abs(s) > lim) { const p = this._planePoint(clamp(s, -lim, lim), this.py); this.root[0] = p[0]; this.root[2] = p[2]; return true; }
     return false;
   }
@@ -626,47 +816,65 @@ export class Character {
   }
 
   /** the kinematic root of a move from its start state (identical to Character.shapesAt) */
-  static _moveRoot(m: Pick<MoveState, 'def' | 'dur' | 'p0' | 'v0' | 'air' | 'f'>, t: number): V3 {
+  static _moveRoot(m: Pick<MoveState, 'def' | 'dur' | 'p0' | 'v0' | 'air' | 'f'> & { g?: number }, t: number): V3 {
     const k = PHYS.slideK;
     const tr = travelAt(m.def, clamp(t / m.dur, 0, 1));
     if (!m.air) {
       const sl = (1 - Math.exp(-k * t)) / k;
       return [m.p0[0] + m.v0[0] * sl + m.f[0] * tr[0], m.p0[1] + tr[1], m.p0[2] + m.v0[2] * sl + m.f[1] * tr[0]];
     }
-    return [m.p0[0] + m.v0[0] * t + m.f[0] * tr[0], m.p0[1] + m.v0[1] * t - 0.5 * PHYS.gravity * t * t, m.p0[2] + m.v0[2] * t + m.f[1] * tr[0]];
+    return [m.p0[0] + m.v0[0] * t + m.f[0] * tr[0], m.p0[1] + m.v0[1] * t - 0.5 * (m.g ?? PHYS.gravity) * t * t, m.p0[2] + m.v0[2] * t + m.f[1] * tr[0]];
   }
 
   private _physPlane(h: number, it: Intent, beat: number, beatPrev: number, env: Character['env']) {
-    const pl = this.plane!, r = pl.right, oy = pl.origin[1];
+    const pl = this.plane!, r = pl.right, oy = pl.origin[1], P = this.phys;
     let s = this.s, y = this.py;
     let vs = this.v[0] * r[0] + this.v[2] * r[2], vy = this.v[1];
     const s0 = s, y0 = y;
     const m = this.move;
     const kin = !!(m && !m.off);               // the move drives the root
-    if (kin) {
+    const dashing = this.dashT > 0;
+    if (dashing) {
+      // the dash drives the body: straight, no gravity; it leaves at dashEndMul of its speed
+      vs = this.dashV[0]; vy = this.dashV[1];
+      this.dashT -= h; this.dashAge += h;
+      if (this.dashT <= 0) { this.dashT = 0; this.dashCoolT = P.dashCool; vs *= P.dashEndMul; vy *= P.dashEndMul; }
+    } else if (kin) {
       const p = Character._moveRoot(m!, m!.t);
       // (the move's root is planned in the world from where it started; read it along the plane)
       const st = (p[0] - pl.origin[0]) * r[0] + (p[2] - pl.origin[2]) * r[2] - this.easeS;
       vs = (st - s) / h;
       if (m!.air) vy = (p[1] - oy - y) / h;
     } else if (this.stagger > 0) {
-      if (this.grounded) vs -= sgn(vs) * Math.min(Math.abs(vs), 3 * 6.38 * h); else vs *= Math.exp(-PHYS.airDrag * 0.5 * h);
+      if (this.grounded) vs -= sgn(vs) * Math.min(Math.abs(vs), 3 * 6.38 * h); else vs *= Math.exp(-this.phys.airDrag * 0.5 * h);
     } else if (m) {
       // a move that left its ledge coasts
     } else {
       const crouch = this.grounded && it.moveY < -0.5;
-      const target = crouch || env.still ? 0 : clamp(it.moveX, -1, 1) * PHYS.runSpeed;
-      if (this.grounded) {
-        const grip = 1 - PHYS.slickGrip * (env.slick || 0);
-        const a = (Math.abs(target) > Math.abs(vs) && sgn(target) === sgn(vs)) || Math.abs(vs) < 1e-4 ? PHYS.groundAccel : sgn(target) !== sgn(vs) && Math.abs(target) > 0.01 ? PHYS.turnAccel : PHYS.groundDecel;
+      const target = crouch || env.still ? 0 : clamp(it.moveX, -1, 1) * P.runSpeed;
+      if (this.grounded && this.landLagT > 0) {
+        // a huge landing skids, no grip
+        vs -= sgn(vs) * Math.min(Math.abs(vs), (P.groundOver || P.groundDecel) * h);
+      } else if (this.grounded) {
+        const grip = 1 - P.slickGrip * (env.slick || 0);
+        // speeding up, turning round, past top speed with the stick held (momentum carries: groundOver), stopping
+        const a = (Math.abs(target) > Math.abs(vs) && sgn(target) === sgn(vs)) || Math.abs(vs) < 1e-4 ? P.groundAccel
+          : sgn(target) !== sgn(vs) && Math.abs(target) > 0.01 ? P.turnAccel
+          : sgn(target) === sgn(vs) && Math.abs(target) > 0.01 ? P.groundOver || P.groundDecel : P.groundDecel;
         vs += clamp(target - vs, -a * grip * h, a * grip * h);
-      } else {
-        if (Math.abs(it.moveX) > 0.1 && !env.still) vs += clamp(target - vs, -PHYS.airAccel * h, PHYS.airAccel * h);
-        else vs -= sgn(vs) * Math.min(Math.abs(vs), PHYS.airDrag * h);
-      }
+      } else if (this.lockT > 0 && (Math.abs(it.moveX) <= 0.1 || sgn(it.moveX) === this.lockDir)) {
+        // just kicked off a wall: the stick can't pull the body back toward it, and the kick keeps its speed
+      } else if (Math.abs(it.moveX) > 0.1 && !env.still) {
+        const a = sgn(target) === sgn(vs) && Math.abs(vs) > Math.abs(target) ? P.airOver || P.airAccel : P.airAccel;
+        vs += clamp(target - vs, -a * h, a * h);
+      } else vs -= sgn(vs) * Math.min(Math.abs(vs), P.airDrag * h);
     }
-    // gravity
-    if (!this.grounded && !(kin && m!.air)) vy = this._gravity(h, vy, it, m);
+    // gravity; on a wall, the slide (held against it)
+    if (this.wallSide && !this.grounded && !dashing) {
+      if (vy < -P.wallSlideSpeed) vy = Math.min(-P.wallSlideSpeed, vy + P.wallFriction * h);
+      else vy = Math.max(vy - P.gravity * P.fallMul * h, -P.wallSlideSpeed);
+      vs = this.wallSide * 0.5;
+    } else if (!this.grounded && !(kin && m!.air) && !dashing) vy = this._gravity(h, vy, it, m);
     // horizontal
     s += vs * h;
     if (this.grounded && env.carryX && !kin && !env.still) s += env.carryX * h;
@@ -674,24 +882,36 @@ export class Character {
     for (const S of surf) {
       if (!S.L || !S.solid) continue;
       const bot = S.y - S.thick;
-      if (y < S.y - 1e-4 && y + PHYS.bodyH > bot && s + PHYS.halfW > S.x0 && s - PHYS.halfW < S.x1) {
-        if (s0 <= (S.x0 + S.x1) / 2) s = S.x0 - PHYS.halfW; else s = S.x1 + PHYS.halfW;
+      if (y < S.y - 1e-4 && y + this.phys.bodyH > bot && s + this.phys.halfW > S.x0 && s - this.phys.halfW < S.x1) {
+        if (s0 <= (S.x0 + S.x1) / 2) s = S.x0 - this.phys.halfW; else s = S.x1 + this.phys.halfW;
         vs = 0;
       }
     }
-    if (PHYS.walls) { const lim = pl.halfWidth - PHYS.wallMargin; if (Math.abs(s) > lim) { s = clamp(s, -lim, lim); vs = 0; } }
+    if (this.phys.walls) { const lim = pl.halfWidth - this.phys.wallMargin; if (Math.abs(s) > lim) { s = clamp(s, -lim, lim); vs = 0; } }
+    // the plane's walls: a body on a face's side can't pass it while their heights overlap
+    if (pl.walls) for (const w of pl.walls) {
+      const side = w.side < 0 ? -1 : 1;
+      if (!(y < w.y1 - oy && y + P.bodyH > w.y0 - oy)) continue;
+      const face = w.s + side * P.halfW;
+      if (side * (s0 - face) >= -1e-3 && side * (s - face) < 0) { s = face; if (vs * side < 0) vs = 0; }
+    }
+    // a dash into a wall loses its way along the plane (and ends, if that was all of it)
+    if (dashing && this.dashT > 0 && this.dashV[0] !== 0 && vs === 0) {
+      this.dashV[0] = 0;
+      if (!this.dashV[1]) { this.dashT = 0; this.dashCoolT = P.dashCool; }
+    }
     // vertical
     let landed: number | null = null;
     if (this.grounded) {
       const S = surf.find((q) => this.support && q.id === this.support.id);
-      if (S && s >= S.x0 - PHYS.ledgeMargin && s <= S.x1 + PHYS.ledgeMargin) { y = S.y; vy = 0; }
+      if (S && s >= S.x0 - this.phys.ledgeMargin && s <= S.x1 + this.phys.ledgeMargin) { y = S.y; vy = 0; }
       else {
-        this.grounded = false; this.support = null; this.coyote = PHYS.coyote; vy = 0;
+        this.grounded = false; this.support = null; this.coyote = this.phys.coyote; vy = 0;
         if (m) m.off = true;
       }
       // drop through a one-way ledge
       if (this.grounded && S && S.L && !S.solid && it.moveY < -0.6 && !kin) {
-        this.grounded = false; this.dropId = S.id; this.dropT = PHYS.dropTime; this.support = null; vy = -0.3 * 6.38; this.coyote = 0;
+        this.grounded = false; this.dropId = S.id; this.dropT = this.phys.dropTime; this.support = null; vy = -0.3 * 6.38; this.coyote = 0;
       }
     }
     if (!this.grounded) {
@@ -699,7 +919,7 @@ export class Character {
       let best: Surface | null = null;
       for (let i = 0; i < surf.length; i++) {
         const S = surf[i], Sp = surfPrev[i];
-        if (s < S.x0 - PHYS.ledgeMargin || s > S.x1 + PHYS.ledgeMargin) continue;
+        if (s < S.x0 - this.phys.ledgeMargin || s > S.x1 + this.phys.ledgeMargin) continue;
         if (S.id === this.dropId && this.dropT > 0) continue;
         const relV = vy - (S.y - Sp.y) / h;
         if (S.id === '_ground') { if (y <= S.y && relV <= 0.006) best = !best || S.y > best.y ? S : best; continue; }
@@ -711,27 +931,60 @@ export class Character {
         for (const S of surf) {
           if (!S.L || !S.solid) continue;
           const bot = S.y - S.thick;
-          if (vy > 0 && y0 + PHYS.bodyH <= bot + 1e-3 && y + PHYS.bodyH > bot && s + PHYS.halfW > S.x0 && s - PHYS.halfW < S.x1) { y = bot - PHYS.bodyH; vy = 0; }
+          if (vy > 0 && y0 + this.phys.bodyH <= bot + 1e-3 && y + this.phys.bodyH > bot && s + this.phys.halfW > S.x0 && s - this.phys.halfW < S.x1) { y = bot - this.phys.bodyH; vy = 0; }
         }
       }
     }
     const p = this._planePoint(s, y);
     this.root[0] = p[0]; this.root[1] = p[1]; this.root[2] = p[2];
-    if (!kin) vs = clamp(vs, -3 * PHYS.runSpeed, 3 * PHYS.runSpeed);
+    if (!kin) { const most = Math.max(3 * P.runSpeed, P.dash ? P.dashSpeed : 0); vs = clamp(vs, -most, most); }
     this.v = [r[0] * vs, vy, r[2] * vs];
     this.groundY = oy + (this.grounded ? y : this.lastGroundY - oy);
     if (landed != null) this._onLand(landed);
     if (this.grounded) this.lastGroundY = this.root[1];
+    if (P.wallSlide) this._wallContact(s, y, vy, it, h);
+  }
+
+  /** which wall is in reach (for a wall jump, and its coyote), and the slide: it begins pushing into a climbable wall
+   *  while falling (or nearly), refreshing the air jump and the dash; it holds while the body touches that wall, isn't
+   *  pulled down off it, and the stick has been off it less than wallStick */
+  private _wallContact(s: number, y: number, vy: number, it: Intent, h: number) {
+    const P = this.phys;
+    let near = 0, nearId: string | null = null, best = Infinity;
+    if (!this.grounded && this.reformT < 0) {
+      const mid = y + P.bodyH * 0.5;
+      for (const w of this._walls()) {
+        if (!w.climb || mid < w.y0 || mid > w.y1 - 0.1) continue;
+        const d = w.side * (s - w.s) - P.halfW;       // the gap between the body's side and the face
+        if (d < -0.05 || d > P.wallReach || d >= best) continue;
+        best = d; near = -w.side; nearId = w.id;
+      }
+      // the wall just kicked off isn't in reach again until the lockout is over (no second kick off it from afar)
+      if (near && this.lockT > 0 && near === this.lockDir) { near = 0; nearId = null; best = Infinity; }
+    }
+    this.wallNear = near; this.wallNearId = nearId;
+    if (near) { this.wallCoyoteT = P.wallCoyote; this.wallLast = near; this.wallLastId = nearId; }
+    const touch = near !== 0 && best <= 0.02, push = it.moveX * near > 0.3, down = it.moveY < -0.6;
+    const busy = this.grounded || this.dashT > 0 || !!this.move || this.stagger > 0;
+    if (this.wallSide) {
+      if (!touch || near !== this.wallSide || down || busy) { this.wallSide = 0; this.wallId = null; }
+      else if (!push) { this.wallStickT += h; if (this.wallStickT > P.wallStick) { this.wallSide = 0; this.wallId = null; } }
+      else this.wallStickT = 0;
+    } else if (touch && push && !down && !busy && vy <= P.wallStartVy) {
+      this.wallSide = near; this.wallId = nearId; this.wallStickT = 0;
+      this.airJumps = 1; this.dashes = 1; this.fastFalling = false;
+      this.events.push({ type: 'wall', x: this.root[0], y: this.root[1], z: this.root[2], side: near, wall: nearId });
+    }
   }
 
   private _gravity(h: number, vy: number, it: Intent, m: MoveState | null) {
     const up = this.env.updraft || 0;
-    let g = PHYS.gravity * (vy < 0 ? PHYS.fallMul : 1) * (1 - PHYS.updraftGravity * up);
-    if (vy > 0 && !it.jumpHeld && !m && this.stagger <= 0) g *= PHYS.cutMul;
+    let g = this.phys.gravity * (vy < 0 ? this.phys.fallMul : 1) * (1 - this.phys.updraftGravity * up);
+    if (vy > 0 && !it.jumpHeld && !m && this.stagger <= 0) g *= this.phys.cutMul;
     if (!m && this.stagger <= 0 && vy < 1.6 && it.moveY < -0.6) this.fastFalling = true;
-    if (this.fastFalling) g *= PHYS.fastFallMul;
+    if (this.fastFalling) g *= this.phys.fastFallMul;
     vy -= g * h;
-    const mf = this.fastFalling ? PHYS.fastFall : PHYS.maxFall * (1 - 0.3 * up);
+    const mf = this.fastFalling ? this.phys.fastFall : this.phys.maxFall * (1 - 0.3 * up);
     return Math.max(vy, -mf);
   }
 
@@ -750,9 +1003,9 @@ export class Character {
       const mv = this._moveVec(it);
       const crouch = this.grounded && it.moveY < -0.5;
       let tx = mv[0], tz = mv[1]; const l = Math.hypot(tx, tz); if (l > 1) { tx /= l; tz /= l; }
-      const sp = crouch || env.still ? 0 : it.walk ? PHYS.walkSpeed : PHYS.runSpeed;
+      const sp = crouch || env.still ? 0 : it.walk ? this.phys.walkSpeed : this.phys.runSpeed;
       tx *= sp; tz *= sp;
-      const a = (this.grounded ? PHYS.groundAccel * (1 - PHYS.slickGrip * (env.slick || 0)) : PHYS.airAccel) * h * (l > 0.05 ? 1 : 1.3);
+      const a = (this.grounded ? this.phys.groundAccel * (1 - this.phys.slickGrip * (env.slick || 0)) : this.phys.airAccel) * h * (l > 0.05 ? 1 : 1.3);
       const dx = tx - vx, dz = tz - vz, dl = Math.hypot(dx, dz);
       if (dl > a) { vx += (dx / dl) * a; vz += (dz / dl) * a; } else { vx = tx; vz = tz; }
     }
@@ -762,7 +1015,7 @@ export class Character {
     this.groundY = g0;
     let landed: number | null = null;
     if (this.grounded) {
-      if (y - g0 > 0.25) { this.grounded = false; this.coyote = PHYS.coyote; vy = 0; if (m) m.off = true; }
+      if (y - g0 > 0.25) { this.grounded = false; this.coyote = this.phys.coyote; vy = 0; if (m) m.off = true; }
       else { y = g0; vy = 0; }
     }
     if (!this.grounded) {
@@ -770,7 +1023,7 @@ export class Character {
       if (y <= g0 && vy <= 0.006) { landed = vy; y = g0; vy = 0; this.grounded = true; this.support = { id: '_free' }; }
     }
     this.root = [x, y, z];
-    if (!kin) { const sp = Math.hypot(vx, vz), most = 3 * PHYS.runSpeed; if (sp > most) { vx *= most / sp; vz *= most / sp; } }
+    if (!kin) { const sp = Math.hypot(vx, vz), most = 3 * this.phys.runSpeed; if (sp > most) { vx *= most / sp; vz *= most / sp; } }
     this.v = [vx, vy, vz];
     if (landed != null) this._onLand(landed);
     if (this.grounded) this.lastGroundY = y;
@@ -778,6 +1031,14 @@ export class Character {
 
   private _onLand(vy: number) {
     this.airJumps = 1; this.fastFalling = false;
+    // the kit: the dash back; a dash down into the floor ends there; a huge landing skids
+    const P = this.phys;
+    this.dashes = 1; this.wallSide = 0; this.wallId = null; this.lockT = 0;
+    if (this.dashT > 0 && this.dashV[1] < 0) {
+      this.dashT = 0; this.dashCoolT = P.dashCool;
+      this.v[0] *= P.dashEndMul; this.v[2] *= P.dashEndMul;
+    }
+    if (-vy > P.landHuge) this.landLagT = P.landLag;
     this.landK = clamp(-vy / (1.4 * 6.38), 0.25, 1);
     if (this.move && this.move.air) this._endMove();
     if (this.move) this.move.off = true;
@@ -788,9 +1049,11 @@ export class Character {
     if (this.plane) {
       const pl = this.plane, s = this.s;
       const look = this.lookAt ? (this.lookAt[0] - pl.origin[0]) * pl.right[0] + (this.lookAt[2] - pl.origin[2]) * pl.right[2] - this.easeS : null;
-      if (this.grounded && Math.abs(it.moveX) > 0.3) {
+      if (this.wallSide) { this.awayT = 0; this.dir = this.wallSide; }
+      else if (this.dashT > 0) { this.awayT = 0; }
+      else if ((this.grounded || this.phys.airTurn) && Math.abs(it.moveX) > 0.3) {
         const md = sgn(it.moveX);
-        if (look != null && md !== sgn(look - s)) { this.awayT += h; if (this.awayT > PHYS.faceRunDelay) this.dir = md; }
+        if (look != null && md !== sgn(look - s)) { this.awayT += h; if (this.awayT > this.phys.faceRunDelay) this.dir = md; }
         else { this.awayT = 0; this.dir = md; }
       } else {
         this.awayT = 0;
@@ -807,7 +1070,7 @@ export class Character {
     }
   }
   private _turnToward(target: number, h: number) {
-    const d = wrapPi(target - this.yaw), stp = PHYS.turnRate * h;
+    const d = wrapPi(target - this.yaw), stp = this.phys.turnRate * h;
     this.yaw = Math.abs(d) <= stp ? target : this.yaw + sgn(d) * stp;
     this.yaw = wrapPi(this.yaw);
   }
@@ -818,6 +1081,7 @@ export class Character {
     else this.root = [this.home[0], this.terrain.groundAt(this.home[0], this.home[2]), this.home[2]];
     this.v = [0, 0, 0]; this.move = null; this.stagger = 0; this.grounded = false; this.support = null;
     this.reformT = 0; this.airJumps = 1; this.fastFalling = false; this.btnBuf = null; this.jumpBuf = 0;
+    this._resetKit();
     this.dir = this.seat ? -1 : 1; this.yaw = this.plane ? this._yawForDir(this.dir) : this.yaw;
     this._snapToSupport(this._beat || 0);
     if (!this.grounded && this.plane && this.plane.ground != null && Math.abs(sp[1] - this.plane.ground) < 0.06) { this.grounded = true; this.support = { id: '_ground' }; }
@@ -838,17 +1102,19 @@ export class Character {
     const L = this._local, T = this._tmp, T2 = this._tmp2;
     const speed = this.plane ? Math.abs(this.v[0] * this.plane.right[0] + this.v[2] * this.plane.right[2]) : Math.hypot(this.v[0], this.v[2]);
     const a = (k: number) => 1 - Math.exp(-dt * k);
-    const runK = clamp(speed / PHYS.runSpeed, 0, 1);
+    const runK = clamp(speed / this.phys.runSpeed, 0, 1);
     this.runW += (smooth(runK * 1.6) * (this.grounded ? 1 : 0) - this.runW) * a(10);
     this.crouchW += ((this.grounded && !this.move && this.stagger <= 0 && it.moveY < -0.5 ? 1 : 0) - this.crouchW) * a(14);
     this.airW += ((this.grounded ? 0 : 1) - this.airW) * a(this.grounded ? 22 : 12);
+    this.wallW += ((this.wallSide ? 1 : 0) - this.wallW) * a(this.wallSide ? 18 : 10);
+    this.dashW += ((this.dashT > 0 ? 1 : 0) - this.dashW) * a(this.dashT > 0 ? 45 : 10);
     const prevPhase = this.runPhase;
     // a stride is about 3 m at a run (the prototype's 0.47 world units)
     this.runPhase += (speed * dt) / 0.48;
     let src: string, yaw = this.yaw;
     const m = this.move;
     this.style = {};
-    if (this.reformT >= 0) { LOCO.reform(L, this.reformT / PHYS.reformTime); src = 'reform'; }
+    if (this.reformT >= 0) { LOCO.reform(L, this.reformT / this.phys.reformTime); src = 'reform'; }
     else if (this.stagger > 0) { LOCO.stagger(L, 1 - this.stagger / this.staggerDur); src = 'stagger'; }
     else if (m) {
       const u = clamp(m.t / m.dur, 0, 1), ctx = { hand: m.hand, aim: m.aim3, air: m.air, beat, groove: 1, t: m.t };
@@ -862,14 +1128,19 @@ export class Character {
       if (this.landK > 0 && this.grounded) { LOCO.land(T, this.landK); for (let i = 0; i < NP; i++) L[i] += (T[i] - L[i]) * this.landK * 0.8; }
       if (this.airW > 0.01) {
         const vy = this.v[1] / 6.38;
-        if (vy > 0) LOCO.rise(T, clamp(vy / (PHYS.jumpV / 6.38), 0.3, 1)); else LOCO.fall(T, clamp(-vy / 1.2, 0, 1));
+        if (vy > 0) LOCO.rise(T, clamp(vy / (this.phys.jumpV / 6.38), 0.3, 1)); else LOCO.fall(T, clamp(-vy / 1.2, 0, 1));
         LOCO.rise(T2, 0.4);
         const w = smooth((vy + 0.3) / 0.6);
         if (vy <= 0.3 && vy >= -0.3) for (let i = 0; i < NP; i++) T[i] = T[i] * (1 - w) + T2[i] * w;
         for (let i = 0; i < NP; i++) L[i] += (T[i] - L[i]) * this.airW;
       }
+      // the duel's kit: leaning into the wall it slides down (the hand toward the camera on it), the dash's lunge
+      if (this.wallW > 0.01) { wallPose(T, this.dir > 0 ? 1 : -1); for (let i = 0; i < NP; i++) L[i] += (T[i] - L[i]) * this.wallW; }
+      if (this.dashW > 0.01) { dashPose(T, this.dashUp); for (let i = 0; i < NP; i++) L[i] += (T[i] - L[i]) * this.dashW; }
       src = 'loco';
       if (this.airW > 0.3) this.style = { feet: ['point', 'point'] };
+      if (this.wallW > 0.5) this.style = { feet: ['flex', 'flex'], hands: this.dir > 0 ? ['relaxed', 'open'] : ['open', 'relaxed'] };
+      if (this.dashW > 0.5) this.style = { feet: ['point', 'point'], hands: ['open', 'open'] };
       // footfalls
       if (this.grounded && dt > 0) {
         if (this.runW > 0.5) {
@@ -916,7 +1187,7 @@ export class Character {
    *  pose; the arms always, the legs only while it stands and its legs are seen */
   private _applyCamera(dt: number) {
     const c = this.cam;
-    const live = !!c && this.time - c.t < PHYS.camHold;
+    const live = !!c && this.time - c.t < this.phys.camHold;
     this.camW += ((live ? 1 : 0) - this.camW) * (1 - Math.exp(-dt * 8));
     const legs = live && c!.hasLegs && this.grounded && this.reformT < 0;
     this.camLegW += ((legs ? 1 : 0) - this.camLegW) * (1 - Math.exp(-dt * 6));
@@ -954,7 +1225,7 @@ export class Character {
     const P = this.pose, sj = this.aimHand > 0 ? J.RS : J.LS, ej = this.aimHand > 0 ? J.RE : J.LE, wj = this.aimHand > 0 ? J.RW : J.LW;
     const S = [P[3 * sj], P[3 * sj + 1], P[3 * sj + 2]];
     const aw = this._aimWorld();
-    const reach = PHYS.aimReach;
+    const reach = this.phys.aimReach;
     const tgt = [S[0] + aw[0] * reach, S[1] + aw[1] * reach, S[2] + aw[2] * reach];
     const W: V3 = [P[3 * wj], P[3 * wj + 1], P[3 * wj + 2]];
     if (!this.aimPos || this.aimW < 0.01) { this.aimPos = W.slice() as V3; this.aimVel = [0, 0, 0]; if (this.aimW < 0.01) return; }
@@ -1004,7 +1275,7 @@ export class Character {
   /** where the standing body would be (a dancer in the air or mid-dodge that a strike passes through there dodged) */
   standShape(): Capsule {
     const y = this.grounded ? this.root[1] : this.lastGroundY;
-    return { ax: this.root[0], ay: y + 0.2, az: this.root[2], bx: this.root[0], by: y + PHYS.bodyH - 0.2, bz: this.root[2], r: 0.22 };
+    return { ax: this.root[0], ay: y + 0.2, az: this.root[2], bx: this.root[0], by: y + this.phys.bodyH - 0.2, bz: this.root[2], r: 0.22 };
   }
 
   /** the pose for the network: 2D on the plane and 3D, in millimetres */
@@ -1033,7 +1304,7 @@ export class Character {
       const c = Math.cos(-yaw), s = Math.sin(-yaw);
       aim3 = [a[0] * c, a[1], -a[0] * s];
     }
-    const m = { def, dur, p0: [ev.x, ev.y, ev.z || 0] as V3, v0: [ev.vx || 0, ev.air ? ev.vy || 0 : 0, ev.vz || 0] as V3, air: !!ev.air, f };
+    const m = { def, dur, p0: [ev.x, ev.y, ev.z || 0] as V3, v0: [ev.vx || 0, ev.air ? ev.vy || 0 : 0, ev.vz || 0] as V3, air: !!ev.air, f, g: ev.g ?? PHYS.gravity };
     const root = Character._moveRoot(m, t);
     const L = new Float32Array(NP), W = new Float32Array(NP);
     def.pose(u, { hand, aim: aim3, air: !!ev.air, beat: 0, groove: 1, t }, L);

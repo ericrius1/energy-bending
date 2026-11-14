@@ -2,13 +2,17 @@
 // bending hand (locked) or the camera (free, unless the 'hand' button is held), and buttons by name. `buttons` lists
 // what a page should draw (input/touch-pad.ts draws them). Ported from the prototype's input.js; the tests drive it
 // through down / move / up and press / release.
-import { Buttons, makeIntent, radialDeadzone, hasDOM, type Intent, type IntentSource, type InputMode } from './intent';
+// The duel's scheme (`scheme = 'duel'`): a swipe of the stick's thumb (from near where it landed to past the rim in
+// under 0.12 s) dashes that way, and the 'dash' button (shown only then) dashes along the stick, or the facing.
+import { Buttons, makeIntent, radialDeadzone, hasDOM, type Intent, type IntentSource, type InputMode, type Scheme } from './intent';
 
-/** a button a touch page draws: its name (what press() takes), whether it is held (not tapped), free mode only */
-export interface TouchButton { name: string; label: string; hold?: boolean; freeOnly?: boolean }
+/** a button a touch page draws: its name (what press() takes), whether it is held (not tapped), free mode only, the
+ *  duel's scheme only */
+export interface TouchButton { name: string; label: string; hold?: boolean; freeOnly?: boolean; duelOnly?: boolean }
 
 export const TOUCH_BUTTONS: TouchButton[] = [
   { name: 'jump', label: 'jump' }, { name: 'strike', label: 'strike' }, { name: 'kick', label: 'kick' }, { name: 'spin', label: 'spin' },
+  { name: 'dash', label: 'dash', duelOnly: true },
   { name: 'dodge', label: 'dodge', hold: true }, { name: 'form', label: 'form' }, { name: 'merge', label: 'merge', hold: true },
   { name: 'lock', label: 'lock' }, { name: 'interact', label: 'use' }, { name: 'hand', label: 'hand', hold: true, freeOnly: true },
 ];
@@ -18,6 +22,10 @@ interface Rect { left: number; top: number; width: number; height: number }
 export class TouchSource implements IntentSource {
   readonly name = 'touch';
   mode: InputMode = 'locked';
+  scheme: Scheme = 'jogo';
+  /** the swipe: how long the stick's thumb has been out past the centre's dead area, and whether it is past the rim */
+  private swipeT = 0;
+  private swipeOut = false;
   readonly buttons = TOUCH_BUTTONS;
   readonly R: number;
   readonly stick = { active: false, id: null as number | null, ox: 0, oy: 0, x: 0, y: 0 };
@@ -57,10 +65,18 @@ export class TouchSource implements IntentSource {
     const o = makeIntent(); o.source = this.name;
     const free = this.mode === 'free', B = this.btn;
     if (this.stick.active) {
-      const [sx, sy] = radialDeadzone((this.stick.x - this.stick.ox) / this.R, -(this.stick.y - this.stick.oy) / this.R, 0.15, 1);
+      const rx = (this.stick.x - this.stick.ox) / this.R, ry = -(this.stick.y - this.stick.oy) / this.R;
+      const [sx, sy] = radialDeadzone(rx, ry, 0.15, 1);
       o.moveX = sx;
       if (free) o.moveZ = sy; else o.moveY = sy;
-    }
+      // the duel's swipe: out past the rim within 0.12 s of leaving the centre
+      const m = Math.hypot(rx, ry);
+      if (m < 0.35) { this.swipeT = 0; this.swipeOut = false; }
+      else {
+        this.swipeT += dt;
+        if (!this.swipeOut && m >= 1.1) { this.swipeOut = true; if (this.scheme === 'duel' && this.swipeT <= 0.12 + dt * 0.5) o.dash = true; }
+      }
+    } else { this.swipeT = 0; this.swipeOut = false; }
     const handMode = !free || B.held('hand');
     if (this.hand.active) {
       if (handMode) {
@@ -76,6 +92,7 @@ export class TouchSource implements IntentSource {
     o.dodge = B.took('dodge'); o.dodgeHeld = B.held('dodge');
     o.form = B.took('form'); o.merge = B.held('merge');
     o.lock = B.took('lock'); o.interact = B.took('interact');
+    if (this.scheme === 'duel' && B.took('dash')) o.dash = true;
     B.clear();
     return o;
   }

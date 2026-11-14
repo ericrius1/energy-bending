@@ -7,6 +7,8 @@
 //   moveX  -1..1 right       moveY  -1..1 (+ up; < -0.5 = crouch / drop / fast fall)
 //   moveZ  -1..1 + = into the screen (away from the camera); ignored in the locked 2D view
 //   jump (edge) jumpHeld   punch (edge) kick (edge) spin (edge) dodge (edge) form (edge) merge (held)
+//   dash (edge)  the duel's burst (docs/design/duel.md): its direction is the move stick (8-way; none: the facing).
+//               Only a body on the duel's profile dashes (Character.phys.dash); the jogo's ignores it
 //   aimX, aimY  the bending hand: direction and reach (length 0..1) in the screen plane, relative to the dancer's
 //               shoulder; aimActive  whether the hand is being played
 //   camX, camY  free-camera look rate (-1..1 for a stick; a fast mouse drag may exceed 1)
@@ -20,11 +22,16 @@
 
 export type Limb = 'LW' | 'RW' | 'LA' | 'RA';
 export type InputMode = 'locked' | 'free';
+/** what the buttons mean: the jogo's (the dance) or the duel's (Shift or K, RT or B, a stick flick: the dash; the moves
+ *  they took move over: keyboard.ts, gamepad.ts and touch.ts list each). Whoever seats a source sets it (InputHub.scheme) */
+export type Scheme = 'jogo' | 'duel';
 
 export interface Intent {
   moveX: number; moveY: number; moveZ: number;
   jump: boolean; jumpHeld: boolean;
   punch: boolean; kick: boolean; spin: boolean; dodge: boolean; form: boolean; merge: boolean;
+  /** the duel's dash (edge) */
+  dash: boolean;
   aimX: number; aimY: number; aimActive: boolean;
   camX: number; camY: number;
   lock: boolean; interact: boolean;
@@ -49,18 +56,20 @@ export interface IntentSource {
   readonly name: string;
   /** 'locked' (the 2D side view) or 'free' (3D): some controls mean different things in each */
   mode: InputMode;
+  /** the jogo's buttons or the duel's (default the jogo's; a bot or the camera body ignores it) */
+  scheme?: Scheme;
   update(dt: number): Intent;
 }
 
 export function makeIntent(): Intent {
   return {
     moveX: 0, moveY: 0, moveZ: 0, jump: false, jumpHeld: false, punch: false, kick: false, spin: false, dodge: false,
-    form: false, merge: false, aimX: 0, aimY: 0, aimActive: false, camX: 0, camY: 0, lock: false, interact: false,
+    dash: false, form: false, merge: false, aimX: 0, aimY: 0, aimActive: false, camX: 0, camY: 0, lock: false, interact: false,
     dodgeHeld: false, punchHeld: false,
   };
 }
 
-export const EDGES = ['jump', 'punch', 'kick', 'spin', 'dodge', 'form', 'lock', 'interact'] as const;
+export const EDGES = ['jump', 'punch', 'kick', 'spin', 'dodge', 'dash', 'form', 'lock', 'interact'] as const;
 export const HELDS = ['jumpHeld', 'merge', 'dodgeHeld', 'punchHeld', 'aimActive'] as const;
 const AXES = ['moveX', 'moveY', 'moveZ', 'camX', 'camY'] as const;
 
