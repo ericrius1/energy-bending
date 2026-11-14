@@ -1,5 +1,21 @@
 # The duel: Energy Bending as a fast two-player arena game
 
+> **Correction from the owner (13 Nov 2026), which overrides anything below that reads otherwise.**
+> It is still a dance, and it is **3D native**. It is not a 2D arena brawler.
+> - **The view.** You move freely in the world, with a third-person camera framing both players. The 2D lock
+>   (`l`) is an option you can switch to anywhere, as it is today.
+> - **Walls and terrain.** Wall slides, wall jumps and dashes work in 3D, against the world's real solids
+>   (`World.solids`: columns, trunks, blades, slabs) and terrain. They also work in the lock, against the
+>   plane's walls.
+> - **Dancing is fighting.** Capoeira's moves are the attacks and the evasions, and they flow into each other: run
+>   into a jump into a kick into a dash, cancelled and chained on the music. Fluid, never stop-start.
+> - **Dancing well gives you power.** On the beat, varied, and moving through the world as dance (wall runs, flips,
+>   aús) builds flow. Flow fuels the spells and the super.
+> - **Arenas.** An arena is a 3D play space in each world, with things to climb, kick off and fall from. A stage plane
+>   runs through it for the lock.
+> - **Samurai Gunn** is the reference for pace and feel: snappy, quick hits, quick reforms, jumps and falls. It is not
+>   the reference for the camera or the dimension.
+
 The owner's direction (13 Nov 2026): keep the dance, but make it a game that is fun and fast. Jump around, kick off
 walls, fall, cast spells, use powers and effects; two players first. Inspiration: Samurai Gunn's feel (tiny arenas,
 one or two hits, wall jumps everywhere, instant respawns, a round over in seconds), in our look: bodies of matter that
@@ -80,14 +96,23 @@ Ledges stay as they are (`solid` = can't pass from below; otherwise a one-way pl
 
 ```ts
 interface Arena {
-  world: string;            // the world id
-  plane: StagePlane;        // the duel's stage plane, with its ledges and walls
-  spawns: [number, number][]; // [s, y] points to (re)form at, at least 4
-  bounds: { s0: number; s1: number; yKill: number; yTop: number }; // falling below yKill is a KO
+  world: string;              // the world id
+  /** the 3D play space: where the duel happens in free movement (a box or a circle on the ground plus a height);
+   *  leaving it sideways is a soft wall, falling below yKill is a KO */
+  space: { center: [number, number, number]; radius: number; yKill: number; yTop: number };
+  /** where bodies (re)form, in 3D, at least 4, spread out */
+  spawns: [number, number, number][];
+  /** extra climbable and standable geometry the duel adds to the world (also in World.solids while the duel is on) */
+  pieces?: Solid[];
+  /** the stage plane through the space for the 2D lock, with its ledges and walls */
+  plane: StagePlane;
   camera?: { minDist?: number; maxDist?: number; lens?: number };
 }
 // arenas.register(arena); arenaFor(worldId) → Arena | null
 ```
+
+Movement against walls works in both views. In free 3D the walls are the world's solids (boxes and capsules,
+`src/worlds/solids.ts`: their vertical faces), plus the arena's pieces. In the lock they are the plane's `walls`.
 
 ### Movement intents (`src/input/intent.ts`)
 
