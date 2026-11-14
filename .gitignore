@@ -6,3 +6,5 @@ docs/reports/media/*
 !docs/reports/media/*.jpg
 .DS_Store
 *.log
+.claude/worktrees/
+.claude/settings.local.json
