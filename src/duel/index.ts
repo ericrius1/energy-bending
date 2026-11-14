@@ -339,7 +339,8 @@ export async function startDuel(app: PlayApp) {
     powers.gripInputs([gates[0].contact, gates[1].contact]);
     const ev = match.step(now, beat, bpm, f.danceDt * 1000, [gates[0].contact, gates[1].contact]);
     // the powers after the contact (a catch at range joins the two through it), their effects drawn
-    powers.step(now, f.danceDt * 1000, [gates[0].power, gates[1].power], ev, onBeat(beat, bpm));
+    powers.step(now, f.danceDt * 1000, [0, 1].map((k) => castNext[k] ?? gates[k].power), ev, onBeat(beat, bpm));
+    castNext[0] = castNext[1] = null;
     ev.push(...powers.duelEvents);
     frameEvents = ev;
     fx.update(f.danceDt, ev, match.touches, match.contact, match.state);
@@ -354,6 +355,8 @@ export async function startDuel(app: PlayApp) {
   // the HUD's state, after the camera moved (the tags ride the heads where this frame shows them)
   const pendingHud: DuelEvent[] = [], pendingTouches: ContactEvent[] = [];
   const pendingPowers: (typeof powers.events)[number][] = [];
+  /** a cast asked for by bend.duel.cast, for the next frame */
+  const castNext: (PowerInput | null)[] = [null, null];
   const REACT_WORD = { geyser: 'STEAM!', melt: 'MELT!', freeze: 'FREEZE!' } as const;
   const reactAt = new Map<string, [number, number]>();
   frame.tick('post', (f: FrameCtx) => {
@@ -381,7 +384,7 @@ export async function startDuel(app: PlayApp) {
   const api = {
     match, arena, plane, powers,
     /** cast a seat's power now (slot 0 or 1; the stick as a world x, z), or the form: as its buttons would */
-    cast: (k: number, slot: 0 | 1 | 'form', stick: [number, number] = [0, 0]) => { gates[k].power = { p1: slot === 0, p2: slot === 1, form: slot === 'form', stick }; },
+    cast: (k: number, slot: 0 | 1 | 'form', stick: [number, number] = [0, 0]) => { castNext[k] = { p1: slot === 0, p2: slot === 1, form: slot === 'form', stick }; },
     /** a seat's flow (0 … 1), read or set */
     flow: (k: number, v?: number) => { if (v !== undefined) powers.rules.seats[k].flow = Math.max(0, Math.min(1, v)); return powers.rules.seats[k].flow; },
     get state() { return match.state; },

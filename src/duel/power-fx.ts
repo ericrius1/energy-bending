@@ -278,7 +278,7 @@ export class PowerFxDraw {
         const lift = age > 0.1 && age < L.life - 0.15 ? 1 : 0;
         for (let i = 1; i < pts.length; i++) {
           const p = pts[i - 1], q = pts[i], w = Math.sin(t * 5 + i * 0.9) * 0.08, w2 = Math.sin(t * 5 + i * 0.9 + 0.9) * 0.08;
-          G.seg([p[0], p[1] + w - 0.15, p[2]], [q[0], q[1] + w2 - 0.15, q[2]], 0.07 + 0.03 * Math.sin(t * 7 + i), mixRGB(WARM, GOLDEN, 0.25 + 0.25 * Math.sin(t * 3 + i)), 0.8 * a, 'soft');
+          G.seg([p[0], p[1] + w - 0.15, p[2]], [q[0], q[1] + w2 - 0.15, q[2]], 0.1 + 0.04 * Math.sin(t * 7 + i), mixRGB(WARM, GOLDEN, 0.25 + 0.25 * Math.sin(t * 3 + i)), 0.8 * a, 'soft');
           G.seg([p[0], p[1] + w - 0.15, p[2]], [q[0], q[1] + w2 - 0.15, q[2]], 0.02, GOLDEN, 0.9 * a, 'spark');
         }
         // embers climbing off it while it lifts (a loop along the ribbon)
@@ -346,11 +346,12 @@ export class PowerFxDraw {
           const sp = (t * 2.2 + hash(i + L.id)) % 1;
           G.dot([prev[0] + dir[0] * sp * 0.5, prev[1] + sp * 0.35 - sp * sp * 0.6, prev[2] + dir[1] * sp * 0.5], 0.03, FOAM, 1.4 * a * (1 - sp) * edge, 'spark');
         }
-        // the sheet behind it
-        for (let j = 1; j <= 3; j++) {
-          const b: V3 = [c[0] - dir[0] * (0.5 + j * 0.45), c[1] + 0.05, c[2] - dir[1] * (0.5 + j * 0.45)];
-          G.seg([b[0] - side[0] * W * 0.45, b[1], b[2] - side[2] * W * 0.45], [b[0] + side[0] * W * 0.45, b[1], b[2] + side[2] * W * 0.45], 0.08, WATER, 0.35 * a / j, 'soft');
+        // the water it leaves: a glinting wash behind it, thinning
+        for (let j = 0; j < 18; j++) {
+          const back = 0.5 + hash(j + L.id) * 1.8, s = (hash(j * 7 + L.id) - 0.5) * W * 0.9, tw = Math.max(0, Math.sin(t * 9 + j * 2.3));
+          G.dot([c[0] - dir[0] * back + side[0] * s, c[1] + 0.06, c[2] - dir[1] * back + side[2] * s], 0.035 + 0.04 * hash(j + 3), mixRGB(WATER, FOAM, tw), (0.5 + 0.9 * tw) * a * (1 - back / 2.4), 'spark');
         }
+        G.flat([c[0] - dir[0] * 0.9, c[1] + 0.04, c[2] - dir[1] * 0.9], W * 0.45, WATER, 0.25 * a, 'soft');
         this.deposit({ p: [c[0], c[1] + 0.5, c[2]], r: 0.9, wet: 0.9, wind: [dir[0] * 4, 0.5, dir[1] * 4] });
         if (Math.floor(t * 10) !== Math.floor((t - 1 / 60) * 10)) this.ctx.ripple?.(c[0], c[2], 0.7, 0.9);
         break;
@@ -368,7 +369,7 @@ export class PowerFxDraw {
           const A = cs[i], B = cs[(i + 1) % 4];
           G.seg(A, B, 0.025, FROST, 0.6 * a, 'soft');
           G.dot(A, 0.05, FROST, (0.7 + 0.7 * Math.max(0, Math.sin(t * 6 + i * 1.7 + L.id))) * a, 'gem');
-          G.seg(A, [A[0], top - 0.56, A[2]], 0.02, FROST, 0.35 * a, 'soft');
+          G.seg([A[0], top - 0.3, A[2]], [A[0], top - 0.48, A[2]], 0.018, FROST, 0.5 * a, 'spark');
         }
         G.dot([p[0], top - 0.28, p[2]], 0.45, [0.5, 0.75, 1.2], 0.35 * a, 'soft');
         if (age < 0.2) G.dot([p[0], top, p[2]], 0.3 + age * 3, FROST, (1 - age * 5) * 1.2, 'ring');
@@ -377,12 +378,12 @@ export class PowerFxDraw {
       }
       case 'slide': {
         const pts = L.pts!;
-        this.iceFor(L, () => [this.ctx.setIce!.add({ points: pts.map((q) => [q[0], q[1] + 0.01, q[2]] as V3), width: 1.3, life: L.life, seed: L.id * 13 })]);
+        this.iceFor(L, () => [this.ctx.setIce!.add({ points: pts.map((q) => [q[0], q[1] + 0.06, q[2]] as V3), width: 1.3, life: L.life, seed: L.id * 13 })]);
         for (let i = 0; i < pts.length; i++) {
           const q = pts[i], tw = Math.max(0, Math.sin(t * 5 + i * 2.1 + L.id));
           G.dot([q[0] + (hash(i) - 0.5) * 1.0, q[1] + 0.06, q[2] + (hash(i + 4) - 0.5) * 1.0], 0.03, FROST, 1.4 * tw * tw * a, 'spark');
         }
-        G.line(pts.flatMap((q) => [q[0], q[1] + 0.05, q[2]]), 0.05, [0.55, 0.8, 1.3], 0.3 * a);
+        for (let i = 0; i < pts.length; i += 2) G.flat([pts[i][0], pts[i][1] + 0.03, pts[i][2]], 0.75, [0.45, 0.7, 1.2], 0.22 * a, 'soft');
         break;
       }
       case 'blink': break;
@@ -423,19 +424,15 @@ export class PowerFxDraw {
         break;
       }
       case 'prism': {
-        const p = L.at, n = L.n!, side: V3 = [-n[2], 0, n[0]], R = 1.0 * (L.big ? 1.2 : 1);
-        const spin = t * 0.6 + L.id;
-        let prev: V3 | null = null, first: V3 | null = null;
-        for (let j = 0; j < 6; j++) {
-          const ang = spin + (j / 6) * Math.PI * 2, x = Math.cos(ang) * R * 0.8, y = Math.sin(ang) * R * 0.8;
-          const q: V3 = [p[0] + side[0] * x, p[1] + y, p[2] + side[2] * x];
-          G.dot(q, 0.09, hue((j / 6 + t * 0.1) % 1), 1.1 * a, 'gem');
-          if (prev) G.seg(prev, q, 0.018, hue((j / 6 + t * 0.1 + 0.08) % 1, 1.3), 0.8 * a, 'soft');
-          prev = q; first ??= q;
-        }
-        if (prev && first) G.seg(prev, first, 0.018, hue((t * 0.1) % 1, 1.3), 0.8 * a, 'soft');
-        G.dot(p, R * 0.55, [0.9, 0.85, 1.3], 0.25 * a, 'soft');
-        G.dot(p, 0.08, [1.6, 1.6, 1.7], (0.8 + 0.4 * Math.sin(t * 5)) * a, 'spark');
+        // a crystal of light turning in the air: an octahedron's edges (its six points on three rings), gems at its
+        // points going round the colours, a soft heart; it reads from any side the camera stands
+        const p = L.at, R = 0.75 * (L.big ? 1.2 : 1), spin = t * 0.7 + L.id, cs = Math.cos(spin), sn = Math.sin(spin);
+        const pts: V3[] = [[R, 0, 0], [-R, 0, 0], [0, R * 1.35, 0], [0, -R * 1.35, 0], [0, 0, R], [0, 0, -R]].map(([x, y, z]) => [p[0] + x * cs - z * sn, p[1] + y, p[2] + x * sn + z * cs]);
+        const edges = [[0, 2], [0, 3], [0, 4], [0, 5], [1, 2], [1, 3], [1, 4], [1, 5], [2, 4], [4, 3], [3, 5], [5, 2]];
+        edges.forEach(([e0, e1], j) => G.seg(pts[e0], pts[e1], 0.02, hue((j / 12 + t * 0.12) % 1, 1.4), 0.75 * a, 'soft'));
+        pts.forEach((q, j) => G.dot(q, 0.08, hue((j / 6 + t * 0.12) % 1), 1.2 * a, 'gem'));
+        G.dot(p, R * 0.8, [0.85, 0.8, 1.25], 0.3 * a, 'soft');
+        G.dot(p, 0.1, [1.6, 1.6, 1.7], (0.8 + 0.4 * Math.sin(t * 5)) * a, 'spark');
         break;
       }
       case 'geyser': {

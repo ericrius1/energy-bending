@@ -5,7 +5,10 @@
 // the last few links as small icons, those landed on the beat in gold; a new link pops in), the combo's end (cashed:
 // the row gathers and flies up into the style, which flares, "+n" rising from it; dropped by a fall: the icons sink
 // and fade), and the **link** while the two are joined (a ring round the emblem in the partner's colour and a
-// "HOLDING" / "HELD" chip). Seat 1's panel is seat 0's mirrored: the emblem always on the outer edge. What never
+// "HOLDING" / "HELD" chip); and the duel's **powers** (phase 2): the flow as a bar along the panel's foot (marks where
+// each power's cost falls; gold when full, the power form running it down), and the two powers as icons at the inner
+// end, ready in the matter's colour (gold-ringed in the form: free) or grey with the flow's way toward their cost, the
+// key under each. Seat 1's panel is seat 0's mirrored: the emblem always on the outer edge. What never
 // changes (the glass, the emblem, the name) is a sprite made once; the rest of the base is drawn only when a value
 // changes or a piece of it is moving (the style rolling, the dash recharging).
 import type { HudPlayer, HudState } from './state';
@@ -275,6 +278,7 @@ export class PlayerPanel {
     const X = (x: number) => (flip ? box.x + box.w - x * u : box.x + x * u);
     const spb = 60 / Math.max(30, st.beat.bpm || 120), ph = ((st.beat.phase % 1) + 1) % 1;
     const beatK = Math.exp(-ph * spb * 6);
+    drawPowers(g, p, box, L.compact, u, dpr, this.seat, t, out);
 
     // ---- the link: a ring round the emblem in the partner's colour, turning, and the chip
     const h = this.holdShown;
@@ -470,4 +474,101 @@ function chevrons(g: Ctx, cx: number, cy: number, s: number, flip: boolean, col:
   }
   g.stroke();
   g.lineCap = 'butt';
+}
+
+// ---------------------------------------------------------------- the powers (the duel's phase 2): flow and two icons
+/** where the powers sit in a panel: the two icons at the inner end, left of the dash (their middles, from the inner
+ *  edge, and their size), the keys under them, the flow bar along the panel's foot (from x0 to the inner edge less x1) */
+const POW = {
+  desk: { ix: [86, 58], cy: 50, size: 20, key: 7.5, bar: { x0: 80, x1: 18, y: 77, h: 3.2 } },
+  compact: { ix: [52, 36], cy: 25, size: 12, key: 0, bar: { x0: 39, x1: 9, y: 37, h: 2 } },
+};
+const pdot = (g: Ctx, x: number, y: number, r: number) => { g.moveTo(x + r, y); g.arc(x, y, r, 0, Math.PI * 2); };
+/** each power's glyph in a 24-unit box centred on 0, y down: strokes, and what is filled */
+const POWER_GLYPH: Record<string, { line: (g: Ctx) => void; fill?: (g: Ctx) => void }> = {
+  // a bloom opening under a rising body
+  flare: { line: (g) => { g.moveTo(-9, 9); g.quadraticCurveTo(-4, 3, 0, 8); g.quadraticCurveTo(4, 3, 9, 9); g.moveTo(0, 5); g.lineTo(0, -6); g.moveTo(-4, -2); g.lineTo(0, -7); g.lineTo(4, -2); }, fill: (g) => pdot(g, 0, -9.5, 2.2) },
+  // a ribbon swaying up
+  ribbon: { line: (g) => { g.moveTo(-10, 8); g.bezierCurveTo(-4, 8, -6, -1, 0, -1); g.bezierCurveTo(6, -1, 4, -9, 10, -9); g.moveTo(-5, 3); g.lineTo(-5, -4); g.moveTo(3, -4); g.lineTo(3, -10); } },
+  // a lash out to a hand
+  whip: { line: (g) => { g.moveTo(-10, 7); g.bezierCurveTo(-4, -6, 2, 8, 9, -6); }, fill: (g) => { pdot(g, -10, 7, 2.2); pdot(g, 9.3, -6.5, 2.6); } },
+  // a crest curling over
+  wave: { line: (g) => { g.moveTo(-11, 8); g.bezierCurveTo(-6, 8, -4, -8, 3, -8); g.bezierCurveTo(8, -8, 9, -2, 5, -1); g.moveTo(-11, 11); g.lineTo(11, 11); } },
+  // a block in the air, a body over it
+  step: { line: (g) => { g.rect(-8, 1, 16, 6); g.moveTo(-5, 10); g.lineTo(-5, 7); g.moveTo(1, 11); g.lineTo(1, 7); g.moveTo(6, 9); g.lineTo(6, 7); }, fill: (g) => pdot(g, 0, -5, 3) },
+  // a path, fast along it
+  slide: { line: (g) => { g.moveTo(-11, 9); g.lineTo(11, 3); g.moveTo(-6, 0); g.lineTo(4, -3); g.moveTo(-2, -6); g.lineTo(6, -8); } },
+  // a jump through space: here, then there
+  blink: { line: (g) => { g.arc(-6, 0, 4, 0, Math.PI * 2); g.moveTo(0, 0); g.lineTo(2, 0); g.moveTo(4, 0); g.lineTo(5, 0); }, fill: (g) => pdot(g, 8.5, 0, 3.4) },
+  // lightning between two
+  arc: { line: (g) => { g.moveTo(-8, 6); g.lineTo(-2, -2); g.lineTo(1, 3); g.lineTo(8, -6); }, fill: (g) => { pdot(g, -9.5, 8, 2.4); pdot(g, 9.5, -8, 2.4); } },
+  // a column rising, a body launched off it
+  pillar: { line: (g) => { g.moveTo(-4, 11); g.lineTo(-4, -1); g.lineTo(0, -4); g.lineTo(4, -1); g.lineTo(4, 11); g.moveTo(-3, -7); g.lineTo(0, -10); g.lineTo(3, -7); } },
+  // a facet turning a flight
+  prism: { line: (g) => { g.moveTo(0, -8); g.lineTo(7, 0); g.lineTo(0, 8); g.lineTo(-7, 0); g.closePath(); g.moveTo(-12, -6); g.lineTo(-3, -1); g.moveTo(3, 1); g.lineTo(11, -7); } },
+};
+/** a power's icon, ready (its colour, a glow) or not (grey) */
+function powerIcon(id: string, size: number, col: string, ready: boolean, dpr: number) {
+  const s = size, pad = s * 0.35;
+  return sprite(`pow:${id}:${s.toFixed(1)}:${col}:${ready}`, dpr, s + pad * 2, s + pad * 2, s / 2 + pad, s / 2 + pad, (g) => {
+    const G = POWER_GLYPH[id] ?? POWER_GLYPH.flare;
+    g.translate(s / 2 + pad, s / 2 + pad); g.scale(s / 24, s / 24);
+    g.lineCap = 'round'; g.lineJoin = 'round';
+    for (const [w, c] of [[4.6, 'rgba(6,4,12,0.6)'], [2.1, ready ? lift(col, 0.35) : 'rgba(210,205,225,0.45)']] as const) {
+      g.beginPath(); G.line(g); g.lineWidth = w; g.strokeStyle = c; g.stroke();
+      if (G.fill) { g.beginPath(); G.fill(g); g.fillStyle = c; g.fill(); }
+    }
+  });
+}
+
+/** the flow bar and the two powers, over the panel's glass (the live layer: every frame) */
+export function drawPowers(g: Ctx, p: HudPlayer, box: Box, compactL: boolean, u: number, dpr: number, seat: 0 | 1, t: number, out: Box[]) {
+  if (p.flow == null || !p.powers) return;
+  const P = compactL ? POW.compact : POW.desk, flip = seat === 1, col = p.color;
+  const inner = (x: number) => (flip ? box.x + x * u : box.x + box.w - x * u);
+  const outer = (x: number) => (flip ? box.x + box.w - x * u : box.x + x * u);
+  const form = p.form ?? 0, inForm = form > 0, full = !inForm && p.flow >= 0.999;
+  const pulse = 0.5 + 0.5 * Math.sin(t * 6);
+  // ---- the flow bar: a track along the foot, the flow in the matter's colour, marks where each power's cost falls;
+  // full, it glows gold; in the form it runs down, gold and white
+  const B = P.bar, bx0 = outer(B.x0), bx1 = inner(B.x1), x0 = Math.min(bx0, bx1), w = Math.abs(bx1 - bx0), y = box.y + B.y * u, h = Math.max(1.5, B.h * u);
+  roundRect(g, x0, y - h / 2, w, h, h / 2);
+  g.fillStyle = 'rgba(255,255,255,0.1)'; g.fill();
+  const f = clamp01(p.flow), fw = w * f;
+  if (fw > 0.5) {
+    const fx = flip ? x0 + w - fw : x0;
+    const gr = g.createLinearGradient(flip ? x0 + w : x0, 0, flip ? x0 : x0 + w, 0);
+    gr.addColorStop(0, rgba(col, 0.75)); gr.addColorStop(1, inForm || full ? GOLD_HI : lift(col, 0.45));
+    roundRect(g, fx, y - h / 2, fw, h, h / 2);
+    g.fillStyle = gr; g.fill();
+    // its leading edge, bright
+    stamp(g, glow(inForm || full ? GOLD : lift(col, 0.3), h * 3.2, dpr, 0.55), flip ? fx : fx + fw, y, 1, inForm || full ? 0.6 + 0.4 * pulse : 0.45);
+  }
+  if (full || inForm) stamp(g, glow(GOLD, Math.min(w, 120 * u) * 0.5, dpr, 0.18), x0 + w / 2, y, 1, (full ? 0.35 + 0.35 * pulse : 0.3) * (compactL ? 0.6 : 1));
+  const cost = p.powers[0]?.cost || 0.25;
+  if (!inForm) for (let c = cost; c < 0.999; c += cost) {
+    const mx = flip ? x0 + w - w * c : x0 + w * c;
+    g.fillStyle = f >= c ? 'rgba(255,255,255,0.55)' : 'rgba(255,255,255,0.22)';
+    g.fillRect(mx - 0.5, y - h * 0.9, 1, h * 1.8);
+  }
+  out.push({ x: x0 - 10 * u, y: y - 10 * u, w: w + 20 * u, h: 20 * u });
+  // ---- the two powers: ready in the matter's colour (in the form, ringed gold: free), else grey with the flow's way
+  // toward their cost round them; the key under each
+  p.powers.forEach((q, i) => {
+    const cx = inner(P.ix[i]), cy = box.y + P.cy * u, s = P.size * u, R = s * 0.62;
+    if (q.ready) stamp(g, glow(inForm ? GOLD : lift(col, 0.25), R * 1.7, dpr, 0.4), cx, cy, 1, inForm ? 0.6 + 0.3 * pulse : 0.5);
+    stamp(g, powerIcon(q.id, s, col, q.ready, dpr), cx, cy);
+    g.lineCap = 'round';
+    g.lineWidth = Math.max(1, 1.5 * u * (compactL ? 0.7 : 1));
+    if (inForm) { g.strokeStyle = rgba(GOLD, 0.85); g.beginPath(); g.arc(cx, cy, R, 0, Math.PI * 2); g.stroke(); }
+    else if (q.ready) { g.strokeStyle = rgba(lift(col, 0.4), 0.7); g.beginPath(); g.arc(cx, cy, R, 0, Math.PI * 2); g.stroke(); }
+    else {
+      const k = clamp01(q.cost > 0 ? f / q.cost : 1);
+      g.strokeStyle = 'rgba(255,255,255,0.14)'; g.beginPath(); g.arc(cx, cy, R, 0, Math.PI * 2); g.stroke();
+      if (k > 0.01) { g.strokeStyle = rgba(lift(col, 0.3), 0.75); g.beginPath(); g.arc(cx, cy, R, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * k); g.stroke(); }
+    }
+    g.lineCap = 'butt';
+    if (q.key && P.key) stampLabel(g, label(q.key, P.key * u, 700, 0.06, q.ready ? '#f4f0fa' : 'rgba(236,230,244,0.5)', 0.5, Math.max(1.5, 2 * u), dpr), cx, cy + R + P.key * u * 1.15, 'center');
+    out.push({ x: cx - R * 2, y: cy - R * 2, w: R * 4, h: R * 4 + P.key * u * 2 });
+  });
 }
