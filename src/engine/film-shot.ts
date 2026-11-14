@@ -422,7 +422,11 @@ async function run(api: FilmApi, recorder: Recorder, shot: ShotSpec, plan: ShotP
     }
     await B.step(1, dt * rateNow);
     // (a duel's events on the shot's clock: info.json's duel.log, the moments to cut on)
-    if (B.duel) for (const e of B.duel.events() as Record<string, unknown>[]) duelLog.push({ t: +tau.toFixed(3), d: +(B.duel.now() / 1000).toFixed(3), ...e });
+    // (and the powers' own: a cast, the power form, a reaction, which the rules' events don't carry)
+    if (B.duel) {
+      const D = B.duel as { events(): unknown[]; now(): number; powers?: { events?: unknown[] } };
+      for (const e of [...D.events(), ...(D.powers?.events ?? [])] as Record<string, unknown>[]) duelLog.push({ t: +tau.toFixed(3), d: +(D.now() / 1000).toFixed(3), ...e });
+    }
     if (track && jogo && gridScore == null) {
       const b = J.beat() as number | null;
       if (b != null) gridScore = M.filmClock - b * spb;

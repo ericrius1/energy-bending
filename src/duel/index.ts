@@ -10,6 +10,8 @@
 //                 src/ai/duel-brain.ts). Default: p1 human, p2 bot. Two humans: the first device to press plays seat 1
 //     skill       0 … 1 (one for both, or "a,b" per seat); style lead | flyer | base (one, or "a,b"); seed
 //     set         a set's length in seconds (default 60); go: start at once without waiting for the human seats' devices
+//     keys        the power keys the panels show for virtual players (one, or "a,b": solo | left | right | pad), as if
+//                 people played them (a film's: &keys=left,right); a human seat shows its own device's
 //   The grab (the duel's scheme): keyboard J (solo and left layouts, the mouse's left button on solo), , (right layout);
 //   gamepad the punch button; touch the punch button. The fling's aim is the stick.
 //   The powers (phase 2, shared/powers.ts and powers.ts; drawn by power-fx.ts), two by the body's matter, aimed by the
@@ -250,7 +252,10 @@ export async function startDuel(app: PlayApp) {
   /** the keys a seat's powers are on (its device's), for the HUD */
   const powerKeys = (k: number): [string, string, string] | null => {
     const n = gates[k].inner?.name ?? '';
-    if (brains[k]) return null;
+    // (a virtual player has no keys, unless &keys names the layouts it would be on: a film's two players shown as two
+    // people at one split keyboard, `&keys=left,right`, or a pad's buttons, `pad`)
+    const shown = perSeat(q.get('keys'), k);
+    if (brains[k]) return shown === 'pad' ? POWER_BUTTONS : (POWER_KEYS[shown as KeyLayout] ?? null);
     if (n.startsWith('keyboard-')) return POWER_KEYS[n.slice(9) as KeyLayout] ?? null;
     if (n.startsWith('gamepad')) return POWER_BUTTONS;
     return null;

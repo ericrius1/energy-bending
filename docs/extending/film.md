@@ -130,8 +130,8 @@ the 2D lock, a `{ "at", "rig": "lock" }` cue switches mid-shot, `"query": { "set
 track its music clock is anchored to the duel's first frame, not to the in-point (the dance depends on where the beats
 fall: the brains wait for the 8th lines, a stage's bobbing ledges move by the beat), and `preroll` is snapped to a whole beat,
 so the in-point falls on a beat of the track: **moving a duel shot's in-point leaves its dance exactly as it was**. So
-scout a whole set once (`"preroll": 0, "seconds": 72`), read `info.json`'s `duel.log` (every rule event with `t`, the
-shot's clock, and `d`, the duel's seconds), then cut into it with `preroll` (and two shots of one seed are two cuts of
+scout a whole set once (`"preroll": 0, "seconds": 72`), read `info.json`'s `duel.log` (every rule event, and the powers'
+own: a cast, the power form, a reaction, each with `t`, the shot's clock, and `d`, the duel's seconds), then cut into it with `preroll` (and two shots of one seed are two cuts of
 one set). Camera keys don't change the dance; a `rate` or `rig` cue does, from where it fires.
 
 Seats are `0`, `1` or `"both"`. In a jogo the seat cues go to the jogo's own ScriptRunner (exact on its clock); the

@@ -1,0 +1,76 @@
+{
+  "name": "duel-2",
+  "title": "The duel's phase 2 film (Bend): a highlight reel of the contact dance with powers, two virtual players seen as players see them (the duel's own camera, the HUD on screen, the power keys of a split keyboard under each panel's icons: U and H on the left, P and [ on the right), on the redwoods' track from bar 92's second beat. The redwoods' count-in lands DANCE on the track's last swell (bar 93); a whip catch at range over the Pool's black water; a lightning arc meeting in the air among the redwoods; at the breakdown (bar 97) a steam geyser in the temple that carries water up, and fire's air catch high over the court, slowed; a crystal pillar that carries its caster up to a catch in the geode; an ice step held as a ledge in the air; fire taking its power form in flight beside water in its own, in the redwoods, as the track comes back (bar 101); a combo climbing to SUBLIME on an air catch; then a temple set's last seconds, its merge and its fused finale (the lift on bar 105), and the banner. Every duel shot plays its set from the first frame (seeded brains, the music's clock anchored to the duel's start) and cuts into it by its pre-roll, on the track's beats.",
+  "audio": { "track": "redwoods", "from": 92.25 },
+  "size": "1280x720",
+  "fps": 60,
+  "fadeIn": 0.3,
+  "fadeOut": 1.4,
+  "defaults": { "mode": "duel", "from": "start", "hud": true, "query": { "keys": "left,right" } },
+  "shots": [
+    {
+      "id": "redwoods-open",
+      "note": "the redwoods in the morning: 3, 2, 1 over the track's bar 92, DANCE on bar 93's downbeat; water (a lead) catches ice (a flyer) at once, swings it, flings it up with its streak, and catches it out of the air",
+      "world": "redwoods",
+      "cast": [{ "dress": "water", "style": "lead", "skill": 0.85 }, { "dress": "ice", "style": "flyer", "skill": 0.85 }],
+      "seed": 9, "preroll": 0, "beats": 10
+    },
+    {
+      "id": "pool-whip",
+      "note": "the Pool: fire (a flyer) high over the black water, water (a lead) on a stepping stone lashes it out of the air with the whip, a catch at range, and reels it in",
+      "world": "pool",
+      "cast": [{ "dress": "fire", "style": "flyer", "skill": 0.85 }, { "dress": "water", "style": "lead", "skill": 0.85 }],
+      "seed": 1, "preroll": 24.944, "beats": 4
+    },
+    {
+      "id": "redwoods-arc",
+      "note": "the redwoods: plasma (a flyer) in the air throws the arc, a lightning tether that pulls it and the gems lead together, and they meet and swing",
+      "world": "redwoods",
+      "cast": [{ "dress": "gems", "style": "lead", "skill": 0.85 }, { "dress": "plasma", "style": "flyer", "skill": 0.85 }],
+      "seed": 1, "preroll": 17.514, "beats": 5
+    },
+    {
+      "id": "temple-geyser",
+      "note": "the temple at the track's breakdown (bar 97): cut in on the steam geyser (water's wave and fire's ribbon met: STEAM!), which carries water up past the lintels; fire leaps up and catches it high (AIR CATCH), slowed to a third from the ride's top (the track plays on); they swing over the court in the steam, water flings fire and catches it again",
+      "world": "temple",
+      "cast": [{ "dress": "water", "style": "lead", "skill": 0.85 }, { "dress": "fire", "style": "flyer", "skill": 0.85 }],
+      "seed": 6, "preroll": 14.861, "beats": 8,
+      "cues": [{ "at": 0.419, "rate": 0.35, "ramp": 0.3 }]
+    },
+    {
+      "id": "geode-pillar",
+      "note": "the geode: plasma (a flyer) launched off gems' hands; gems raises a crystal pillar under its own feet that carries it up to the flyer, and catches it; then plasma's arc and an air catch",
+      "world": "geode",
+      "cast": [{ "dress": "gems", "style": "lead", "skill": 0.85 }, { "dress": "plasma", "style": "flyer", "skill": 0.85 }],
+      "seed": 2, "preroll": 12.207, "beats": 4
+    },
+    {
+      "id": "temple-step",
+      "note": "the temple: ice (a flyer) sets a step of ice under its feet in the air and stands on it as a ledge; fire leaps up beside it and catches it",
+      "world": "temple",
+      "cast": [{ "dress": "ice", "style": "flyer", "skill": 0.85 }, { "dress": "fire", "style": "lead", "skill": 0.85 }],
+      "seed": 1, "preroll": 3.715, "beats": 4
+    },
+    {
+      "id": "redwoods-forms",
+      "note": "the redwoods as the track comes back (bar 101): water (already in its power form, ice) flings fire, which takes its own power form in flight (fire to plasma, a gold ring, lightning), lands and catches water",
+      "world": "redwoods",
+      "cast": [{ "dress": "water", "style": "lead", "skill": 0.85 }, { "dress": "fire", "style": "flyer", "skill": 0.85 }],
+      "seed": 3, "preroll": 45.11, "beats": 4
+    },
+    {
+      "id": "pool-sublime",
+      "note": "the Pool: water's combo at RADIANT climbs past 40 links and an air catch takes it to SUBLIME x41",
+      "world": "pool",
+      "cast": [{ "dress": "water", "style": "lead", "skill": 0.85 }, { "dress": "ice", "style": "flyer", "skill": 0.85 }],
+      "seed": 12, "preroll": 23.35, "beats": 6
+    },
+    {
+      "id": "temple-finale",
+      "note": "the temple's moonlit court, a set's last seconds: fire (a lead) flings water (a flyer), flares into an air catch, the second MERGE, a last fling, then the fused finale on the track's bar 105 (fire lifts water overhead into one column of light) and the banner",
+      "world": "temple",
+      "cast": [{ "dress": "fire", "style": "lead", "skill": 0.95 }, { "dress": "water", "style": "flyer", "skill": 0.95 }],
+      "seed": 32, "preroll": 58.38, "beats": 16
+    }
+  ]
+}
