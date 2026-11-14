@@ -403,7 +403,7 @@ export async function startDuel(app: PlayApp) {
 
   // ---------------------------------------------------------------- bend.duel
   // the duel's sound (sound.ts): its moments, powers, tiers and movement on the music's beat, the track following the set
-  const sound = duelSound({ frame, music, listener: kit.camera, film: app.film, world: () => app.main.world, duel: () => api });
+  const sound = duelSound({ frame, music, listener: kit.camera, film: app.film, world: () => app.main.world, duel: () => api, wake: () => { app.wake(); if (!music.live && !app.film) music.start(show.program.key); } });
   const api = {
     match, arena, plane, finale, powers, sound,
     /** the free camera (camera.ts): its choice, what it framed, how clear its eye stood */

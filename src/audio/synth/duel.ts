@@ -33,8 +33,8 @@ import type { Timbre } from '../voices';
 
 /** make-up gain per cue (× the call's vel), from the duel's measurements (docs/reports/14-sound.md) */
 export const DUEL_GAIN: Record<DuelCue, number> = {
-  count: 1, go: 1, catch: 0.85, aerial: 0.9, range: 0.9, swing: 0.75, fling: 0.8, landed: 0.85, lift: 1, counter: 0.6,
-  release: 0.45, merge: 0.8, finale: 0.85, fusion: 0.9, banner: 1.1, tier: 0.75, bank: 0.5, fall: 0.5, reform: 0.45,
+  count: 1, go: 1, catch: 0.85, aerial: 0.9, range: 0.9, swing: 0.55, fling: 0.8, landed: 0.85, lift: 1, counter: 0.6,
+  release: 0.45, merge: 0.8, finale: 0.85, fusion: 0.9, banner: 1.1, tier: 0.75, bank: 0.4, fall: 0.5, reform: 0.45,
   cast: 0.8, form: 0.8, react: 0.85, launch: 0.5, swap: 0.6, redirect: 0.6,
   dash: 0.55, walljump: 0.6, land: 0.65, jump: 0.35,
 };

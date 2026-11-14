@@ -267,6 +267,7 @@ export class DuelSound {
   }
 }
 
+const GESTURES = ['pointerdown', 'keydown', 'touchend'] as const;
 const MOMENTS = new Set<DuelCue>(['count', 'go', 'merge', 'finale', 'fusion', 'banner', 'tier', 'form', 'react']);
 const midpoint = (a: V3, b: V3): V3 => [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2, (a[2] + b[2]) / 2];
 const frac = (x: number) => x - Math.floor(x);
@@ -287,9 +288,10 @@ export interface MusicLike {
 }
 
 /** the duel's balance under a world's track (synth/mix.ts UNDER, each × the bus's level without a track): the moments
- *  and the movement up from the jogo's levels (measured, a catch peaked 2 dB over the music's rms and a landing 20 dB
- *  under it: unheard), the matter voices (fire's roar, water's pour: the world's bus) up 4 dB. docs/reports/14-sound.md */
-export const DUEL_BALANCE: Partial<UnderLevels> = { world: 0.95, duel: 3.6, motion: 3.4 };
+ *  and the movement up from the jogo's levels (measured at those, a catch peaked 2 dB over the music's rms and a
+ *  landing 20 dB under it: unheard). Measured with these: the game's sounds about 6 LU under the track, a catch's peak
+ *  about 7 dB over the track's rms (docs/reports/14-sound.md). The matter voices (the world's bus) keep the jogo's */
+export const DUEL_BALANCE: Partial<UnderLevels> = { duel: 2.6, motion: 3.4 };
 
 // ---------------------------------------------------------------- joined to the page (src/duel/index.ts)
 /** what duelSound reads of bend.duel (index.ts's api), lazily: it is made just before it */
@@ -307,6 +309,9 @@ export interface DuelSoundOptions {
   film: boolean;
   world: () => string;
   duel: () => DuelApiLike;
+  /** start the sound (the show awake, the music's AudioContext): the duel's own `begin` does it; so does the page's
+   *  first gesture, inside it, before any seat has joined (a click on a waiting seat, a key no layout knows) */
+  wake?: () => void;
 }
 
 /** the duel's sound on the page: the cues each frame (the 'audio' phase, after the duel stepped and before the music's
@@ -327,6 +332,12 @@ export function duelSound(o: DuelSoundOptions) {
   const sound = new DuelSound(host, src, DUEL_SOUNDS, (name, x) => (M.sfx as unknown as (n: string, x: unknown) => void)(name, x)) as DuelSound & { music: SetMusic };
   const music = sound.music = new SetMusic(M, o.world, o.film);
   let balanced: unknown;
+  // (any first gesture starts the sound inside it: a context made there runs at once, Safari's and iOS's included;
+  // one made outside a gesture, as the bots' duel makes it at load, waits for Live's own wake on the next gesture)
+  if (o.wake && !o.film && typeof addEventListener === 'function') {
+    const first = () => { for (const ev of GESTURES) removeEventListener(ev, first, { capture: true }); if (!M.live) o.wake!(); };
+    for (const ev of GESTURES) addEventListener(ev, first, { capture: true, passive: true });
+  }
   o.frame.tick('audio', () => {
     // the duel's balance, once the sound has started (after Music.start's own) or for a film's recorder at once
     if (balanced !== M.live && E.track) { balanced = M.live; E.out.under(M.now(), 1, DUEL_BALANCE); }
@@ -354,7 +365,7 @@ export class SetMusic {
   /** a drift past this (beats) puts the music back where the set is: in play (and the finale) only a big one (a
    *  context woken late, a tab back: the deck crossfades half a second), in the count-in and the banner a small one
    *  (a hitch's frames lost by the set's clock: the finale then still lands on its line) */
-  driftBeats = { play: 0.5, between: 0.06 };
+  driftBeats = { play: 0.5, between: 0.12 };
 
   constructor(private music: MusicLike, private world: () => string, private film: boolean) {}
 
