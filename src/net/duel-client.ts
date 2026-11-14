@@ -137,8 +137,8 @@ export class DuelClient {
     snaps: 0, bytesIn: 0, bytesOut: 0, devBytes: 0, ticks: 0,
     /** the prediction's error at each acknowledged input (m), before any correction */
     err: [] as number[],
-    /** the same, at the first snapshot after a hold or a carry let this body go (the other's fling: not this page's to
-     *  predict) */
+    /** the same, where the other or a power moved this body (the first snapshot after a hold let it go, a vault, a
+     *  wave): not this page's to predict */
     errAfter: [] as number[],
     corrections: 0, cuts: 0, replayed: 0,
     /** this page's catches: felt here, confirmed by the server, denied */
@@ -403,7 +403,7 @@ export class DuelClient {
     }
     const e = dist(h.root, B.root), ev = dist(h.v, B.v);
     const kitOff = K ? ['grounded', 'airJumps', 'dashes', 'wallSide'].some((f) => kitField(K, f) !== h.save[f]) : h.grounded !== !(B.flags & DUEL_FLAG.AIRBORNE);
-    if (!this.follow && !(B.flags & DUEL_FLAG.FROZEN)) (wasFollow ? this.stats.errAfter : this.stats.err).push(e);
+    if (!this.follow && !(B.flags & DUEL_FLAG.FROZEN)) (wasFollow || B.flags & DUEL_FLAG.PUSHED ? this.stats.errAfter : this.stats.err).push(e);
     if (this.stats.err.length > 20000) this.stats.err.splice(0, 10000);
     this.hist.delete(ack);
     if (e <= CLIENT.EPS && ev <= CLIENT.EPS_V && !kitOff && !this.follow) return;

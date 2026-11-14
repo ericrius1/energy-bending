@@ -134,7 +134,7 @@ if (query.has('play') || query.has('roda') || query.has('teach')) {
   if (query.has('net')) await (await import('./net/play')).netPlay({ show, play, frame, world: () => worldOf(main.world), query, gates });
   // ?play&partner, ?roda, ?teach: brains on the seats (src/ai/demo.ts)
   if (['partner', 'roda', 'teach'].some((k) => query.has(k))) await (await import('./ai/demo')).brainsPlay({ query, frame, show, music: music!, world: () => worldOf(main.world), worldOf, motion, travel: travelling, lock, wake, play });
-} else if (query.has('net')) show.castOverride = await (await import('./net/demo')).netDemo(motion, frame, query);
+} else if (query.has('net') && !query.has('duel')) show.castOverride = await (await import('./net/demo')).netDemo(motion, frame, query);
 // ?npcs=5: free dancers on brains (src/ai/demo.ts)
 if (query.has('npcs') && !query.has('play')) await (await import('./ai/demo')).npcsDemo({ query, frame, show, music: music!, world: () => worldOf(main.world), worldOf, motion, travel: travelling, lock, wake }, Number(query.get('npcs') || 5));
 gatesDebug(gates, frame, query, () => show.dancers);

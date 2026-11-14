@@ -451,6 +451,9 @@ export const DUEL_FLAG = {
   CARRIED: 1024,
   /** frozen: the count-in, reforming, the finale (no input reaches the body) */
   FROZEN: 2048,
+  /** moved by the other or a power since the last snapshot (a vault off its head, a wave, a catch's rope): its own
+   *  player's prediction couldn't know (corrected, and counted apart) */
+  PUSHED: 16,
 } as const;
 
 /** one body in a snapshot: a pose frame (landmarks in the body's frame, root, yaw, flags, its move) and its motion */

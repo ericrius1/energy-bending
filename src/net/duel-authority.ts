@@ -45,6 +45,8 @@ interface SeatIn {
   ack: number;
   /** ticks an empty queue made the last input repeat; inputs folded away (a queue past its length); lost (a gap) */
   starved: number;
+  /** ticks in a row with no input (a page in a background tab sends none: past STILL_TICKS its body stands) */
+  dry: number;
   folded: number;
   lost: number;
 }
@@ -58,6 +60,9 @@ interface ContactInner {
   tryCatch(k: number): { part: Link['part']; at: V3 } | null;
   pivot(h: Character, c: V3): V3;
 }
+
+/** an empty input queue repeats a seat's last input for this many ticks, then the body stands (no thumbs) */
+const STILL_TICKS = 15;
 
 /** a tick's output: its events, in order, as the clients get them; the slow state (JSON) when it changed */
 export interface TickOut { n: number; ev: DuelEvent[]; tc: ContactEvent[]; pe: PowerEvent[]; fx: PowerFx[]; st?: string }
@@ -105,6 +110,8 @@ export class DuelAuthority {
   /** the powers' temporary solids, laid into the world's while they stand */
   private solids: Solid[];
   private past: Past[][] = [[], []];
+  /** the last tick the contact or a power moved each body (beyond its own step) */
+  private pushed = [-1e9, -1e9];
   /** what each tick cost (ms), the last few hundred */
   readonly cost: number[] = [];
   /** catches judged where the catcher saw them that the present would have missed, and grabs it didn't judge so (why) */
@@ -135,7 +142,7 @@ export class DuelAuthority {
     this.match = new DuelMatch(this.chars, this.arena, plane, 0, bpm, { solids: () => this.solids, setMs: this.setMs });
     this.powers = new DuelPowers(this.chars, this.match, { matter: [matterOf(o.matter[0]), matterOf(o.matter[1])], sink: this.solids, groundAt: terrain.groundAt, yKill: this.arena.space.yKill });
     this.finale = new Finale(this.chars);
-    this.seats = [0, 1].map((): SeatIn => ({ queue: [], last: null, recv: -1, ack: -1, starved: 0, folded: 0, lost: 0 })) as unknown as [SeatIn, SeatIn];
+    this.seats = [0, 1].map((): SeatIn => ({ queue: [], last: null, recv: -1, ack: -1, starved: 0, dry: 0, folded: 0, lost: 0 })) as unknown as [SeatIn, SeatIn];
   }
 
   /** what a joiner is told of the room */
@@ -175,9 +182,10 @@ export class DuelAuthority {
   private take(k: number): { x: DuelInput | null; fresh: boolean } {
     const S = this.seats[k];
     const x = S.queue.shift();
-    if (x) { S.last = x; S.ack = x.seq; return { x, fresh: true }; }
+    if (x) { S.last = x; S.ack = x.seq; S.dry = 0; return { x, fresh: true }; }
     if (this.present[k]) S.starved++;
-    return { x: S.last, fresh: false };
+    // (the last input repeated for a moment; a page that has gone quiet, its tab hidden, stands its body still)
+    return { x: ++S.dry > STILL_TICKS ? null : S.last, fresh: false };
   }
 
   /** one tick */
@@ -201,6 +209,8 @@ export class DuelAuthority {
       C[k].update(dt, it, { beats: beat, bpm });
     }
     const out: TickOut = { n: this.tick, ev: [], tc: [], pe: [], fx: [] };
+    // (where each body's own step left it: anything the contact or the powers change after is a push)
+    const mine = C.map((c) => [c.root[0], c.root[1], c.root[2], c.v[0], c.v[1], c.v[2]]);
     if (this.running) {
       const pre: DuelEvent[] = [], preTouch: ContactEvent[] = [];
       for (let k = 0; k < 2; k++) if (grabs[k]) this.rewoundCatch(k, grabs[k]!, onBeat(beat, bpm), pre, preTouch);
@@ -215,6 +225,10 @@ export class DuelAuthority {
         else if (e.k === 'set') this.finale.stop();
       }
       this.finale.update(dt);
+      for (let k = 0; k < 2; k++) {
+        const c = C[k], m = mine[k];
+        if (Math.hypot(c.root[0] - m[0], c.root[1] - m[1], c.root[2] - m[2]) > 1e-4 || Math.hypot(c.v[0] - m[3], c.v[1] - m[4], c.v[2] - m[5]) > 1e-3) this.pushed[k] = this.tick;
+      }
       out.ev = ev; out.tc = [...preTouch, ...M.touches]; out.pe = P.events; out.fx = P.fx;
     } else for (const c of C) c.events.length = 0;
     const st = this.slowDelta();
@@ -319,6 +333,7 @@ export class DuelAuthority {
     const held = M.contact.held(k), fin = this.finale.active;
     let f = (held ? DUEL_FLAG.HELD : 0) | (M.contact.holding(k) ? DUEL_FLAG.HOLDING : 0);
     if (held || P.carried[k] || P.boost[k] || P.ride[k] || fin) f |= DUEL_FLAG.CARRIED;
+    if (this.tick - this.pushed[k] < DUEL_NET.TICK_HZ / DUEL_NET.SNAP_HZ) f |= DUEL_FLAG.PUSHED;
     if (this.running && (M.frozen(k) || fin)) f |= DUEL_FLAG.FROZEN;
     return f;
   }

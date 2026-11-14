@@ -160,6 +160,8 @@ export async function startOnline(o: OnlineCtx): Promise<OnlineDuel> {
     return fail('moving to the room\'s world');
   }
   for (let k = 0; k < 2; k++) if (app.show.dress[k] !== welcome.dress[k]) app.show.setDress(k, welcome.dress[k]);
+  // (the page runs from here on: the room's clock goes whether or not anyone has touched a key)
+  app.wake();
   console.info(`duel: online room ${room} at ${url}, ${seat == null ? 'watching' : `seat ${seat + 1}`}; ${welcome.world}, ${welcome.dress.join(' v ')}${welcome.locked ? ', locked' : ''}`);
 
   // the predicted body stands in the page's world as the page's body does (its floor, its solids with the powers')
