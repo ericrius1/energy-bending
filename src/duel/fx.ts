@@ -1,4 +1,6 @@
-// How the contact dance is seen and heard (phase 2: the contact reads from the bodies, fix 5; the finale's look, fix 4):
+// How the contact dance is seen and heard (phase 2: the contact reads from the bodies, fix 5; the finale's look, fix 4).
+// "Its colour" is its seat's (seat.ts: rose, fern; phase 3, who is who), never its matter's: each body wears a halo of
+// it, and the contact's rings are drawn in two halves, each dancer's on its own side.
 //   the grip   while joined, who holds whom is drawn on the bodies: the holder's arm, shoulder to hand, lit in its own
 //              colour, its hand a small bright cuff round the caught part, and a thin rope of the same colour on from
 //              the hand to the held body's chest (the holder's colour all the way: "this one has that one"). The two

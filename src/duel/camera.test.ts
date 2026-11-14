@@ -149,13 +149,14 @@ function judgeSet(id: string, seed: number, seconds: number, dress: [string, str
       // (the powers' steps and pillars in the solids while they stand, as World.solids has them in the page)
       if ((powers?.version ?? 0) !== version) { version = powers?.version ?? 0; space = camSpaceOf([...(world.solids ?? [])], world.groundAt); }
       if (match.state.phase !== 'play') return;
-      const B = bodies.map((c) => bodyAt([c.root[0], c.root[1], c.root[2]], [c.v[0], c.v[1], c.v[2]], !c.grounded));
+      const B = bodies.map((c) => ({ ...bodyAt([c.root[0], c.root[1], c.root[2]], [c.v[0], c.v[1], c.v[2]], !c.grounded), away: c.reforming }));
+      const seen = B.filter((b) => !b.away);
       if (impulses) {
         for (const x of match.touches) if (x.kind === 'catch' || x.kind === 'aerial' || x.kind === 'fling' || x.kind === 'lift') cam.impulse({ at: x.at, kind: x.kind === 'aerial' ? 'catch' : x.kind, k: 1 });
         for (const e of events) if (e.k === 'merge') cam.impulse({ at: match.contact.link?.at ?? B[0].head, kind: 'merge', k: 1 });
       }
       const pose = cam.update(1 / 60, { bodies: B, aspect: ASPECT, gravity: 40, space, near: 0.6, center: arena.space.center, room: arena.camera?.maxDist ?? 22, maxDist: arena.camera?.maxDist });
-      const J = judge(pose, B, space, ASPECT);
+      const J = judge(pose, seen.length ? seen : B, space, ASPECT);
       T.n++;
       if (J.clear < 0.6) T.nearEye++;
       if (J.fg >= 0.1) T.fg10++;

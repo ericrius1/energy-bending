@@ -16,9 +16,22 @@
 // with a margin to beat (no hunting), and the yaw and pitch eased toward it at a bounded rate (no snaps, no swing back
 // and forth). Where nothing is in the way it is the plain side view.
 //
+// A clean eye (phase 3, report 13 issue 4; report 14-camera): every solid counts (World.solids: the world's, the arena's
+// pieces, the powers' steps and pillars). A choice also pays for a piece standing in the near part of the frame (rays
+// through the lens meeting a solid nearer than halfway to the bodies: a drum, a log, a slab across the lens). Each
+// frame the fallback judges the eye clean (clear of solids by the near fade's distance and a margin, nothing across the
+// near frame, both bodies seen past the solids), where it is and where the pair carries it a moment on; where it is
+// not, it rises over the pieces first (held a while, so it does not bob), dips under an overhang only where no rise is
+// clean, and only then comes in along the boom, never past what still holds the frame.
+//
 // Easing: the look point and boom chase the fit (out quickly, in slowly; up quickly, down gently), then a hard pass
 // lengthens the boom to whatever keeps every point inside the hard margins from where the look point is now, so the
 // ease never lets a body out of frame; the pass moves only as fast as the bodies do, so it never cuts.
+//
+// Juice (phase 3): `impulse` (the feel's catches, flings, tiers, lifts and merges) leans the look point toward the
+// contact and eases the boom in or out for a moment, with a soft settle or sway, shaped u³(1 − u)⁴ (no step in speed or
+// acceleration), bounded, and faded wherever it would make the eye less clean. Time: the camera runs on real time (the
+// page's f.dt, not the game's danceDt), so in a hit-stop or a slow motion it keeps easing toward the slowed bodies.
 export type V3 = [number, number, number];
 
 /** the world as the camera needs it: how far a point is from the nearest solid, whether a solid crosses the segment a → b
@@ -53,6 +66,8 @@ export interface CamBody {
   vel: V3;
   /** in the air (not standing, not on a wall) */
   air: boolean;
+  /** fallen and reforming (the duel's reform): not framed, the camera stays with the other a moment */
+  away?: boolean;
 }
 
 export interface CamInput {
@@ -362,13 +377,19 @@ export class DuelCamera {
   }
 
   update(dt: number, I: CamInput): CamPose {
-    const P = DUEL_CAM, pts = this.pointsOf(I), pad = I.pad ?? 0;
+    const P = DUEL_CAM, pad = I.pad ?? 0;
+    // (a body fallen and reforming is not followed down: the other is framed alone till it is back)
+    if (I.bodies.length === 2 && I.bodies.some((b) => b.away) && !I.bodies.every((b) => b.away)) {
+      const here = I.bodies.find((b) => !b.away)!;
+      I = { ...I, bodies: [here, here] };
+    }
     // (only the solids round the pair matter: the eye stands at most the longest boom from them)
     if (I.space?.local) {
       const c: V3 = [0, 0, 0];
       for (const b of I.bodies) { c[0] += b.root[0] / I.bodies.length; c[1] += b.root[1] / I.bodies.length; c[2] += b.root[2] / I.bodies.length; }
       I = { ...I, space: I.space.local(c, Math.min(P.maxDist, I.maxDist ?? Infinity) * 1.25 + 6) ?? I.space };
     }
+    const pts = this.pointsOf(I);
     this.framed = pts;
     const soft: Margins = { top: P.top + pad * 0.08, bottom: P.bottom + pad * 0.06, side: P.side + pad * 0.06 };
     const hard: Margins = { top: P.hardTop, bottom: P.hardBottom, side: P.hardSide };

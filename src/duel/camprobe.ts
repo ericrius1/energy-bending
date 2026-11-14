@@ -57,7 +57,8 @@ for (const id of worlds) {
         const v = powers?.version ?? 0;
         if (v !== version) { version = v; space = spaceOf([...(world.solids ?? [])], world.groundAt); }
         if (match.state.phase !== 'play') return;
-        const B = bodies.map((c) => roughBody([c.root[0], c.root[1], c.root[2]], [c.v[0], c.v[1], c.v[2]], !c.grounded));
+        const B = bodies.map((c) => ({ ...roughBody([c.root[0], c.root[1], c.root[2]], [c.v[0], c.v[1], c.v[2]], !c.grounded), away: c.reforming }));
+        const seen = B.filter((b) => !b.away);
         if (impulses && cam.impulse) {
           for (const x of match.touches) if (x.kind === 'catch' || x.kind === 'aerial' || x.kind === 'fling' || x.kind === 'lift') cam.impulse({ at: x.at, kind: x.kind === 'aerial' ? 'catch' : x.kind, k: x.kind === 'aerial' ? 1 : 0.7 });
           for (const e of events) if (e.k === 'merge') cam.impulse({ at: match.contact.link?.at ?? B[0].head, kind: 'merge', k: 1 });
@@ -65,7 +66,7 @@ for (const id of worlds) {
         const t0 = performance.now();
         const pose = cam.update(1 / 60, { bodies: B, aspect: ASPECT, gravity: 40, space, near: 0.6, center: arena.space.center, room: arena.camera?.maxDist ?? arena.space.radius + 6, maxDist: arena.camera?.maxDist });
         T.ms += performance.now() - t0;
-        const J = judge(pose, B, space, ASPECT);
+        const J = judge(pose, seen.length ? seen : B, space, ASPECT);
         T.frames++;
         if (J.clear < 0) T.inside++;
         if (J.clear < 0.6) T.nearEye++;

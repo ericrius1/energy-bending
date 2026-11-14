@@ -31,7 +31,7 @@ export const SEAT_HALO = { I: 1, form: 0.9, head: 0.13 };
  *  shards) hides the halo's core, so it is wider and brighter there and reads as a rim; a translucent one (water, fire,
  *  plasma) shows it through, so it is narrower and fainter there and reads as a tint with a soft edge */
 export const HALO_LOOK: Record<string, { scale: number; I: number }> = {
-  gems: { scale: 1.8, I: 0.26 }, ice: { scale: 1.8, I: 0.24 }, water: { scale: 1.35, I: 0.12 }, fire: { scale: 1.6, I: 0.15 }, plasma: { scale: 1.7, I: 0.2 },
+  gems: { scale: 1.8, I: 0.26 }, ice: { scale: 1.8, I: 0.24 }, water: { scale: 1.35, I: 0.12 }, fire: { scale: 1.6, I: 0.15 }, plasma: { scale: 1.6, I: 0.14 },
 };
 
 /** a body's halo in its seat's colour: soft light along its bones, a little wider than the body, `I` its strength
