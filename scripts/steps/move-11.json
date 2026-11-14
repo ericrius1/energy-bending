@@ -1,0 +1,205 @@
+[
+ {
+  "name": "move-free-column",
+  "query": "play&two&duel&world=temple",
+  "seconds": 2.2,
+  "fps": 30,
+  "warm": 90,
+  "sheet": {
+   "cols": 4,
+   "rows": 4,
+   "width": 480
+  },
+  "setup": "\nbend.wake();\nawait bend.step(30);\nbend.set('camera', { followDist: 5.2 });\nconst c = bend.show.dancers[0].controller.character; c.reset(4.4, undefined, -9.76); c.yaw = -1.5707963267948966;\nconst b = bend.show.dancers[1].controller.character; b.reset(4.6, undefined, -6.8);\nbend.intent(0, null); bend.intent(1, null);\nwindow.__go = (wx, wz, extra = {}) => {\n  const k = bend.show.dancers[0].controller, cy = Math.cos(k.inputYaw), sy = Math.sin(k.inputYaw);\n  bend.intent(0, { moveX: wx * cy - wz * sy, moveZ: -(wx * sy + wz * cy), ...extra });\n};\nwindow.__w = { x: 0, z: 0, extra: {} };\nwindow.__w = { x: -1, z: 0, held: true, extra: {} };",
+  "each": "const w = window.__w; window.__go(w.x, w.z, w.extra); w.extra = { jumpHeld: !!w.held };",
+  "cues": {
+   "1": "window.__w.extra = { jump: true, jumpHeld: true };",
+   "0.2": "window.__w.extra = { jump: true, jumpHeld: true };",
+   "1.5": "window.__w.x = 0;"
+  },
+  "stills": [
+   0.7,
+   1.2
+  ]
+ },
+ {
+  "name": "move-free-pillars",
+  "query": "play&two&duel&world=temple",
+  "seconds": 2.2,
+  "fps": 60,
+  "warm": 90,
+  "sheet": {
+   "cols": 4,
+   "rows": 4,
+   "width": 480
+  },
+  "setup": "\nbend.wake();\nawait bend.step(30);\nbend.set('camera', { followDist: 5.2 });\nconst c = bend.show.dancers[0].controller.character; c.reset(2.1, undefined, -4.15); c.yaw = 1.5707963267948966;\nconst b = bend.show.dancers[1].controller.character; b.reset(4.6, undefined, -1.5);\nbend.intent(0, null); bend.intent(1, null);\nwindow.__go = (wx, wz, extra = {}) => {\n  const k = bend.show.dancers[0].controller, cy = Math.cos(k.inputYaw), sy = Math.sin(k.inputYaw);\n  bend.intent(0, { moveX: wx * cy - wz * sy, moveZ: -(wx * sy + wz * cy), ...extra });\n};\nwindow.__w = { x: 0, z: 0, extra: {} };\nwindow.__w = { x: 1, z: 0, held: true, extra: { jump: true, jumpHeld: true } }; window.__tg = 1; window.__pr = false; window.__ne = bend.show.dancers[0].controller.character.events.length;",
+  "each": "const c = bend.show.dancers[0].controller.character, W = window;\nfor (; W.__ne < c.events.length; W.__ne++) if (c.events[W.__ne].type === 'wallJump') { W.__tg = -W.__tg; W.__pr = false; }\nif (t < 1.3) {\n  W.__w.x = W.__tg; W.__w.z = 0;\n  const n = c.wallNormal;\n  if (!W.__pr && c.wallKick && n && n[0] * W.__tg < -0.5) { W.__w.extra = { jump: true, jumpHeld: true }; W.__pr = true; }\n}\nconst w = window.__w; window.__go(w.x, w.z, w.extra); w.extra = { jumpHeld: !!w.held };",
+  "cues": {
+   "1.3": "window.__w = { x: 0, z: 1, held: false, extra: { dash: true } };",
+   "1.6": "window.__w = { x: 0, z: 0, held: false, extra: {} };"
+  },
+  "stills": [
+   0.5,
+   1.4
+  ]
+ },
+ {
+  "name": "move-free-flow",
+  "query": "play&two&duel&world=temple",
+  "seconds": 2.8,
+  "fps": 30,
+  "warm": 90,
+  "sheet": {
+   "cols": 4,
+   "rows": 4,
+   "width": 480
+  },
+  "setup": "\nbend.wake();\nawait bend.step(30);\nbend.set('camera', { followDist: 5.2 });\nconst c = bend.show.dancers[0].controller.character; c.reset(-9, undefined, 9); c.yaw = 1.5707963267948966;\nconst b = bend.show.dancers[1].controller.character; b.reset(-9.5, undefined, 7);\nbend.intent(0, null); bend.intent(1, null);\nwindow.__go = (wx, wz, extra = {}) => {\n  const k = bend.show.dancers[0].controller, cy = Math.cos(k.inputYaw), sy = Math.sin(k.inputYaw);\n  bend.intent(0, { moveX: wx * cy - wz * sy, moveZ: -(wx * sy + wz * cy), ...extra });\n};\nwindow.__w = { x: 0, z: 0, extra: {} };\nwindow.__w = { x: 1, z: 0, held: false, extra: {} };",
+  "each": "const w = window.__w; window.__go(w.x, w.z, w.extra); w.extra = { jumpHeld: !!w.held };",
+  "cues": {
+   "0.35": "window.__w.held = true; window.__w.extra = { jump: true, jumpHeld: true };",
+   "0.5": "window.__w.extra = { kick: true, jumpHeld: true };",
+   "0.7": "window.__w.held = false; window.__w.extra = { dash: true };",
+   "1.2": "window.__w.extra = { kick: true };",
+   "1.9": "window.__w.extra = { spin: true };"
+  },
+  "stills": [
+   0.6,
+   0.8,
+   1.3
+  ]
+ },
+ {
+  "name": "move-free-wallau",
+  "query": "play&two&duel&world=temple",
+  "seconds": 2,
+  "fps": 30,
+  "warm": 90,
+  "sheet": {
+   "cols": 4,
+   "rows": 3,
+   "width": 480
+  },
+  "setup": "\nbend.wake();\nawait bend.step(30);\nbend.set('camera', { followDist: 5.2 });\nconst c = bend.show.dancers[0].controller.character; c.reset(4.4, undefined, -9.76); c.yaw = -1.5707963267948966;\nconst b = bend.show.dancers[1].controller.character; b.reset(4.6, undefined, -6.8);\nbend.intent(0, null); bend.intent(1, null);\nwindow.__go = (wx, wz, extra = {}) => {\n  const k = bend.show.dancers[0].controller, cy = Math.cos(k.inputYaw), sy = Math.sin(k.inputYaw);\n  bend.intent(0, { moveX: wx * cy - wz * sy, moveZ: -(wx * sy + wz * cy), ...extra });\n};\nwindow.__w = { x: 0, z: 0, extra: {} };\nwindow.__w = { x: -1, z: 0, held: true, extra: {} };",
+  "each": "const w = window.__w; window.__go(w.x, w.z, w.extra); w.extra = { jumpHeld: !!w.held };",
+  "cues": {
+   "0.2": "window.__w.extra = { jump: true, jumpHeld: true };",
+   "0.9": "window.__w.x = 0; window.__w.extra = { spin: true };"
+  },
+  "stills": [
+   1.1
+  ]
+ },
+ {
+  "name": "move-wallslide",
+  "query": "play&two&arena=test&world=pool",
+  "seconds": 1.6,
+  "fps": 30,
+  "warm": 120,
+  "sheet": {
+   "cols": 4,
+   "rows": 3,
+   "width": 480
+  },
+  "setup": "\nbend.wake();\nconst g0 = bend.grab;\nbend.grab = async (type, q, dt) => {\n  const url = await g0(type, q, dt);\n  const ov = document.getElementById('arena-overlay');\n  if (!ov) return url;\n  const img = new Image(); img.src = url; await img.decode();\n  const c = document.createElement('canvas'); c.width = img.width; c.height = img.height;\n  const x = c.getContext('2d'); x.drawImage(img, 0, 0); x.drawImage(ov, 0, 0, img.width, img.height);\n  return c.toDataURL(type || 'image/jpeg', q ?? 0.93);\n};\nawait bend.step(30);\nconst c = bend.show.dancers[0].controller.character, g = c.plane.ground ?? 0;\nc.reset(-5, g + 0);\nconst b = bend.show.dancers[1].controller.character; b.reset(5.3, g); bend.show.dancers[1].framed = false;\nbend.intent(0, null); bend.intent(1, null);\n",
+  "cues": {
+   "0": "bend.intent(0, { jump: true, jumpHeld: true, moveX: 1 });",
+   "1.45": "bend.intent(0, { moveX: 0 });"
+  },
+  "stills": [
+   0.6,
+   0.9
+  ]
+ },
+ {
+  "name": "move-climb",
+  "query": "play&two&arena=test&world=pool",
+  "seconds": 2.6,
+  "fps": 60,
+  "warm": 120,
+  "sheet": {
+   "cols": 4,
+   "rows": 4,
+   "width": 480
+  },
+  "setup": "\nbend.wake();\nconst g0 = bend.grab;\nbend.grab = async (type, q, dt) => {\n  const url = await g0(type, q, dt);\n  const ov = document.getElementById('arena-overlay');\n  if (!ov) return url;\n  const img = new Image(); img.src = url; await img.decode();\n  const c = document.createElement('canvas'); c.width = img.width; c.height = img.height;\n  const x = c.getContext('2d'); x.drawImage(img, 0, 0); x.drawImage(ov, 0, 0, img.width, img.height);\n  return c.toDataURL(type || 'image/jpeg', q ?? 0.93);\n};\nawait bend.step(30);\nconst c = bend.show.dancers[0].controller.character, g = c.plane.ground ?? 0;\nc.reset(-4.3, g + 0);\nconst b = bend.show.dancers[1].controller.character; b.reset(5.3, g); bend.show.dancers[1].framed = false;\nbend.intent(0, null); bend.intent(1, null);\nwindow.__tg = -1; window.__pr = false; window.__ne = c.events.length;",
+  "cues": {
+   "0": "bend.intent(0, { jump: true, jumpHeld: true, moveX: -1 });"
+  },
+  "each": "const c = bend.show.dancers[0].controller.character, W = window;\nfor (; W.__ne < c.events.length; W.__ne++) if (c.events[W.__ne].type === 'wallJump') { W.__tg = -W.__tg; W.__pr = false; }\nconst p = { moveX: W.__tg, jumpHeld: true };\nif (!W.__pr && c.wallKick === W.__tg) { p.jump = true; W.__pr = true; }\nif (c.y - (c.plane.origin[1] + (c.plane.ground ?? 0)) > 4.6) p.moveX = 1;\nbend.intent(0, p);",
+  "stills": [
+   1,
+   2
+  ]
+ },
+ {
+  "name": "move-dash",
+  "query": "play&two&arena=test&world=pool",
+  "seconds": 1.6,
+  "fps": 60,
+  "warm": 120,
+  "sheet": {
+   "cols": 4,
+   "rows": 4,
+   "width": 480
+  },
+  "setup": "\nbend.wake();\nconst g0 = bend.grab;\nbend.grab = async (type, q, dt) => {\n  const url = await g0(type, q, dt);\n  const ov = document.getElementById('arena-overlay');\n  if (!ov) return url;\n  const img = new Image(); img.src = url; await img.decode();\n  const c = document.createElement('canvas'); c.width = img.width; c.height = img.height;\n  const x = c.getContext('2d'); x.drawImage(img, 0, 0); x.drawImage(ov, 0, 0, img.width, img.height);\n  return c.toDataURL(type || 'image/jpeg', q ?? 0.93);\n};\nawait bend.step(30);\nconst c = bend.show.dancers[0].controller.character, g = c.plane.ground ?? 0;\nc.reset(-2, g + 0);\nconst b = bend.show.dancers[1].controller.character; b.reset(5.3, g); bend.show.dancers[1].framed = false;\nbend.intent(0, null); bend.intent(1, null);\n",
+  "cues": {
+   "1": "bend.intent(0, { jumpHeld: false, moveX: 0, moveY: 0 });",
+   "0.1": "bend.intent(0, { dash: true });",
+   "0.55": "bend.intent(0, { jump: true, jumpHeld: true });",
+   "0.75": "bend.intent(0, { dash: true, moveX: 1, moveY: 1 });",
+   "1.15": "bend.intent(0, { dash: true, moveX: 1, moveY: -1 });",
+   "1.35": "bend.intent(0, { moveX: 0, moveY: 0 });"
+  },
+  "stills": [
+   0.15,
+   0.85
+  ]
+ },
+ {
+  "name": "move-dashjump",
+  "query": "play&two&arena=test&world=pool",
+  "seconds": 1.6,
+  "fps": 60,
+  "warm": 120,
+  "sheet": {
+   "cols": 4,
+   "rows": 4,
+   "width": 480
+  },
+  "setup": "\nbend.wake();\nconst g0 = bend.grab;\nbend.grab = async (type, q, dt) => {\n  const url = await g0(type, q, dt);\n  const ov = document.getElementById('arena-overlay');\n  if (!ov) return url;\n  const img = new Image(); img.src = url; await img.decode();\n  const c = document.createElement('canvas'); c.width = img.width; c.height = img.height;\n  const x = c.getContext('2d'); x.drawImage(img, 0, 0); x.drawImage(ov, 0, 0, img.width, img.height);\n  return c.toDataURL(type || 'image/jpeg', q ?? 0.93);\n};\nawait bend.step(30);\nconst c = bend.show.dancers[0].controller.character, g = c.plane.ground ?? 0;\nc.reset(-2, g + 0);\nconst b = bend.show.dancers[1].controller.character; b.reset(5.3, g); bend.show.dancers[1].framed = false;\nbend.intent(0, null); bend.intent(1, null);\n",
+  "cues": {
+   "0": "bend.intent(0, { moveX: 1 });",
+   "0.2": "bend.intent(0, { dash: true, moveX: 1 });",
+   "0.28": "bend.intent(0, { jump: true, jumpHeld: true, moveX: 1 });",
+   "1.4": "bend.intent(0, { moveX: 0, jumpHeld: false });"
+  },
+  "stills": [
+   0.5
+  ]
+ },
+ {
+  "name": "move-fastfall",
+  "query": "play&two&arena=test&world=pool",
+  "seconds": 1.5,
+  "fps": 60,
+  "warm": 120,
+  "sheet": {
+   "cols": 4,
+   "rows": 4,
+   "width": 480
+  },
+  "setup": "\nbend.wake();\nconst g0 = bend.grab;\nbend.grab = async (type, q, dt) => {\n  const url = await g0(type, q, dt);\n  const ov = document.getElementById('arena-overlay');\n  if (!ov) return url;\n  const img = new Image(); img.src = url; await img.decode();\n  const c = document.createElement('canvas'); c.width = img.width; c.height = img.height;\n  const x = c.getContext('2d'); x.drawImage(img, 0, 0); x.drawImage(ov, 0, 0, img.width, img.height);\n  return c.toDataURL(type || 'image/jpeg', q ?? 0.93);\n};\nawait bend.step(30);\nconst c = bend.show.dancers[0].controller.character, g = c.plane.ground ?? 0;\nc.reset(3.6, g + 0);\nconst b = bend.show.dancers[1].controller.character; b.reset(4.8, g); bend.show.dancers[1].framed = true;\nbend.intent(0, null); bend.intent(1, null);\n",
+  "cues": {
+   "0": "bend.intent(0, { jump: true, jumpHeld: true }); bend.intent(1, { jump: true, jumpHeld: true });",
+   "0.3": "bend.intent(0, { jump: true }); bend.intent(1, { jump: true });",
+   "0.62": "bend.intent(0, { moveY: -1 });",
+   "1.3": "bend.intent(0, { moveY: 0, jumpHeld: false }); bend.intent(1, { jumpHeld: false });"
+  },
+  "stills": [
+   0.8
+  ]
+ }
+]

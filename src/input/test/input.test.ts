@@ -109,7 +109,49 @@ test('touch: stick where the thumb lands, right-half drag = hand / camera, butto
   t.mode = 'free'; t.move(2, 760, 210); i = t.update(1 / 60); assert(!i.aimActive && i.camX > 0, 'free: drag = camera');
   t.press('hand'); t.move(2, 770, 200); i = t.update(); assert(i.aimActive, "free: 'hand' held");
   t.up(1); t.up(2); i = t.update(); assert(i.moveX === 0 && !i.aimActive, 'released');
-  assert(t.buttons.map((b) => b.name).join() === 'jump,strike,kick,spin,dodge,form,merge,lock,interact,hand', 'descriptors');
+  // (the duel's 'dash' joined the list, shown only in the duel's scheme)
+  assert(t.buttons.map((b) => b.name).join() === 'jump,strike,kick,spin,dash,dodge,form,merge,lock,interact,hand', 'descriptors');
+  assert(t.buttons.find((b) => b.name === 'dash')!.duelOnly === true, 'dash: the duel only');
+});
+
+test('the duel scheme: dash on Shift or K / RT or B / a swipe or the dash button; the moves it displaced move over', () => {
+  // keyboard (solo): the jogo's Shift is dodge, K kick, and no dash
+  const k = new KeyboardSource('solo', { target: null });
+  k.keyDown('ShiftLeft'); let i = k.update(); assert(i.dodge && !i.dash, 'jogo: Shift dodges'); k.keyUp('ShiftLeft');
+  k.keyDown('KeyK'); i = k.update(); assert(i.kick && !i.dash, 'jogo: K kicks'); k.keyUp('KeyK');
+  k.scheme = 'duel';
+  k.keyDown('ShiftLeft'); i = k.update(); assert(i.dash && !i.dodge && !i.dodgeHeld, 'duel: Shift dashes'); assert(!k.update().dash, 'an edge'); k.keyUp('ShiftLeft');
+  k.keyDown('KeyK'); i = k.update(); assert(i.dash && !i.kick, 'duel: K dashes'); k.keyUp('KeyK');
+  k.keyDown('KeyL'); i = k.update(); assert(i.kick && !i.spin, 'duel: L kicks'); k.keyUp('KeyL');
+  k.keyDown('KeyI'); assert(k.update().spin, 'duel: I spins'); k.keyUp('KeyI');
+  k.keyDown('KeyO'); i = k.update(); assert(i.dodge && i.dodgeHeld, 'duel: O dodges'); k.keyUp('KeyO');
+  k.keyDown('KeyW'); i = k.update(); assert(i.jump && i.moveY === 1, 'duel: W jumps and holds up'); k.keyUp('KeyW');
+  k.keyDown('KeyS'); k.keyDown('KeyD'); k.keyDown('KeyK'); i = k.update(); assert(i.dash && i.moveX === 1 && i.moveY === -1, 'a dash down-right');
+  const r = new KeyboardSource('right', { target: null }); r.scheme = 'duel';
+  r.keyDown('Period'); i = r.update(); assert(i.dash && !i.kick, 'right: . dashes'); r.keyUp('Period');
+  r.keyDown('ShiftRight'); assert(r.update().dash, 'right: right Shift dashes');
+  // gamepad
+  let pads: PadLike[] = [];
+  const btns = (on: number[]) => Array.from({ length: 17 }, (_, j) => ({ pressed: on.includes(j), value: on.includes(j) ? 1 : 0 }));
+  const g = new GamepadSource(0, { getPads: () => pads });
+  pads = [{ id: 'x', axes: [0, 0, 0, 0], buttons: btns([1]) }];
+  i = g.update(); assert(i.kick && !i.dash, 'jogo: B kicks');
+  g.scheme = 'duel'; pads = [{ id: 'x', axes: [0, 0, 0, 0], buttons: btns([]) }]; g.update();
+  pads = [{ id: 'x', axes: [0, 0, 0, 0], buttons: btns([1]) }]; i = g.update(); assert(i.dash && !i.kick, 'duel: B dashes');
+  pads = [{ id: 'x', axes: [0, 0, 0, 0], buttons: btns([7]) }]; i = g.update(); assert(i.dash && !i.dodge, 'duel: RT dashes');
+  pads = [{ id: 'x', axes: [0, 0, 0, 0], buttons: btns([3, 5]) }]; i = g.update(); assert(i.kick && i.dodge && i.dodgeHeld, 'duel: Y kicks, RB dodges');
+  // touch: a swipe past the rim, quickly, dashes; a slow push doesn't; the dash button
+  const t = new TouchSource(null, { rect: () => ({ left: 0, top: 0, width: 1000, height: 500 }), stickRadius: 50 });
+  t.scheme = 'duel';
+  t.down(1, 200, 300); t.update(1 / 60); t.move(1, 230, 300); t.update(1 / 60); t.move(1, 260, 300); i = t.update(1 / 60);
+  assert(i.dash && i.moveX > 0.9, 'a swipe dashes'); assert(!t.update(1 / 60).dash, 'once');
+  t.up(1); t.update(1 / 60);
+  t.down(1, 200, 300); for (let x = 205; x <= 260; x += 5) { t.move(1, x, 300); i = t.update(1 / 60); assert(!i.dash, 'a slow push does not dash'); }
+  t.up(1); t.press('dash'); assert(t.update().dash, 'the dash button'); t.release('dash');
+  // the hub hands its scheme to every device it seats
+  const hub = new InputHub({ target: null }); hub.scheme = 'duel'; hub.key('KeyA');
+  assert(hub.players[0].source.scheme === 'duel', 'hub: seated in the duel scheme');
+  hub.scheme = 'jogo'; assert((hub.players[0].source.scheme as string) === 'jogo', 'hub: and back');
 });
 
 test('bot source and merging devices', () => {

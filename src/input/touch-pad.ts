@@ -8,6 +8,7 @@ export class TouchPad {
   private ring = document.createElement('div');
   private knob = document.createElement('div');
   private freeOnly: HTMLElement[] = [];
+  private duelOnly: HTMLElement[] = [];
 
   constructor(private src: TouchSource, canvas: HTMLElement) {
     Object.assign(this.root.style, { position: 'fixed', inset: '0', pointerEvents: 'none', zIndex: '5', font: '12px system-ui, sans-serif', userSelect: 'none', webkitUserSelect: 'none' });
@@ -23,6 +24,7 @@ export class TouchPad {
       el.addEventListener('pointerup', up);
       el.addEventListener('pointercancel', up);
       if (b.freeOnly) this.freeOnly.push(el);
+      if (b.duelOnly) this.duelOnly.push(el);
       col.append(el);
     }
     for (const [el, size] of [[this.ring, 120], [this.knob, 48]] as const) {
@@ -43,6 +45,7 @@ export class TouchPad {
       Object.assign(this.knob.style, { left: `${s.ox + dx * k}px`, top: `${s.oy + dy * k}px` });
     }
     for (const el of this.freeOnly) el.style.visibility = this.src.mode === 'free' ? 'visible' : 'hidden';
+    for (const el of this.duelOnly) el.style.display = this.src.scheme === 'duel' ? '' : 'none';
   }
 
   remove() { this.root.remove(); }
