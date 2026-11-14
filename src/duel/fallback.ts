@@ -1,6 +1,6 @@
 // A world's duel arena until the arena work gives it one (arena.ts), built from what the world already has: the play
 // space a circle round its stage's middle (as far as its room allows, at most 7.5 m), the kill floor a couple of metres
-// under the lowest thing to stand on (above the world's own fall-out, where it has one: the forge), spawns where the
+// under the lowest thing to stand on (above the world's own fall-out, World.fallY, where it has one), spawns where the
 // stage puts its players and round the space wherever the floor stands clear of the world's solids, and the stage plane
 // as it is (the ledges the world already draws) with walls on the sides of its solid ledges, for the lock. Pure.
 import { distTo, planePoint, type Ledge, type StagePlane } from '../engine/camera';

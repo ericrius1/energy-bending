@@ -30,7 +30,7 @@ export const RULES = {
   PARRY_MS: 150,            // a block timed within this of impact is a parry (the client judges)
   BPM: 112,                 // the tempo of a world with no track (a world's track sets its own: tempoOf)
   /** the music's mood per stage (or world); unknown ids hash to 0..MOODS-1 */
-  STAGE_MOODS: { void: 0, geode: 0, redwoods: 1, tide: 2, forge: 3 } as Record<string, number>,
+  STAGE_MOODS: { void: 0, geode: 0, redwoods: 1, tide: 2 } as Record<string, number>,
   MOODS: 4,
   FUSION_BARS: 8,
   RELEASE_BARS: 1,

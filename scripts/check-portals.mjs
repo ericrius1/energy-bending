@@ -287,7 +287,7 @@ const stepRig = (rig, n, f, each) => { for (let i = 0; i < n; i++) { each?.(i); 
   okc(pulled > 0, `the boom came in for the columns (${(pulled / 60).toFixed(1)} s of 12 nearer than 6 m)`);
 }
 
-// a dancer standing on a slab (the forge's crown): the boom rising away from it is not pinned by the slab underfoot,
+// a dancer standing on a slab (a crown of columns): the boom rising away from it is not pinned by the slab underfoot,
 // one going down through it is
 {
   const S = new Solids([boxOn([0, 2.6, 0], [2.6, 0.5, 1.7])]);

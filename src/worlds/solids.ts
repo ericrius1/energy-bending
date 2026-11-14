@@ -102,7 +102,7 @@ function distOf(s: Solid, p: V3) {
  *  solid than the margin (a dancer standing on a slab of columns, the look point a hand's breadth over the crown)
  *  shrinks the margin to start clear of all of them, as the camera's own sweep does: otherwise the grown slab next to
  *  the one underfoot read as 0 clear for any boom not rising steeply, and pinned the eye at its 0.9 m (9-stage.md: the
- *  forge's orbit with the pair on the crown) */
+ *  retired forge's orbit with the pair on its crown) */
 export function clearOf(solids: readonly Solid[], a: V3, b: V3, margin = 0.4) {
   const d: V3 = [b[0] - a[0], b[1] - a[1], b[2] - a[2]];
   if (d[0] * d[0] + d[1] * d[1] + d[2] * d[2] < 1e-12) return 1;

@@ -21,6 +21,10 @@ export interface HudCombo {
   live: boolean;
   /** links landed on the beat (of n) */
   perfect: number;
+  /** past the multiplier's cap, the tier reached (0: none), its word and colour (CSS) from tier 1 */
+  tier?: number;
+  tierName?: string;
+  tierColor?: string;
 }
 
 export interface HudPlayer {
@@ -66,8 +70,10 @@ export interface HudShared {
   energy: number;
   /** 0 … 1: its peak this set */
   peak: number;
-  /** 0 … 1: the merge (fusion) charge */
+  /** 0 … 1: the merge charge */
   merge: number;
+  /** 0 … 1: the fusion's (1: the finale will fuse: the set merged and held its energy near the top a few seconds) */
+  fusion?: number;
 }
 
 export interface HudSet {

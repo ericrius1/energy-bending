@@ -2,7 +2,7 @@
 
 A world is a place to dance: its backdrop and things, its light on matter, its air, its sound, where the camera may
 stand, the stage planes a view can lock to (with their ledges), its portals and spawn points, and any matter it is
-built of. Five are here, each a reference for something:
+built of. Four are here, each a reference for something:
 
 | world | light | what to read it for |
 |---|---|---|
@@ -10,7 +10,6 @@ built of. Five are here, each a reference for something:
 | `redwoods` | 1 | the large one: textures, instanced plants, a day; ledges that are logs in the trunks' bark (`stage.ts`) |
 | `pool` | 2 | water: a live ripple field (`water/ripples.ts`) and the surface laid over the scene in the air pass |
 | `temple` | 3 | stone geometry from the vertex index, analytic moon shadows, a tide on the music's clock (`tideY`) |
-| `forge` | 4 | no ground, ledges that bob with the bass (`ledgeY`), a heat shimmer over the scene, far islands |
 
 ## 1. A folder, a register call, and its lines in light.wgsl
 
@@ -49,14 +48,14 @@ Then `src/worlds/light.wgsl`, the one file outside your folder a world touches (
 Every matter kind declares one pipeline per world with `constants: { WORLD: world.light }`, so its gems (or flames)
 are lit by your world with no branch per pixel. `worlds/shared.ts` checks every binding in light.wgsl is provided, and
 `lightSlot` throws if `WorldLight` has no member of that name. The whole `WorldLight` must stay under 64 KiB (the
-baseline's largest uniform binding; it is 3.5 KiB with five worlds and the fire): `npm test`
+baseline's largest uniform binding; it is 3.5 KiB with four worlds and the fire): `npm test`
 (`scripts/check-bindings.mjs`) fails past it, or when any shader stage needs more uniform buffers, storage buffers,
 textures or samplers than the baseline allows. Run the game under the baseline with `?baseline`.
 
 `worldScene(src, px, d)` is what the air pass reads the scene through (src: the scene, alpha its view distance). Most
 worlds return `textureLoad(src, px, 0)`. A world with water calls `water/water.wgsl` (`waterHit`, `waveNormal`,
-`waterReflect`: the reflection is the scene on screen, marched along the reflected ray, else your sky); a hot one bends
-what is far (`forgeScene`). Keep half floats in mind: the scene's alpha is an `rgba16float`, so write distances under
+`waterReflect`: the reflection is the scene on screen, marched along the reflected ray, else your sky). Keep half
+floats in mind: the scene's alpha is an `rgba16float`, so write distances under
 30 km and compare them with a part in a thousand of slack. The `src` the air hands you is the **opaque** scene only
 (the depth contract, AGENTS.md): flames and other glowing matter are in a separate glow target laid over afterwards,
 so your reflection never sees them. A water world returns `waterY()` (its surface height) so fire draws its own
@@ -109,16 +108,16 @@ and down; defaults camera.lockYaw / lockPitch); `stagePlane(def)` fills `height`
 x1, one-way unless solid, bobbing `bob` m with the bass.
 
 - **Build the ledge and what the eye sees from one description.** Each world's layout makes the ledge first and the
-  geometry from it (the temple's pillar is a drum of the ledge's width and height; the forge's slab has a row of
-  columns whose flat sides meet exactly on the plane; the redwoods' bough runs level at one radius under its ledge).
+  geometry from it (the temple's pillar is a drum of the ledge's width and height; the redwoods' bough runs level
+  at one radius under its ledge).
 - **Moving ledges**: `ledgeY(ledge, beat)` (beat = `FrameCtx.beat.beats`) is the height for physics and drawing alike;
-  the forge uploads each slab's lift from it every frame. The temple's water: `tideY(beat)` (temple/temple.ts).
+  a world with bobbing ledges uploads each one's lift from it every frame. The temple's water: `tideY(beat)` (temple/temple.ts).
 - Proportions: a dancer is ~1.7 m and jumps ~2 m, an air jump adds ~1.5 m: low ledges ~1.1 m, middle ~1.9 m, high
   ~3.1 m over the stage's ground; the stage ~11.5 m wide (`halfWidth` 5.75).
 - `spawns` (plane x, y) for seat 0 and seat 1; `World.spawns` is the same in the world (`spawnsOf(plane)`).
-- `groundAt(x, z)` is the floor under a point in 3D: the top of a solid ledge you'd stand on there, or (the forge)
-  how far down the game catches a fall. A world you can fall off also says `fallY`: below it a body (free or locked)
-  has fallen out and re-forms at its spawn (the forge: -4 m).
+- `groundAt(x, z)` is the floor under a point in 3D: the top of a solid ledge you'd stand on there, or (a world
+  without a floor everywhere) how far down the game catches a fall. A world you can fall off also says `fallY`: below it a body (free or locked)
+  has fallen out and re-forms at its spawn.
 - `?play` locks to `stages[0]` as it is (the pool's stage has no ledges on purpose); set ice on the plane adds one-way
   ledges (`setIce.ledgesIn`). Nothing reads `tideY` for the bodies yet (wading is not modelled).
 
@@ -127,8 +126,8 @@ x1, one-way unless solid, bobbing `bob` m with the bass.
 The fire kind's light rides in the same uniform (`worldLight.fire`, filled each frame by `matter/fire/lights.ts`), and
 `worlds/light.wgsl` gives `worldFire(p, n)`: one
 point light per flame dancer (fire warm, plasma violet by the dancer's form). Add it to your world's own shading of
-its solid things (the geode's floor and shelves, everything the redwoods' lanterns light, the temple's and the forge's
-ambient do); matter takes a quarter of it through `worldAmbient`.
+its solid things (the geode's floor and shelves, everything the redwoods' lanterns light, the temple's
+ambient does); matter takes a quarter of it through `worldAmbient`.
 
 ## 4. Portals
 
@@ -143,4 +142,4 @@ gates: `LIMITS.gates`), and the nearest on screen go live.
 
 `?world=pool` starts there; `w` cycles worlds; `?lock` locks to the first stage; `?pip` shows the next world in an
 inset. Stills: `node scripts/shot.mjs shots/pool scripts/steps/worlds.json` (steps can set any world's params:
-`temple.tideHold`, `forge.bobHold`, `*.firelight`). Look at them.
+`temple.tideHold`, `*.firelight`). Look at them.

@@ -1,7 +1,7 @@
 // Where the music is heard. A world says how it sounds in two parts: its `tone()` (Gem Dancers' description of a
 // place: how far under water, how much cave, a hearth, the depth of the sub, how much open wood) and, here, which of
 // the engine's moods it plays in and the shape of its reverb (a long glassy cave, an open glade, a stone hall). The
-// table covers the worlds that exist (the geode, the redwoods) and the ones being built (pool, temple, forge); any
+// table covers the worlds (the geode, the redwoods, the pool, the temple); any
 // other world gets a mood from its `mood` number and a room from its tone. engine.ts changes mood on a bar line when
 // the world changes (a portal crossing), and the synth crossfades the room over that bar.
 import { moodIndex } from './harmony';
@@ -35,8 +35,6 @@ export const WORLD_SOUND: Record<string, WorldSound> = {
   pool: { mood: 'Sunrise', room: { seconds: 6, rt60: 4.5, pre: 0.03, bright: 0.6, waver: 0.6 }, grooveWet: 0.7 },
   // a stone temple at the tide line: the roda's home, a medium stone room
   temple: { mood: 'Roda', room: { seconds: 4, rt60: 2.6, pre: 0.02, bright: 0.65, waver: 0 }, grooveWet: 0.85 },
-  // the sky forge: hard, fast and close, a short dark room
-  forge: { mood: 'Neon', room: { seconds: 2.2, rt60: 1.1, pre: 0.008, bright: 0.45, waver: 0 }, grooveWet: 1 },
 };
 
 /** a world's sound: from the table, or for a world it doesn't know, a mood from its mood number (-1 still … 1 bright)

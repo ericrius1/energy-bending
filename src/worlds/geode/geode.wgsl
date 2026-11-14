@@ -20,7 +20,7 @@ struct Geode {
   hazeCol: vec4f,    // the haze's colour; w how thick (per metre)
   wall: vec4f,       // the hollow's wall: x its radius round, y how much higher than round it reaches, z how strongly its
                      // crystals glow from within, w how bright their glints are
-  gates: array<vec4f, 4>,  // the hub's gates: xz where each stands, z its worn path's half width, w which world (its tint)
+  gates: array<vec4f, 3>,  // the hub's gates (gates.ts HUB_GATES): xz where each stands, z its worn path's half width, w which world (its tint)
   rimPower: f32, floorGloss: f32, fog: f32, moteSize: f32,
   floorY: f32, pad0: f32, pad1: f32, pad2: f32,
   drops: array<vec4f, 2>,  // the duel arena's drops in the agate (worlds/drops.wgsl): s0, t0, s1, t1 on its plane
@@ -106,11 +106,10 @@ fn studio(d: vec3f) -> vec3f {
 
 // ---------------------------------------------------------------- the hollow's wall
 /** the gate's world as a colour (the crystals grown round its disc, the light on its path): 0 the pool, 1 the temple,
- *  2 the forge, 3 the redwoods */
+ *  2 the redwoods (gates.ts HUB_GATES's order; a point's tint 4 is the wall's vein, which its shader takes instead) */
 fn geodeGateTint(k: f32) -> vec3f {
   if (k < 0.5) { return vec3f(0.42, 0.62, 1.0); }
   if (k < 1.5) { return vec3f(0.45, 1.0, 0.85); }
-  if (k < 2.5) { return vec3f(1.0, 0.48, 0.16); }
   return vec3f(0.7, 1.0, 0.4);
 }
 

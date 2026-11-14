@@ -3,9 +3,9 @@
 // (input/hub.ts). Free by default, with a third-person camera behind player one (right stick, right-drag or a drag
 // to look); Tab, V or the gamepad's View button (or `l`, or bend.lock) locks the view onto the world's first stage
 // plane: both dancers ease onto it, its ledges become solid to them, and the camera swings round side-on with a long
-// lens. The plane is the world's own stage (src/worlds: its ledges bob with ledgeY, the forge's has no ground); a world
+// lens. The plane is the world's own stage (src/worlds: its ledges may bob with ledgeY, and it may have no ground); a world
 // with no stage at all gets a test plane with a few ledges. Set ice on the plane (the water kind's setIce) adds ledges
-// you can stand on. Free, the dancers walk on the world's groundAt; in a world you can fall out of (the forge's fallY)
+// you can stand on. Free, the dancers walk on the world's groundAt; in a world you can fall out of (World.fallY)
 // they re-form at their spawn. The dancers wear gems unless ?dress says otherwise.
 // ?play&two adds a second dancer on a bot from the start (for scripts). main.ts wires it with one line, like the other
 // demos; it runs on the frame's input and camera phases.
@@ -55,8 +55,8 @@ export interface PlayCtx {
   seen?: (d: Dancer) => Float32Array | null;
   /** the world a dancer is in (the portals' worldOf): the ground it walks on and the height it falls out at. Default:
    *  the main view's. (The main view changes world only once the camera's eye has come through the gate, a second
-   *  after its player, so a player walking back from the forge into the hub stood on the forge's floor at hub
-   *  coordinates for that second: no column there, and they fell through the hub and re-formed: 9-stage.md) */
+   *  after its player, so a player walking back from another world into the hub stood on that world's floor at hub
+   *  coordinates for that second: nothing under them, and they fell through the hub and re-formed: 9-stage.md) */
   worldOf?: (d: Dancer) => World;
   /** the plane locking uses, in place of the world's own stage (the duel's arena: src/duel) */
   stage?: () => StagePlane | null;

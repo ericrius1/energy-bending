@@ -74,6 +74,7 @@ const rig = new CameraRig();
 const field = new Field({ kit, frame, bodies, coarse, query });
 const worldCtx: WorldCtx = { kit, base, bodies, coarse, film: FILM, frame };
 const worlds: World[] = worldDefs.all().map((d) => d.make(worldCtx));
+// (a world it doesn't have, ?world=forge since the forge was retired, is the first registered: the geode, the hub)
 const worldOf = (id: string) => worlds.find((w) => w.id === id) ?? worlds[0];
 shareWorldLight(kit, worlds);
 const start = query.get('world') ?? (query.get('scene') === 'forest' ? 'redwoods' : 'geode');

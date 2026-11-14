@@ -53,7 +53,7 @@ import { POWER_KEYS, type KeyLayout } from '../input/keyboard';
 import { POWER_BUTTONS } from '../input/gamepad';
 import type { WaterPasses } from '../matter/water/pool';
 import type { PlasmaPasses } from '../matter/plasma/plasma';
-import { DuelHud, screenOf, type HudSeat, type HudState } from './hud-state';
+import { DuelHud, screenOf, type HudSeat, type HudState, type HudWord } from './hud-state';
 // (the HUD is the page's one, reached through bend.hud, and screenOf is hud-state.ts's copy of src/hud's: any value
 // imported from src/hud lands in main.ts's own chunk, and the duel's chunk importing it waits for main.ts to finish
 // evaluating, which awaits the duel at the top level: a production build hung, the page never ready)
@@ -295,8 +295,8 @@ export async function startDuel(app: PlayApp) {
   // the free camera, a fighting game's: the rig's own third-person follow (dancer/play.ts aims it at the pair's middle and
   // stands it back to hold both), turned side-on to the line between the two, a little behind seat 1, so both are seen
   // across the screen; it swings round (at the rig's own rate) as they circle. Of the side-on turns (either side, and a
-  // little either way of each) it takes the one whose boom the world's solids leave clearest (the forge's crown and
-  // floats pulled the boom in to nothing from some sides), keeping the one it has unless another is clearly better.
+  // little either way of each) it takes the one whose boom the world's solids leave clearest (a slab's crown and
+  // the stones over it can pull the boom in to nothing from some sides), keeping the one it has unless another is clearly better.
   // Snapped there on the first frames
   // (World.clear and the gates' discs, the rig's clearance, pull the boom in the same way: off while free, the lock's own)
   let clearWas: typeof rig.clearance = rig.clearance;
@@ -345,6 +345,7 @@ export async function startDuel(app: PlayApp) {
     fx.update(f.danceDt, ev, match.touches, match.contact, match.state);
     powerFx.update(f.danceDt, powers);
     for (const e of powers.events) pendingPowers.push(e);
+    for (const x of powers.fx) if (x.k === 'react') reactAt.set(x.kind, project(x.at));
     pendingHud.push(...ev); pendingTouches.push(...match.touches);
     // (the finale and the result stand the camera back a little)
     rig.framePad = match.state.phase === 'finale' || match.state.phase === 'done' ? 0.5 : 0;
@@ -354,22 +355,22 @@ export async function startDuel(app: PlayApp) {
   const pendingHud: DuelEvent[] = [], pendingTouches: ContactEvent[] = [];
   const pendingPowers: (typeof powers.events)[number][] = [];
   const REACT_WORD = { geyser: 'STEAM!', melt: 'MELT!', freeze: 'FREEZE!' } as const;
+  const reactAt = new Map<string, [number, number]>();
   frame.tick('post', (f: FrameCtx) => {
     draw.upload();
     if (!started) return;
     const seats = hudSeats(), L = match.contact.link;
     const linkAt = L ? project(L.at) : null;
-    duelHud.events(pendingHud.splice(0, pendingHud.length), pendingTouches.splice(0, pendingTouches.length), seats, linkAt, project);
-    // the powers' pops: a cast's name by the caster, the power form, a reaction where it happened (each once)
+    // the powers' words, through the HUD's pop budget: a cast's name by the caster (only when there is room), the power
+    // form (within the budget, or in place of the dancer's last word), a reaction where it happened (always, once)
+    const words: HudWord[] = [];
     for (const e of pendingPowers.splice(0, pendingPowers.length)) {
-      const at = (k: number): [number, number] => { const p = seats[k]?.screen; return p ? [p[0], Math.max(0.08, p[1] - 0.11)] : [0.5, 0.42]; };
-      if (e.k === 'cast') duelHud.pops.push({ text: e.free ? `${POWER_NAME[e.power].toUpperCase()}+` : POWER_NAME[e.power].toUpperCase(), kind: 'power', seat: e.seat, at: at(e.seat), age: 0 });
-      else if (e.k === 'form' && e.on) duelHud.pops.push({ text: 'POWER FORM', kind: 'power', seat: e.seat, at: at(e.seat), age: 0 });
-      else if (e.k === 'react') {
-        const fx0 = powers.fx.find((x) => x.k === 'react' && x.kind === e.kind) as { at: V3 } | undefined;
-        duelHud.pops.push({ text: REACT_WORD[e.kind], kind: 'react', at: fx0 ? project(fx0.at) : at(e.seats[0] ?? 0), age: 0 });
-      }
+      if (e.k === 'cast') words.push({ text: e.free ? `${POWER_NAME[e.power].toUpperCase()}+` : POWER_NAME[e.power].toUpperCase(), kind: 'power', seat: e.seat, prio: 1 });
+      else if (e.k === 'form' && e.on) words.push({ text: 'POWER FORM', kind: 'power', seat: e.seat, prio: 2 });
+      else if (e.k === 'react') words.push({ text: REACT_WORD[e.kind], kind: 'react', at: reactAt.get(e.kind) ?? undefined, prio: 3 });
     }
+    reactAt.clear();
+    duelHud.events(pendingHud.splice(0, pendingHud.length), pendingTouches.splice(0, pendingTouches.length), seats, linkAt, project, words);
     // (from: the holder's contact point, its grip; to: the held body's, its chest, which the grip carries)
     const link = L ? { on: true, from: linkAt ?? undefined, to: project(fx.chest(L.held)) } : { on: false };
     hudState = duelHud.build(match.state, now, f.dt, seats, beat, bpm, setMs, link);

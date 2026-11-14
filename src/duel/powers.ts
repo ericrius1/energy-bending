@@ -317,7 +317,10 @@ export class DuelPowers {
     const dt = dtMs / 1000;
     this.now = now; this.t += dt; this.beatOn = beatOn;
     this.fx = []; this.duelEvents = [];
-    this.events = powersStep(this.rules, now, duelEvents);
+    // (flow is for dancing: a body carried, held by the other or by a power, gets none for the links the carrying
+    // makes; the held body's own lift and counter are its own)
+    const own = duelEvents.filter((e) => e.k !== 'link' || e.kind === 'lift' || e.kind === 'counter' || !(this.match.contact.held(e.seat) || this.carried[e.seat]));
+    this.events = powersStep(this.rules, now, own);
     const d = this.match.state;
     for (const e of duelEvents) {
       if (e.k === 'set') this.clear();
@@ -367,6 +370,8 @@ export class DuelPowers {
       c.env.updraft = lift[k] > 0 ? 1 : 0;
       c.env.slick = slick[k];
       c.env.carryX = carry[k];
+      // (carried by a power, a reel, a tether, a bar: held, as the contact holds a body: no wall runs, no links of its own)
+      if (this.carried[k]) c.env.held = true;
     }
     for (const e of this.events) this.history.push({ t: Math.round(now), e });
     if (this.history.length > 400) this.history.splice(0, this.history.length - 300);

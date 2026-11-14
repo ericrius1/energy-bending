@@ -242,21 +242,6 @@ export interface Temple {
   drops: ArrayLike<number> | Vec4[];
   dropFrame: Vec4;
 }
-export interface Forge {
-  zenith: Vec4;
-  horizon: Vec4;
-  fire: Vec4;
-  cloud: Vec4;
-  aurora: Vec4;
-  aurora2: Vec4;
-  key: Vec4;
-  heat: Vec4;
-  seam: Vec4;
-  stone: Vec4;
-  bob: ArrayLike<number> | Vec4[];
-  lights: ArrayLike<number> | Vec4[];
-  glow: ArrayLike<number> | Vec4[];
-}
 export interface FireLight {
   pos: Vec4;
   col: Vec4;
@@ -274,7 +259,6 @@ export interface WorldLight {
   forest: Forest;
   pool: Pool;
   temple: Temple;
-  forge: Forge;
   sight: Sight;
 }
 export interface SightBody {
@@ -329,5 +313,5 @@ export interface VOut {
   clap: number;
 }
 
-declare const shader: Shader<{ Frame: Frame; Joint: Joint; Seg: Seg; Particle: Particle; Home: Home; BodyStep: BodyStep; Sim: Sim; CullView: CullView; Kind: Kind; Minerals: Minerals; Look: Look; Spark: Spark; Geode: Geode; Forest: Forest; Pool: Pool; Temple: Temple; Forge: Forge; FireLight: FireLight; FireLights: FireLights; WorldLight: WorldLight; SightBody: SightBody; Sight: Sight; KeyLight: KeyLight; Seen: Seen; ViewSeen: ViewSeen; Heart: Heart; Hearts: Hearts; VOut: VOut }, 'frame' | 'worldLight' | 'sim' | 'look' | 'minerals' | 'seen' | 'hearts' | 'state' | 'verts' | 'list' | 'homes' | 'homes2Prev' | 'poolWaves' | 'templeWaves' | 'samp_linear' | 'samp_repeat' | 'samp_nearest' | 'samp_shadow'>;
+declare const shader: Shader<{ Frame: Frame; Joint: Joint; Seg: Seg; Particle: Particle; Home: Home; BodyStep: BodyStep; Sim: Sim; CullView: CullView; Kind: Kind; Minerals: Minerals; Look: Look; Spark: Spark; Geode: Geode; Forest: Forest; Pool: Pool; Temple: Temple; FireLight: FireLight; FireLights: FireLights; WorldLight: WorldLight; SightBody: SightBody; Sight: Sight; KeyLight: KeyLight; Seen: Seen; ViewSeen: ViewSeen; Heart: Heart; Hearts: Hearts; VOut: VOut }, 'frame' | 'worldLight' | 'sim' | 'look' | 'minerals' | 'seen' | 'hearts' | 'state' | 'verts' | 'list' | 'homes' | 'homes2Prev' | 'poolWaves' | 'templeWaves' | 'samp_linear' | 'samp_repeat' | 'samp_nearest' | 'samp_shadow'>;
 export default shader;

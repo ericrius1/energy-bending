@@ -2,18 +2,19 @@
 // worlds/<id>/arena.ts) and the world as it stands while that arena is shown (`showArena`): its floor (groundAt, with
 // the arena's drops open), its solids (the world's own and the arena's pieces) and where it is fallen out of, from the
 // same pure layouts the worlds build themselves from, so a duel simulated in Node stands, climbs and falls where the
-// page does. The temple, the forge and the pool; the geode's and the redwoods' worlds need their whole layouts, which
-// the page builds. (The forge's bobbing floats stand still here: the Node floor has no beat.)
+// page does. The temple, the geode (its shelves and the crowns round its gates: geode.ts's own layout) and the pool;
+// the redwoods' world needs its whole layout, which the page builds.
 import { stagePlane, type StagePlane } from '../worlds/stage';
 import { layoutTemple, solidsOf, STAGE_Z } from '../worlds/temple/layout';
-import { layoutForge, groundOf, solidsOfForge } from '../worlds/forge/layout';
 import { templeDuel } from '../worlds/temple/arena';
-import { forgeDuel } from '../worlds/forge/arena';
+import { layoutShelves, solidsOfShelves } from '../worlds/geode/shelves';
+import { hubGates } from '../worlds/geode/gates';
+import { geodeDuel } from '../worlds/geode/arena';
 import { poolDuel, poolGround } from '../worlds/pool/arena';
 import { inDrop, type Arena } from './arena';
 import type { WorldLike } from './fallback';
 
-export const NODE_WORLDS = ['temple', 'forge', 'pool'] as const;
+export const NODE_WORLDS = ['temple', 'geode', 'pool'] as const;
 
 export interface NodeWorld extends WorldLike { stage: StagePlane; arena: Arena }
 
@@ -32,14 +33,13 @@ export function worldFor(id: string): NodeWorld | null {
         stage: stagePlane({ id: 'court', origin: [0, 0, STAGE_Z], right: [1, 0, 0], halfWidth: 5.75, ground: 0, ledges: L.ledges, spawns: [[-2.0, 0], [2.05, 0]], lens: 19, yaw: 0.14, pitch: 0 }),
       };
     }
-    case 'forge': {
-      const L = layoutForge({ coarse: false }), A = forgeDuel().arena;
+    case 'geode': {
+      // (geode.ts: the shelves grown with the gates' crowns, the agate, the arena's drops 2.4 m down)
+      const S = layoutShelves({ caveRadius: 12, gates: hubGates() }), A = geodeDuel().arena;
       return {
-        id, room: A.camera?.maxDist ?? 24, fallY: -4, arena: A, solids: [...solidsOfForge(L), ...(A.pieces ?? [])],
-        // (the forge's own floor, groundOf: the lowest slab under a point, so the crown over the middle is left to the
-        // solids, which stand a body on it from above and stop it from the side; the floats stand still here)
-        groundAt: (x, z) => groundOf(L, x, z, (_, top) => top, -12),
-        stage: stagePlane({ id: 'anvil', origin: [0, 0, 0], right: [1, 0, 0], halfWidth: 5.75, ground: null, ledges: L.ledges, spawns: [[-2.3, 0], [2.3, 0]], lens: 20 }),
+        id, room: A.camera?.maxDist ?? 7.4, arena: A, solids: [...solidsOfShelves(S.blades, S.points), ...(A.pieces ?? [])],
+        groundAt: (x, z) => (inDrop(A.plane, A.drops ?? [], x, z) ? -2.4 : 0),
+        stage: stagePlane({ id: 'centre', origin: [0, 0, 0], right: [1, 0, 0], halfWidth: 5.75, ground: 0, ledges: S.ledges, spawns: [[-2.2, 0], [2.2, 0]], lens: 24 }),
       };
     }
     case 'pool': {

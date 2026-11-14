@@ -401,8 +401,8 @@ export class DuelBrain implements Brain {
           away = [gx / gl, gz / gl];
         }
       }
-      // (only toward somewhere to land: a kick off a rock out over the pool's water, or off a stone over the forge's
-      // void, is a fall; with nothing that way the body slides down the face instead)
+      // (only toward somewhere to land: a kick off a rock out over the pool's water, or off a ledge out over a drop,
+      // is a fall; with nothing that way the body slides down the face instead)
       const lands = (k: number) => !!away && ground(me.x + away[0] * k, me.z + away[1] * k, 2.5) > yKill + 0.6;
       if (away && !(lands(1.6) || lands(2.6) || lands(3.6))) away = null;
       if (away && me.vy < 1.5 && t >= this.jumpUntil + 0.12) {
@@ -713,8 +713,10 @@ export class DuelBrain implements Brain {
       if (this.formAt < 0) this.formAt = t + R.range(0.3, 1.8);
       if (t >= this.formAt && !linked) { it.form = true; this.formAt = -1; this.count('form'); }
     } else this.formAt = -1;
-    if (linked || t < this.nextCast) return;
     const dx = o.x - me.x, dz = o.z - me.z, dist = c.plane ? Math.abs(o.s - me.s) : Math.hypot(dx, dz), dy = o.y - me.y;
+    const falling = !c.grounded && me.vy < 0 && groundOf(D, me.x, me.z, me.y) < D.yKill + 0.6;
+    // (a save from the void doesn't wait its turn)
+    if (linked || (t < this.nextCast && !falling)) return;
     const toward: [number, number] = c.plane ? [c.plane.right[0] * sgn(o.s - me.s), c.plane.right[2] * sgn(o.s - me.s)] : dist > 1e-3 ? [dx / dist, dz / dist] : [Math.sin(c.yaw), Math.cos(c.yaw)];
     const oAir = !o.grounded, flown = D.flown === 1 - S.seat;
     const overVoid = groundOf(D, me.x, me.z, me.y) < D.yKill + 0.6;
@@ -759,6 +761,10 @@ export class DuelBrain implements Brain {
           break;
         case 'prism': keen = flown && dist > 2 && dist < 7 ? 2 : 0; break;
       }
+      // over the void and falling: a power that saves it, as a person would reach for one (a rocket jump, a lash or a
+      // tether to the other, a blink toward it; the step under its feet is above)
+      const id = P.ids[slot];
+      if (overVoid && !c.grounded && me.vy < 0 && (id === 'flare' || id === 'blink' || ((id === 'whip' || id === 'arc') && dist < 6))) { keen = Math.max(keen, 4); aim = toward; }
       // (in the power form they are free: keener, and toward the other whatever the moment, from close enough)
       if (P.form > 0) keen = Math.max(keen * 3, dist < 7 ? 0.8 : 0);
       if (keen <= 0 || !R.chance(keen * (0.5 + 0.5 * this.skill) * S.dt)) continue;

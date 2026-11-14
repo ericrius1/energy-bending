@@ -23,7 +23,7 @@ built once from the layout it draws from; something that moves a little, a bobbi
 where it can be; a few centimetres fat rather than thin; columns as capsules, blocks and slabs as boxes, nothing
 smaller than about 30 cm). Every world but the Pool has them: the temple's stones (`temple/layout.ts solidsOf`), the
 redwoods' trunks, limbs, lanterns and stage logs (`redwoods/layout.ts`, `stage.ts`), the geode's blades and big crystal
-points (`geode/shelves.ts solidsOfShelves`), the forge's stage columns (`forge/layout.ts solidsOfForge`).
+points (`geode/shelves.ts solidsOfShelves`).
 `src/portals/solids.ts` only wraps them. `World.clear(a, b)` answers from the same list (`clearOf`, a 40 cm margin) and
 is still asked through the portals' `clearance` (the film camera's boom reads it too).
 

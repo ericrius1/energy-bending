@@ -18,6 +18,7 @@ import type { WorldLike } from './fallback';
 import { worldFor } from './stages';
 import { onBeat, type DuelEvent } from '../../shared/duel.ts';
 import { matterOf, type PowerEvent } from '../../shared/powers.ts';
+import { DuelHud, type HudSeat } from './hud-state';
 import type { Solid } from '../worlds/solids';
 import { DuelPowers, noPower, type PowerInput } from './powers';
 
@@ -57,7 +58,7 @@ export interface DuelSimResult {
   seconds: number;
   /** seconds of play (the sets' play, not their count-ins and finales) */
   play: number;
-  sets: { winner: number; style: [number, number]; peak: number; fused: boolean }[];
+  sets: { winner: number; style: [number, number]; peak: number; fused: boolean; /** the longest stretch at the fusion's height (s), the merges */ high: number; merges: number }[];
   seats: [SeatStats, SeatStats];
   stats: DuelMatch['state']['stats'];
   /** how long each hold lasted (s), how far apart the two stood (m, each second) */
@@ -65,6 +66,13 @@ export interface DuelSimResult {
   spread: number[];
   /** how the holds ended: fling, release (stretched or too long), lift, counter */
   ends: Record<string, number>;
+  /** each MERGE's time into its set's play (s), per set; every banked combo's length; the HUD's pops: the most new
+   *  ones (new ids) inside any one second, and how many were updated in place rather than added */
+  merges: number[][];
+  combos: number[];
+  pops: { max: number; total: number; updates: number };
+  /** the shared energy, each second of play: [s into the set, energy] per set */
+  energy: [number, number][][];
   match: DuelMatch;
   /** the powers: each seat's casts by power and forms, the reactions, what the bodies felt, every power event */
   powers: { casts: [Record<string, number>, Record<string, number>]; forms: [number, number]; reactions: Record<string, number>; felt: DuelPowers['felt']; events: { t: number; e: PowerEvent }[] } | null;
@@ -73,7 +81,7 @@ export interface DuelSimResult {
 /** the arena and the world a world id duels in, in Node: the world's own arena (worlds/<id>/arena.ts), shown */
 export function nodeArena(id: string): { arena: Arena; world: WorldLike } {
   const w = worldFor(id);
-  if (!w) throw new Error(`duel: no world ${id} in Node (temple, forge, pool)`);
+  if (!w) throw new Error(`duel: no world ${id} in Node (temple, geode, pool)`);
   return { arena: w.arena, world: w };
 }
 
@@ -115,8 +123,11 @@ export function simulateDuel(o: DuelSimOptions): DuelSimResult {
   const stage: StageView = { plane: o.locked ? plane : null, stage: plane, terrain, gates: [], room: A.space.radius, solids };
   const drivers = brains.map((b, k) => (b ? new BrainDriver(b, bodies[k], scene, () => stage) : null));
   const seats: [SeatStats, SeatStats] = [blankStats(), blankStats()];
-  const res: DuelSimResult = { seconds: 0, play: 0, sets: [], seats, stats: match.state.stats, holds: [], spread: [], ends: {}, match, powers: null };
+  const res: DuelSimResult = { seconds: 0, play: 0, sets: [], seats, stats: match.state.stats, holds: [], spread: [], ends: {}, merges: [[]], combos: [], pops: { max: 0, total: 0, updates: 0 }, energy: [[]], match, powers: null };
   const powerEvents: { t: number; e: PowerEvent }[] = [];
+  // (the HUD's pops as the page makes them, from the same events: how many words a second reach the screen)
+  const hud = new DuelHud(), hudSeats: HudSeat[] = [0, 1].map((k) => ({ name: `P${k + 1}`, matter: 'fire', screen: [0.3 + 0.4 * k, 0.5], dash: 1, holding: false, held: false }));
+  const popSeen = new Map<number, string>(), popTimes: number[] = [];
   const maxT = o.seconds ?? 3600, maxSets = o.sets ?? 1;
   const frames = Math.round(maxT / dt);
   let holdFrom = -1;
@@ -147,17 +158,32 @@ export function simulateDuel(o: DuelSimOptions): DuelSimResult {
     if (L && holdFrom < 0) holdFrom = t;
     else if (!L && holdFrom >= 0) { res.holds.push(t - holdFrom); holdFrom = -1; }
     for (const x of match.touches) if (x.kind === 'fling' || x.kind === 'release' || x.kind === 'lift' || x.kind === 'counter') { const k = x.kind === 'release' ? `release (${x.why})` : x.kind; res.ends[k] = (res.ends[k] ?? 0) + 1; }
+    const playT = (now - match.state.playFrom) / 1000;
     for (const e of ev) {
+      if (e.k === 'merge') res.merges[res.merges.length - 1].push(+playT.toFixed(2));
+      if (e.k === 'combo' && e.why !== 'fall') res.combos.push(e.n);
       if (e.k === 'link') seats[e.seat].links[e.kind] = (seats[e.seat].links[e.kind] ?? 0) + 1;
       else if (e.k === 'combo') { const S = seats[e.seat]; if (e.why !== 'fall') { S.combos++; S.comboLinks += e.n; } S.longest = Math.max(S.longest, e.n); }
       else if (e.k === 'fall') seats[e.seat].falls++;
-      else if (e.k === 'done') { res.sets.push({ winner: e.winner, style: e.style, peak: match.state.peak, fused: match.state.fused }); for (let k = 0; k < 2; k++) seats[k].style += e.style[k]; }
+      else if (e.k === 'done') { res.merges.push([]); res.energy.push([]); res.sets.push({ winner: e.winner, style: e.style, peak: match.state.peak, fused: match.state.fused, high: +(match.state.highBest / 1000).toFixed(2), merges: match.state.merges }); for (let k = 0; k < 2; k++) seats[k].style += e.style[k]; }
     }
+    if (match.state.phase === 'play' && i % Math.round(1 / dt) === 0) res.energy[res.energy.length - 1].push([+playT.toFixed(1), +match.state.energy.toFixed(3)]);
+    hud.events(ev, match.touches, hudSeats, [0.5, 0.5]);
+    const hs = hud.build(match.state, now, dt, hudSeats, beat, bpm, o.setMs ?? 60000, { on: !!L });
+    for (const p of hs.pops) {
+      const id = p.id ?? -1, was = popSeen.get(id);
+      if (was == null) { popSeen.set(id, p.text); popTimes.push(t); res.pops.total++; }
+      else if (was !== p.text) { popSeen.set(id, p.text); res.pops.updates++; }
+    }
+    while (popTimes.length && popTimes[0] <= t - 1) popTimes.shift();
+    res.pops.max = Math.max(res.pops.max, popTimes.length);
     if (i % 60 === 0) res.spread.push(Math.hypot(chars[0].root[0] - chars[1].root[0], chars[0].root[2] - chars[1].root[2]));
     o.each?.({ t, beat, match, powers, bodies: chars, intents, events: ev });
     res.seconds = t;
     if (res.sets.length >= maxSets) break;
   }
+  if (res.merges.length > res.sets.length) res.merges.length = Math.max(1, res.sets.length);
+  if (res.energy.length > res.sets.length) res.energy.length = Math.max(1, res.sets.length);
   for (let k = 0; k < 2; k++) { const b = brains[k] as DuelBrain | null; if (b && 'counts' in b) seats[k].brain = { ...b.counts }; }
   if (powers) {
     const casts: [Record<string, number>, Record<string, number>] = [{}, {}];
