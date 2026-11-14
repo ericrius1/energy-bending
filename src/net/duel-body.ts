@@ -89,6 +89,20 @@ export function puppet(c: Character, b: ShownBody, dt: number) {
   c.events.length = 0;
 }
 
+/** a shown body copied onto the page's own Character (a puppet: its update does only this) */
+export function copyShown(dst: Character, src: Character) {
+  const prev = (dst as unknown as { _prev: Float32Array })._prev;
+  prev.set(dst.pose);
+  dst.root = [src.root[0], src.root[1], src.root[2]];
+  dst.v = [src.v[0], src.v[1], src.v[2]];
+  dst.yaw = src.yaw; dst.dir = src.dir;
+  dst.pose.set(src.pose); dst.vel.set(src.vel);
+  dst.grounded = src.grounded; dst.wallSide = src.wallSide; dst.reformT = src.reformT; dst.dashT = src.dashT;
+  dst.lastGroundY = src.lastGroundY; dst.groundY = src.groundY;
+  dst.style = src.style; dst.energy = src.energy; dst.move = src.move;
+  dst.events.length = 0;
+}
+
 // ---------------------------------------------------------------- inputs
 const BTN = DUEL_BTN;
 /** an Intent (the device's, as it came) into a tick's input */
