@@ -52,11 +52,15 @@ export const tests: Tests = {
       check(c.cue === 'cast' && c.power === p, `the ${p}'s cast`);
     }
     for (const r of ['geyser', 'melt', 'freeze']) check(cuesOf('power:react', { k: 'react', kind: r, seats: [0, 1], at: [0, 1, 0] })[0].power === r, `the ${r}`);
-    // (phase 3's: a pair's tier, a catch's kind, a fling's release, the finale's hold)
-    check(cuesOf('duel:pairTier', { k: 'pairTier', tier: 2 })[0].cue === 'tier', 'a pair tier');
-    check(cuesOf('duel:catch', { k: 'catch', seat: 0, kind: 'range' })[0].cue === 'range', 'a catch kind');
-    check(cuesOf('duel:release', { k: 'release', seat: 0 })[0].cue === 'fling', 'a fling release');
-    check(cuesOf('duel:finaleHold', { k: 'finaleHold' })[0].cue === 'lift', 'the finale hold');
+    // (phase 3's weight and pair combos: the juice's catches and fling and the finale's lift, the pair's tiers and combos)
+    check(cuesOf('duel:juice', { k: 'juice', what: 'range', w: 1, hold: 4, seat: 0, other: 1, via: 'whip' })[0].cue === 'range', 'a catch at range');
+    check(cuesOf('duel:juice', { k: 'juice', what: 'aerial', w: 0.2, hold: 3, seat: 1 })[0].vel! < cuesOf('duel:juice', { k: 'juice', what: 'aerial', w: 1, hold: 3, seat: 1 })[0].vel!, 'a bigger moment louder');
+    check(cuesOf('duel:juice', { k: 'juice', what: 'fling', w: 0.5, hold: 2, seat: 0 })[0].cue === 'fling', 'a fling release');
+    check(cuesOf('duel:juice', { k: 'juice', what: 'lift', w: 1, hold: 6 })[0].cue === 'lift', 'the finale lifted, at its top');
+    for (const w of ['tier', 'pair', 'merge', 'fusion']) check(cuesOf('duel:juice', { k: 'juice', what: w, w: 1, hold: 3 }).length === 0, `the juice's ${w}: the rules' own event is the sound`);
+    const pt = cuesOf('duel:pairTier', { k: 'pairTier', seat: 1, tier: 2, name: 'CURRENT' })[0];
+    check(pt.cue === 'tier' && pt.level === 2 && pt.big && pt.other === 0, 'a pair tier, in both colours');
+    check(cuesOf('duel:pairCombo', { k: 'pairCombo', n: 20, varied: 12, why: 'idle' })[0].cue === 'bank' && cuesOf('duel:pairCombo', { k: 'pairCombo', n: 20, varied: 12, why: 'fall' }).length === 0, 'a pair combo banked, not dropped');
     // a new name is a line in a map
     check(cuesOf('duel:newThing', { k: 'newThing' }, { ...DUEL_SOUNDS, 'duel:newThing': () => ({ cue: 'bank' }) })[0].cue === 'bank', 'a line added');
   },
@@ -91,12 +95,14 @@ export const tests: Tests = {
     A.at(1);
     A.f.touches = [{ kind: 'catch', seat: 0, other: 1, perfect: false, at: [0, 1, 0] }];
     A.f.powers = [{ k: 'catch', seat: 0, other: 1, at: [0, 1, 0], power: 'whip' }];
-    A.f.events = [{ k: 'link', seat: 0, kind: 'catch' }, { k: 'tier', seat: 1, tier: 2, name: 'BLOOM' }];
+    A.f.events = [{ k: 'link', seat: 0, kind: 'catch' }, { k: 'tier', seat: 1, tier: 2, name: 'BLOOM' }, { k: 'pairTier', seat: 1, tier: 1, name: 'DUET' }, { k: 'juice', what: 'tier', w: 1, hold: 3, seat: 1 }];
     A.s.frame();
     let c = A.calls();
     check(c.filter((x) => ['catch', 'aerial', 'range'].includes(x.cue)).length === 1, 'one catch');
     check(c.some((x) => x.cue === 'range' && x.matter === 'fire' && x.other === 'water'), 'at range, in fire with water');
-    check(c.some((x) => x.cue === 'tier' && x.level === 2 && x.matter === 'water'), 'the tier, the water seat\'s');
+    check(c.some((x) => x.cue === 'tier' && x.level === 2 && x.matter === 'water' && !x.big), 'the tier, the water seat\'s');
+    check(c.some((x) => x.cue === 'tier' && x.level === 1 && x.big && x.other === 'fire'), 'the pair tier beside it, in both colours');
+    check(c.filter((x) => x.cue === 'tier').length === 2, 'the juice tier adds nothing');
     check(A.s.stats().ignored === 1 && A.s.stats().unmapped['duel:link'] === 1, 'the link ignored and counted');
     // the same catch again a frame later is the same moment
     A.at(1 + 1 / 60); A.f.events = []; A.f.powers = [];

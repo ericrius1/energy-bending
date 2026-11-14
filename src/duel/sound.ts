@@ -89,14 +89,20 @@ export const DUEL_SOUNDS: Record<string, Rule> = {
   'duel:combo': (e) => (num(e.n) >= 6 && e.why !== 'fall' && e.why !== 'set' ? { cue: 'bank', seat: seatOf(e), level: num(e.n) } : null),
   'duel:fall': (e) => ({ cue: 'fall', seat: seatOf(e) }),
   'duel:ready': (e) => ({ cue: 'reform', seat: seatOf(e) }),
-  // ---- phase 3's juice events (the rules' names as the other work lands them: aliases of the cues above; a frame's
-  // or a moment's twin of a touch is dropped by the cue's gap)
-  'duel:pairTier': (e) => ({ cue: 'tier', seat: seatOf(e) >= 0 ? seatOf(e) : 0, other: 1, level: num(e.tier, 1) }),
-  'duel:pair-tier': (e) => ({ cue: 'tier', seat: seatOf(e) >= 0 ? seatOf(e) : 0, other: 1, level: num(e.tier, 1) }),
-  'duel:catch': (e) => ({ cue: e.kind === 'range' || e.how === 'range' ? 'range' : e.kind === 'aerial' || e.air ? 'aerial' : 'catch', seat: seatOf(e), other: num(e.other, -1), at: v3(e.at) }),
-  'duel:release': (e) => ({ cue: 'fling', seat: seatOf(e), other: num(e.other, -1), at: v3(e.at) }),
-  'duel:hold': (e) => ({ cue: 'lift', seat: seatOf(e) >= 0 ? seatOf(e) : 0, other: 1, at: v3(e.at) }),
-  'duel:finaleHold': (e) => ({ cue: 'lift', seat: seatOf(e) >= 0 ? seatOf(e) : 0, other: 1, at: v3(e.at) }),
+  // ---- phase 3's weight and pair combos (shared/duel.ts 'juice', 'pairTier', 'pairCombo'; src/duel/weight.ts). A
+  // juice moment comes in the frame of its touch (or of the power's catch): the strongest catch a moment wins (the
+  // juice's, first in the frame, sized by its `w`), a fling's twin is dropped by its gap. Its tier, pair, merge and
+  // fusion are heard from the rules' own events ('tier', 'pairTier', 'merge', 'finale'): the juice adds nothing there
+  'duel:juice': (e) => {
+    const w = Math.max(0, Math.min(1, num(e.w, 0.5))), vel = 0.75 + 0.35 * w, at = v3(e.at), seat = seatOf(e), other = num(e.other, -1);
+    switch (e.what) {
+      case 'catch': case 'aerial': case 'range': case 'fling': return { cue: e.what as DuelCue, seat, other, at, vel };
+      case 'lift': return { cue: 'lift', seat: seat >= 0 ? seat : 0, other: other >= 0 ? other : 1, at, vel: 1, big: true };
+      default: return null;
+    }
+  },
+  'duel:pairTier': (e) => ({ cue: 'tier', seat: seatOf(e) >= 0 ? seatOf(e) : 0, other: seatOf(e) === 1 ? 0 : 1, level: num(e.tier, 1), big: true }),
+  'duel:pairCombo': (e) => (num(e.varied) >= 6 && e.why !== 'fall' && e.why !== 'set' ? { cue: 'bank', seat: 0, other: 1, level: num(e.n), big: true } : null),
   // ---- the contact
   'touch:catch': touch('catch'),
   'touch:aerial': touch('aerial'),
@@ -236,7 +242,8 @@ export class DuelSound {
     const T = TIMING[r.cue];
     if (!T) return false;
     // (a twin: the same cue from the same seat within its gap; catches share one)
-    const key = `${CATCHES[r.cue] ? 'catch' : r.cue}:${seat}`, last = this.last.get(key);
+    // (a pair's tier or combo is its own moment beside the dancer's)
+    const key = `${CATCHES[r.cue] ? 'catch' : r.cue}${r.big && (r.cue === 'tier' || r.cue === 'bank') ? '+pair' : ''}:${seat}`, last = this.last.get(key);
     if (last != null && now - last < (T.gap ?? 0.12)) { this.counts.twins++; return false; }
     this.last.set(key, now);
     const bpm = H.clock.bpm || 112, spb = 60 / bpm;

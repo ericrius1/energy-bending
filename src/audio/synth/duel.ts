@@ -290,11 +290,13 @@ export class DuelVoices {
     this.bowl(o, t + 2 * c.spb, 'glass', notes(this.tones(c), 43, 1)[0], 0.5, 4);
     return 4;
   }
-  /** a tier: a run of chimes on the pentatonic, (2 + tier) notes from higher each tier, brighter each tier */
+  /** a tier: a run of chimes on the pentatonic, (2 + tier) notes from higher each tier, brighter each tier. A pair's
+   *  tier (DUET, CURRENT, MURMURATION, AURORA: `other` and `big`) runs in both colours by turns over a chord of bowls */
   c_tier(t: number, c: DuelCall, o: Out) {
-    const tier = clamp(Math.round(c.level), 1, 4), p = this.pent(c, 66 + tier * 4, 2 + tier);
+    const tier = clamp(Math.round(c.level), 1, 4), pair = !!(c.big && c.other), p = this.pent(c, 66 + tier * 4, 2 + tier + (pair ? 1 : 0));
     const lp = this.n.bq('lowpass', tierBright(tier), 0.6); lp.connect(o);
-    p.forEach((m, i) => { this.bowl(lp, t + i * c.spb / 4, 'crystal', m, 0.34 + 0.03 * tier, 1.6); this.tint(lp, t + i * c.spb / 4, c.matter, m, 0.18, 0.4); });
+    p.forEach((m, i) => { this.bowl(lp, t + i * c.spb / 4, 'crystal', m, 0.34 + 0.03 * tier, 1.6); this.tint(lp, t + i * c.spb / 4, pair && i % 2 ? c.other! : c.matter, m, pair ? 0.28 : 0.18, 0.4); });
+    if (pair) notes(this.tones(c), 52, 3).forEach((m, i) => this.bowl(o, t + i * 0.02, 'glass', m, 0.22 + 0.04 * tier, 3.5));
     this.bowl(o, t, 'glass', notes(this.tones(c), 48 + tier * 2, 1)[0], 0.16 + 0.07 * tier, 3);
     if (tier >= 4) for (const m of notes(this.tones(c), 72, 3)) this.bowl(o, t + p.length * c.spb / 4, 'glass', m, 0.3, 4);
     return 2 + tier * 0.4;
@@ -304,6 +306,8 @@ export class DuelVoices {
     const ns = notes(this.tones(c), 74, 3);
     this.bowl(o, t, 'crystal', ns[0], 0.26, 1.2);
     this.bowl(o, t + c.spb / 4, 'crystal', ns[2], 0.22, 1.2);
+    // (a pair's combo banked: the two colours answering)
+    if (c.big && c.other) { this.tint(o, t, c.matter, ns[1], 0.3, 0.5); this.tint(o, t + c.spb / 2, c.other, ns[2] + 12, 0.3, 0.6); }
     return 1.3;
   }
   /** a fall: a breath going down, the matter's colour low and soft */
