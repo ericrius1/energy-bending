@@ -6,7 +6,7 @@
 // the page builds. (The forge's bobbing floats stand still here: the Node floor has no beat.)
 import { stagePlane, type StagePlane } from '../worlds/stage';
 import { layoutTemple, solidsOf, STAGE_Z } from '../worlds/temple/layout';
-import { layoutForge, floorAt, solidsOfForge } from '../worlds/forge/layout';
+import { layoutForge, groundOf, solidsOfForge } from '../worlds/forge/layout';
 import { templeDuel } from '../worlds/temple/arena';
 import { forgeDuel } from '../worlds/forge/arena';
 import { poolDuel, poolGround } from '../worlds/pool/arena';
@@ -36,10 +36,9 @@ export function worldFor(id: string): NodeWorld | null {
       const L = layoutForge({ coarse: false }), A = forgeDuel().arena;
       return {
         id, room: A.camera?.maxDist ?? 24, fallY: -4, arena: A, solids: [...solidsOfForge(L), ...(A.pieces ?? [])],
-        // (the crown hangs over the middle at 3.1 m: forge.ts's groundAt counts it as the floor under it, so a free body
-        // walking under it is put on top (reported to the integrator). Here it is left to the solids, which stand on it
-        // from above and stop a body from the side, as the forge's fix would)
-        groundAt: (x, z) => floorAt(L, x, z, (s, top) => (s.id === 'crown' ? -Infinity : top), -12),
+        // (the forge's own floor, groundOf: the lowest slab under a point, so the crown over the middle is left to the
+        // solids, which stand a body on it from above and stop it from the side; the floats stand still here)
+        groundAt: (x, z) => groundOf(L, x, z, (_, top) => top, -12),
         stage: stagePlane({ id: 'anvil', origin: [0, 0, 0], right: [1, 0, 0], halfWidth: 5.75, ground: null, ledges: L.ledges, spawns: [[-2.3, 0], [2.3, 0]], lens: 20 }),
       };
     }

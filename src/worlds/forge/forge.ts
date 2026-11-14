@@ -15,7 +15,7 @@ import type { ScenePass } from '../../engine/scene';
 import type { FrameCtx } from '../../engine/frame';
 import { defineParams, hex, onParams } from '../../engine/params';
 import { ledgeY, stagePlane, spawnsOf, type StagePlane } from '../stage';
-import { floorAt, layoutForge, solidsOfForge, STAGE_SLABS, type ForgeLayout } from './layout';
+import { groundOf, layoutForge, solidsOfForge, STAGE_SLABS, type ForgeLayout } from './layout';
 import { clearOf, type Solid } from '../solids';
 import { JOINT } from '../../skeleton/rig';
 import { arenaShown } from '../../duel/arena';
@@ -167,9 +167,10 @@ export class Forge implements World {
 
   /** the camera's clearance (World.clear): the segment against the stage's columns (a 40 cm margin) */
   clear(a: [number, number, number], b: [number, number, number]) { return clearOf(this.solids, a, b); }
-  /** the top of the slab under (x, z) (the bobbing ones where they are now), or far below where the game catches you */
+  /** the top of the lowest slab under (x, z) (the bobbing ones where they are now), or far below where the game catches
+   *  you. A slab hanging over a lower one (the crown over the anvil) is left to `solids`: groundOf in layout.ts */
   groundAt(x: number, z: number) {
-    return floorAt(this.layout, x, z, (s, top) => (s.ledge ? ledgeY(s.ledge, this.beat) : top), CATCH);
+    return groundOf(this.layout, x, z, (s, top) => (s.ledge ? ledgeY(s.ledge, this.beat) : top), CATCH);
   }
   exposure() { return 1.0; }
   tone() { return { water: 14000, cave: 0.15, hearth: 0.9, depth: 0.8, forest: 0 }; }

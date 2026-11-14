@@ -121,7 +121,18 @@ middle otherwise).
 | `{ "at", "music": { "level": 3, "drop": true, "fusion": "steam", "release": true, "key": 50 } }` | the score |
 | `{ "at", "set": { "redwoods": { "lanterns": 0 } } }` | parameters now |
 | `{ "at", "wake": true }`, `"rig": "lock"`, `"shot": "crown"` | the show wakes; the rig locks or frees; a director's shot |
+| `{ "at", "rate": 0.3, "ramp": 0.25 }` | the game's rate from now (a slow motion; 1 is normal), eased over `ramp` s of film: the page steps `rate`/60 s a frame, the film keeps its 60, the track plays on. The shot's recorded score is left out (it ran on the slowed clock), so put a slow motion near a shot's end |
 | `{ "at", "js": "bend.…" }` | anything else, with `bend` in scope (keep it rare) |
+
+**A duel shot** (`"mode": "duel"`: `?duel`, src/duel) plays a set from its first frame, its seats virtual players from the
+cast (`dress`, `style`: lead, flyer, base, `skill`), seeded by the shot's `seed`; `"query": { "lock": "" }` plays it in
+the 2D lock, a `{ "at", "rig": "lock" }` cue switches mid-shot, `"query": { "set": 40 }` sets the set's length. On a
+track its music clock is anchored to the duel's first frame, not to the in-point (the dance depends on where the beats
+fall: the brains wait for the 8th lines, the forge's slabs bob by the beat), and `preroll` is snapped to a whole beat,
+so the in-point falls on a beat of the track: **moving a duel shot's in-point leaves its dance exactly as it was**. So
+scout a whole set once (`"preroll": 0, "seconds": 72`), read `info.json`'s `duel.log` (every rule event with `t`, the
+shot's clock, and `d`, the duel's seconds), then cut into it with `preroll` (and two shots of one seed are two cuts of
+one set). Camera keys don't change the dance; a `rate` or `rig` cue does, from where it fires.
 
 Seats are `0`, `1` or `"both"`. In a jogo the seat cues go to the jogo's own ScriptRunner (exact on its clock); the
 rest run in the film's frame loop.
@@ -199,6 +210,9 @@ With a track:
   `docs/reports/media/music/<id>.wav` (the .m4a when it isn't there).
 - `--flash` lights every frame that starts a beat of the track and measures, from the encoded picture, how far each
   flash falls from its beat (`sync:` in the log and run.json): the pages' clock against the track the film lays.
+- `"from": 49.25` (a bar of the track, 1-based, fractional for a beat within it: 49.25 is bar 49's second beat) puts
+  that place of the track under the film's first frame, so a film can open on a later part of the song; without it
+  the first shot's page chooses (the song's start, for a play or duel shot).
 - A film without `audio` keeps the generative score (its pages run with `&procedural`).
 
 ## The score

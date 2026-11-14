@@ -79,6 +79,9 @@ const TRACK = await (async () => {
 })();
 function MEDIA_DIR() { return join(ROOT, 'docs/reports/media'); }
 const BPM = TRACK ? TRACK.bpm : film.bpm ?? 112;
+// `audio.from`: the track's bar (1-based, its first downbeat bar 1) at the film's first frame, so a film can open on a
+// later part of the song (null: the first shot's page chooses the first bar line, the song's start)
+const FROM = TRACK && film.audio?.from != null ? (Number(film.audio.from) - 1) * (TRACK.beatsPerBar ?? 4) : null;
 const SPB = 60 / BPM;
 const Q = PREVIEW
   ? { label: 'preview', size: [960, 540], fps: 30, every: 2, scale: 1, take: 20 }
@@ -175,7 +178,7 @@ function place() {
   for (const s of shots) {
     s.frames = Math.round(s.seconds * Q.fps);
     s.takes = Math.max(1, Math.ceil(s.frames / takeFrames));
-    s.track = TRACK ? { id: TRACK.page, beatAtIn: s.n === 0 ? null : beat0 == null ? null : +(beat0 + at / SPB).toFixed(4), ...(TRACK.page === TRACK.id ? {} : { bpm: TRACK.bpm }) } : null;
+    s.track = TRACK ? { id: TRACK.page, beatAtIn: s.n === 0 ? FROM : beat0 == null ? null : +(beat0 + at / SPB).toFixed(4), ...(TRACK.page === TRACK.id ? {} : { bpm: TRACK.bpm }) } : null;
     s.dir = join(OUT, 'cache', Q.label, `${NAME}-${s.id}-${opts.variant ? `${opts.variant}-` : ''}${shotKey(s)}`);
     s.takePath = (k) => join(s.dir, `take-${String(k).padStart(3, '0')}.mkv`);
     s.at = at;
@@ -384,7 +387,9 @@ const ains = [], parts = [];
 let at = 0;
 pick.forEach((s, j) => {
   const len = s.keep / Q.fps, wav = join(s.dir, 'score.wav');
-  if (s.info && existsSync(wav)) {
+  // (a shot with a slow motion: its page's score ran on the game's slowed clock, not under its frames: silence)
+  if (s.info?.slowed) log(`${s.id}: slowed (a rate cue): its score left out, the track alone under it`);
+  else if (s.info && existsSync(wav)) {
     const pre = j ? XIN : 0, post = j < pick.length - 1 ? XOUT : 2;
     const a0 = Math.max(0, s.info.inTime - pre), dur = len + pre + post;
     ains.push('-i', wav);
