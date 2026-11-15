@@ -145,6 +145,12 @@ its figures.
 | **gems** | crystal blossoms: amethyst and citrine facets that grow like flowers | pillar: a crystal stem rising; prism: a facet of stained light turning a flight |
 | **steam** | morning mist in the sun's shafts: warm white, carrying light | where fire meets water: a soft rising veil, never a hiss of danger |
 
+Who is who is worn inside the matter, not only round it (report 18-bodies): each body carries its seat's colour in
+its own light (water's caustic and the light inside it, a glow deep in some of ice's cells and its facet edges, the
+cooler flame of fire, plasma's haze, a gem's glow through its edge), and the matter keeps its own look round it. Water
+absorbs toward a blue-teal; ice is clear white to a deep cool glass with prismatic edges; plasma is aurora (violet,
+teal, a cyan-white core), never the rose seat's magenta.
+
 A fusion is a bloom (a flower or a tree of light opening over the pair), a finale is the sun at its height, the banner
 is a garland. A catch is a meeting; a fling is a launch into the air like a seed on the wind.
 

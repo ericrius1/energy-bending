@@ -100,7 +100,7 @@ struct VOut {
   o.lod = lod;
   o.env = select(0.0, 1.0, env);
   o.clap = clap;
-  o.seat = select(look.seat[min(dancerOf(homes[pid]), MAX_DANCERS - 1u)], vec4f(0.0), env);
+  if (!env) { o.seat = look.seat[min(dancerOf(homes[pid]), MAX_DANCERS - 1u)]; }
   return o;
 }
 

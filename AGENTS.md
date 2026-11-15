@@ -110,6 +110,7 @@ scripts/             shot.mjs (stills + GPU timings; a step's `eval`/`eval2` run
                      canvas frames never show), critic-cap.mjs (a staged take frame by frame: stills, a sheet,
                      timings; `ab` grabs each frame twice, a stepped frame apart), fade-cap.mjs (a duel's moments
                      grabbed with the near fade's frame test on and off), cam-sim.mjs (the duel camera's measure),
+                     bodies-cap.mjs (the two bodies told apart at scouted catches: OKLab, body v body and v world),
                      duel-page.mjs (whole duels in the page, stepped on the frames' clock, each world at its own
                      tempo: the fusion table; duel-measure.mjs `--bpm own` the same in Node),
                      test-ts.mjs, test-audio.mjs, check-portals.mjs, check-limits.mjs,
