@@ -209,7 +209,8 @@ test('an impulse eases toward the contact and settles back, with no jolt', () =>
     const { cam, I, rest } = still(), at: V3 = [1.5, 2.2, 0.5];
     cam.impulse({ at, kind, k: 1 });
     const eyes: V3[] = [rest.eye], looks: V3[] = [rest.look];
-    const frames = Math.ceil((IMPULSE[kind].len + 0.3) * 60);
+    // (and the breath's: it comes back in for the moment and opens out again once it has settled, DUEL_CAM.breathe)
+    const frames = Math.ceil((IMPULSE[kind].len + 0.3 + 4) * 60);
     for (let i = 0; i < frames; i++) { const p = cam.update(1 / 60, I); eyes.push(p.eye); looks.push(p.look); }
     // (the look point's furthest lean toward the contact, and the eye's largest step and change of step a frame)
     let lean = 0, vMax = 0, aMax = 0;
@@ -233,6 +234,29 @@ test('an impulse eases toward the contact and settles back, with no jolt', () =>
   return lines.join('; ');
 });
 
+test('between moments the frame breathes out, lower and wider, and comes back in for a catch without a jolt', () => {
+  const { cam, I, rest } = still(), B = DUEL_CAM.breathe;
+  // (at rest it has breathed out: the plain view less the breath's look down, the lens opened)
+  assert(cam.calm > 0.97, `calm at rest ${cam.calm.toFixed(2)}`);
+  near(rest.pitch, DUEL_CAM.pitches[0] - B.low, 0.01, 'the pitch at rest');
+  assert(rest.fov > DUEL_CAM.fov + B.widen - 0.5, `the lens at rest ${rest.fov.toFixed(1)}°`);
+  cam.impulse({ at: [0, 1.5, 0], kind: 'catch', k: 1 });
+  let aMax = 0, out = 0, calmAt1 = 1, fovAt1 = 0, prev = [rest.eye, rest.eye];
+  for (let i = 1; i <= 360; i++) {
+    const p = cam.update(1 / 60, I);
+    aMax = Math.max(aMax, Math.hypot(...[0, 1, 2].map((j) => p.eye[j] - 2 * prev[1][j] + prev[0][j])) * 3600);
+    prev = [prev[1], p.eye];
+    for (const b of I.bodies) for (const q of [b.head, b.root]) if (!inFrame(screenOf(q, p.eye, p.look, p.fov, ASPECT), 0.02)) out++;
+    if (i === 60) { calmAt1 = cam.calm; fovAt1 = p.fov; }
+  }
+  // (in within a second, back out by six; the pair in frame throughout, and the eye's acceleration gentle)
+  assert(calmAt1 < 0.35, `a second after the catch, calm is still ${calmAt1.toFixed(2)}`);
+  assert(cam.calm > 0.9, `six seconds on, calm only ${cam.calm.toFixed(2)}`);
+  assert(out === 0, `a body left the frame in ${out} frames`);
+  assert(aMax < 12, `the eye accelerated at ${aMax.toFixed(1)} m/s²`);
+  return `rest: pitch ${(rest.pitch * 57.3).toFixed(1)}°, lens ${rest.fov.toFixed(1)}°; a second after a catch calm ${calmAt1.toFixed(2)}, lens ${fovAt1.toFixed(1)}°; the eye ≤ ${aMax.toFixed(1)} m/s²`;
+});
+
 test('impulses never let a body out of the frame, nor take the eye into the pieces', () => {
   // a launch with a merge and catches piling on: the flyer's head stays in frame
   const cam = new DuelCamera();
@@ -249,7 +273,11 @@ test('impulses never let a body out of the frame, nor take the eye into the piec
   }
   assert(out === 0, `a head left the frame in ${out} frames`);
   // a temple set with an impulse at every catch, fling, lift and merge: as clean as without
+  // (the breath held still in both: the impulses keep it in by design, so with it the two sets frame differently)
+  const B = DUEL_CAM.breathe, keep = { ...B };
+  Object.assign(B, { low: 0, widen: 0, top: 0, side: 0 });
   const plain = judgeSet('temple', 7, 30, ['fire', 'water']), felt = judgeSet('temple', 7, 30, ['fire', 'water'], true);
+  Object.assign(B, keep);
   assert(felt.flyerOut === 0, `with impulses the flyer left the frame in ${felt.flyerOut} frames`);
   assert(felt.nearEye / felt.n <= plain.nearEye / plain.n + 0.005, `with impulses the eye stood near a stone in ${felt.nearEye} frames (${plain.nearEye} without)`);
   assert(felt.fg10 / felt.n <= plain.fg10 / plain.n + 0.01, `with impulses a piece crossed the near frame in ${felt.fg10} frames (${plain.fg10} without)`);
