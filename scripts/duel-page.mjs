@@ -29,15 +29,12 @@ const browser = await launch({ width: W, height: H });
 const page = await browser.newPage();
 page.on('pageerror', (e) => console.log('  pageerror:', e.message));
 const all = [];
-for (const world of worlds) {
-  const rows = [];
-  for (let r = 0; r < sets; r++) {
-    const seed = seed0 + r, dress = DRESS[r % DRESS.length], styles = STYLES[Math.floor(r / DRESS.length) % STYLES.length];
-    const q = `duel&world=${world}&dress=${dress}&p1=bot&p2=bot&style=${styles}&skill=${skill}&seed=${seed}&noautores${setS ? `&set=${setS}` : ''}`;
-    await page.goto(`${BASE}?${q}`, { timeout: 120000 });
-    await page.waitForFunction(() => document.body.classList.contains('ready') && window.bend?.duel, { timeout: 180000, polling: 200 });
-    const t0 = Date.now();
-    const row = await page.evaluate(async (bpmArg) => {
+
+/** one set in the page: loaded, stepped to its banner on the frames' clock, its numbers */
+async function playSet(q) {
+  await page.goto(`${BASE}?${q}`, { timeout: 120000 });
+  await page.waitForFunction(() => document.body.classList.contains('ready') && window.bend?.duel, { timeout: 180000, polling: 200 });
+  return page.evaluate(async (bpmArg) => {
       const B = window.bend, k = B.kit;
       k.manual = true; k.autoRes = null; k.renderScale = 1;
       // the music's clock on the stepped frames: with no sound and no film it runs on the page's wall clock
@@ -70,9 +67,22 @@ for (const world of worlds) {
       const hz = D.hazards?.rides ?? {};
       for (const [kk, v] of Object.entries(hz)) rides[kk] = { n: v.n, s: +v.s.toFixed(1) };
       return { fused, peak: +peak.toFixed(3), high: +high.toFixed(2), merges: s.stats.merges, mergeAt: merges, catches, aerials, falls: s.stats.falls, rides, bpm: +bpm.toFixed(2), setMs: D.match.o.setMs, phase: s.phase, perfect: +(s.stats.perfect / Math.max(1, s.stats.links)).toFixed(2), links: s.stats.links };
-    }, bpmArg);
+  }, bpmArg);
+}
+for (const world of worlds) {
+  const rows = [];
+  for (let r = 0; r < sets; r++) {
+    const seed = seed0 + r, dress = DRESS[r % DRESS.length], styles = STYLES[Math.floor(r / DRESS.length) % STYLES.length];
+    const q = `duel&world=${world}&dress=${dress}&p1=bot&p2=bot&style=${styles}&skill=${skill}&seed=${seed}&noautores${setS ? `&set=${setS}` : ''}`;
+    const t0 = Date.now();
+    // (a set whose page went away under it, a reload or a build error, is played again, at most twice)
+    let row = null;
+    for (let tries = 0; !row; tries++) {
+      try { row = await playSet(q); } catch (e) { if (tries >= 2) throw e; console.log(`  set again (${e.message.split(String.fromCharCode(10))[0]})`); }
+    }
     row.seed = seed; row.dress = dress; row.styles = styles; row.wall = +((Date.now() - t0) / 1000).toFixed(1);
     rows.push(row);
+
     console.log(`${world} #${r + 1} seed ${seed} ${dress} ${styles}: ${row.fused ? 'FUSED' : 'no'} peak ${row.peak} high ${row.high}s merges ${row.merges} catches ${row.catches} (${row.aerials} air) falls ${row.falls} ${JSON.stringify(row.rides)} bpm ${row.bpm} set ${(row.setMs / 1000).toFixed(1)}s (${row.wall}s)`);
   }
   const n = rows.length, sum = (f) => rows.reduce((a, x) => a + f(x), 0), minutes = sum((x) => x.setMs) / 60000;

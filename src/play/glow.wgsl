@@ -7,6 +7,10 @@
 //   2 gem     a tall faceted diamond (the results' gems, the streak's beads)
 //   3 spark   a hot point with a wide faint glow
 // (+4: lying flat on the floor instead of facing the camera)
+//   8 petal   a petal from a (its base) to b (its tip), r its half width: a narrow base swelling to a round tip, its
+//             colour lit toward the tip, a gold rim and midrib and a gold heart at the base (the finale's bloom)
+//   9 leaf    the same with a pointed tip (a leaf on a vine of light)
+// (+4 on a petal or a leaf, 12 and 13: lying across the floor instead of turned to the camera)
 #include "weft/frame"
 
 /** a: one end (xyz) and the radius (m); b: the other end and the intensity; c: colour and the shape (+4 flat) */
@@ -28,6 +32,7 @@ const CORNERS = array<vec2f, 6>(vec2f(-1.0, -1.0), vec2f(1.0, -1.0), vec2f(1.0, 
 /** how far the quad reaches, in radii, per shape */
 fn reachOf(shape: u32) -> f32 {
   if (shape == 0u) { return 2.6; }
+  if (shape >= 4u) { return 1.25; }
   if (shape == 3u) { return 4.0; }
   return 1.6;
 }
@@ -38,8 +43,11 @@ fn reachOf(shape: u32) -> f32 {
   if (ii >= look.count) { return o; }
   let g = glows[ii];
   let kind = u32(g.c.w + 0.5);
-  let shape = kind & 3u;
-  let flat = kind >= 4u;
+  // (a petal or a leaf is shape 4 or 5; one lying across the floor keeps its length's direction, its width level)
+  let petal = kind >= 8u;
+  let shape = select(kind & 3u, 4u + (kind & 1u), petal);
+  let flat = kind >= 4u && kind < 8u;
+  let lying = petal && (kind & 4u) != 0u;
   let a = g.a.xyz;
   let b = g.b.xyz;
   let mid = (a + b) * 0.5;
@@ -64,6 +72,10 @@ fn reachOf(shape: u32) -> f32 {
       let s = cross(dir, toCam);
       let sl = length(s);
       side = select(frame.camRight, s / max(sl, 1e-5), sl > 1e-3);
+      if (lying) {
+        let ls = cross(dir, vec3f(0.0, 1.0, 0.0));
+        side = select(side, ls / max(length(ls), 1e-5), length(ls) > 1e-3);
+      }
     } else { len = 0.0; }
     // x runs from -R to len + R along the segment (in radii), y across it
     let along = mix(-R, len + R, c.x * 0.5 + 0.5);
@@ -75,12 +87,39 @@ fn reachOf(shape: u32) -> f32 {
   return o;
 }
 
+/** a petal's (or a leaf's) half width at t (0 its base, 1 its tip), in radii */
+fn petalW(t: f32, leaf: bool) -> f32 {
+  let u = clamp(t, 0.0, 1.0);
+  if (leaf) { return pow(sin(3.14159265 * pow(u, 0.75)), 0.9); }
+  let s = pow(u, 1.6);
+  return 2.0 * sqrt(max(s * (1.0 - s), 0.0));
+}
+
 @fragment fn fs(i: GOut) -> @location(0) vec4f {
   let shape = u32(i.at.w + 0.5);
   let along = clamp(i.at.x, 0.0, i.at.z);
   let q = vec2f(i.at.x - along, i.at.y);
   let d = length(q);
+  // (the edge's width on screen, in radii: taken here, in uniform control flow)
+  let aa = max(fwidth(i.at.y), 0.015);
   var v = 0.0;
+  if (shape >= 4u) {
+    // a petal or a leaf: its body in its colour, brighter toward the tip where the sun catches it; a gold rim, a gold
+    // midrib fading toward the tip and a gold heart at the base; a faint glow round it
+    let t = i.at.x / max(i.at.z, 1e-3);
+    let w = petalW(t, shape == 5u);
+    let e = select(abs(i.at.y) - w, 1.0 + abs(i.at.y), t < 0.0 || t > 1.0);
+    let inside = smoothstep(aa * 1.5, -aa * 1.5, e);
+    let tt = clamp(t, 0.0, 1.0);
+    let body = inside * (0.42 + 0.58 * tt * tt) * (0.85 + 0.15 * smoothstep(0.0, -0.5, e));
+    let rim = inside * exp(-pow((e + 0.08) / 0.1, 2.0)) * (0.5 + 0.5 * tt);
+    let vein = inside * exp(-pow(i.at.y / 0.05, 2.0)) * (1.0 - tt) * 0.7;
+    let heart = inside * pow(1.0 - tt, 4.0) * 0.9;
+    let halo = exp(-4.0 * max(e, 0.0)) * 0.07 * (1.0 - inside);
+    let gold = vec3f(1.6, 1.18, 0.46);
+    let c = i.col.rgb * (body + halo) + gold * (rim * 0.85 + vein + heart);
+    return vec4f(c * i.col.a, 1e5);
+  }
   if (shape == 0u) {
     v = exp(-2.4 * d * d) * 1.4 + exp(-1.1 * d) * 0.22;
     v *= smoothstep(2.6, 1.6, d);

@@ -18,7 +18,8 @@
 // the powers' reactions, power-fx.ts) whose middle falls on a body's core on screen is dimmed (`keepOff`: KEEP_OFF at
 // rest, nearly all of it through a catch's frames, `quiet`), so a ring passing in front of a body loses that piece.
 //   finale     the duet's look (finale.ts moves the bodies): fused, the field's fusion winds the two matters into one
-//              column round the lifted pair, a bloom of soft light at the top of the lift and motes rising up the column;
+//              column round the lifted pair, the bloom (bloom.ts: a tree of light and a flower opening over the lift,
+//              phase 5) and motes rising up the column;
 //              not fused, a ring of each one's colour rising up it as it bows
 //   fall       the matter thrown off (the hand's one-frame blast), and the reform: a ring rising up the body
 //   count      a pulse on each count, a big one on BEND; the winner ringed
@@ -35,6 +36,7 @@ import { seatHalo, seatRGB, splitRing, SEAT_MATTER } from './seat';
 import { setSeatTint } from '../matter/core/seats';
 import { screenBounds, CORE_JOINTS } from './hud-state';
 import { GLOW_FLOATS } from '../play/glow';
+import { BLOOM, bloomFade, drawBloom, flowerAt } from './bloom';
 
 type V3 = [number, number, number];
 
@@ -115,7 +117,7 @@ export function keepOff(G: Glows, ranges: readonly [number, number][], viewProj:
     // (a dot by its middle; a segment by its ends and middle; a ring or disc lying on the floor by points round it)
     let inside = depth((ax + bx) / 2, (ay + by) / 2, (az + bz) / 2);
     if (ax !== bx || ay !== by || az !== bz) inside = Math.max(inside, depth(ax, ay, az), depth(bx, by, bz));
-    if (D[o + 11] >= 4) for (let k = 0; k < 8 && inside < 1; k++) { const t = (k / 8) * Math.PI * 2; inside = Math.max(inside, depth(ax + Math.cos(t) * r, ay, az + Math.sin(t) * r)); }
+    if (D[o + 11] >= 4 && D[o + 11] < 8) for (let k = 0; k < 8 && inside < 1; k++) { const t = (k / 8) * Math.PI * 2; inside = Math.max(inside, depth(ax + Math.cos(t) * r, ay, az + Math.sin(t) * r)); }
     if (inside > 0) { D[o + 7] *= 1 - k * inside * inside * (3 - 2 * inside); n++; }
   }
   return n;
@@ -142,6 +144,16 @@ export class DuelFx {
   /** 0 … 1: a catch's frames (up at a catch or a merge, gone over QUIET_S): how far the moments' light keeps off the
    *  bodies (KEEP_OFF at rest, nearly all of it in a catch's frames); the powers' reactions read it too (power-fx.ts) */
   quiet = 0;
+  /** the fused finale's bloom this frame, as a range of the glow list (or null), and when its flower began to open
+   *  (the page's time; -1 not yet) */
+  bloom: [number, number] | null = null;
+  private openAt = -1;
+  private heart: V3 | null = null;
+  /** the top of the fused finale's flower once it opens (the duel's camera frames it: index.ts), or null */
+  get flowerTop(): V3 | null {
+    const f = this.ctx.finale?.();
+    return f?.fused && this.heart && this.openAt >= 0 && bloomFade(f) > 0.05 ? [this.heart[0], this.heart[1] + BLOOM.PETAL * 1.05, this.heart[2]] : null;
+  }
 
   constructor(private ctx: DuelFxCtx) {}
 
@@ -197,6 +209,8 @@ export class DuelFx {
     if (L) this.grip(L.holder, L.held, L.at, d.energy, dt);
     // the field's fusion: the helix round the pair while joined, as far as the merge has charged; the finale's own
     const fin = this.ctx.finale?.() ?? null;
+    this.bloom = null;
+    if (!fin) { this.openAt = -1; this.heart = null; }
     const s0 = this.ctx.slot(0), s1 = this.ctx.slot(1);
     if (this.ctx.field) {
       let f: Parameters<NonNullable<DuelFxCtx['field']>['fuse']>[0] = null;
@@ -345,16 +359,24 @@ export class DuelFx {
     });
   }
 
-  /** the finale's look (finale.ts moves the bodies): fused, a bloom of soft light at the top of the lift and motes of
-   *  both colours rising up the column; not fused, a ring of each one's colour rising up it */
+  /** the finale's look (finale.ts moves the bodies): fused, the bloom (bloom.ts) and motes of both colours rising up
+   *  the column; not fused, a ring of each one's colour rising up it */
   private finaleLook(f: FinaleLook) {
     const G = this.ctx.glows, ca = this.col(f.base), cb = this.col(f.flyer);
     if (f.fused) {
+      if (f.u < 0.05 && f.t < 0.1) { this.openAt = -1; this.heart = null; }
       const top = this.chest(f.flyer), foot = this.ctx.character(f.base).root;
-      const b = f.bloom;
-      if (b > 0.01) {
-        G.dot(top, 0.35 + 0.9 * b, mixRGB(mixRGB(ca, cb, 0.5), WHITE, 0.45), 0.55 * b, 'soft');
-        G.dot(top, 0.35 + 0.45 * b, mixRGB(ca, cb, 0.5), 0.3 * b, 'ring');
+      // the bloom (bloom.ts): a tree of light rising round the lift and a flower opening over it on the page's own clock
+      // (from OPEN_U of the duet: through the lift's held frames), kept off the bodies
+      if (this.openAt < 0 && f.u >= BLOOM.OPEN_U) this.openAt = this.t;
+      const g0 = G.count, eye = this.ctx.eye?.() ?? null, F: V3 = [foot[0], foot[1], foot[2]];
+      // (the flower's heart over the flyer's head on screen, following it up, held still once it opens)
+      if (this.openAt === this.t || !this.heart || this.openAt < 0) this.heart = flowerAt(F, this.joint(f.flyer, JOINT.Head) ?? [top[0], top[1] + 0.6, top[2]], eye, this.ctx.viewProj?.());
+      drawBloom(G, { look: f, open: this.openAt < 0 ? -1 : this.t - this.openAt, foot: F, eye, ca, cb, t: this.t, heart: this.heart });
+      if (G.count > g0) {
+        this.bloom = [g0, G.count];
+        const vp = this.ctx.viewProj?.();
+        if (vp) keepOff(G, [this.bloom], vp, [0, 1].map((k) => this.ctx.dancer(k)?.skeleton.world), BLOOM.KEEP_OFF);
       }
       // motes rising round the column, the two colours wound
       const k = Math.min(1, f.u / 0.3) * Math.max(0, 1 - Math.max(0, f.t - 3.2) / 1.5);

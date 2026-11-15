@@ -2,7 +2,8 @@
 // "FINALE" once as the set's last stretch begins (high, over the two's duet: src/duel/finale.ts), and the winner's
 // banner when the set is done (the finale is about a bar long, then this; a set that didn't fuse says how nearly it
 // did: `nearly`). A dance battle's win:
-// the band opens from the centre in the winner's colour, the name tracks in over "TAKES THE SET", and under it the
+// a garland opens from the centre (garland.ts: a leaf-tipped pane of honey glass, gold stems, leaves and flowers) and
+// its words open with it, clipped to the same window: the name tracks in over "TAKES THE SET", and under it the
 // battle's numbers: each dancer's style in its colour and the peak the two reached together. The big words are
 // sprites (a glyph and its glow made once) stamped with a little motion. `last` is what was drawn, as one box: the
 // pops (pops.ts) keep off it.
@@ -10,6 +11,7 @@ import type { HudState } from './state';
 import type { Layout, Box } from './layout';
 import { DISPLAY, FONT, GOLD, GOLD_HI, glow, haloText, lift, measure, rgba, sprite, stamp, easeOut, clamp01, type Ctx } from './style';
 import { PALETTE } from './theme';
+import { drawGarland } from './garland';
 
 const fmt = (v: number) => { const s = String(Math.max(0, Math.round(v))); return s.length <= 3 ? s : s.replace(/\B(?=(\d{3})+(?!\d))/g, ','); };
 
@@ -33,6 +35,8 @@ function bigWord(text: string, size: number, dpr: number, colour: string) {
 }
 
 const GO = 'DANCE', FIN = 'FINALE';
+/** the banner's garland opens over this long (s), its words with it */
+const OPEN_S = 0.7;
 
 /** the banner's "nearly", for a set that didn't fuse: "NEARLY · HELD 2.1 S OF 3 AT THE TOP" (and "· NO MERGE YET"
  *  when it never merged); a set never at the top says what the fusion asks ("FUSION · HOLD 90% FOR 3 S"); null when
@@ -125,27 +129,19 @@ export class Centre {
       out.push({ x: cx - half, y: cy - halfH, w: half * 2, h: halfH * 2 });
       cy = cy0;
     }
-    // the winner: a band across the middle opening from the centre, the name tracking in, the battle's numbers
+    // the winner: a garland across the middle (garland.ts) opening from the centre with its words: the name, what it
+    // means and the battle's numbers are clipped to the same window as it opens, so the band is never seen empty
     if (S.phase === 'done' && this.doneAt >= 0) {
       const w = S.winner != null ? (st.players.find((p) => p.seat === S.winner) ?? st.players[S.winner]) : undefined;
       const col = w?.color ?? PALETTE.parchment;
-      const e = this.t - this.doneAt, open = easeOut(e / 0.45), H = (L.compact ? 104 : 168) * u, half = (L.W / 2) * open;
+      const e = this.t - this.doneAt, open = easeOut(e / OPEN_S), H = (L.compact ? 104 : 168) * u, half = (L.W / 2) * open;
       const y0 = cy - H / 2;
-      const band = g.createLinearGradient(cx - L.W / 2, 0, cx + L.W / 2, 0);
-      band.addColorStop(0, 'rgba(20,15,8,0)'); band.addColorStop(0.22, 'rgba(20,15,8,0.62)');
-      band.addColorStop(0.5, 'rgba(28,21,10,0.76)'); band.addColorStop(0.78, 'rgba(20,15,8,0.62)'); band.addColorStop(1, 'rgba(20,15,8,0)');
-      g.fillStyle = band;
-      g.fillRect(cx - half, y0, half * 2, H);
-      // hairlines in the winner's colour along the band's edges, a light running along them
-      const line = g.createLinearGradient(cx - half, 0, cx + half, 0);
-      line.addColorStop(0, rgba(col, 0)); line.addColorStop(0.5, rgba(lift(col, 0.4), 0.9)); line.addColorStop(1, rgba(col, 0));
-      g.fillStyle = line;
-      g.fillRect(cx - half, y0, half * 2, Math.max(1, u));
-      g.fillRect(cx - half, y0 + H - Math.max(1, u), half * 2, Math.max(1, u));
-      const run = ((e * 0.35) % 1) * 2 - 1;
-      stamp(g, glow(lift(col, 0.5), 18 * u, dpr, 0.7), cx + run * half * 0.9, y0, 1, 0.7 * open);
-      stamp(g, glow(lift(col, 0.5), 18 * u, dpr, 0.7), cx - run * half * 0.9, y0 + H, 1, 0.7 * open);
-      const a = clamp01((e - 0.15) / 0.35);
+      const seats = [0, 1].map((k) => st.players.find((p) => p.seat === k)?.color ?? '');
+      drawGarland(g, cx, cy, L.W, H, half, L.compact ? u * 0.75 : u, dpr, seats);
+      // (the words in the same window, a little inside the garland's growing tips)
+      g.save();
+      g.beginPath(); g.rect(cx - Math.max(0, half - 10 * u), y0, Math.max(0, half - 10 * u) * 2, H); g.clip();
+      const a = clamp01(open * 1.6);
       if (a > 0) {
         // (the name at the banner's size, or smaller till it fits the screen)
         const label = w ? w.name.toUpperCase() : 'EVEN';
@@ -162,7 +158,7 @@ export class Centre {
         g.fillStyle = rgba(GOLD, 0.95);
         g.fillText(w ? 'TAKES THE SET' : 'THE SET IS EVEN', cx + ts * 0.21, ny0 + fs * 0.78);
         // the numbers: each one's style in its colour either side of the word, the peak they reached together under
-        const b = clamp01((e - 0.45) / 0.4);
+        const b = clamp01((e - OPEN_S * 0.45) / 0.35);
         g.globalAlpha = b;
         const ns = (L.compact ? 12 : 18) * u, ny = cy + H * 0.25, [p0, p1] = [st.players.find((p) => p.seat === 0), st.players.find((p) => p.seat === 1)];
         const sp = (L.compact ? 46 : 62) * u;
@@ -190,7 +186,8 @@ export class Centre {
         g.globalAlpha = 1;
         g.letterSpacing = '0px';
       }
-      out.push({ x: 0, y: y0 - 20 * u, w: L.W, h: H + 40 * u });
+      g.restore();
+      out.push({ x: 0, y: y0 - 34 * u, w: L.W, h: H + 68 * u });
     }
     // (what was drawn, as one box: the pops keep off it next frame)
     if (out.length > n0) {

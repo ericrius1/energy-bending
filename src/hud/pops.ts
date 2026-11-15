@@ -5,7 +5,8 @@
 // are close, so a swing turning them round each other leaves the lanes where they are), the newest word at the lane's
 // foot about the shoulders and the older above it, at most LANE_MAX at once (the oldest goes as another comes); the
 // words that are nobody's (MERGE, a pair tier, a reaction) stand above the pair. A word whose place would fall on a
-// body goes above the pair, beside it or under it, whichever clear place is nearest. A pop with the same `id` as one
+// body goes above the pair, beside it or under it, whichever clear place is nearest, and holds that place while it is
+// clear (phase 5, report 18: `PLACE`, it moves only when its place is really blocked, and glides). A pop with the same `id` as one
 // on screen is that one, updated in place (SWING ×2, ×3: a bump, not a new word), and the same word coming again while
 // it shows in its lane counts up on it. The finale and the banner are the centre's (centre.ts): every word goes as the
 // finale starts, and none is drawn over the centre's word. Each kind moves its own way, a little, in its lane, in the
@@ -121,7 +122,48 @@ interface Entry {
   x: number | null;
   at: [number, number];
   dir?: [number, number];
+  /** the placement's measure: the slot it was last placed in, and the side of the pair it was last seen on */
+  slotSeen?: string;
+  aroundSeen?: Slot;
+  /** its place round the pair, held (report 18): the slot, since when, when it last began to glide to another, and how
+   *  long home has been clear while it stood elsewhere (s) */
+  slot?: PlaceSlot;
+  slotAt?: number;
+  glide?: number;
+  homeFree?: number;
 }
+
+/** a word's place: home (its lane's, or over the pair for nobody's words), or above, beside or under the pair */
+export type PlaceSlot = 'home' | 'above' | 'left' | 'right' | 'under';
+const PLACE_SLOTS: PlaceSlot[] = ['home', 'above', 'left', 'right', 'under'];
+/** the placement's hysteresis: a slot is really blocked when a body overlaps the word by more than BLOCKED px (× u);
+ *  home is taken again once it has been clear HOME_S and the word has held its slot HOLD_S; a move glides at GLIDE_K
+ *  (per second) for GLIDE_S */
+export const PLACE = { BLOCKED: 3, HOME_S: 0.6, HOLD_S: 0.9, GLIDE_K: 9, GLIDE_S: 0.45 };
+
+/** where a slot round the pair's bounds U puts a word (w × h) whose home is `home`, kept on screen */
+export function placeAt(k: Exclude<PlaceSlot, 'home'>, home: [number, number], w: number, h: number, U: Box, pad: number, margin: number, W: number, yMin: number, yMax: number): [number, number] {
+  const inX = (v: number) => Math.max(margin + w / 2, Math.min(W - margin - w / 2, v)), inY = (v: number) => Math.max(yMin, Math.min(yMax, v));
+  switch (k) {
+    case 'above': return [inX(home[0]), inY(U.y - h / 2 - pad - 2)];
+    case 'left': return [inX(U.x - w / 2 - pad - 2), inY(home[1])];
+    case 'right': return [inX(U.x + U.w + w / 2 + pad + 2), inY(home[1])];
+    case 'under': return [inX(home[0]), inY(U.y + U.h + h / 2 + pad + 2)];
+  }
+}
+
+/** where a word stands round the pair's bounds on screen: above, under, left or right of them (the first that holds) */
+export type Slot = 'above' | 'under' | 'left' | 'right' | 'on';
+export function slotOf(x: number, y: number, w: number, h: number, U: Box): Slot {
+  if (y + h / 2 <= U.y + 2) return 'above';
+  if (y - h / 2 >= U.y + U.h - 2) return 'under';
+  if (x + w / 2 <= U.x + 2) return 'left';
+  if (x - w / 2 >= U.x + U.w - 2) return 'right';
+  return 'on';
+}
+
+/** the placement's measure, empty (Pops.place) */
+export const placeStats = () => ({ pair: { seconds: 0, changes: 0, around: 0 }, all: { seconds: 0, changes: 0, around: 0 } });
 
 /** pops a lane shows at once (the oldest goes as another comes) */
 export const LANE_MAX = 3;
@@ -159,6 +201,11 @@ export class Pops {
   cover: Box[] = [];
 
   private dt = 1 / 60;
+  /** the words' placement (report 18), a pair tier's word on its own and every word: seconds a word stood (alpha over
+   *  0.3), how often its place changed slot (home, above, left, right, under), how often the side of the pair it
+   *  stands on changed (above, under, left, right of the bodies' bounds, or within them: the bodies moving round a
+   *  word that holds its place change this too) */
+  place = placeStats();
 
   /** the words standing now (not fading out), by lane: what they say (for the tests and bend.hud) */
   get words(): { text: string; lane: number }[] {
@@ -294,22 +341,9 @@ export class Pops {
       y: Math.max(yMin + row * (LANE_MAX - 1), Math.min(yMax, U ? U.y - 16 * u : (hs.length ? Math.min(...hs.map((h) => h[1])) : L.H * 0.4) - 46 * u)),
     };
     const hits = (x: number, y: number, w: number, h: number, bs: readonly Box[], pad: number) => bs.some((b) => x - w / 2 - pad < b.x + b.w && x + w / 2 + pad > b.x && y - h / 2 - pad < b.y + b.h && y + h / 2 + pad > b.y);
-    /** a word's place kept off both bodies: where it is if clear, else above them, beside them or under them, the
-     *  nearest clear place on screen (none clear: where it was) */
-    const clear = (x: number, y: number, w: number, h: number): [number, number] => {
-      const pad = 6 * u;
-      if (!U || !hits(x, y, w, h, bodies, pad)) return [x, y];
-      const inX = (v: number) => Math.max(L.margin + w / 2, Math.min(L.W - L.margin - w / 2, v)), inY = (v: number) => Math.max(yMin, Math.min(yMax, v));
-      const c: [number, number][] = [
-        [inX(x), inY(U.y - h / 2 - pad - 2)], [inX(U.x - w / 2 - pad - 2), inY(y)], [inX(U.x + U.w + w / 2 + pad + 2), inY(y)], [inX(x), inY(U.y + U.h + h / 2 + pad + 2)],
-      ].filter(([cx, cy]) => !hits(cx, cy, w, h, bodies, pad)) as [number, number][];
-      if (!c.length) return [x, y];
-      c.sort((a, b) => Math.hypot(a[0] - x, a[1] - y) - Math.hypot(b[0] - x, b[1] - y));
-      return c[0];
-    };
     const placed: Box[] = [];
     if (avoid) placed.push(avoid);
-    const ease = 1 - Math.exp(-30 * Math.max(0, this.dt));
+    const ease = 1 - Math.exp(-30 * Math.max(0, this.dt)), glide = 1 - Math.exp(-PLACE.GLIDE_K * Math.max(0, this.dt));
     for (const lane of [0, 1, -1]) {
       const list = this.entries.filter((e) => e.lane === lane).sort((a, b) => b.order - a.order);
       let slot = 0;
@@ -326,8 +360,28 @@ export class Pops {
         else { const Ln = lanes[lane]; x = Ln.x + Ln.side * tw / 2; y = Ln.y - Ln.up - s * row; }
         x = Math.max(L.margin + tw / 2, Math.min(L.W - L.margin - tw / 2, x));
         y = Math.max(yMin, Math.min(yMax, y));
-        // (off the bodies: a word never stands on the pair's silhouette)
-        [x, y] = clear(x, y, tw * 1.1, h);
+        // (off the bodies: a word never stands on the pair's silhouette. Its place round them is held: it keeps its slot,
+        // home or above, beside or under the pair, following the bodies, and moves only when that slot is really
+        // blocked (a body over it by more than BLOCKED px), to the nearest clear slot, gliding there; it goes back home
+        // once home has been clear for HOME_S and it has held its slot HOLD_S. Phase 4 redid this every frame and
+        // snapped, so a tier's word changed slot almost every frame: report 17)
+        const home: [number, number] = [x, y];
+        const at = (k: PlaceSlot): [number, number] => (k === 'home' || !U ? home : placeAt(k, home, tw * 1.1, h, U, 6 * u, L.margin, L.W, yMin, yMax));
+        const free = (q: [number, number], pad: number) => !hits(q[0], q[1], tw * 1.1, h, bodies, pad);
+        let sl: PlaceSlot = e.slot ?? 'home';
+        if (e.slot == null || !free(at(sl), -PLACE.BLOCKED * u)) {
+          // (a new word, or its slot really blocked: home if it is clear, else the clear slot nearest where it stands)
+          const from: [number, number] = e.x != null && e.y != null ? [e.x, e.y] : home;
+          const opts = (U ? PLACE_SLOTS : (['home'] as PlaceSlot[])).filter((k) => free(at(k), 6 * u));
+          const pick = opts.includes('home') ? 'home' : opts.sort((a, b) => Math.hypot(at(a)[0] - from[0], at(a)[1] - from[1]) - Math.hypot(at(b)[0] - from[0], at(b)[1] - from[1]))[0];
+          if (pick && pick !== sl) { if (e.slot != null) e.glide = this.t; sl = pick; e.slotAt = this.t; }
+          e.homeFree = 0;
+        } else if (sl !== 'home') {
+          e.homeFree = free(home, 6 * u) ? (e.homeFree ?? 0) + this.dt : 0;
+          if (e.homeFree >= PLACE.HOME_S && this.t - (e.slotAt ?? 0) >= PLACE.HOLD_S) { sl = 'home'; e.slotAt = this.t; e.glide = this.t; }
+        }
+        e.slot = sl;
+        [x, y] = at(sl);
         // (off the words already placed and the centre's: moved up past them, or down when there is no room above)
         for (let i = 0; i < 6; i++) {
           const hit = placed.find((b) => Math.abs(b.x + b.w / 2 - x) < b.w / 2 + tw / 2 + 6 * u && Math.abs(b.y + b.h / 2 - y) < b.h / 2 + h / 2);
@@ -335,18 +389,32 @@ export class Pops {
           const upY = hit.y - h / 2 - 2 * u, downY = hit.y + hit.h + h / 2 + 2 * u;
           y = upY >= yMin ? upY : downY;
         }
-        if (hits(x, y, tw, h, bodies, 2 * u)) [x, y] = clear(x, y, tw * 1.1, h);
-        // eased into its slot (a new word starts there; an older one slides up as another comes under it)
+        // eased into its slot (a new word starts there; an older one slides up as another comes under it), gliding
+        // over PLACE.GLIDE_S when it changes slot
         if (e.y == null || e.x == null) { e.y = y; e.x = x; }
-        else { e.y += (y - e.y) * ease; e.x += (x - e.x) * ease; if (hits(e.x, e.y, tw, h, bodies, 0)) { e.x = x; e.y = y; } }
+        else { const k = this.t - (e.glide ?? -9) < PLACE.GLIDE_S ? glide : ease; e.y += (y - e.y) * k; e.x += (x - e.x) * k; }
         placed.push({ x: x - tw / 2, y: y - h / 2, w: tw, h });
         const a = this.one(g, e, spr, e.x, e.y, u, dpr, lane < 0 ? 1 : lanes[lane].side, st, out);
-        if (a > 0.3) { this.shown.total++; if (lane >= 0) this.shown.seats[lane]++; else this.shown.centre++; this.cover.push({ x: e.x - tw / 2, y: e.y - h / 2, w: tw, h }); }
+        if (a > 0.3) {
+          this.shown.total++; if (lane >= 0) this.shown.seats[lane]++; else this.shown.centre++; this.cover.push({ x: e.x - tw / 2, y: e.y - h / 2, w: tw, h });
+          if (U) this.tally(e, e.slot ?? 'home', tw, h, U);
+        }
       }
     }
     const M = this.most, S = this.shown;
     M.total = Math.max(M.total, S.total); M.centre = Math.max(M.centre, S.centre);
     M.seats = [Math.max(M.seats[0], S.seats[0]), Math.max(M.seats[1], S.seats[1])];
+  }
+
+  /** the placement's measure (report 18): a word's place this frame */
+  private tally(e: Entry, slot: string, w: number, h: number, U: Box) {
+    const P = this.place, T = e.kind === 'pair' ? P.pair : P.all, x = e.x!, y = e.y!;
+    T.seconds += this.dt;
+    if (e.slotSeen && e.slotSeen !== slot) T.changes++;
+    e.slotSeen = slot;
+    const side = slotOf(x, y, w, h, U);
+    if (e.aroundSeen && e.aroundSeen !== side) T.around++;
+    e.aroundSeen = side;
   }
 
   /** one word at its place, moving its kind's way (small: it stays in its lane); returns its alpha */
