@@ -133,7 +133,10 @@ export class GateNames {
       if (edge) t.style.setProperty('--a', `${ang.toFixed(3)}rad`);
       // (a little smaller further off; never under 0.75)
       const s = 0.75 + 0.25 * Math.min(1, Math.max(0, (FAR - d) / (FAR - 4)));
-      t.style.transform = `translate(${((sx * 0.5 + 0.5) * w).toFixed(1)}px, ${((0.5 - sy * 0.5) * h).toFixed(1)}px) translate(-50%, ${edge ? '-50%' : '-100%'}) scale(${s.toFixed(3)})`;
+      // (kept whole on screen: a plaque at the edge never cut by it)
+      const hw = (t.offsetWidth * s) / 2 + 8, hh = t.offsetHeight * s + 8;
+      const px = Math.max(hw, Math.min(w - hw, (sx * 0.5 + 0.5) * w)), py = Math.max(hh, Math.min(h - 8, (0.5 - sy * 0.5) * h));
+      t.style.transform = `translate(${px.toFixed(1)}px, ${py.toFixed(1)}px) translate(-50%, ${edge ? '-50%' : '-100%'}) scale(${s.toFixed(3)})`;
       t.style.opacity = k.toFixed(3);
     }
     for (const [id, t] of this.tags) if (!seen.has(id)) t.style.opacity = '0';

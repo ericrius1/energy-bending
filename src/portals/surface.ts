@@ -10,6 +10,7 @@ import focusShader from './focus.wgsl';
 import type { ScenePhase } from '../engine/scene';
 import type { ViewCtx } from '../engine/views';
 import { LIMITS } from '../engine/limits';
+import { portalParams as P } from './params';
 
 /** one row of a view's table, as the CPU fills it */
 export interface GateRow {
@@ -61,7 +62,7 @@ export class Surfaces {
     };
     const on = () => view.on() && t.count > 0;
     if (phase === 'opaque') {
-      pass.draw(surfaceShader, { label: `gates.frame${id}`, vertex: 'vs_frame', fragment: 'fs_frame', bind, count: FRAME_V, instances: () => t.count, cull: 'none', enabled: on });
+      pass.draw(surfaceShader, { label: `gates.frame${id}`, vertex: 'vs_frame', fragment: 'fs_frame', bind, count: FRAME_V, instances: () => t.count, cull: 'none', enabled: () => on() && P.frame });
       pass.draw(surfaceShader, { label: `gates.disc${id}`, vertex: 'vs_disc', fragment: 'fs_disc', bind, count: 6, instances: () => t.count, cull: 'none', enabled: on });
     } else if (phase === 'glow') {
       const glow = { bind, blend: 'add' as const, depthWrite: false, cull: 'none' as const, enabled: on };

@@ -1,0 +1,4 @@
+[
+  { "name": "hub-frames-off", "query": "", "wake": true, "params": { "gates": { "frame": false } }, "frames": 420, "timings": true },
+  { "name": "hub-frames-on", "query": "", "wake": true, "params": { "gates": { "frame": true } }, "frames": 420, "timings": true }
+]

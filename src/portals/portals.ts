@@ -694,9 +694,11 @@ export class Portals implements SceneLayer {
         if (g.world !== world || g === skip || !g.partner || g.open <= 0.02) continue;
         const sc = screenOf(g, cam, w, h);
         if (!sc.on || sc.px < P.minPx) continue;
+        const far = P.liveNear > 0 && Math.hypot(g.at[0] - cam.position[0], g.at[1] - cam.position[1], g.at[2] - cam.position[2]) > P.liveNear;
         let score = sc.px;
         if (g === this.heading) score += 1e6 * (0.5 + (this.ctx.rig.approach?.w ?? 0));
         if (this.dancerThrough(g, cam.position, dancers)) score += 1e5;
+        if (far && score < 1e5) continue;
         c.push({ g, score });
       }
       c.sort((a, b) => b.score - a.score);

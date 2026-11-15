@@ -43,6 +43,7 @@ import { BrainDriver } from '../ai/driver';
 import type { Brain, StageView } from '../ai/brain';
 import { DuelBrain, DUEL_STYLES, STYLE_ALIAS, type DuelSight, type DuelStyle } from '../ai/duel-brain';
 import { arenaFor, showArena, type Arena } from './arena';
+import { portalParams as gateParams } from '../portals/params';
 import { fallbackArena } from './fallback';
 import type { Solid } from '../worlds/solids';
 import { DuelMatch, duelPlane } from './match';
@@ -421,6 +422,9 @@ export async function startDuel(app: PlayApp, opts: { joined?: Joined } = {}) {
   const keep = online || app.film || q.get('mirrors') === '0';
   const shut = keep ? [...app.gates.gates.values()].filter((g) => g.world === W.id).map((g) => g.def) : [];
   for (const g of shut) app.gates.close(g.id);
+  // (the mirrors' cost while the duel plays: a mirror far off shows its still, and no gate is drawn live through another)
+  const gatesWas = { liveNear: gateParams.liveNear, depth: gateParams.depth };
+  if (!keep) Object.assign(gateParams, { liveNear: 10, depth: 1 });
   const moveTo = (id: string, out: string) => {
     if (id === W.id) return;
     const g = app.gates.gates.get(out);
@@ -551,7 +555,7 @@ export async function startDuel(app: PlayApp, opts: { joined?: Joined } = {}) {
     /** the duel's end: the arena off, the world's room back */
     stop: () => {
       started = false; match.warp.reset(); showArena(null); field.fuse(null); powerFx.clear(); powers.clear(); hazardFx.clear();
-      release(); offTravel();
+      release(); offTravel(); Object.assign(gateParams, gatesWas);
       rig.pose = null; rig.apexG = 0; rig.headroom = 0;
       if (shut.length) app.gates.open(...shut);
     },
@@ -585,6 +589,8 @@ export async function startDuel(app: PlayApp, opts: { joined?: Joined } = {}) {
   // the first duel's lesson (lesson.ts, once) and the controls card (help.ts: ?, F1, Start, the ? chip)
   const lesson = startLesson({ frame, duel: api, query: q, film: app.film, humanSeats, bot: (k) => !!brains[k], device: (k) => gates[k].inner?.name ?? null, root: (k) => chars[k].root, held: (k) => match.contact.held(k), joined: (k) => match.contact.held(k) || match.contact.holding(k) });
   if (!app.film) installHelp({ frame, device: () => gates[humanSeats[0] ?? 0].inner?.name ?? null, matters: () => powers.rules.seats.map((s) => s.matter), lesson, split: () => gates.some((g) => g.inner?.name === 'keyboard-right') });
+  // Esc (with no card or lesson open to close first): back to the front and its world picker, as the jogo's Esc does
+  if (!app.film) addEventListener('keydown', (e) => { if (e.key === 'Escape' && !e.defaultPrevented && started) location.assign(location.pathname); });
   Object.assign(api, { lesson });
   frame.tick('input', () => { const b = (window as unknown as { bend?: Record<string, unknown> }).bend; if (b && b.duel !== api) b.duel = api; }, 'duel: bend.duel');
   console.info(`duel: ${W.id} (${arenaFor(W.id) ? 'its arena' : 'a fallback arena from its stage'}), ${kinds.join(' v ')}`);
