@@ -25,7 +25,7 @@ struct Motion {
 }
 
 fn emit(p: vec3f, v: vec3f, col: vec3f, size: f32, life: f32) {
-  let k = atomicAdd(&counter[0], 1u) % SPARKS;
+  let k = atomicAdd(&counter[0], 1u) % arrayLength(&sparks);
   sparks[k] = Spark(p, life, v, size, vec4f(col, life));
 }
 

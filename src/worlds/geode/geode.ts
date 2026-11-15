@@ -31,6 +31,7 @@ import { stagePlane, spawnsOf } from '../stage';
 import type { Grade, Fixture, PortalDef, World, WorldCtx } from '../world';
 import type { ScenePass } from '../../engine/scene';
 import type { FrameCtx } from '../../engine/frame';
+import { quality } from '../../engine/quality';
 import type { StagePlane } from '../../engine/camera';
 import { defineParams, hex, onParams } from '../../engine/params';
 import { arenaShown, dropsUniform, inDrop } from '../../duel/arena';
@@ -201,6 +202,7 @@ export class Geode implements World {
       wall: [P.caveRadius + 0.4, P.vault, P.wallGlow, P.wallGlints], gates: this.gates,
       rimPower: P.rimPower, floorGloss: P.floorGloss, fog: P.fog, moteSize: P.moteSize, floorY: 0,
       dust: P.motes, flies: P.fireflies, green: P.green, sun: [...SUN, P.sun], wells: this.wells(),
+      airSteps: Math.round(16 * quality().air),
     });
   }
 
@@ -222,7 +224,7 @@ export class Geode implements World {
     this.shaft[3] = P.shaft * (crowd === 'ring' ? 0.55 : 1);
     // the duel arena's drops in the agate (empty unless it is shown)
     const duel = geodeDuel(), drops = dropsUniform(duel.arena.plane, duel.arena.drops!, arenaShown(this.id));
-    this.u.set({ ...this.live, drops: drops.rects, dropFrame: drops.frame });
+    this.u.set({ ...this.live, airSteps: Math.round(16 * quality().air), drops: drops.rects, dropFrame: drops.frame });
   }
 
   declareScene(s: ScenePass) {

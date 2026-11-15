@@ -7,7 +7,7 @@
 @compute @workgroup_size(256)
 fn main(@builtin(global_invocation_id) gid: vec3u) {
   let i = gid.x;
-  if (i >= SPARKS) { return; }
+  if (i >= arrayLength(&sparks)) { return; }
   var s = sparks[i];
   if (s.life <= 0.0) { return; }
   let dt = sim.body.dt;

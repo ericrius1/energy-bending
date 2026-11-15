@@ -1,0 +1,1933 @@
+{
+  "date": "2026-11-15",
+  "baselineApp": "9efd330b6bd6e9ab136073bdf814d3416aad2d2b",
+  "engineDist": "5751338cfdd2cff39492acd2a282eb483b83d902",
+  "host": "Apple M3 Max, Chrome 157, Metal",
+  "viewport": {
+    "css": [
+      390,
+      844
+    ],
+    "dpr": 3,
+    "cappedDpr": 2,
+    "scale": 0.85,
+    "render": [
+      663,
+      1435
+    ]
+  },
+  "limitations": "Host throughput, not iPhone FPS. CPU throttle does not slow the host GPU. Apple timestamps rejected as impossible.",
+  "throughput": {
+    "final-before": {
+      "base": "http://127.0.0.1:5491/energybending/",
+      "level": 0,
+      "results": [
+        {
+          "name": "geode",
+          "medianMs": 10.433333333333334,
+          "minMs": 10.066666666666666,
+          "maxMs": 10.760000000397364,
+          "samples": [
+            10.066666666666666,
+            10.083333333333334,
+            10.166666666666666,
+            10.363333334525427,
+            10.433333333333334,
+            10.653333334128062,
+            10.706666666269303,
+            10.760000000397364
+          ],
+          "render": [
+            663,
+            1435
+          ],
+          "memory": {
+            "textures": 281087952,
+            "buffers": 116638448,
+            "total": 397726400
+          },
+          "matter": {
+            "field": {
+              "cells": "32\u00d724\u00d732",
+              "cell": 0.26,
+              "origin": "-4.16,-0.52,-3.64",
+              "deposits": 0,
+              "dropped": 0,
+              "vortices": 0,
+              "probes": 1,
+              "aura": "loadouts",
+              "fusion": "none"
+            },
+            "fire": {
+              "flames": 14336,
+              "dancers": "0",
+              "burn": 1
+            },
+            "gems": {
+              "stones": 0,
+              "simulated": 0,
+              "fixtures": 1000,
+              "specimens": 13,
+              "crystals": 0,
+              "cracks": 0,
+              "bursts": 102,
+              "landings": 4,
+              "hearts": 0
+            },
+            "ice": {
+              "particles": 24000,
+              "waterLayers": 1,
+              "iceLayers": 0,
+              "forms": "0.00,0.00",
+              "setPieces": 0,
+              "setShards": 0
+            },
+            "plasma": {
+              "arcs": 0,
+              "arcSegments": 0
+            },
+            "steam": {
+              "particles": 2000,
+              "wisps": 1000,
+              "fronts": 760
+            },
+            "water": {
+              "sharedWith": "ice"
+            }
+          },
+          "errors": [],
+          "views": [
+            {
+              "id": "main",
+              "world": "geode",
+              "on": true
+            },
+            {
+              "id": "gate0",
+              "world": "geode",
+              "on": false
+            },
+            {
+              "id": "gate1",
+              "world": "geode",
+              "on": false
+            },
+            {
+              "id": "gate2",
+              "world": "geode",
+              "on": false
+            }
+          ]
+        },
+        {
+          "name": "temple",
+          "medianMs": 6.366666666666666,
+          "minMs": 6.146666665871938,
+          "maxMs": 6.406666666269302,
+          "samples": [
+            6.146666665871938,
+            6.190000001589457,
+            6.273333334922791,
+            6.286666667461395,
+            6.366666666666666,
+            6.383333333333334,
+            6.403333332141241,
+            6.406666666269302
+          ],
+          "render": [
+            663,
+            1435
+          ],
+          "memory": {
+            "textures": 281087952,
+            "buffers": 116638448,
+            "total": 397726400
+          },
+          "matter": {
+            "field": {
+              "cells": "32\u00d724\u00d732",
+              "cell": 0.26,
+              "origin": "-4.16,-0.52,-3.64",
+              "deposits": 0,
+              "dropped": 0,
+              "vortices": 0,
+              "probes": 1,
+              "aura": "loadouts",
+              "fusion": "none"
+            },
+            "fire": {
+              "flames": 14336,
+              "dancers": "0",
+              "burn": 1
+            },
+            "gems": {
+              "stones": 0,
+              "simulated": 0,
+              "fixtures": 1000,
+              "specimens": 13,
+              "crystals": 0,
+              "cracks": 0,
+              "bursts": 202,
+              "landings": 6,
+              "hearts": 0
+            },
+            "ice": {
+              "particles": 24000,
+              "waterLayers": 1,
+              "iceLayers": 0,
+              "forms": "0.00,0.00",
+              "setPieces": 0,
+              "setShards": 0
+            },
+            "plasma": {
+              "arcs": 0,
+              "arcSegments": 0
+            },
+            "steam": {
+              "particles": 2000,
+              "wisps": 1000,
+              "fronts": 760
+            },
+            "water": {
+              "sharedWith": "ice"
+            }
+          },
+          "errors": [],
+          "views": [
+            {
+              "id": "main",
+              "world": "temple",
+              "on": true
+            },
+            {
+              "id": "gate0",
+              "world": "geode",
+              "on": false
+            },
+            {
+              "id": "gate1",
+              "world": "geode",
+              "on": false
+            },
+            {
+              "id": "gate2",
+              "world": "geode",
+              "on": false
+            }
+          ]
+        },
+        {
+          "name": "pool",
+          "medianMs": 8.40333333214124,
+          "minMs": 8.186666665474574,
+          "maxMs": 8.563333334525426,
+          "samples": [
+            8.186666665474574,
+            8.193333333730697,
+            8.280000001192093,
+            8.4,
+            8.40333333214124,
+            8.483333333333333,
+            8.546666665871937,
+            8.563333334525426
+          ],
+          "render": [
+            663,
+            1435
+          ],
+          "memory": {
+            "textures": 281087952,
+            "buffers": 116638448,
+            "total": 397726400
+          },
+          "matter": {
+            "field": {
+              "cells": "32\u00d724\u00d732",
+              "cell": 0.26,
+              "origin": "-4.16,-0.52,-3.64",
+              "deposits": 0,
+              "dropped": 0,
+              "vortices": 0,
+              "probes": 1,
+              "aura": "loadouts",
+              "fusion": "none"
+            },
+            "fire": {
+              "flames": 14336,
+              "dancers": "0",
+              "burn": 1
+            },
+            "gems": {
+              "stones": 0,
+              "simulated": 0,
+              "fixtures": 1000,
+              "specimens": 13,
+              "crystals": 0,
+              "cracks": 0,
+              "bursts": 292,
+              "landings": 10,
+              "hearts": 0
+            },
+            "ice": {
+              "particles": 24000,
+              "waterLayers": 1,
+              "iceLayers": 0,
+              "forms": "0.00,0.00",
+              "setPieces": 0,
+              "setShards": 0
+            },
+            "plasma": {
+              "arcs": 0,
+              "arcSegments": 0
+            },
+            "steam": {
+              "particles": 2000,
+              "wisps": 1000,
+              "fronts": 760
+            },
+            "water": {
+              "sharedWith": "ice"
+            }
+          },
+          "errors": [],
+          "views": [
+            {
+              "id": "main",
+              "world": "pool",
+              "on": true
+            },
+            {
+              "id": "gate0",
+              "world": "redwoods",
+              "on": true
+            },
+            {
+              "id": "gate1",
+              "world": "geode",
+              "on": true
+            },
+            {
+              "id": "gate2",
+              "world": "geode",
+              "on": false
+            }
+          ]
+        },
+        {
+          "name": "redwoods",
+          "medianMs": 6.896666667858759,
+          "minMs": 6.546666665871938,
+          "maxMs": 7.146666665871938,
+          "samples": [
+            6.546666665871938,
+            6.669999998807907,
+            6.823333334922791,
+            6.889999999602636,
+            6.896666667858759,
+            6.989999999602635,
+            7.083333333333333,
+            7.146666665871938
+          ],
+          "render": [
+            663,
+            1435
+          ],
+          "memory": {
+            "textures": 281087952,
+            "buffers": 116638448,
+            "total": 397726400
+          },
+          "matter": {
+            "field": {
+              "cells": "32\u00d724\u00d732",
+              "cell": 0.26,
+              "origin": "-4.16,-0.52,-3.64",
+              "deposits": 0,
+              "dropped": 0,
+              "vortices": 0,
+              "probes": 1,
+              "aura": "loadouts",
+              "fusion": "none"
+            },
+            "fire": {
+              "flames": 14336,
+              "dancers": "0",
+              "burn": 1
+            },
+            "gems": {
+              "stones": 0,
+              "simulated": 0,
+              "fixtures": 1000,
+              "specimens": 13,
+              "crystals": 0,
+              "cracks": 0,
+              "bursts": 382,
+              "landings": 14,
+              "hearts": 0
+            },
+            "ice": {
+              "particles": 24000,
+              "waterLayers": 1,
+              "iceLayers": 0,
+              "forms": "0.00,0.00",
+              "setPieces": 0,
+              "setShards": 0
+            },
+            "plasma": {
+              "arcs": 0,
+              "arcSegments": 0
+            },
+            "steam": {
+              "particles": 2000,
+              "wisps": 1000,
+              "fronts": 760
+            },
+            "water": {
+              "sharedWith": "ice"
+            }
+          },
+          "errors": [],
+          "views": [
+            {
+              "id": "main",
+              "world": "redwoods",
+              "on": true
+            },
+            {
+              "id": "gate0",
+              "world": "redwoods",
+              "on": false
+            },
+            {
+              "id": "gate1",
+              "world": "geode",
+              "on": false
+            },
+            {
+              "id": "gate2",
+              "world": "geode",
+              "on": false
+            }
+          ]
+        }
+      ],
+      "errors": []
+    },
+    "shipped-default": {
+      "base": "http://127.0.0.1:5492/energybending/",
+      "level": 0,
+      "results": [
+        {
+          "name": "geode",
+          "medianMs": 9.506666666269302,
+          "minMs": 8.973333332935969,
+          "maxMs": 9.67333333293597,
+          "samples": [
+            8.973333332935969,
+            9.239999999602636,
+            9.45333333214124,
+            9.480000001192092,
+            9.506666666269302,
+            9.553333334128062,
+            9.613333332538605,
+            9.67333333293597
+          ],
+          "render": [
+            663,
+            1435
+          ],
+          "memory": {
+            "textures": 130742398,
+            "buffers": 34268192,
+            "total": 165010590
+          },
+          "quality": {
+            "level": 0,
+            "meanMs": 0,
+            "p90Ms": 0,
+            "air": 1,
+            "reflections": 1,
+            "particles": 1
+          },
+          "matter": {
+            "field": {
+              "cells": "32\u00d724\u00d732",
+              "cell": 0.26,
+              "origin": "-4.16,-0.52,-3.64",
+              "deposits": 0,
+              "dropped": 0,
+              "vortices": 0,
+              "probes": 1,
+              "aura": "loadouts",
+              "fusion": "none"
+            },
+            "fire": {
+              "flames": 14336,
+              "dancers": "0",
+              "burn": 1
+            },
+            "gems": {
+              "stones": 0,
+              "simulated": 0,
+              "fixtures": 1000,
+              "specimens": 13,
+              "crystals": 0,
+              "cracks": 0,
+              "bursts": 142,
+              "landings": 2,
+              "hearts": 0
+            },
+            "ice": {
+              "particles": 24000,
+              "waterLayers": 1,
+              "iceLayers": 0,
+              "forms": "0.00,0.00",
+              "setPieces": 0,
+              "setShards": 0
+            },
+            "plasma": {
+              "arcs": 0,
+              "arcSegments": 0
+            },
+            "steam": {
+              "particles": 2000,
+              "wisps": 1000,
+              "fronts": 760
+            },
+            "water": {
+              "sharedWith": "ice"
+            }
+          },
+          "errors": [],
+          "views": [
+            {
+              "id": "main",
+              "world": "geode",
+              "on": true
+            },
+            {
+              "id": "gate0",
+              "world": "geode",
+              "on": false
+            }
+          ]
+        },
+        {
+          "name": "temple",
+          "medianMs": 6.166666666666667,
+          "minMs": 5.820000000794729,
+          "maxMs": 6.343333333730698,
+          "samples": [
+            5.820000000794729,
+            5.8933333337306975,
+            5.926666667064031,
+            6.0299999992052715,
+            6.166666666666667,
+            6.239999999602635,
+            6.253333334128062,
+            6.343333333730698
+          ],
+          "render": [
+            663,
+            1435
+          ],
+          "memory": {
+            "textures": 130742398,
+            "buffers": 34268192,
+            "total": 165010590
+          },
+          "quality": {
+            "level": 0,
+            "meanMs": 0,
+            "p90Ms": 0,
+            "air": 1,
+            "reflections": 1,
+            "particles": 1
+          },
+          "matter": {
+            "field": {
+              "cells": "32\u00d724\u00d732",
+              "cell": 0.26,
+              "origin": "-4.16,-0.52,-3.64",
+              "deposits": 0,
+              "dropped": 0,
+              "vortices": 0,
+              "probes": 1,
+              "aura": "loadouts",
+              "fusion": "none"
+            },
+            "fire": {
+              "flames": 14336,
+              "dancers": "0",
+              "burn": 1
+            },
+            "gems": {
+              "stones": 0,
+              "simulated": 0,
+              "fixtures": 1000,
+              "specimens": 13,
+              "crystals": 0,
+              "cracks": 0,
+              "bursts": 208,
+              "landings": 4,
+              "hearts": 0
+            },
+            "ice": {
+              "particles": 24000,
+              "waterLayers": 1,
+              "iceLayers": 0,
+              "forms": "0.00,0.00",
+              "setPieces": 0,
+              "setShards": 0
+            },
+            "plasma": {
+              "arcs": 0,
+              "arcSegments": 0
+            },
+            "steam": {
+              "particles": 2000,
+              "wisps": 1000,
+              "fronts": 760
+            },
+            "water": {
+              "sharedWith": "ice"
+            }
+          },
+          "errors": [],
+          "views": [
+            {
+              "id": "main",
+              "world": "temple",
+              "on": true
+            },
+            {
+              "id": "gate0",
+              "world": "geode",
+              "on": false
+            }
+          ]
+        },
+        {
+          "name": "pool",
+          "medianMs": 6.489999999602635,
+          "minMs": 6.103333334128062,
+          "maxMs": 6.610000000397364,
+          "samples": [
+            6.103333334128062,
+            6.176666667064031,
+            6.333333333333333,
+            6.353333332141241,
+            6.489999999602635,
+            6.539999999602636,
+            6.6,
+            6.610000000397364
+          ],
+          "render": [
+            663,
+            1435
+          ],
+          "memory": {
+            "textures": 130742398,
+            "buffers": 34268192,
+            "total": 165010590
+          },
+          "quality": {
+            "level": 0,
+            "meanMs": 0,
+            "p90Ms": 0,
+            "air": 1,
+            "reflections": 1,
+            "particles": 1
+          },
+          "matter": {
+            "field": {
+              "cells": "32\u00d724\u00d732",
+              "cell": 0.26,
+              "origin": "-4.16,-0.52,-3.64",
+              "deposits": 0,
+              "dropped": 0,
+              "vortices": 0,
+              "probes": 1,
+              "aura": "loadouts",
+              "fusion": "none"
+            },
+            "fire": {
+              "flames": 14336,
+              "dancers": "0",
+              "burn": 1
+            },
+            "gems": {
+              "stones": 0,
+              "simulated": 0,
+              "fixtures": 1000,
+              "specimens": 13,
+              "crystals": 0,
+              "cracks": 0,
+              "bursts": 294,
+              "landings": 6,
+              "hearts": 0
+            },
+            "ice": {
+              "particles": 24000,
+              "waterLayers": 1,
+              "iceLayers": 0,
+              "forms": "0.00,0.00",
+              "setPieces": 0,
+              "setShards": 0
+            },
+            "plasma": {
+              "arcs": 0,
+              "arcSegments": 0
+            },
+            "steam": {
+              "particles": 2000,
+              "wisps": 1000,
+              "fronts": 760
+            },
+            "water": {
+              "sharedWith": "ice"
+            }
+          },
+          "errors": [],
+          "views": [
+            {
+              "id": "main",
+              "world": "pool",
+              "on": true
+            },
+            {
+              "id": "gate0",
+              "world": "redwoods",
+              "on": true
+            }
+          ]
+        },
+        {
+          "name": "redwoods",
+          "medianMs": 6.269999998807907,
+          "minMs": 5.960000000397364,
+          "maxMs": 6.670000000794729,
+          "samples": [
+            5.960000000397364,
+            6.023333332935969,
+            6.033333333333333,
+            6.1,
+            6.269999998807907,
+            6.406666666269302,
+            6.426666667064031,
+            6.670000000794729
+          ],
+          "render": [
+            663,
+            1435
+          ],
+          "memory": {
+            "textures": 130742398,
+            "buffers": 34268192,
+            "total": 165010590
+          },
+          "quality": {
+            "level": 0,
+            "meanMs": 0,
+            "p90Ms": 0,
+            "air": 1,
+            "reflections": 1,
+            "particles": 1
+          },
+          "matter": {
+            "field": {
+              "cells": "32\u00d724\u00d732",
+              "cell": 0.26,
+              "origin": "-4.16,-0.52,-3.64",
+              "deposits": 0,
+              "dropped": 0,
+              "vortices": 0,
+              "probes": 1,
+              "aura": "loadouts",
+              "fusion": "none"
+            },
+            "fire": {
+              "flames": 14336,
+              "dancers": "0",
+              "burn": 1
+            },
+            "gems": {
+              "stones": 0,
+              "simulated": 0,
+              "fixtures": 1000,
+              "specimens": 13,
+              "crystals": 0,
+              "cracks": 0,
+              "bursts": 406,
+              "landings": 8,
+              "hearts": 0
+            },
+            "ice": {
+              "particles": 24000,
+              "waterLayers": 1,
+              "iceLayers": 0,
+              "forms": "0.00,0.00",
+              "setPieces": 0,
+              "setShards": 0
+            },
+            "plasma": {
+              "arcs": 0,
+              "arcSegments": 0
+            },
+            "steam": {
+              "particles": 2000,
+              "wisps": 1000,
+              "fronts": 760
+            },
+            "water": {
+              "sharedWith": "ice"
+            }
+          },
+          "errors": [],
+          "views": [
+            {
+              "id": "main",
+              "world": "redwoods",
+              "on": true
+            },
+            {
+              "id": "gate0",
+              "world": "redwoods",
+              "on": false
+            }
+          ]
+        }
+      ],
+      "errors": []
+    },
+    "shipped-fallback": {
+      "base": "http://127.0.0.1:5492/energybending/",
+      "level": 3,
+      "results": [
+        {
+          "name": "geode",
+          "medianMs": 7.143333331743876,
+          "minMs": 6.75333333214124,
+          "maxMs": 7.366666666666666,
+          "samples": [
+            6.75333333214124,
+            6.786666667461395,
+            6.840000001589457,
+            7.096666665871938,
+            7.143333331743876,
+            7.179999999205271,
+            7.263333334525426,
+            7.366666666666666
+          ],
+          "render": [
+            663,
+            1435
+          ],
+          "memory": {
+            "textures": 130742398,
+            "buffers": 34268192,
+            "total": 165010590
+          },
+          "quality": {
+            "level": 3,
+            "meanMs": 0,
+            "p90Ms": 0,
+            "air": 0.4,
+            "reflections": 0.5,
+            "particles": 0.65
+          },
+          "matter": {
+            "field": {
+              "cells": "32\u00d724\u00d732",
+              "cell": 0.26,
+              "origin": "-4.16,-0.78,-3.64",
+              "deposits": 0,
+              "dropped": 0,
+              "vortices": 0,
+              "probes": 1,
+              "aura": "loadouts",
+              "fusion": "none"
+            },
+            "fire": {
+              "flames": 9472,
+              "dancers": "0",
+              "burn": 1
+            },
+            "gems": {
+              "stones": 0,
+              "simulated": 0,
+              "fixtures": 1000,
+              "specimens": 13,
+              "crystals": 0,
+              "cracks": 0,
+              "bursts": 106,
+              "landings": 4,
+              "hearts": 0
+            },
+            "ice": {
+              "particles": 15600,
+              "waterLayers": 1,
+              "iceLayers": 0,
+              "forms": "0.00,0.00",
+              "setPieces": 0,
+              "setShards": 0
+            },
+            "plasma": {
+              "arcs": 0,
+              "arcSegments": 0
+            },
+            "steam": {
+              "particles": 2000,
+              "wisps": 1000,
+              "fronts": 760
+            },
+            "water": {
+              "sharedWith": "ice"
+            }
+          },
+          "errors": [],
+          "views": [
+            {
+              "id": "main",
+              "world": "geode",
+              "on": true
+            },
+            {
+              "id": "gate0",
+              "world": "geode",
+              "on": false
+            }
+          ]
+        },
+        {
+          "name": "temple",
+          "medianMs": 5.35,
+          "minMs": 5.2033333321412405,
+          "maxMs": 5.443333331743876,
+          "samples": [
+            5.2033333321412405,
+            5.260000000397365,
+            5.336666667461396,
+            5.336666667461396,
+            5.35,
+            5.416666666666667,
+            5.430000001192093,
+            5.443333331743876
+          ],
+          "render": [
+            663,
+            1435
+          ],
+          "memory": {
+            "textures": 130742398,
+            "buffers": 34268192,
+            "total": 165010590
+          },
+          "quality": {
+            "level": 3,
+            "meanMs": 0,
+            "p90Ms": 0,
+            "air": 0.4,
+            "reflections": 0.5,
+            "particles": 0.65
+          },
+          "matter": {
+            "field": {
+              "cells": "32\u00d724\u00d732",
+              "cell": 0.26,
+              "origin": "-4.16,-0.52,-3.64",
+              "deposits": 0,
+              "dropped": 0,
+              "vortices": 0,
+              "probes": 1,
+              "aura": "loadouts",
+              "fusion": "none"
+            },
+            "fire": {
+              "flames": 9472,
+              "dancers": "0",
+              "burn": 1
+            },
+            "gems": {
+              "stones": 0,
+              "simulated": 0,
+              "fixtures": 1000,
+              "specimens": 13,
+              "crystals": 0,
+              "cracks": 0,
+              "bursts": 168,
+              "landings": 6,
+              "hearts": 0
+            },
+            "ice": {
+              "particles": 15600,
+              "waterLayers": 1,
+              "iceLayers": 0,
+              "forms": "0.00,0.00",
+              "setPieces": 0,
+              "setShards": 0
+            },
+            "plasma": {
+              "arcs": 0,
+              "arcSegments": 0
+            },
+            "steam": {
+              "particles": 2000,
+              "wisps": 1000,
+              "fronts": 760
+            },
+            "water": {
+              "sharedWith": "ice"
+            }
+          },
+          "errors": [],
+          "views": [
+            {
+              "id": "main",
+              "world": "temple",
+              "on": true
+            },
+            {
+              "id": "gate0",
+              "world": "geode",
+              "on": false
+            }
+          ]
+        },
+        {
+          "name": "pool",
+          "medianMs": 5.4,
+          "minMs": 5.270000000794728,
+          "maxMs": 5.629999999205271,
+          "samples": [
+            5.270000000794728,
+            5.289999999602636,
+            5.306666666269303,
+            5.316666666666666,
+            5.4,
+            5.493333333730698,
+            5.543333333730698,
+            5.629999999205271
+          ],
+          "render": [
+            663,
+            1435
+          ],
+          "memory": {
+            "textures": 130742398,
+            "buffers": 34268192,
+            "total": 165010590
+          },
+          "quality": {
+            "level": 3,
+            "meanMs": 0,
+            "p90Ms": 0,
+            "air": 0.4,
+            "reflections": 0.5,
+            "particles": 0.65
+          },
+          "matter": {
+            "field": {
+              "cells": "32\u00d724\u00d732",
+              "cell": 0.26,
+              "origin": "-4.16,-0.52,-3.64",
+              "deposits": 0,
+              "dropped": 0,
+              "vortices": 0,
+              "probes": 1,
+              "aura": "loadouts",
+              "fusion": "none"
+            },
+            "fire": {
+              "flames": 9472,
+              "dancers": "0",
+              "burn": 1
+            },
+            "gems": {
+              "stones": 0,
+              "simulated": 0,
+              "fixtures": 1000,
+              "specimens": 13,
+              "crystals": 0,
+              "cracks": 0,
+              "bursts": 234,
+              "landings": 8,
+              "hearts": 0
+            },
+            "ice": {
+              "particles": 15600,
+              "waterLayers": 1,
+              "iceLayers": 0,
+              "forms": "0.00,0.00",
+              "setPieces": 0,
+              "setShards": 0
+            },
+            "plasma": {
+              "arcs": 0,
+              "arcSegments": 0
+            },
+            "steam": {
+              "particles": 2000,
+              "wisps": 1000,
+              "fronts": 760
+            },
+            "water": {
+              "sharedWith": "ice"
+            }
+          },
+          "errors": [],
+          "views": [
+            {
+              "id": "main",
+              "world": "pool",
+              "on": true
+            },
+            {
+              "id": "gate0",
+              "world": "redwoods",
+              "on": true
+            }
+          ]
+        },
+        {
+          "name": "redwoods",
+          "medianMs": 4.633333333333334,
+          "minMs": 4.423333332935969,
+          "maxMs": 5.153333332141241,
+          "samples": [
+            4.423333332935969,
+            4.556666668256124,
+            4.579999999205271,
+            4.626666667064031,
+            4.633333333333334,
+            4.646666665871938,
+            4.836666667461396,
+            5.153333332141241
+          ],
+          "render": [
+            663,
+            1435
+          ],
+          "memory": {
+            "textures": 130742398,
+            "buffers": 34268192,
+            "total": 165010590
+          },
+          "quality": {
+            "level": 3,
+            "meanMs": 0,
+            "p90Ms": 0,
+            "air": 0.4,
+            "reflections": 0.5,
+            "particles": 0.65
+          },
+          "matter": {
+            "field": {
+              "cells": "32\u00d724\u00d732",
+              "cell": 0.26,
+              "origin": "-4.16,-0.52,-3.64",
+              "deposits": 0,
+              "dropped": 0,
+              "vortices": 0,
+              "probes": 1,
+              "aura": "loadouts",
+              "fusion": "none"
+            },
+            "fire": {
+              "flames": 9472,
+              "dancers": "0",
+              "burn": 1
+            },
+            "gems": {
+              "stones": 0,
+              "simulated": 0,
+              "fixtures": 1000,
+              "specimens": 13,
+              "crystals": 0,
+              "cracks": 0,
+              "bursts": 310,
+              "landings": 8,
+              "hearts": 0
+            },
+            "ice": {
+              "particles": 15600,
+              "waterLayers": 1,
+              "iceLayers": 0,
+              "forms": "0.00,0.00",
+              "setPieces": 0,
+              "setShards": 0
+            },
+            "plasma": {
+              "arcs": 0,
+              "arcSegments": 0
+            },
+            "steam": {
+              "particles": 2000,
+              "wisps": 1000,
+              "fronts": 760
+            },
+            "water": {
+              "sharedWith": "ice"
+            }
+          },
+          "errors": [],
+          "views": [
+            {
+              "id": "main",
+              "world": "redwoods",
+              "on": true
+            },
+            {
+              "id": "gate0",
+              "world": "redwoods",
+              "on": false
+            }
+          ]
+        }
+      ],
+      "errors": []
+    }
+  },
+  "raf": {
+    "before": [
+      {
+        "name": "geode",
+        "frames": 421,
+        "wall": {
+          "mean": 16.66627078384798,
+          "p50": 16.69999999999709,
+          "p95": 16.700000000004366,
+          "p99": 16.80000000000291
+        },
+        "cpu": {
+          "mean": 1.0408551061521516,
+          "p50": 1,
+          "p95": 1.600000023841858,
+          "p99": 2.5
+        },
+        "counts": {
+          "draws": 72.11638954869359,
+          "renderPasses": 30.755344418052257,
+          "computePasses": 13.111638954869358,
+          "submits": 1,
+          "uploads": 42.1520190023753
+        },
+        "memory": {
+          "textures": 281087952,
+          "buffers": 116638448,
+          "total": 397726400
+        },
+        "render": [
+          663,
+          1435
+        ],
+        "errors": [],
+        "failed": 0,
+        "views": [
+          {
+            "id": "main",
+            "world": "geode",
+            "on": true
+          },
+          {
+            "id": "gate0",
+            "world": "geode",
+            "on": false
+          },
+          {
+            "id": "gate1",
+            "world": "geode",
+            "on": false
+          },
+          {
+            "id": "gate2",
+            "world": "geode",
+            "on": true
+          }
+        ]
+      },
+      {
+        "name": "temple",
+        "frames": 420,
+        "wall": {
+          "mean": 16.665952380952373,
+          "p50": 16.69999999999709,
+          "p95": 16.799999999995634,
+          "p99": 16.80000000000291
+        },
+        "cpu": {
+          "mean": 0.9478571417785826,
+          "p50": 0.8999999761581421,
+          "p95": 1.399999976158142,
+          "p99": 1.899999976158142
+        },
+        "counts": {
+          "draws": 59.023809523809526,
+          "renderPasses": 28.728571428571428,
+          "computePasses": 15.088095238095239,
+          "submits": 1,
+          "uploads": 43.14047619047619
+        },
+        "memory": {
+          "textures": 281087952,
+          "buffers": 116638448,
+          "total": 397726400
+        },
+        "render": [
+          663,
+          1435
+        ],
+        "errors": [],
+        "failed": 0,
+        "views": [
+          {
+            "id": "main",
+            "world": "temple",
+            "on": true
+          },
+          {
+            "id": "gate0",
+            "world": "geode",
+            "on": false
+          },
+          {
+            "id": "gate1",
+            "world": "geode",
+            "on": false
+          },
+          {
+            "id": "gate2",
+            "world": "temple",
+            "on": false
+          }
+        ]
+      },
+      {
+        "name": "pool",
+        "frames": 420,
+        "wall": {
+          "mean": 16.665952380952373,
+          "p50": 16.69999999999709,
+          "p95": 16.79999999998836,
+          "p99": 16.80000000000291
+        },
+        "cpu": {
+          "mean": 1.12476190498897,
+          "p50": 1.100000023841858,
+          "p95": 1.4000000357627869,
+          "p99": 1.5999999642372131
+        },
+        "counts": {
+          "draws": 170.22857142857143,
+          "renderPasses": 52.74285714285714,
+          "computePasses": 17.085714285714285,
+          "submits": 1,
+          "uploads": 47.142857142857146
+        },
+        "memory": {
+          "textures": 281087952,
+          "buffers": 116638448,
+          "total": 397726400
+        },
+        "render": [
+          663,
+          1435
+        ],
+        "errors": [],
+        "failed": 0,
+        "views": [
+          {
+            "id": "main",
+            "world": "pool",
+            "on": true
+          },
+          {
+            "id": "gate0",
+            "world": "redwoods",
+            "on": true
+          },
+          {
+            "id": "gate1",
+            "world": "geode",
+            "on": true
+          },
+          {
+            "id": "gate2",
+            "world": "geode",
+            "on": false
+          }
+        ]
+      },
+      {
+        "name": "redwoods",
+        "frames": 420,
+        "wall": {
+          "mean": 16.666190476190483,
+          "p50": 16.69999999999709,
+          "p95": 16.70000000001164,
+          "p99": 16.80000000000291
+        },
+        "cpu": {
+          "mean": 1.0019047637780507,
+          "p50": 1,
+          "p95": 1.300000011920929,
+          "p99": 1.4000000357627869
+        },
+        "counts": {
+          "draws": 75.93809523809524,
+          "renderPasses": 26.71904761904762,
+          "computePasses": 13.135714285714286,
+          "submits": 1,
+          "uploads": 42.16428571428571
+        },
+        "memory": {
+          "textures": 281087952,
+          "buffers": 116638448,
+          "total": 397726400
+        },
+        "render": [
+          663,
+          1435
+        ],
+        "errors": [],
+        "failed": 0,
+        "views": [
+          {
+            "id": "main",
+            "world": "redwoods",
+            "on": true
+          },
+          {
+            "id": "gate0",
+            "world": "redwoods",
+            "on": false
+          },
+          {
+            "id": "gate1",
+            "world": "geode",
+            "on": false
+          },
+          {
+            "id": "gate2",
+            "world": "temple",
+            "on": false
+          }
+        ]
+      }
+    ],
+    "afterCpu6": [
+      {
+        "name": "geode",
+        "frames": 420,
+        "wall": {
+          "mean": 16.665952380952383,
+          "p50": 16.69999999999709,
+          "p95": 16.799999999999272,
+          "p99": 16.80000000000291
+        },
+        "cpu": {
+          "mean": 3.4416666659570874,
+          "p50": 3.300000011920929,
+          "p95": 4.899999976158142,
+          "p99": 5.300000011920929
+        },
+        "counts": {
+          "draws": 72.12380952380953,
+          "renderPasses": 30.757142857142856,
+          "computePasses": 13.111904761904762,
+          "submits": 1,
+          "uploads": 36.15238095238095
+        },
+        "quality": {
+          "level": 0,
+          "meanMs": 0,
+          "p90Ms": 0,
+          "air": 1,
+          "reflections": 1,
+          "particles": 1
+        },
+        "memory": {
+          "textures": 130742398,
+          "buffers": 34268192,
+          "total": 165010590
+        },
+        "render": [
+          663,
+          1435
+        ],
+        "errors": [],
+        "failed": 0,
+        "views": [
+          {
+            "id": "main",
+            "world": "geode",
+            "on": true
+          },
+          {
+            "id": "gate0",
+            "world": "geode",
+            "on": false
+          }
+        ]
+      },
+      {
+        "name": "temple",
+        "frames": 420,
+        "wall": {
+          "mean": 16.66595238095239,
+          "p50": 16.69999999999709,
+          "p95": 16.700000000004366,
+          "p99": 16.80000000000291
+        },
+        "cpu": {
+          "mean": 3.4857142844370435,
+          "p50": 3.400000035762787,
+          "p95": 4.899999976158142,
+          "p99": 5.300000011920929
+        },
+        "counts": {
+          "draws": 59.083333333333336,
+          "renderPasses": 28.728571428571428,
+          "computePasses": 15.083333333333334,
+          "submits": 1,
+          "uploads": 37.13809523809524
+        },
+        "quality": {
+          "level": 0,
+          "meanMs": 0,
+          "p90Ms": 0,
+          "air": 1,
+          "reflections": 1,
+          "particles": 1
+        },
+        "memory": {
+          "textures": 130742398,
+          "buffers": 34268192,
+          "total": 165010590
+        },
+        "render": [
+          663,
+          1435
+        ],
+        "errors": [],
+        "failed": 0,
+        "views": [
+          {
+            "id": "main",
+            "world": "temple",
+            "on": true
+          },
+          {
+            "id": "gate0",
+            "world": "temple",
+            "on": false
+          }
+        ]
+      },
+      {
+        "name": "pool",
+        "frames": 420,
+        "wall": {
+          "mean": 16.666190476190483,
+          "p50": 16.69999999999709,
+          "p95": 16.79999999998836,
+          "p99": 16.80000000000291
+        },
+        "cpu": {
+          "mean": 4.264999997615814,
+          "p50": 4.199999988079071,
+          "p95": 5.5,
+          "p99": 6.199999988079071
+        },
+        "counts": {
+          "draws": 116,
+          "renderPasses": 38,
+          "computePasses": 16,
+          "submits": 1,
+          "uploads": 39
+        },
+        "quality": {
+          "level": 0,
+          "meanMs": 0,
+          "p90Ms": 0,
+          "air": 1,
+          "reflections": 1,
+          "particles": 1
+        },
+        "memory": {
+          "textures": 130742398,
+          "buffers": 34268192,
+          "total": 165010590
+        },
+        "render": [
+          663,
+          1435
+        ],
+        "errors": [],
+        "failed": 0,
+        "views": [
+          {
+            "id": "main",
+            "world": "pool",
+            "on": true
+          },
+          {
+            "id": "gate0",
+            "world": "redwoods",
+            "on": true
+          }
+        ]
+      },
+      {
+        "name": "redwoods",
+        "frames": 419,
+        "wall": {
+          "mean": 16.705727923627677,
+          "p50": 16.69999999999709,
+          "p95": 16.70000000001164,
+          "p99": 16.80000000000291
+        },
+        "cpu": {
+          "mean": 4.000954653454282,
+          "p50": 3.900000035762787,
+          "p95": 5.199999988079071,
+          "p99": 6.400000035762787
+        },
+        "counts": {
+          "draws": 76.06682577565633,
+          "renderPasses": 26.75417661097852,
+          "computePasses": 13.138424821002387,
+          "submits": 1,
+          "uploads": 36.16945107398568
+        },
+        "quality": {
+          "level": 0,
+          "meanMs": 0,
+          "p90Ms": 0,
+          "air": 1,
+          "reflections": 1,
+          "particles": 1
+        },
+        "memory": {
+          "textures": 130742398,
+          "buffers": 34268192,
+          "total": 165010590
+        },
+        "render": [
+          663,
+          1435
+        ],
+        "errors": [],
+        "failed": 0,
+        "views": [
+          {
+            "id": "main",
+            "world": "redwoods",
+            "on": true
+          },
+          {
+            "id": "gate0",
+            "world": "temple",
+            "on": true
+          }
+        ]
+      }
+    ]
+  },
+  "pipelines": {
+    "before": 669,
+    "after": 361
+  },
+  "compatibility": [
+    {
+      "scenario": {
+        "name": "phone-minimum",
+        "klass": "phone",
+        "minimal": true,
+        "level": 0
+      },
+      "cases": 12,
+      "issues": []
+    },
+    {
+      "scenario": {
+        "name": "phone-fallback",
+        "klass": "phone",
+        "minimal": false,
+        "level": 3
+      },
+      "cases": 12,
+      "issues": []
+    },
+    {
+      "scenario": {
+        "name": "laptop",
+        "klass": "laptop",
+        "minimal": false,
+        "level": 0
+      },
+      "cases": 12,
+      "issues": []
+    },
+    {
+      "scenario": {
+        "name": "desktop",
+        "klass": "desktop",
+        "minimal": false,
+        "level": 0
+      },
+      "cases": 12,
+      "issues": []
+    }
+  ],
+  "controller": {
+    "before": {
+      "quality": {
+        "level": 0,
+        "meanMs": 0,
+        "p90Ms": 0,
+        "air": 1,
+        "reflections": 1,
+        "particles": 1
+      },
+      "render": [
+        663,
+        1435
+      ],
+      "renderScale": 0.85,
+      "errors": []
+    },
+    "loaded": {
+      "quality": {
+        "level": 3,
+        "meanMs": 43.7565217393896,
+        "p90Ms": 43.89999997615814,
+        "air": 0.4,
+        "reflections": 0.5,
+        "particles": 0.65
+      },
+      "render": [
+        663,
+        1435
+      ],
+      "renderScale": 0.85,
+      "errors": []
+    },
+    "recovered": {
+      "quality": {
+        "level": 2,
+        "meanMs": 16.666942148661803,
+        "p90Ms": 17.5,
+        "air": 0.6,
+        "reflections": 0.65,
+        "particles": 0.85
+      },
+      "render": [
+        663,
+        1435
+      ],
+      "renderScale": 0.85,
+      "errors": []
+    }
+  },
+  "browserErrors": [],
+  "releaseChecks": {
+    "results": [
+      {
+        "klass": "laptop",
+        "apple": true,
+        "pace": true,
+        "samples": 1,
+        "errors": [],
+        "render": [
+          585,
+          1266
+        ],
+        "scale": 1
+      },
+      {
+        "klass": "desktop",
+        "apple": true,
+        "pace": true,
+        "samples": 4,
+        "errors": [],
+        "render": [
+          780,
+          1688
+        ],
+        "scale": 1
+      },
+      {
+        "dress": "water",
+        "matter": {
+          "field": {
+            "cells": "32\u00d724\u00d732",
+            "cell": 0.26,
+            "origin": "-4.16,-0.26,-4.16",
+            "deposits": 0,
+            "dropped": 0,
+            "vortices": 0,
+            "probes": 1,
+            "aura": "loadouts",
+            "fusion": "none"
+          },
+          "fire": {
+            "flames": 0,
+            "dancers": "",
+            "burn": 1
+          },
+          "gems": {
+            "stones": 0,
+            "simulated": 0,
+            "fixtures": 1000,
+            "specimens": 13,
+            "crystals": 0,
+            "cracks": 0,
+            "bursts": 32,
+            "landings": 0,
+            "hearts": 0
+          },
+          "ice": {
+            "particles": 128000,
+            "waterLayers": 8,
+            "iceLayers": 0,
+            "forms": "0.00,0.00",
+            "setPieces": 0,
+            "setShards": 0
+          },
+          "plasma": {
+            "arcs": 0,
+            "arcSegments": 0
+          },
+          "steam": {
+            "particles": 2000,
+            "wisps": 1000,
+            "fronts": 760
+          },
+          "water": {
+            "sharedWith": "ice"
+          }
+        },
+        "dancers": 8,
+        "errors": []
+      },
+      {
+        "dress": "fire",
+        "matter": {
+          "field": {
+            "cells": "32\u00d724\u00d732",
+            "cell": 0.26,
+            "origin": "-4.16,-0.26,-4.16",
+            "deposits": 0,
+            "dropped": 0,
+            "vortices": 0,
+            "probes": 1,
+            "aura": "loadouts",
+            "fusion": "none"
+          },
+          "fire": {
+            "flames": 131072,
+            "dancers": "0,1,2,3,4,5,6,7",
+            "burn": 1
+          },
+          "gems": {
+            "stones": 0,
+            "simulated": 0,
+            "fixtures": 1000,
+            "specimens": 13,
+            "crystals": 0,
+            "cracks": 0,
+            "bursts": 79,
+            "landings": 0,
+            "hearts": 0
+          },
+          "ice": {
+            "particles": 0,
+            "waterLayers": 0,
+            "iceLayers": 0,
+            "forms": "0.00,0.00",
+            "setPieces": 0,
+            "setShards": 0
+          },
+          "plasma": {
+            "arcs": 0,
+            "arcSegments": 0
+          },
+          "steam": {
+            "particles": 2000,
+            "wisps": 1000,
+            "fronts": 760
+          },
+          "water": {
+            "sharedWith": "ice"
+          }
+        },
+        "dancers": 8,
+        "errors": []
+      },
+      {
+        "dress": "gems",
+        "matter": {
+          "field": {
+            "cells": "32\u00d724\u00d732",
+            "cell": 0.26,
+            "origin": "-4.16,-0.26,-4.16",
+            "deposits": 0,
+            "dropped": 0,
+            "vortices": 0,
+            "probes": 1,
+            "aura": "loadouts",
+            "fusion": "none"
+          },
+          "fire": {
+            "flames": 0,
+            "dancers": "",
+            "burn": 1
+          },
+          "gems": {
+            "stones": 15400,
+            "simulated": 15400,
+            "fixtures": 1000,
+            "specimens": 13,
+            "crystals": 0,
+            "cracks": 0,
+            "bursts": 120,
+            "landings": 0,
+            "hearts": 8
+          },
+          "ice": {
+            "particles": 0,
+            "waterLayers": 0,
+            "iceLayers": 0,
+            "forms": "0.00,0.00",
+            "setPieces": 0,
+            "setShards": 0
+          },
+          "plasma": {
+            "arcs": 0,
+            "arcSegments": 0
+          },
+          "steam": {
+            "particles": 2000,
+            "wisps": 1000,
+            "fronts": 760
+          },
+          "water": {
+            "sharedWith": "ice"
+          }
+        },
+        "dancers": 8,
+        "errors": []
+      }
+    ],
+    "errors": []
+  },
+  "releaseFront": {
+    "game": {
+      "url": "http://127.0.0.1:5493/energybending/?jogo=same&world=geode&dress=fire%2Cwater",
+      "klass": "phone",
+      "errors": []
+    },
+    "errors": []
+  }
+}

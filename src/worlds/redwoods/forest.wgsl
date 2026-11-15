@@ -270,6 +270,19 @@ fn windAt(xz: vec2f, t: f32) -> vec2f {
 /** the air in the woods: the mist along the view (thickest low down), lit by the soft light under the trees and, where
  *  the key light gets through the leaves and past the trunks, by that (the rays, brightest looking towards the light),
  *  then the lanterns' glow in it, each integrated along the view in closed form */
+fn woodsTransmission(distance: f32, px: vec2i, d: vec3f) -> f32 {
+  let tMax = min(distance / max(dot(d, frame.camFwd), 1e-3), 110.0);
+  let steps = max(i32(worldLight.forest.march.x), 4);
+  let j = pixelRnd(px, frame.frame * 3u);
+  var T = 1.0;
+  for (var k = 0; k < steps; k++) {
+    let ta = tMax * pow(f32(k) / f32(steps), 2.0);
+    let tb = tMax * pow(f32(k + 1) / f32(steps), 2.0);
+    T *= exp(-mistAt(frame.camPos + d * mix(ta, tb, j)) * (tb - ta));
+  }
+  return T;
+}
+
 fn woodsAir(s: vec4f, px: vec2i, d: vec3f) -> vec3f {
   let along = max(dot(d, frame.camFwd), 1e-3);
   let tMax = min(s.a / along, 110.0);

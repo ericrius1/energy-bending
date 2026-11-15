@@ -192,8 +192,16 @@ window 0.003 to 0.006 with a live gate on screen; the near fade nothing measurab
 **The device's budget** (`engine/perf.ts`): the class (desktop, laptop, phone: `?class=`, else a fill probe) sets a
 `Budget` that kinds, worlds and the post chain read at declare with `budget()` (flames and water per dancer, the water
 surface's resolution and smoothing, steam, stones, the field's grid, live gates and their scale, the depth of field,
-the sprite scale, the roda, the pixel-ratio cap and the autoscaler's range). A phone's numbers are what `coarse` gave;
-`coarse` remains only for geometry (worlds' layouts, the curl grid, the webcam's model).
+the sprite scale, the roda, the pixel-ratio cap and the autoscaler's range). It also sizes particle capacities and
+portal slots before allocation and selects 1× HDR on phone/laptop, 4× on desktop. `coarse` remains for geometry
+(worlds' layouts, the curl grid, the webcam's model). Phones keep render scale 0.85 at capped DPR 2: do not lower
+their resolution to buy FPS. `engine/quality.ts` watches wall-clock frame intervals and reduces air/reflection
+samples, then particle density, with slow recovery. It never caps refresh rate and needs no GPU timestamps.
+`?quality=0|1|2|3` holds a tier for comparisons; `bend.stats().quality` reports it. `?noautores` disables adaptation.
+Apple GPU timings can be invalid even in Chrome; use completed-frame batches and pass ablation, not timestamp
+totals alone. `scripts/profile-phone.mjs`, `scripts/throughput-phone.mjs`, and `scripts/check-phone.mjs` accept a
+production-preview base URL and an output directory. See `docs/reports/21-phone-fluidity.md` for measurements and
+limits of emulation. The production GPU-error banner is tappable; its details wrap, scroll, copy and close on touch.
 
 Within a scene pass the order is the declaration order (weft), so declaration goes phase by phase
 (`engine/scene.ts`): `backdrop` (worlds only) → `opaque` (matter, then the world's solid things) → `glow` (the glow
@@ -275,7 +283,8 @@ pass: additive, never the opaque distance).
 5. Every file opens with a short plain paragraph; comments say why.
 6. Deterministic when stepped: `bend.step(n, dt)`.
 7. Verify by running: stills, probes, timings. Say what was measured and what was not.
-8. Phones by scaling counts and resolution, never a separate code path (`coarse` lowers counts).
+8. Phones use the same renderer with smaller resource pools and effect budgets. Keep their image resolution;
+   adapt effects and counts for smoothness (`coarse` lowers counts).
 
 ## weft footguns (read node_modules/@ericrius1/weft/AGENTS.md)
 

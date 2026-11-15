@@ -42,9 +42,8 @@ import { SoundEvents } from './events';
 import { touchParams } from '../core/touch';
 import { CAPSULES } from '../core/capsules';
 import { seatTints } from '../core/seats';
-
-const MAXN = LIMITS.stones;
-const TOTAL = MAXN + LIMITS.fixtures;
+import { budget as deviceBudget } from '../../engine/perf';
+import { quality } from '../../engine/quality';
 
 /** one world's gem fixture, placed: where its run starts and how many, how many of each specimen, whether it's on */
 interface FixtureRun { world: string; base: number; count: number; kinds: number[]; enabled: () => boolean }
@@ -54,6 +53,9 @@ interface ViewLists { cview: UniformBuffer<any>; args: StorageBuffer; list: Stor
 
 export class GemPasses implements MatterPasses {
   readonly id = 'gems';
+  private capacity = Math.min(LIMITS.stones, deviceBudget().capacity.stones);
+  private total = this.capacity + LIMITS.fixtures;
+  private sparkCount = Math.min(LIMITS.sparks, deviceBudget().capacity.sparks);
   readonly ids: string[];
   readonly K: number;
   readonly L: number;
@@ -74,9 +76,9 @@ export class GemPasses implements MatterPasses {
   private events: SoundEvents;
   private views = new Map<string, ViewLists>();
   private fixtures: FixtureRun[] = [];
-  private homeData = new Float32Array(MAXN * 8);
-  private looks = new Float32Array(MAXN * 4);
-  private prevLooks = new Float32Array(MAXN * 4);
+  private homeData = new Float32Array(this.capacity * 8);
+  private looks = new Float32Array(this.capacity * 4);
+  private prevLooks = new Float32Array(this.capacity * 4);
   private typeCount: number[];
   private types = new Float32Array(LIMITS.specimens * 4);
   // the dancers' stones (`active`, laid out on their bodies) and the stones simulated (those, and spares)
@@ -115,15 +117,15 @@ export class GemPasses implements MatterPasses {
     this.template = new Uint32Array(K * L * 4);
     index.specimens.forEach((s, k) => s.lods.forEach((l, d) => this.template.set([l.count, 0, l.first, 0], (k * L + d) * 4)));
     this.argsTemplate = kit.storage({ label: 'gems.args.template', data: this.template, usage: ['copy-src'] });
-    this.homes = kit.storage({ label: 'gems.homes', size: TOTAL * 32, usage: ['storage', 'copy-dst'] });
-    this.homes2Prev = kit.storage({ label: 'gems.homes.prev', size: MAXN * 16, usage: ['storage', 'copy-dst'] });
+    this.homes = kit.storage({ label: 'gems.homes', size: this.total * 32, usage: ['storage', 'copy-dst'] });
+    this.homes2Prev = kit.storage({ label: 'gems.homes.prev', size: this.capacity * 16, usage: ['storage', 'copy-dst'] });
     // the dancers' stones start in a heap under the light; each world's fixtures come after them
-    const init = new Float32Array(TOTAL * 12);
-    heap(init, MAXN);
+    const init = new Float32Array(this.total * 12);
+    heap(init, this.capacity);
     this.typeCount = new Array(K).fill(0);
     this.placeFixtures(ctx.worlds, init);
     this.state = kit.storage({ label: 'gems.state', data: init, usage: ['storage', 'copy-dst'] });
-    this.sparks = kit.storage({ label: 'gems.sparks', size: LIMITS.sparks * 48 });
+    this.sparks = kit.storage({ label: 'gems.sparks', size: this.sparkCount * 48 });
     this.events = new SoundEvents(kit);
 
     this.sim = kit.uniforms(simShader.structs.Sim, 'gems.sim');
@@ -139,7 +141,7 @@ export class GemPasses implements MatterPasses {
       label: 'gems.sim', threads: () => [this.stoneCount],
       bind: { sim: this.sim, minerals: this.minerals, homes: this.homes, state: this.state, sparks: this.sparks, counter: this.events.counter, events: this.events.events, motion: this.motionU },
     });
-    const sparkStep = kit.compute(sparkSimShader, { label: 'gems.sparks', threads: [LIMITS.sparks], bind: { sim: this.sim, sparks: this.sparks } });
+    const sparkStep = kit.compute(sparkSimShader, { label: 'gems.sparks', threads: [this.sparkCount], bind: { sim: this.sim, sparks: this.sparks } });
     // a dancer carried through a gate this frame: its stones first, then the step (src/portals)
     this.carryU = kit.uniforms(carryShader.structs.Carry, 'gems.carry');
     const carryStep = kit.compute(carryShader, {
@@ -213,25 +215,25 @@ export class GemPasses implements MatterPasses {
   /** the sound events still being read back (a stepped capture waits for them) */
   get pending() { return this.events.pending; }
 
-  get stoneCount() { return Math.min(this.simCount, MAXN); }
-  get activeCount() { return Math.min(this.active, MAXN); }
+  get stoneCount() { return Math.min(this.simCount, this.capacity); }
+  get activeCount() { return Math.min(this.active, this.capacity); }
 
   // ---------------------------------------------------------------- fixtures (the gems a world is built of)
   private placeFixtures(worlds: readonly World[], init: Float32Array) {
-    let base = MAXN;
+    let base = this.capacity;
     const looks = new Float32Array(LIMITS.fixtures * 8);
     for (const w of worlds) for (const fx of w.fixtures) {
       if (fx.kind !== 'gems') continue;
-      const count = Math.min(Number(fx.count ?? 0), MAXN + LIMITS.fixtures - base);
+      const count = Math.min(Number(fx.count ?? 0), this.capacity + LIMITS.fixtures - base);
       if (count <= 0) continue;
       const kinds = ((fx.specimens as string[]) ?? []).map((id) => this.ids.indexOf(id)).filter((k) => k >= 0);
       const dome = buildDome(count, Number(fx.radius ?? 8.5), kinds, this.K, Number(fx.seed ?? 4242), Number(fx.top ?? 1));
       init.set(dome.state, base * 12);
-      for (let i = 0; i < count; i++) looks.set(dome.looks.subarray(i * 4, i * 4 + 4), (base - MAXN + i) * 8 + 4);
+      for (let i = 0; i < count; i++) looks.set(dome.looks.subarray(i * 4, i * 4 + 4), (base - this.capacity + i) * 8 + 4);
       this.fixtures.push({ world: w.id, base, count, kinds: dome.kinds, enabled: (fx.enabled as () => boolean) ?? (() => true) });
       base += count;
     }
-    this.fixtureHomes = looks.subarray(0, (base - MAXN) * 8);
+    this.fixtureHomes = looks.subarray(0, (base - this.capacity) * 8);
   }
   private fixtureHomes = new Float32Array(0);
   private fixturesOf(world: string) {
@@ -281,7 +283,7 @@ export class GemPasses implements MatterPasses {
         label: `gems.streaks.${world.id}`, bind: { sim: this.sim, look: this.look, minerals: this.minerals, state: this.state, homes: this.homes, homes2Prev: this.homes2Prev, seen: s.view.seen },
         count: 6, instances: () => this.stoneCount, blend: 'add', depthWrite: false, cull: 'none', enabled: () => on() && gemParams.streakGlow > 0,
       });
-      pass.draw(sparkDrawShader, { label: `gems.sparkles.${world.id}`, bind: { look: this.look, sparks: this.sparks }, count: 6, instances: LIMITS.sparks, blend: 'add', depthWrite: false, cull: 'none', enabled: on });
+      pass.draw(sparkDrawShader, { label: `gems.sparkles.${world.id}`, bind: { look: this.look, sparks: this.sparks }, count: 6, instances: this.sparkCount, blend: 'add', depthWrite: false, cull: 'none', enabled: on });
     }
   }
 
@@ -293,8 +295,8 @@ export class GemPasses implements MatterPasses {
     const cview = kit.uniforms(cullShader.structs.CullView, `gems.cull${id}`);
     const args = kit.storage({ label: `gems.args${id}`, size: bytes, usage: ['storage', 'indirect', 'copy-dst', 'copy-src'] });
     const argsR = kit.storage({ label: `gems.argsR${id}`, size: bytes, usage: ['storage', 'indirect', 'copy-dst', 'copy-src'] });
-    const list = kit.storage({ label: `gems.lists${id}`, size: LIMITS.lods * TOTAL * 4 });
-    const listR = kit.storage({ label: `gems.reflection.list${id}`, size: TOTAL * 4 });
+    const list = kit.storage({ label: `gems.lists${id}`, size: LIMITS.lods * this.total * 4 });
+    const listR = kit.storage({ label: `gems.reflection.list${id}`, size: this.total * 4 });
     v = { cview, args, argsR, list, listR, view };
     this.views.set(view.id, v);
     const reset = kit.raw((enc) => {
@@ -324,7 +326,7 @@ export class GemPasses implements MatterPasses {
   private laidOut = false;
 
   private resizeTo(count: number) {
-    const n = Math.min(count, MAXN), was = this.active;
+    const n = Math.min(Math.round(count * quality().particles), this.capacity), was = this.active;
     // between dances the stones keep the last dance's looks until each rises (a stone changes as it lifts)
     if (this.settling) this.keepLooks(0, this.stoneCount);
     this.active = n;
@@ -373,7 +375,7 @@ export class GemPasses implements MatterPasses {
       this.homes.write(h.subarray(0, count * 8));
       for (let i = 0; i < count; i++) for (let a = 0; a < 4; a++) this.looks[i * 4 + a] = h[i * 8 + 4 + a];
     }
-    this.homes.write(this.fixtureHomes, MAXN * 32);
+    this.homes.write(this.fixtureHomes, this.capacity * 32);
     this.layoutHearts(layers);
     this.crystals.layout(layers, (l) => this.suiteOf(l), (l) => this.heartDefs[l.dancer]?.strength ?? 0);
     // stones raining in had no last look: they wear the new one from the start
@@ -425,7 +427,7 @@ export class GemPasses implements MatterPasses {
     for (const fx of this.fixtures) fx.kinds.forEach((c, k) => { per[k] += c; });
     this.typeCount = per;
     // (with stones in the hundreds of thousands there's no room for both looks: they change at once instead)
-    if (this.prevLook && per.reduce((a, b) => a + b, 0) > TOTAL) { this.prevLook = 0; this.recount(); return; }
+    if (this.prevLook && per.reduce((a, b) => a + b, 0) > this.total) { this.prevLook = 0; this.recount(); return; }
     for (let k = 0, base = 0; k < K; base += per[k++]) this.types[k * 4] = base;
   }
 
@@ -440,7 +442,13 @@ export class GemPasses implements MatterPasses {
     });
   }
 
+  private qualityNow = 1;
   update(f: FrameCtx) {
+    if (this.qualityNow !== quality().particles) {
+      this.qualityNow = quality().particles;
+      this.resize({ count: this.budget });
+      this.layout(this.lastLayers);
+    }
     this.updateLook();
     const P = gemParams, M = matterParams, s = this.f, b = s.body, K = this.K;
     const dt = Math.min(f.dt, 1 / 30) * (f.danceDt / Math.max(f.dt, 1e-6));
@@ -454,7 +462,7 @@ export class GemPasses implements MatterPasses {
     s.count = this.stoneCount; s.inUse = this.activeCount; s.frameNo = f.frame; s.kinds = K;
     s.spareFade = this.spareFade; s.prevLook = this.prevLook; s.gemScale = P.scale; s.sizeVar = P.sizeVar;
     s.sparkRate = P.sparkRate; s.sparkSpeed = P.sparkSpeed; s.sparkLife = P.sparkLife; s.frictionSpark = P.frictionSpark;
-    s.lod0 = P.lodNear; s.lod1 = P.lodFar; s.cullPx = 0.35; s.envBase = MAXN; s.types = this.types;
+    s.lod0 = P.lodNear; s.lod1 = P.lodFar; s.cullPx = 0.35; s.envBase = this.capacity; s.types = this.types;
     const shatter = this.shatterNow || this.ctx.hand.shatterAll;
     b.dt = dt; b.time = f.t; b.floorY = 0; b.fill = P.fill;
     b.stiffness = P.stiffness; b.damping = P.damping; b.transition = this.transition; b.breathe = P.breathe;
@@ -472,7 +480,7 @@ export class GemPasses implements MatterPasses {
     for (const v of this.views.values()) {
       const w = v.view.world, fx = this.fixturesOf(w);
       const world = this.ctx.worlds.find((x) => x.id === w);
-      v.cview.set({ fixBase: fx?.base ?? MAXN, fixCount: fx?.count ?? 0, reflectOn: P.reflection && world?.mirrorFloor ? 1 : 0 });
+      v.cview.set({ fixBase: fx?.base ?? this.capacity, fixCount: fx?.count ?? 0, reflectOn: P.reflection && world?.mirrorFloor ? 1 : 0 });
     }
     this.events.begin();
   }

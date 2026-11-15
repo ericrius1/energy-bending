@@ -7,15 +7,16 @@
 // `?class=desktop|laptop|phone` forces it; `?probe` probes again. `coarse` (what kinds and worlds read today) is
 // `class === 'phone'`, exactly as the pointer test was on a phone; a laptop changes only what this file applies (the
 // autoscaler, the render scale's range, the pixel-ratio cap) until each owner reads its numbers from BUDGETS.
-// Dynamic resolution: weft's AutoResolution (or FrameBudget where the GPU's timestamps can't be trusted, as on WebKit,
-// and on phones) holds the class's GPU budget by moving the render scale; a film or a capture turns it off so frames
+// Dynamic resolution on computers: weft's AutoResolution (or FrameBudget where timestamps can't be trusted).
+// Phones keep their full budgeted render size; engine/quality.ts reduces effects from frame pacing instead.
+// A film or a capture turns adaptation off so frames
 // repeat exactly. The probe's thresholds come from this PC's RTX 5090 (docs/reports/4-perf.md); the Apple numbers
 // behind the laptop and phone rows are estimates until the Macs' ?perf runs land in docs/reports/perf/.
 import { AutoResolution, FrameBudget, isPhone, isWebKit, isAppleGpu, gpuName, type Kit } from '@ericrius1/weft';
 import { defineParams, onParams } from './params';
 
 export const perfParams = defineParams('perf', { autoRes: true, renderScale: 1 }, {
-  autoRes: { label: 'dynamic resolution' },
+  autoRes: { label: 'automatic quality' },
   renderScale: { min: 0.25, max: 2, label: 'render scale' },
 });
 
@@ -24,7 +25,11 @@ export type DeviceClass = 'desktop' | 'laptop' | 'phone';
 export const DEVICE_CLASSES: readonly DeviceClass[] = ['desktop', 'laptop', 'phone'];
 
 export interface Budget {
-  /** the frame rate the class is held to */
+  /** Single-sample HDR on constrained GPUs: avoid four stores/loads per pixel in both scene passes. */
+  samples: 1 | 4;
+  /** Allocated particle capacity, independent of the live counts. No desktop-sized empty pools on phones. */
+  capacity: { stones: number; flames: number; water: number; sparks: number };
+  /** the frame rate the quality budget aims for (never a refresh-rate cap) */
   targetFps: number;
   /** the GPU time per frame the autoscaler aims for (ms): under 1000 / targetFps, with room for the CPU and spikes */
   gpuMs: number;
@@ -53,7 +58,7 @@ export interface Budget {
   /** the matter field's grid (cells) and its cell size (m) */
   field: { dims: [number, number, number]; cell: number };
   /** live gate views at once and their resolution × the main view's (portalParams.live, .scale) */
-  gates: { live: number; scale: number };
+  gates: { live: number; scale: number; slots: number };
   /** the depth of field (postParams.dof) */
   dof: boolean;
   /** free dancers ringing a jogo the game plays against the partner or on one screen (src/ai's roda) */
@@ -64,19 +69,22 @@ export interface Budget {
  *  the fill cut the critique asked for; laptop sits between, aimed at 60 fps on an M-series Pro / Max (estimates) */
 export const BUDGETS: Record<DeviceClass, Budget> = {
   desktop: {
+    samples: 4, capacity: { stones: 300_000, flames: 262_144, water: 400_000, sparks: 65_536 },
     targetFps: 60, gpuMs: 14, renderScale: { min: 0.5, max: 1 }, maxPixelRatio: 2, coarse: false,
     stones: 15_000, flamesPerDancer: 60_000, waterPerDancer: 100_000, waterResolution: 1, waterSmooth: 3, steam: 6000,
-    spriteScale: 1, field: { dims: [48, 32, 48], cell: 0.18 }, gates: { live: 2, scale: 0.5 }, dof: true, roda: 0,
+    spriteScale: 1, field: { dims: [48, 32, 48], cell: 0.18 }, gates: { live: 2, scale: 0.5, slots: 3 }, dof: true, roda: 0,
   },
   laptop: {
+    samples: 1, capacity: { stones: 80_000, flames: 196_608, water: 240_000, sparks: 16_384 },
     targetFps: 60, gpuMs: 12, renderScale: { min: 0.5, max: 1 }, maxPixelRatio: 1.5, coarse: false,
     stones: 12_000, flamesPerDancer: 36_000, waterPerDancer: 60_000, waterResolution: 0.75, waterSmooth: 2, steam: 4000,
-    spriteScale: 0.85, field: { dims: [40, 28, 40], cell: 0.21 }, gates: { live: 1, scale: 0.4 }, dof: true, roda: 0,
+    spriteScale: 0.85, field: { dims: [40, 28, 40], cell: 0.21 }, gates: { live: 1, scale: 0.4, slots: 2 }, dof: true, roda: 0,
   },
   phone: {
-    targetFps: 30, gpuMs: 26, renderScale: { min: 0.5, max: 0.85 }, maxPixelRatio: 2, coarse: true,
+    samples: 1, capacity: { stones: 40_000, flames: 131_072, water: 128_000, sparks: 8192 },
+    targetFps: 30, gpuMs: 26, renderScale: { min: 0.85, max: 0.85 }, maxPixelRatio: 2, coarse: true,
     stones: 9000, flamesPerDancer: 24_000, waterPerDancer: 40_000, waterResolution: 0.5, waterSmooth: 1, steam: 2000,
-    spriteScale: 1, field: { dims: [32, 24, 32], cell: 0.26 }, gates: { live: 1, scale: 0.4 }, dof: false, roda: 0,
+    spriteScale: 1, field: { dims: [32, 24, 32], cell: 0.26 }, gates: { live: 1, scale: 0.4, slots: 1 }, dof: false, roda: 0,
   },
 };
 
@@ -234,17 +242,19 @@ export const budget = (): Budget => perfState.choice?.budget ?? BUDGETS.desktop;
 /** this device's class ('desktop' before it is chosen) */
 export const deviceClass = (): DeviceClass => perfState.choice?.klass ?? 'desktop';
 
-/** the autoscaler for the class: FrameBudget (paces by the frames) on WebKit and phones, AutoResolution elsewhere */
-export function makeAutoscaler(kit: Kit, b: Budget, phone: boolean): AutoResolution {
+/** Phones adapt effects instead of pixels. Apple timestamps have also produced impossible values in Chrome;
+ *  use frame pacing on those computers as well as WebKit and devices without timestamp-query. */
+export function makeAutoscaler(kit: Kit, b: Budget, phone: boolean): AutoResolution | null {
+  if (phone) return null;
   const range = { min: b.renderScale.min, max: b.renderScale.max };
-  if (phone || isWebKit() || !kit.profiler.available) return new FrameBudget(b.gpuMs, { ...range, keep: null });
+  if (isWebKit() || perfState.choice?.appleGpu || !kit.profiler.available) return new FrameBudget(b.gpuMs, { ...range, keep: null, byPace: true });
   return new AutoResolution(b.gpuMs, range);
 }
 
 export function applyPerf(kit: Kit, fixed: boolean, choice: DeviceChoice | null = null) {
   const b = (choice ?? perfState.choice)?.budget ?? BUDGETS.desktop;
-  const auto = fixed ? null : makeAutoscaler(kit, b, choice?.klass === 'phone');
-  if (!fixed) { kit.maxPixelRatio = b.maxPixelRatio; kit.renderScale = b.renderScale.max; }
+  const auto = fixed ? null : makeAutoscaler(kit, b, (choice ?? perfState.choice)?.klass === 'phone');
+  if (!fixed) { kit.maxPixelRatio = b.maxPixelRatio; perfParams.renderScale = kit.renderScale = b.renderScale.max; }
   const apply = () => {
     kit.autoRes = perfParams.autoRes && auto ? auto : null;
     if (!kit.autoRes) kit.renderScale = perfParams.renderScale;

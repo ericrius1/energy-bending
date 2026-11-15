@@ -44,8 +44,8 @@ import { fireLights, writeFireLights, type FlameLight } from './lights';
 import type { LightSlot } from '../../worlds/shared';
 import type { FireLights } from './light.wgsl';
 import { budget } from '../../engine/perf';
+import { quality } from '../../engine/quality';
 
-const MAXN = LIMITS.flames;
 /** the show's default stone count: a programme's count over this scales the flames */
 const BASE_STONES = 15000;
 const HOME_FLOATS = 8;
@@ -70,6 +70,7 @@ export function flameFor(ctx: MatterCtx): FirePasses {
 
 export class FirePasses implements MatterPasses {
   readonly id = 'fire';
+  private capacity = Math.min(LIMITS.flames, budget().capacity.flames);
   readonly acts: MatterActs;
   /** per dancer slot: the dancer's form, 0 fire … 1 plasma, added to each layer's own. A copy of `Dancer.form`, made
    *  each frame in update (set the form on the dancer: bend.form(d, v)) */
@@ -80,7 +81,7 @@ export class FirePasses implements MatterPasses {
   readonly lights: LightSlot<FireLights>;
   private homes: StorageBuffer;
   private noise: Texture;
-  private homeData = new Float32Array(MAXN * HOME_FLOATS);
+  private homeData = new Float32Array(this.capacity * HOME_FLOATS);
   private layers: Record<FlameKind, MatterLayer[]> = { fire: [], plasma: [] };
   private dirty = false;
   private scale = 1;
@@ -107,8 +108,8 @@ export class FirePasses implements MatterPasses {
     const kit = ctx.kit;
     // the device's budget (engine/perf.ts): how many flames a dancer has (the panel can change it after)
     fireParams.perDancer = budget().flamesPerDancer;
-    this.flames = kit.storage({ label: 'fire.flames', size: MAXN * 48, usage: ['storage', 'copy-dst'] });
-    this.homes = kit.storage({ label: 'fire.homes', size: MAXN * HOME_FLOATS * 4, usage: ['storage', 'copy-dst'] });
+    this.flames = kit.storage({ label: 'fire.flames', size: this.capacity * 48, usage: ['storage', 'copy-dst'] });
+    this.homes = kit.storage({ label: 'fire.homes', size: this.capacity * HOME_FLOATS * 4, usage: ['storage', 'copy-dst'] });
     this.sim = kit.uniforms(simShader.structs.FireSim, 'fire.sim');
     this.field = kit.uniforms(compositeShader.structs.FireField, 'fire.field');
     this.lights = fireLights(kit);
@@ -185,10 +186,10 @@ export class FirePasses implements MatterPasses {
     // dancer's own matter keeps its particles (resting on its feet) and comes back without being made anew
     const layers = [...this.layers.fire, ...this.layers.plasma].sort((a, b) => a.dancer - b.dancer)
       .map((l) => (l.layer.params?.fusion ? { ...l, weight: 1 } : l));
-    const per = fireParams.perDancer * this.scale;
+    const per = fireParams.perDancer * this.scale * quality().particles;
     this.perNow = per;
     const total = layers.reduce((a, l) => a + l.weight, 0);
-    const count = Math.min(MAXN, Math.round(per * total / 256) * 256);
+    const count = Math.min(this.capacity, Math.round(per * total / 256) * 256);
     const isFusion = (l: MatterLayer) => !!l.layer.params?.fusion;
     const formOf = (l: MatterLayer) => (l.layer.kind === 'plasma' ? 1 : isFusion(l) ? 0 : Math.min(1, Math.max(0, Number(l.layer.params?.form ?? 0))));
     // what a home holds where its form goes: a fusion's flame 2 + its side (sim.wgsl isFusion, fusionSide)
@@ -218,6 +219,7 @@ export class FirePasses implements MatterPasses {
 
   // ---------------------------------------------------------------- each frame
   update(f: FrameCtx) {
+    if (this.perNow !== fireParams.perDancer * this.scale * quality().particles) this.dirty = true;
     if (this.dirty) this.relayout();
     for (let d = 0; d < LIMITS.dancers; d++) this.form[d] = f.dancers[d]?.form ?? 0;
     const P = fireParams, s = this.s, b = s.body;

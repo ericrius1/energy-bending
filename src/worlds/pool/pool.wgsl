@@ -184,21 +184,28 @@ fn poolCaustics(p: vec3f, under: f32) -> f32 {
 
 /** the air over the pool: the evening haze lying on the water, gold toward the sun, that takes the far surface into
  *  the horizon */
+/** Transmission through the height fog, and the share replaced by the far horizon's mist. */
+fn poolAirFactors(t: f32, d: vec3f) -> vec2f {
+  return vec2f(heightFog(d, t, worldLight.pool.deep.w, worldLight.pool.water.x, 3.5),
+    exp(-abs(d.y) * 55.0) * smoothstep(15.0, 120.0, t) * worldLight.pool.mist.w);
+}
+fn poolTransmission(distance: f32, d: vec3f) -> f32 {
+  let f = poolAirFactors(min(distance / max(dot(d, frame.camFwd), 1e-3), 600.0), d);
+  return f.x * (1.0 - f.y);
+}
 fn poolAir(s: vec4f, px: vec2i, d: vec3f) -> vec3f {
   let along = max(dot(d, frame.camFwd), 1e-3);
   let t = min(s.a / along, 600.0);
-  let through = heightFog(d, t, worldLight.pool.deep.w, worldLight.pool.water.x, 3.5);
+  let factors = poolAirFactors(t, d);
   let flat = normalize(vec3f(d.x, 0.0, d.z) + vec3f(1e-5, 0.0, 0.0));
   let toward = max(dot(flat, worldLight.pool.glowDir.xyz), 0.0);
   let haze = worldLight.pool.horizon.rgb + worldLight.pool.glow.rgb * worldLight.pool.glow.w * 0.25 * pow(toward, worldLight.pool.glowDir.w);
-  var c = mix(haze, s.rgb, through);
+  var c = mix(haze, s.rgb, factors.x);
   // a thin haze on the far water, a band round the horizon, lit by the sun on its bearing: it softens the shore's foot
   // and the horizon's hard line
-  let band = exp(-abs(d.y) * 55.0);
-  let far = smoothstep(15.0, 120.0, t);
   let towardSun = pow(max(dot(flat, normalize(vec3f(worldLight.pool.sun.x, 0.0, worldLight.pool.sun.z) + vec3f(1e-5, 0.0, 0.0))), 0.0), 6.0);
   let mistCol = worldLight.pool.mist.rgb * (0.5 + 0.5 * towardSun) + worldLight.pool.sunCol.rgb * towardSun * 0.06;
-  c = mix(c, mistCol, band * far * worldLight.pool.mist.w);
+  c = mix(c, mistCol, factors.y);
   return c;
 }
 

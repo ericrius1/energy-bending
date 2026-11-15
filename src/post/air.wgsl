@@ -235,7 +235,7 @@ fn air(i: FullscreenOut) -> Air {
     o.col = worldAir(vec4f(s.rgb + gc, s.a), px, d);
   } else {
     // the glow nearer: fogged as far as it is (what the air adds at that distance taken away again)
-    o.col = worldAir(s, px, d) + worldAir(vec4f(gc, fd), px, d) - worldAir(vec4f(0.0, 0.0, 0.0, fd), px, d);
+    o.col = worldAir(s, px, d) + worldTransmission(gc, fd, px, d);
   }
   // (behind a fusion's flower the world dims a little, never the glow: worlds/answer.wgsl answerVeil, report 20)
   let veil = answerVeil(s.a, d);

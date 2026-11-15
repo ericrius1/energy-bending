@@ -19,6 +19,7 @@ import { layoutGarden } from './garden';
 import type { Grade, PortalDef, World, WorldCtx } from '../world';
 import type { ScenePass } from '../../engine/scene';
 import type { FrameCtx } from '../../engine/frame';
+import { quality } from '../../engine/quality';
 import { defineParams, hex, onParams } from '../../engine/params';
 import { Ripples } from '../water/ripples';
 import { stagePlane, spawnsOf, type StagePlane } from '../stage';
@@ -285,7 +286,8 @@ export class Temple implements World {
     }
     // the duel arena's drops in the court (empty unless it is shown)
     const duel = templeDuel(), drops = dropsUniform(duel.arena.plane, duel.arena.drops!, arenaShown(this.id));
-    this.u.set({ ...v, drops: drops.rects, dropFrame: drops.frame });
+    this.march[0] = Math.max(6, Math.round((this.ctx.coarse ? 12 : 22) * quality().reflections));
+    this.u.set({ ...v, march: this.march, drops: drops.rects, dropFrame: drops.frame });
   }
 
   declareScene(s: ScenePass) {

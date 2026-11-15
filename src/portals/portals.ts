@@ -174,7 +174,9 @@ export class Portals implements SceneLayer {
 
   constructor(private ctx: PortalsCtx) {
     const kit = (this.kit = ctx.kit);
-    const S = Math.max(0, Math.min(ctx.slots, LIMITS.views, 3));
+    const g = budget().gates;
+    P.live = Math.min(P.live, g.live); P.scale = Math.min(P.scale, g.scale);
+    const S = Math.max(0, Math.min(ctx.slots, LIMITS.views, g.slots));
     for (let i = 0; i < S; i++) {
       const cam = new GateCamera();
       const slot: Slot = { index: i, view: null!, cam, active: false, gate: null, parent: null, was: null, still: false };
@@ -187,7 +189,6 @@ export class Portals implements SceneLayer {
     this.stillTex = kit.texture({ label: 'gates.stills', format: 'rgba16float', size: [this.stillSize, this.stillSize, LIMITS.gates], view: '2d-array' });
     this.surfaces = new Surfaces(kit, () => this.slotTextures(), this.stillTex);
     if (ctx.coarse) this.surfaces.motes = 40;
-    { const g = budget().gates; P.live = Math.min(P.live, g.live); P.scale = Math.min(P.scale, g.scale); }   // engine/perf.ts
     sceneLayers.register(this);
     ctx.frame.tick('travel', (f) => this.travelPhase(f), 'gates: dancers through a door, carried to the other world');
     ctx.frame.tick('gates', (f) => this.gatesPhase(f), 'gates: the camera through a door, the views behind each live gate');

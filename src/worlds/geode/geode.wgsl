@@ -32,6 +32,7 @@ struct Geode {
   dropFrame: vec4f,        // that plane: its origin's x, z, its right's x, z
   wells: array<vec4f, 4>,  // the light wells round the vault: xyz the window's middle, w its radius
   sun: vec4f,              // the sun through them: xyz the way its beams run (down), w how bright
+  airSteps: f32,          // quality budget for the main shaft's dust and caustic march
 }
 
 // ---------------------------------------------------------------- the greenhouse's colours
@@ -681,6 +682,10 @@ fn geodeFixtureTint(p: vec3f, fade: bool) -> vec3f {
 
 // ---------------------------------------------------------------- the air
 
+fn geodeTransmission(distance: f32, d: vec3f) -> f32 {
+  return exp(-min(distance / max(dot(d, frame.camFwd), 1e-3), 40.0) * worldLight.geode.hazeCol.w);
+}
+
 /** the air in the geode: march the view ray through the cone of light that falls on the stage (it stops at whatever
  *  is in front), then fog what's far towards the haze. s: the scene (alpha its view distance); d: the view ray */
 fn geodeAir(s: vec4f, px: vec2i, d: vec3f) -> vec3f {
@@ -705,7 +710,7 @@ fn geodeAir(s: vec4f, px: vec2i, d: vec3f) -> vec3f {
       if (d.y < 0.0) { t1 = min(t1, tf); t0 = max(t0, tt); } else { t1 = min(t1, tt); }
     }
     if (t1 > t0) {
-      let n = 16;
+      let n = max(4, i32(worldLight.geode.airSteps));
       let dtm = (t1 - t0) / f32(n);
       var t = t0 + dtm * pixelRnd(px, frame.frame * 3u + 2u);
       var acc = 0.0;
@@ -757,5 +762,5 @@ fn geodeAir(s: vec4f, px: vec2i, d: vec3f) -> vec3f {
   // the haze, lit faintly by the wall's glow low down (so the far side of the hollow sinks into a dusk, not black)
   // (and, since the vault is glass (phase 6), the sunlit air under it: warmer and brighter looking up)
   let hz = worldLight.geode.hazeCol.rgb * (1.0 + 1.5 * smoothstep(0.3, -0.2, d.y)) + GEO_SUN * 0.05 * worldLight.geode.sun.w * smoothstep(-0.1, 0.7, d.y);
-  return mix(hz, c, exp(-tMax * worldLight.geode.hazeCol.w));
+  return mix(hz, c, geodeTransmission(s.a, d));
 }

@@ -157,6 +157,16 @@ fn worldAir(s0: vec4f, px: vec2i, d: vec3f) -> vec3f {
   return geodeAir(s, px, d) + answerLight(s.a, d);
 }
 
+/** Air is affine in colour: the added scattering cancels in Air(c,d)-Air(0,d). Only compute transmission:
+ *  no light-shaft marches, trunk/leaf shadow tests, sky shading or lantern integrals for a term that cancels. */
+fn worldTransmission(c: vec3f, distance: f32, px: vec2i, d: vec3f) -> vec3f {
+  let lit = answerAir(vec4f(c, distance), d).rgb;
+  if (WORLD == 1u) { return lit * woodsTransmission(distance, px, d); }
+  if (WORLD == 2u) { return lit * poolTransmission(distance, d); }
+  if (WORLD == 3u) { return lit * templeTransmission(distance, d); }
+  return lit * geodeTransmission(distance, d);
+}
+
 /** the scene at pixel px as the world shows it, before its air: most worlds show it as drawn; a world with water lays
  *  the surface over what was seen through it (the reflections, bent by the ripples).
  *  Only the air pass calls this (src: the scene it reads, alpha the view distance) */

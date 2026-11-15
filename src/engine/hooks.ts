@@ -24,6 +24,7 @@ import { Capture, type Kit } from '@ericrius1/weft';
 import type { IntentController } from '../dancer/intent-controller';
 import type { Intent } from '../input/intent';
 import { allParams, setParams } from './params';
+import { frameQuality } from './quality';
 import type { FrameBuilder } from './frame';
 import type { CameraRig } from './camera';
 import type { Shot } from './shots';
@@ -119,6 +120,7 @@ export function installHooks(app: HookApp) {
         adapter: app.adapter,
         frame: app.frame.describe(),
         gpuMs: p.frameMs,
+        quality: { level: frameQuality.level, meanMs: frameQuality.meanMs, p90Ms: frameQuality.p90Ms, ...frameQuality.value },
         passes: Object.fromEntries([...p.ms].map(([k, v]) => [k, +v.toFixed(3)])),
         render: [...kit.size.render],
         renderScale: kit.renderScale,

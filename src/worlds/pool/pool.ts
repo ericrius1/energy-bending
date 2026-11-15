@@ -18,6 +18,7 @@ import backdropShader from './backdrop.wgsl';
 import type { Grade, PortalDef, World, WorldCtx } from '../world';
 import type { ScenePass } from '../../engine/scene';
 import type { FrameCtx } from '../../engine/frame';
+import { quality } from '../../engine/quality';
 import { defineParams, hex, onParams } from '../../engine/params';
 import { Ripples } from '../water/ripples';
 import { stagePlane, spawnsOf, type StagePlane } from '../stage';
@@ -137,7 +138,7 @@ export class Pool implements World {
     swell: [1, 0, 0, 0] as V4, swellAt: [0, 0, 2, 0] as V4,
   };
 
-  constructor(ctx: WorldCtx) {
+  constructor(private ctx: WorldCtx) {
     const { kit, frame, coarse } = ctx;
     this.u = lightSlot(kit, 'pool');
     this.waves = new Ripples(kit, frame, {
@@ -207,6 +208,7 @@ export class Pool implements World {
     this.waves.update(f, c.x, c.z, 0);
     this.live.waves = this.waves.window();
     this.live.march[2] = f.t;
+    this.live.march[0] = Math.max(6, Math.round((this.ctx.coarse ? 12 : 22) * quality().reflections));
     this.sunAt(f.t);
     this.swellNow();
     this.u.set(this.live);

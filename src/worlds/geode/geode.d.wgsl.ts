@@ -28,6 +28,7 @@ export interface Geode {
   dropFrame: Vec4;
   wells: ArrayLike<number> | Vec4[];
   sun: Vec4;
+  airSteps: number;
 }
 
 declare const shader: Shader<{ Geode: Geode }, never>;

@@ -2,7 +2,7 @@
 // and world (src/worlds/*/index.ts) registers itself when its folder is imported, and the glob below imports them
 // all, so adding one never touches this file. Read the frame's order in engine/frame.ts (STAGES, PHASES) and the
 // whole of it, item by item, in `bend.stats().frame`.
-import { createKit, WebGPUUnavailable, type Kit } from '@ericrius1/weft';
+import { createKit, WebGPUUnavailable, SerialCompiler, type Kit } from '@ericrius1/weft';
 import { loadMotion, type Motion } from './skeleton/clips';
 import { checkRig } from './skeleton/rig';
 import { FrameBuilder, type FrameCtx } from './engine/frame';
@@ -10,7 +10,8 @@ import { makeView, type ViewCtx } from './engine/views';
 import { declareScene } from './engine/scene';
 import { CameraRig } from './engine/camera';
 import { Panel } from './engine/panel';
-import { applyPerf, chooseClass } from './engine/perf';
+import { applyPerf, chooseClass, perfParams } from './engine/perf';
+import { frameQuality, QUALITY } from './engine/quality';
 import { makePip } from './engine/pip';
 import { installHooks } from './engine/hooks';
 import { BodyBuffers } from './matter/core/bodies';
@@ -62,6 +63,9 @@ try {
 // ?class=; `coarse` is what kinds and worlds read of it today
 const device = await chooseClass(kit, query, { film: FILM, fresh: query.get('perfgroup') === '0' });
 const coarse = device.coarse;
+// WebKit's shader compiler can stop servicing frames if hundreds of pipelines arrive together.
+const compiler = kit.compiler;
+if (device.webkit) kit.compiler = new SerialCompiler(kit);
 const motion: Motion = await loadMotion(base);
 motion.skeletons.forEach(checkRig);
 // the travelling dances (for locomotion), fetched behind the rest
@@ -230,6 +234,7 @@ rig.shoot('heap');
 if (query.has('lock')) lock(true);
 const items = frame.list();
 const ready = await kit.ready();
+kit.compiler = compiler;
 if (ready.failed) console.warn(`energybending: ${ready.failed} pipeline(s) failed to build`);
 status.remove();
 document.body.classList.add('ready');
@@ -238,7 +243,15 @@ const panel = new Panel(query.has('panel'));
 panel.build();
 
 let fpsAvg = 60;
+const forcedQuality = Number(query.get('quality'));
+const qualityFixed = query.has('quality') && Number.isInteger(forcedQuality) && forcedQuality >= 0 && forcedQuality < QUALITY.length;
+if (qualityFixed) frameQuality.level = forcedQuality;
+const adaptQuality = device.klass === 'phone' && !FILM && !query.has('noautores') && !qualityFixed;
+let lastFrameAt = performance.now();
 kit.loop(({ dt }) => {
+  const now = performance.now(), wallDt = (now - lastFrameAt) / 1000;
+  lastFrameAt = now;
+  if (adaptQuality && perfParams.autoRes && !kit.manual) frameQuality.step(wallDt, !document.hidden);
   const speed = danceParams.speed;
   f.dt = dt;
   f.danceDt = dt * speed;
@@ -251,7 +264,7 @@ kit.loop(({ dt }) => {
   frame.update(f);
   kit.run(items);
   frame.finish(f);
-  if (kit.frameIndex % 15 === 0) panel.status(`${Math.round(fpsAvg)} fps · ${show.dancers.length} dancers · ${kit.profiler.frameMs.toFixed(2)} ms GPU`);
+  if (kit.frameIndex % 15 === 0) panel.status(`${Math.round(fpsAvg)} fps · ${show.dancers.length} dancers · quality ${frameQuality.level}${device.appleGpu || device.webkit ? '' : ` · ${kit.profiler.frameMs.toFixed(2)} ms GPU`}`);
 });
 
 // ---------------------------------------------------------------- keys, you, the hooks

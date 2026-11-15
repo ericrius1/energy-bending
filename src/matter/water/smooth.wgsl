@@ -47,13 +47,16 @@ fn blur(px: vec2i, dims: vec2i, first: bool) -> vec4f {
   if (d0 > 0.0) { rpx = pxRadius(d0, dims.y); }
   let step = max(rpx / f32(TAPS), 1.0);
   let sigma = rpx * 0.5;
+  // Beyond four sigma a tap contributes <0.034% of the centre. Most pixels have no water (rpx=4):
+  // read 17 taps there, rather than 33. Keep all 33 for a wide near-body kernel, so it never becomes sparse.
+  let taps = min(TAPS, i32(ceil(2.0 * rpx / step)));
   let lo = d0 - sm.falloff;
   let hi = d0 + sm.falloff;
   var dsum = 0.0;
   var dw = 0.0;
   var rest = vec3f(0.0);
   var rw = 0.0;
-  for (var k = -TAPS; k <= TAPS; k++) {
+  for (var k = -taps; k <= taps; k++) {
     let off = f32(k) * step;
     let q = clamp(px + vec2i(round(sm.dir * off)), vec2i(0), dims - 1);
     let s = tap(q, first);

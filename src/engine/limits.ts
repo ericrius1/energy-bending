@@ -1,5 +1,6 @@
-// The hard caps, in one place, each with the reason it is the number it is. Buffers are sized from these once at
-// start. The shaders that index those buffers need the same numbers as WGSL constants: they live in
+// The hard caps, in one place, each with the reason it is the number it is. Particle buffers use the smaller of
+// these and engine/perf.ts's device capacity. Shaders use the actual length or a supplied offset for those pools;
+// other fixed-size arrays need the same numbers as WGSL constants: they live in
 // `engine/limits.wgsl`, and `npm test` (scripts/check-limits.mjs) fails if the two files disagree. To raise a cap,
 // change it in both files; the cost is memory (noted beside each), not code.
 

@@ -14,6 +14,7 @@ import { Camera, type Kit, type RenderPass, type Texture, type UniformBuffer, ty
 import seenShader, { type ViewSeen } from './seen.wgsl';
 import { LIMITS } from './limits';
 import { follow } from './frame';
+import { budget } from './perf';
 
 /** what the glow target's alpha clears to: "no flame here" (src/post/air.wgsl reads past 5000 as none) */
 export const NO_FOCUS = 1e4;
@@ -65,22 +66,23 @@ export function makeView(kit: Kit, id: string, o: { world: string; scale?: numbe
   const scale = o.scale ?? 1;
   const camera = o.main ? kit.camera : o.camera ?? new Camera();
   const view = o.main ? kit.mainView : kit.view(camera, scale, `view.${id}`);
-  const samples = o.samples ?? 4;
+  const samples = o.samples ?? budget().samples;
   const tex = (label: string, format: GPUTextureFormat, s = 1) =>
     kit.texture({ label: `${id}.${label}`, format, size: 'render', scale, samples: s });
+  const hdr = tex('hdr', 'rgba16float'), glowTex = tex('glow', 'rgba16float');
   const targets: SceneTargets = {
-    hdrMS: tex('hdrMS', 'rgba16float', samples),
+    hdrMS: samples > 1 ? tex('hdrMS', 'rgba16float', samples) : hdr,
     depthMS: tex('depthMS', 'depth32float', samples),
-    hdr: tex('hdr', 'rgba16float'),
-    glowMS: tex('glowMS', 'rgba16float', samples),
-    glow: tex('glow', 'rgba16float'),
+    hdr,
+    glowMS: samples > 1 ? tex('glowMS', 'rgba16float', samples) : glowTex,
+    glow: glowTex,
     air: tex('air', 'rgba16float'),
   };
   const on = o.on ?? (() => true);
   // alpha clears to 80: "nothing here, 80 m away", which the air and the depth of field read as distance
   const scene = kit.pass({
     label: id === 'main' ? 'scene' : `scene.${id}`,
-    color: [{ target: targets.hdrMS, resolve: targets.hdr, clear: [0, 0, 0, 80], store: false }],
+    color: [samples > 1 ? { target: targets.hdrMS, resolve: targets.hdr, clear: [0, 0, 0, 80], store: false } : { target: targets.hdr, clear: [0, 0, 0, 80] }],
     depth: { target: targets.depthMS, clear: 0, store: true },
     view: o.main ? undefined : view,
     enabled: on,

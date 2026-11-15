@@ -30,6 +30,7 @@ import { gustNow } from '../../duel/hazards';
 import type { Grade, PortalDef, World, WorldCtx } from '../world';
 import type { ScenePass } from '../../engine/scene';
 import type { FrameCtx } from '../../engine/frame';
+import { quality } from '../../engine/quality';
 import type { StagePlane } from '../../engine/camera';
 import { Woods } from './day';
 import { fillTexture } from './textures';
@@ -197,6 +198,7 @@ export class Redwoods implements World {
     this.duelDusk = inDuel;
     if (P.dayGoes && !this.ctx.film) P.hour = inDuel ? Math.min(DUSK[1], P.hour + f.dt / DUSK_S) : (P.hour + (f.dt * 24) / (P.dayMinutes * 60)) % 24;
     this.woods.update(f.danceDt, P);
+    this.woods.values.march[0] = Math.max(4, Math.round(this.q.steps * quality().air));
     this.watch(f);
     // the duel arena's drops in the meadow (empty unless it is shown)
     const duel = redwoodsDuel(), drops = dropsUniform(duel.arena.plane, duel.arena.drops!, arenaShown(this.id));

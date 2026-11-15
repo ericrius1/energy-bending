@@ -176,6 +176,7 @@ export interface Geode {
   dropFrame: Vec4;
   wells: ArrayLike<number> | Vec4[];
   sun: Vec4;
+  airSteps: number;
 }
 export interface Forest {
   pad: number;

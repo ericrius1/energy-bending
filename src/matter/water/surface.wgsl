@@ -628,7 +628,7 @@ fn lensOf(sh: Shade, uv: vec2f, od: f32, d: f32) -> vec2f {
   let s = textureLoad(scene, px, 0);
   let ray = viewRay(i.uv);
   let A = worldAir(vec4f(0.0, 0.0, 0.0, s.a), px, ray);
-  let T = worldAir(vec4f(1.0, 1.0, 1.0, s.a), px, ray) - A;
+  let T = worldTransmission(vec3f(1.0), s.a, px, ray);
   return vec4f(A, clamp(dot(T, vec3f(1.0 / 3.0)), 0.0, 1.0));
 }
 

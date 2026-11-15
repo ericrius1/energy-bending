@@ -428,10 +428,13 @@ fn templeAmbient(N: vec3f, ao: f32, p: vec3f, fire: f32) -> vec3f {
 }
 
 /** the air over the court: a sea haze, lying low, glowing with the afterglow in the west and round the moon */
+fn templeTransmission(distance: f32, d: vec3f) -> f32 {
+  return heightFog(d, min(distance / max(dot(d, frame.camFwd), 1e-3), 800.0), worldLight.temple.march.z, 0.0, 6.0);
+}
 fn templeAir(s: vec4f, px: vec2i, d: vec3f) -> vec3f {
   let along = max(dot(d, frame.camFwd), 1e-3);
   let t = min(s.a / along, 800.0);
-  let through = heightFog(d, t, worldLight.temple.march.z, 0.0, 6.0);
+  let through = templeTransmission(s.a, d);
   let flat = normalize(vec3f(d.x, 0.0, d.z) + vec3f(1e-5, 0.0, 0.0));
   let mm = max(dot(d, worldLight.temple.moon.xyz), 0.0);
   let haze = templeSky(flat, 0.0) * 0.8 + worldLight.temple.moonCol.rgb * pow(mm, 8.0) * 0.12;

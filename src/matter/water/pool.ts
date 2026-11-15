@@ -31,6 +31,7 @@ import type { MatterEars } from '../../audio/matter';
 import { fastestLimb, jointAt, middleOf, seeded } from '../core/sounding';
 import { JOINT } from '../../skeleton/rig';
 import { budget } from '../../engine/perf';
+import { quality } from '../../engine/quality';
 
 const PARTICLE_FLOATS = 12;
 /** gem count a programme asks for when it doesn't say (matter/core/params.ts): the budget is read relative to it */
@@ -39,6 +40,7 @@ const BASE_BUDGET = 15000;
 export type WaterKindId = 'water' | 'ice';
 
 export class WaterPool {
+  private capacity = Math.min(WATER_MAX, budget().capacity.water);
   readonly state: StorageBuffer;
   readonly aux: StorageBuffer;
   readonly homes: StorageBuffer;
@@ -53,7 +55,8 @@ export class WaterPool {
   private kit: Kit;
   private layers: Record<WaterKindId, MatterLayer[]> = { water: [], ice: [] };
   private dirty = false;
-  private homeData = new Float32Array(WATER_MAX * 8);
+  private qualityNow = 1;
+  private homeData = new Float32Array(this.capacity * 8);
   private _count = 0;
   private budgetScale = 1;
   private hasIceLayer = false;
@@ -78,9 +81,9 @@ export class WaterPool {
     const kit = (this.kit = ctx.kit);
     // the device's budget (engine/perf.ts; a phone's is what `coarse` gave: 40k, half resolution, one smoothing pass)
     { const b = budget(); waterParams.perDancer = b.waterPerDancer; waterParams.resolution = b.waterResolution; waterParams.smoothPasses = b.waterSmooth; }
-    this.state = kit.storage({ label: 'water.state', size: WATER_MAX * PARTICLE_FLOATS * 4, usage: ['storage', 'copy-dst'] });
-    this.aux = kit.storage({ label: 'water.aux', size: WATER_MAX * 16, usage: ['storage', 'copy-dst'] });
-    this.homes = kit.storage({ label: 'water.homes', size: WATER_MAX * 32, usage: ['storage', 'copy-dst'] });
+    this.state = kit.storage({ label: 'water.state', size: this.capacity * PARTICLE_FLOATS * 4, usage: ['storage', 'copy-dst'] });
+    this.aux = kit.storage({ label: 'water.aux', size: this.capacity * 16, usage: ['storage', 'copy-dst'] });
+    this.homes = kit.storage({ label: 'water.homes', size: this.capacity * 32, usage: ['storage', 'copy-dst'] });
     this.sim = kit.uniforms(simShader.structs.WaterSim, 'water.sim');
     this.surf = kit.uniforms(surfaceShader.structs.Surf, 'water.surf');
     this.smoothX = kit.uniforms(smoothShader.structs.Smooth, 'water.smooth.x');
@@ -129,7 +132,7 @@ export class WaterPool {
     const all = [...this.layers.water, ...this.layers.ice].sort((a, b) => a.dancer - b.dancer);
     this.hasIceLayer = this.layers.ice.length > 0;
     const weight = all.reduce((a, l) => a + l.weight, 0);
-    const n = Math.min(WATER_MAX, Math.round(waterParams.perDancer * weight * this.budgetScale));
+    const n = Math.min(this.capacity, Math.round(waterParams.perDancer * weight * this.budgetScale * quality().particles));
     const was = this._count;
     if (!all.length || n <= 0) { this._count = 0; return; }
     const h = this.homeData;
@@ -250,6 +253,7 @@ export class WaterPool {
 
   update(f: FrameCtx) {
     this.t = f.t;
+    if (this.qualityNow !== quality().particles) { this.qualityNow = quality().particles; this.dirty = true; }
     if (this.dirty) this.layout(f);
     const P = waterParams, s = this.f, b = s.body;
     const dt = Math.min(f.dt, 1 / 30) * (f.danceDt / Math.max(f.dt, 1e-6));
