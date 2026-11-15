@@ -5,7 +5,8 @@
 // strand turns to the eye, leaves alternating down a stem and a flower here and there (the rest of the ribbon dropped);
 // a chime's tube is bronze gone green, swinging a little. Lit as the stones are: the sun (the pillars' shadows, the
 // stained glass's colour), the sky, the court's bounce. Opaque, its alpha the view distance (the depth contract). Not a
-// solid: the near fade leaves it alone, as it does the redwoods' ferns.
+// solid: the near fade's CPU never sees it, so it fades itself near the eye and across the line of sight to a body
+// (decorDrop, worlds/light.wgsl).
 #include "weft/frame"
 #include "../light"
 
@@ -84,6 +85,7 @@ fn dye(k: f32) -> vec3f {
 }
 
 @fragment fn fs(i: GOut, @builtin(front_facing) front: bool) -> @location(0) vec4f {
+  if (decorDrop(i.wp, i.pos.xy)) { discard; }
   let kind = i.info.x;
   let u = i.uv.x;
   let v = i.uv.y;
