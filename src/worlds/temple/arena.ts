@@ -141,10 +141,11 @@ function build(): TempleDuel {
   const arena: Arena = {
     world: 'temple',
     space: { center: [0, 0, -0.5], radius: 11, yKill: -2.2, yTop: 9.0 },
-    spawns: [[-3, 0, SZ], [3, 0, SZ], [6.0, 0.9, -7.6], [-7.6, colTop + arch.thick, SZ], [7.6, colTop + arch.thick, SZ], [3.0, 3.0, -8.0], [-3.5, 0, 5.5]],
+    // (phase 5: the set starts out in the open court in front of the stage, not under its lintels)
+    spawns: [[-2.6, 0, 1.6], [2.6, 0, 1.6], [6.0, 0.9, -7.6], [-7.6, colTop + arch.thick, SZ], [7.6, colTop + arch.thick, SZ], [3.0, 3.0, -8.0], [-3.5, 0, 5.5]],
     // the ways out (phase 5: report 18-flow): the gate to the geode at the front left, and the open front right
     exits: [
-      { id: 'gate', at: [-7.6, 0, 5.4], dir: [-0.8, 0.6], r: 2.0 },
+      { id: 'gate', at: [-7.3, 0, 5.0], dir: [-0.8, 0.6], r: 1.5 },
       { id: 'front', at: [5.6, 0, 7.6], dir: [0.56, 0.83], r: 1.8 },
     ],
     pieces: solidsOf(all), plane, drops,
@@ -155,6 +156,10 @@ function build(): TempleDuel {
     // line): at its height 1.45 m deep, the court's floor and its low stones under it and the drops pools to swim,
     // a body floating with its feet 0.3 m over the floor; at its lowest the drops' water 0.5 m down their sides
     hazard: tideHazard({ low: -0.5, high: 1.45, bars: 16 }),
+    // the shared energy here (phase 5, report 18-flow): the flowing movement carries the two further apart after a fling
+    // (1.8 m apart on average, 1.6 before) and the energy ebbs more; gains a little larger and ebbs a little slower keep
+    // the fusion about as often as before (Node: 7 of 40 sets, 5 before)
+    energy: { gain: 1.06, ebb: 0.92 },
   };
   return { arena, data, blocks: blocks.length, drums: drums.length, stones: all };
 }

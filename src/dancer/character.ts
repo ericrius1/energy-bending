@@ -334,6 +334,9 @@ export class Character {
    *  past holds the body off without taking its speed */
   vaulted = false;
   private vaultT = 0;
+  /** the face last pushed off and how long it still counts as touched (s): a run at a slant goes along it */
+  private faceN: [number, number] = [0, 0];
+  private faceT = 0;
   wallId: string | null = null;
   /** the wall slid on (or last in reach): its face's normal, world x and z, pointing out of it toward the body */
   wallN: [number, number] = [0, 0];
@@ -677,7 +680,7 @@ export class Character {
     this.dropT = Math.max(0, this.dropT - h);
     this.blinkT = Math.max(0, this.blinkT - h);
     this.dashBuf = Math.max(0, this.dashBuf - h); this.dashCoolT = Math.max(0, this.dashCoolT - h);
-    this.wallCoyoteT = Math.max(0, this.wallCoyoteT - h); this.lockT = Math.max(0, this.lockT - h); this.flightT = Math.max(0, this.flightT - h); this.vaultT = Math.max(0, this.vaultT - h); this.landLagT = Math.max(0, this.landLagT - h);
+    this.wallCoyoteT = Math.max(0, this.wallCoyoteT - h); this.lockT = Math.max(0, this.lockT - h); this.flightT = Math.max(0, this.flightT - h); this.vaultT = Math.max(0, this.vaultT - h); this.faceT = Math.max(0, this.faceT - h); this.landLagT = Math.max(0, this.landLagT - h);
     this.landK = Math.max(0, this.landK - h / this.phys.landSquash);
     if (this.easeS || this.easeN) {
       const k = Math.exp(-h / this.phys.lockEase);
@@ -1152,6 +1155,13 @@ export class Character {
       let tx = mv[0], tz = mv[1]; const l = Math.hypot(tx, tz); if (l > 1) { tx /= l; tz /= l; }
       // just kicked off a wall: the stick can't pull the body back toward it
       if (this.lockT > 0) { const d = tx * this.lockN[0] + tz * this.lockN[1]; if (d < 0) { tx -= this.lockN[0] * d; tz -= this.lockN[1] * d; } }
+      // against a face, the stick pushing into it at a slant: the run goes along the face at the stick's full push
+      // (phase 5, the flow: the stick's way into the face was the run's, and the face took it every step, so a run along
+      // a wall at a slant crawled at under 2 m/s)
+      if (P.glance > 0 && this.faceT > 0 && l > 0.1) {
+        const n = this.faceN, d = tx * n[0] + tz * n[1];
+        if (d < 0) { const ax = tx - n[0] * d, az = tz - n[1] * d, al = Math.hypot(ax, az); if (al > 0.3 * l) { tx = (ax / al) * l; tz = (az / al) * l; } }
+      }
       const sp = crouch || env.still ? 0 : it.walk ? P.walkSpeed : P.runSpeed;
       tx *= sp; tz *= sp;
       // (what's left of the stick after the lockout must be a real push, not the sliver along the face)
@@ -1187,6 +1197,7 @@ export class Character {
       x = r.x; z = r.z;
       const mv = r.pushed.length && (P.glance || P.vaultH) ? this._moveVec(it) : null;
       for (const n of r.pushed) {
+        this.faceN = n; this.faceT = 0.06;
         const vn = vx * n[0] + vz * n[1];
         if (vn < 0) {
           const sp = Math.hypot(vx, vz);

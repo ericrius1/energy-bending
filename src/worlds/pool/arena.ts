@@ -95,10 +95,11 @@ function build(): PoolDuel {
     if (CHANNELS.some((a) => { const along = x * Math.cos(a) + z * Math.sin(a); return along > 2 && Math.abs(-x * Math.sin(a) + z * Math.cos(a)) < CHANNEL_HALF; })) continue;
     places.push([x, z]);
   }
-  // the standing stones: six round the field at mid radius, alternating sides; a block a jump high beside each
+  // the standing stones: five round the field toward its rim (phase 5, report 18-flow: seven at mid radius before,
+  // walling the pair and the camera in), spread round it; a block a jump high beside each
   const tall = new Set<number>(), steps = new Set<number>();
-  const order = places.map((p, k) => [k, Math.atan2(p[1], p[0]), Math.hypot(p[0], p[1])] as const).filter(([, , d]) => d > 4.5 && d < 9.5).sort((a, b) => a[1] - b[1]);
-  for (let k = 0; k < order.length && tall.size < 7; k += Math.max(1, Math.floor(order.length / 7))) tall.add(order[k][0]);
+  const order = places.map((p, k) => [k, Math.atan2(p[1], p[0]), Math.hypot(p[0], p[1])] as const).filter(([, , d]) => d > 7.5 && d < 10.8).sort((a, b) => a[1] - b[1]);
+  for (let k = 0; k < order.length && tall.size < 5; k += Math.max(1, Math.floor(order.length / 5))) tall.add(order[k][0]);
   for (const t of tall) {
     let best = -1, bd = Infinity;
     places.forEach((p, k) => {
@@ -142,7 +143,7 @@ function build(): PoolDuel {
     camera: { minDist: 8, maxDist: 24, lens: 26, low: -1.0 },
     drops: [],
     // the ways out (phase 5: report 18-flow): each channel's end at the space's edge, the first the gate to the geode
-    exits: CHANNELS.map((a, k) => ({ id: ['gate', 'back', 'front'][k], at: k === 0 ? [-7.5, 0, 4.5] as V3 : [Math.cos(a) * 10.4, 0, Math.sin(a) * 10.4] as V3, dir: [Math.cos(a), Math.sin(a)] as [number, number], r: 1.5 })),
+    exits: CHANNELS.map((a, k) => ({ id: ['gate', 'back', 'front'][k], at: k === 0 ? [-7.5, 0, 4.5] as V3 : [Math.cos(a) * 10.6, 0, Math.sin(a) * 10.6] as V3, dir: [Math.cos(a), Math.sin(a)] as [number, number], r: 1.5 })),
     // (the evening sun's gold, faint: the stones and rafts are dark and warm now, the bodies on them pale)
     rim: [0.34, 0.24, 0.11],
     // the hazard: a swell across the pool on each phrase, from a different side in turn (hazards.ts)
@@ -150,8 +151,10 @@ function build(): PoolDuel {
     // the shared energy here (shared/duel.ts DuelTune): the water keeps the two within reach and the swell throws them
     // together, so they meet more and more often in the air (three catches in four from the air, a third more catches
     // than elsewhere) and the energy sat at the top; its gains a little smaller and its ebbs a little faster keep the
-    // fusion as rare as in the other worlds (report 14-pool-fusion: 31 of 40 sets fused, now about 1 in 9)
-    energy: { gain: 0.93, ebb: 1.15 },
+    // fusion as rare as in the other worlds (report 14-pool-fusion: 31 of 40 sets fused, now about 1 in 9). Phase 5
+    // (report 18-flow): with the channels open and the flowing movement the two are carried further apart, and 0.93
+    // and 1.15 fused no set of 40 in Node (8 before); 1.0 and 1.02 fuse 8 of 40 again
+    energy: { gain: 1.0, ebb: 1.02 },
   };
   const data = new Float32Array(rocks.length * ROCK_FLOATS);
   rocks.forEach((k, i) => data.set([...k.at, k.yaw, ...k.size, k.ice ? 1 : 0, k.seed, k.round, k.plan, k.look], i * ROCK_FLOATS));

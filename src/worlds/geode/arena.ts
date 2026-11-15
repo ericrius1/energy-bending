@@ -180,7 +180,9 @@ function build(): GeodeDuel {
     // the easiest world to fuse in Node (28 of 120 sets); its gains a little smaller and its ebbs a little faster keep it
     // about 1 in 8 in the page (3 of 28; Node 22 of 120), as elsewhere. (×0.96 and ×1.05 was 15 of 120 in Node but 1 of
     // 28 in the page: report 16)
-    energy: { gain: 0.98, ebb: 1.025 },
+    // (phase 5, report 18-flow: the flowing movement carries the two further apart, and 0.98 and 1.025 fused 1 set of 40
+    // in Node, 9 before: now 1.05 and 0.93)
+    energy: { gain: 1.05, ebb: 0.93 },
     // the ways out (phase 5: report 18-flow): the hub's three gates, each with a clear lane to it (the front beam moved
     // off the redwoods gate's path)
     exits: Object.entries(HUB_GATES).map(([id, [x, z]]) => { const dx = x, dz = z + 1.2, l = Math.hypot(dx, dz); return { id, at: [x, 0, z] as V3, dir: [dx / l, dz / l] as [number, number], r: 1.5 }; }),
