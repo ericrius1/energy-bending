@@ -482,17 +482,13 @@ export class Pops {
         break;
       }
       case 'merge': case 'pair': {
-        // two halves sliding together, then one with a flash
-        // (each half of the word from its own side, clipped to it: the halves meet, never a doubled word)
-        const c = clamp01(age / 0.32), off = 30 * u * (1 - easeOut(c));
+        // drawn in from both sides, then one with a flash
+        // (the word whole, its letters gathering in from a wider spread: the two halves that slid together, each
+        // clipped to its side, left a gap in the word's middle for their first 0.3 s, "CURRE NT ×35": report 19)
+        const c = clamp01(age / 0.32);
         if (c < 1) {
-          for (const sd of [-1, 1]) {
-            g.save();
-            g.beginPath(); g.rect(sd < 0 ? x - off - spr.w : x + off, y - spr.h, spr.w, spr.h * 2); g.clip();
-            drawWord(g, spr, x + sd * off, y, 1, 1, 0, a * (0.55 + 0.45 * c));
-            g.restore();
-          }
-          a = 0;
+          sx = 1 + 0.32 * (1 - easeOut(c));
+          a *= 0.55 + 0.45 * c;
         } else {
           // then one, and a bloom of warm sunlight behind it
           const f = clamp01((age - 0.32) / 0.4);
