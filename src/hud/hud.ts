@@ -35,6 +35,9 @@ export interface HudStats {
 }
 
 export class Hud {
+  /** painters laid under the HUD's own layers in every capture (`compose`, `flatten`), each given the capture's w × h:
+   *  what the player sees over the canvas that isn't the HUD's (the mirrors' names, DOM on screen: portals/labels.ts) */
+  readonly under: ((g: Ctx, w: number, h: number) => void)[] = [];
   private state: HudState = emptyHud();
   private base: HTMLCanvasElement | null = null;
   private live: HTMLCanvasElement | null = null;
@@ -232,6 +235,7 @@ export class Hud {
 
   /** lay what is on screen over a captured frame of w × h pixels (bend.grab) */
   compose(g: CanvasRenderingContext2D, w: number, h: number) {
+    for (const p of this.under) p(g, w, h);
     if (!this.shown || !this.base || !this.live) return;
     g.drawImage(this.base, 0, 0, w, h);
     g.drawImage(this.live, 0, 0, w, h);
@@ -242,6 +246,7 @@ export class Hud {
     const f = (this.flat && this.flat.width === w && this.flat.height === h) ? this.flat : (this.flat = makeCanvas(w, h));
     const g = f.getContext('2d') as Ctx;
     g.clearRect(0, 0, w, h);
+    for (const p of this.under) p(g, w, h);
     if (this.shown && this.base && this.live) { g.drawImage(this.base, 0, 0, w, h); g.drawImage(this.live, 0, 0, w, h); }
     return f;
   }

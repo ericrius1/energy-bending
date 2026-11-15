@@ -1,0 +1,52 @@
+{
+  "name": "duel-5",
+  "title": "The duel's phase 5 film (the second solarpunk pass): the contact dance as a player sees it (the duel's own camera, the HUD on, two virtual players), opening on the YOU tell in the sunlit temple's open court (the shaft, the rings, YOU over the rose body), the Pool's water garden with every mirror named, steam as a veil in the redwoods' sun shafts, then one long shot in the redwoods where the pair dance into the mirror to the Tide Temple and through it without a cut, the camera through the disc behind them and the music taking the temple's track on the next bar; the rest of the film on that track, a fused finale's bloom and the garland banner. Scored by the redwoods' track (Embers in the Redwoods) from bar 60's second beat until the crossing, then the temple's (Moon Over the Tide Temple) from its bar 1 (scripts/film.mjs lays both: a duel shot with \"mirrors\": 1 says when its page changed track). Every shot plays its set from the first frame (seeded brains on the track's clock) and cuts into it a whole number of beats in; the sound is the tracks with each shot's recorded score under them at the game's balance.",
+  "audio": { "track": "redwoods", "from": 60.25 },
+  "size": "1280x720",
+  "fps": 60,
+  "fadeIn": 0.3,
+  "fadeOut": 1.4,
+  "defaults": { "mode": "duel", "from": "start", "hud": true, "query": { "keys": "left,right", "mirrors": 1 } },
+  "shots": [
+    {
+      "id": "temple-you",
+      "note": "the sunlit temple's open court: 3, 2, 1 with the YOU tell on seat 1 (rose fire): the shaft of sun, a ring rising on each count, YOU and ROSE over the head, the panel P1 · YOU; DANCE on bar 61, a catch and swings in the open court, the stained glass and the colonnade behind",
+      "world": "temple",
+      "cast": [{ "dress": "fire", "style": "lead", "skill": 0.85 }, { "dress": "water", "style": "flyer", "skill": 0.85 }],
+      "seed": 1, "preroll": 0, "beats": 10,
+      "cues": [{ "at": -9, "js": "bend.duel.you.seats = [0]" }]
+    },
+    {
+      "id": "pool-garden",
+      "note": "the Pool's water garden: glazed planters and woven rafts, the mirrors to the Tide Temple, the Geode and the Redwoods each named over its crown; a catch at the planters and MURMURATION x60 over the water",
+      "world": "pool",
+      "cast": [{ "dress": "fire", "style": "base", "skill": 0.85 }, { "dress": "water", "style": "flyer", "skill": 0.85 }],
+      "seed": 1, "preroll": 31.6, "beats": 8,
+      "cues": [{ "at": -9, "js": "bend.duel.you.seats = [0]" }]
+    },
+    {
+      "id": "redwoods-steam",
+      "note": "bar 65's swell: the redwoods, fire's ribbon and water's wave, STEAM!, the geyser's column in the sun's shafts as a veil, the bunting, a catch in the air above it",
+      "world": "redwoods",
+      "cast": [{ "dress": "fire", "style": "flyer", "skill": 0.85 }, { "dress": "water", "style": "lead", "skill": 0.85 }],
+      "seed": 9, "preroll": 9.6, "beats": 7,
+      "cues": [{ "at": -9, "js": "bend.duel.you.seats = [0]" }]
+    },
+    {
+      "id": "redwoods-mirror",
+      "note": "one shot, no cut: the pair swing and fling at the redwoods' mirror to the Tide Temple (its plaque over the crown), catch at the disc and go through it, the camera through the disc behind them into the temple's clear water, CURRENT; the music the temple's from the next bar",
+      "world": "redwoods",
+      "cast": [{ "dress": "water", "style": "lead", "skill": 0.85 }, { "dress": "ice", "style": "flyer", "skill": 0.85 }],
+      "seed": 2, "preroll": 39.3, "beats": 12,
+      "cues": [{ "at": -9, "js": "bend.duel.you.seats = [0]" }]
+    },
+    {
+      "id": "pool-bloom",
+      "note": "after the crossing, on the temple's track: the Pool's last seconds, FINALE, water (rose, the player) and fire fused, the lift out of the water, the bloom's vines and flower over the pair in both colours, and the garland banner opening with its words, P1 · FLYER TAKES THE SET",
+      "world": "pool",
+      "cast": [{ "dress": "water", "style": "flyer", "skill": 0.85 }, { "dress": "fire", "style": "base", "skill": 0.85 }],
+      "seed": 34, "preroll": 65.6, "beats": 13,
+      "cues": [{ "at": -9, "js": "bend.duel.you.seats = [0]" }]
+    }
+  ]
+}

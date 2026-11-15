@@ -134,6 +134,16 @@ scout a whole set once (`"preroll": 0, "seconds": 72`), read `info.json`'s `duel
 own: a cast, the power form, a reaction, each with `t`, the shot's clock, and `d`, the duel's seconds), then cut into it with `preroll` (and two shots of one seed are two cuts of
 one set). Camera keys don't change the dance; a `rate` or `rig` cue does, from where it fires.
 
+**Through the mirrors.** A duel shot keeps its world's gates shut unless it asks: `"query": { "mirrors": 1 }` leaves
+them open as play does, so the pair can dance through a mirror mid-shot (the camera through the disc behind them, or
+the cut under the mirror's light: the light is DOM, so a film shows a plain cut). The page then takes the new world's
+track from the next bar line, as play does, and `info.json` says when (`track.switches`, on the score's clock) and
+what crossed (`duel.crossings`, with `how`: `through` or `flash`); the film's music goes on in that track from that bar
+line (the first fading over 1.2 s), and the later shots are on its grid and tempo (their `beats` in its tempo). Pick a
+set with no crossing before the in-point (film.mjs says so when there is one). The mirrors' plaques are painted into the
+frames (`Hud.under`). The YOU tell is off in a film (no seat is the page's); `{ "at": -9, "js": "bend.duel.you.seats =
+[0]" }` shows a seat as the player's (films/duel-5.json).
+
 Seats are `0`, `1` or `"both"`. In a jogo the seat cues go to the jogo's own ScriptRunner (exact on its clock); the
 rest run in the film's frame loop.
 

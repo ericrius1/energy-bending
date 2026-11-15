@@ -62,14 +62,18 @@ const film = FILE.endsWith('.mjs') ? (await import(pathToFileURL(FILE).href)).de
 const NAME = film.name ?? basename(FILE).replace(/\.(json|mjs)$/, '');
 // the film's track: a world's (public/music/tracks.json, measured by scripts/music-analyze.mjs) or a file, measured now
 const MANIFEST = JSON.parse(readFileSync(join(ROOT, 'public/music/tracks.json'), 'utf8'));
+/** a world's track (or a track's id), as the film lays it: its manifest entry, the page's id and the file to lay */
+const knownTrack = (a) => {
+  const known = MANIFEST.tracks[a] ?? MANIFEST.tracks[MANIFEST.worlds?.[a]];
+  if (!known) return null;
+  const wav = join(MEDIA_DIR(), 'music', `${known.id}.wav`);
+  return { ...known, page: known.id, source: existsSync(wav) ? wav : join(ROOT, 'public', known.file) };
+};
 const TRACK = await (async () => {
   const a = film.audio?.track;
   if (!a) return null;
-  const known = MANIFEST.tracks[a] ?? MANIFEST.tracks[MANIFEST.worlds?.[a]];
-  if (known) {
-    const wav = join(MEDIA_DIR(), 'music', `${known.id}.wav`);
-    return { ...known, page: known.id, source: existsSync(wav) ? wav : join(ROOT, 'public', known.file) };
-  }
+  const known = knownTrack(a);
+  if (known) return known;
   const path = resolve(join(FILE, '..'), a);
   if (!existsSync(path)) fail(`audio.track ${a}: neither a world's track nor a file${a === 'forge' ? " (the forge's track left with its world, 14 Nov 2026: films/duel-1.json and duel-p1.json are records of films already made)" : ''}`);
   const { analyse } = await import('./music-analyze.mjs');
@@ -173,20 +177,45 @@ const infoOf = (s) => {
 /** each shot's place on the film and on the track, in order: its in-point's film time (`at`), the track's beat there
  *  (`track.beatAtIn`: the first shot's from its info, once rendered), its cache, and the frames it keeps (`keep`:
  *  its end on the track's nearest whole beat) */
+// (a duel shot with its mirrors open, `"query": { "mirrors": 1 }`, can cross into another world mid-shot: its page
+// takes that world's track from the next bar line, as play does, and its info says when (`track.switches`). The film's
+// music then goes on in that track, its bar 1 on that bar line: the later shots are on its grid and tempo, and the
+// sound lays the first track until the switch, fading it over 1.2 s as the page's deck does, the new one from there)
+/** the film's tracks in order: each with the film time it starts (`at`) and its beat there (`beat0`) */
+let SEGS = [];
 function place() {
   let at = 0, beat0 = null;
+  SEGS = TRACK ? [{ tr: TRACK, at: 0, beat0: null }] : [];
   for (const s of shots) {
+    const seg = SEGS[SEGS.length - 1], spb = seg ? 60 / seg.tr.bpm : SPB;
+    if (seg) {
+      // (a shot's length in beats or bars is in its track's tempo)
+      s.bpm = seg.tr.bpm;
+      s.nominal = s.bars != null ? s.bars * 4 * spb : s.beats != null ? s.beats * spb : s.nominal;
+      s.seconds = s.nominal + spb;
+    }
     s.frames = Math.round(s.seconds * Q.fps);
     s.takes = Math.max(1, Math.ceil(s.frames / takeFrames));
-    s.track = TRACK ? { id: TRACK.page, beatAtIn: s.n === 0 ? FROM : beat0 == null ? null : +(beat0 + at / SPB).toFixed(4), ...(TRACK.page === TRACK.id ? {} : { bpm: TRACK.bpm }) } : null;
+    s.track = seg ? { id: seg.tr.page, beatAtIn: s.n === 0 ? FROM : seg.beat0 == null ? null : +(seg.beat0 + (at - seg.at) / spb).toFixed(4), ...(seg.tr.page === seg.tr.id ? {} : { bpm: seg.tr.bpm }) } : null;
     s.dir = join(OUT, 'cache', Q.label, `${NAME}-${s.id}-${opts.variant ? `${opts.variant}-` : ''}${shotKey(s)}`);
     s.takePath = (k) => join(s.dir, `take-${String(k).padStart(3, '0')}.mkv`);
     s.at = at;
     let len = s.nominal;
-    if (TRACK) {
-      if (s.n === 0) beat0 = infoOf(s)?.track?.trackBeatAtIn ?? null;
+    if (seg) {
+      const info = infoOf(s);
+      if (s.n === 0) { beat0 = info?.track?.trackBeatAtIn ?? null; seg.beat0 = beat0; }
       const bIn = s.n === 0 ? beat0 : s.track.beatAtIn;
-      if (bIn != null) len = (Math.round(bIn + s.nominal / SPB) - bIn) * SPB;
+      if (bIn != null) len = (Math.round(bIn + s.nominal / spb) - bIn) * spb;
+      // a crossing inside the shot's kept frames: the track after it, and the shot's end on its beats
+      const sws = info?.track?.switches ?? [];
+      if (sws.some((w) => w.t < info.inTime)) log(`${s.id}: its page crossed into another world before its in-point: its music is not the film's there`);
+      const sw = sws.find((w) => w.t >= info.inTime && w.t - info.inTime < s.nominal - 0.05);
+      const tr = sw ? knownTrack(sw.id) : null;
+      if (sw && tr) {
+        const fat = at + (sw.t - info.inTime), spb2 = 60 / tr.bpm;
+        SEGS.push({ tr, at: fat, beat0: 0 });
+        len = fat + Math.max(1, Math.round((at + s.nominal - fat) / spb2)) * spb2 - at;
+      }
     }
     s.keep = Math.min(s.frames, Math.round((at + len) * Q.fps) - Math.round(at * Q.fps));
     s.len = len;
@@ -404,12 +433,22 @@ if (TRACK) {
   // its bar 1 plus that many beats); the shots' scores under it at the game's balance (in the game both pass the
   // output's 0.72: here the track is at its own level, so the scores are lifted by 1 / 0.72), then a limiter at -1 dB
   if (BEAT0 == null) fail('the first shot has no track beat in its info.json: render it again');
-  const p0 = TRACK.downbeat + BEAT0 * SPB, under = film.audio?.score ?? 1;
-  const tin = ains.length / 2;
-  const trackPart = `[${tin}:a]${p0 >= 0 ? `atrim=start=${p0.toFixed(5)},asetpts=PTS-STARTPTS` : `adelay=${Math.round(-p0 * 1000)}:all=1`},aformat=sample_rates=48000:channel_layouts=stereo,volume=${(film.audio?.gain ?? 1).toFixed(3)}[tr]`;
+  const under = film.audio?.score ?? 1, gain = (film.audio?.gain ?? 1).toFixed(3);
+  // (each of the film's tracks from where it starts: the first from the track's beat BEAT0 at the film's first frame,
+  // a later one from its bar 1 on the switch's bar line, fading in over 12 ms; each before it fades out over 1.2 s)
+  const tparts = SEGS.map((g, k) => {
+    const n = ains.length / 2 + k, spb = 60 / g.tr.bpm, p0 = g.tr.downbeat + (k ? 0 : BEAT0) * spb;
+    const next = SEGS[k + 1];
+    const head = p0 >= 0 ? `atrim=start=${p0.toFixed(5)},asetpts=PTS-STARTPTS` : `adelay=${Math.round(-p0 * 1000)}:all=1`;
+    const tail = next ? `,afade=t=out:st=${(next.at - g.at).toFixed(4)}:d=1.2,atrim=duration=${(next.at - g.at + 1.2).toFixed(4)}` : '';
+    const inn = k ? `,afade=t=in:st=0:d=0.012,adelay=${Math.round(g.at * 1000)}:all=1` : '';
+    return `[${n}:a]${head},aformat=sample_rates=48000:channel_layouts=stereo${tail}${inn},volume=${gain}[tr${k}]`;
+  });
+  const trackPart = `${tparts.join(';')};${SEGS.length > 1 ? `${SEGS.map((_, k) => `[tr${k}]`).join('')}amix=inputs=${SEGS.length}:normalize=0:dropout_transition=0[tr]` : '[tr0]anull[tr]'}`;
   const mixIn = parts.length ? `${parts.join(';')};${parts.map((_, n) => `[a${n}]`).join('')}amix=inputs=${parts.length}:normalize=0:dropout_transition=0,volume=${(under / 0.72).toFixed(4)}[sc];` : '';
   const graph = `${mixIn}${trackPart};${parts.length ? '[tr][sc]amix=inputs=2:normalize=0:dropout_transition=0,' : '[tr]'}alimiter=limit=0.891:level=false:latency=1,atrim=duration=${T.toFixed(4)}[a]`;
-  await ff([...ains, '-i', TRACK.source, '-filter_complex', graph, '-map', '[a]', '-c:a', 'pcm_s16le', '-ar', '48000', score]);
+  if (SEGS.length > 1) log(`the film's tracks: ${SEGS.map((g) => `${g.tr.id} from ${g.at.toFixed(3)} s`).join(', ')}`);
+  await ff([...ains, ...SEGS.flatMap((g) => ['-i', g.tr.source]), '-filter_complex', graph, '-map', '[a]', '-c:a', 'pcm_s16le', '-ar', '48000', score]);
   if (TRACK.loop && TRACK.downbeat + (BEAT0 + T / SPB) * SPB > TRACK.loop.end) log(`(the film runs past the track's loop: the page's chords follow the loop, the file plays on)`);
 } else if (parts.length) await ff([...ains, '-filter_complex', `${parts.join(';')};${parts.map((_, n) => `[a${n}]`).join('')}amix=inputs=${parts.length}:normalize=0:dropout_transition=0,atrim=duration=${T.toFixed(4)}[a]`, '-map', '[a]', '-c:a', 'pcm_s16le', '-ar', '48000', score]);
 else await ff(['-f', 'lavfi', '-i', `anullsrc=r=48000:cl=stereo`, '-t', T.toFixed(3), score]);
