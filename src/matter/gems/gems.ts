@@ -41,6 +41,7 @@ import { buildDome, heap, shower } from './fixtures';
 import { SoundEvents } from './events';
 import { touchParams } from '../core/touch';
 import { CAPSULES } from '../core/capsules';
+import { seatTints } from '../core/seats';
 
 const MAXN = LIMITS.stones;
 const TOTAL = MAXN + LIMITS.fixtures;
@@ -434,10 +435,13 @@ export class GemPasses implements MatterPasses {
     this.look.set({
       envIntensity: P.envIntensity, glint: P.glint, dispersion: P.dispersion, ior: 1.5, emissive: P.emissive, speedGlow: P.speedGlow,
       reflect: P.reflect, sparkle: P.sparkle, sparkSize: P.sparkSize, crystal: P.crystal, heart: P.heart, clap: P.clapGlow, streak: [P.streak, P.streakGlow, 0, 0],
+      // (who each body is: matter/core/seats.ts)
+      seat: seatTints(),
     });
   }
 
   update(f: FrameCtx) {
+    this.updateLook();
     const P = gemParams, M = matterParams, s = this.f, b = s.body, K = this.K;
     const dt = Math.min(f.dt, 1 / 30) * (f.danceDt / Math.max(f.dt, 1e-6));
     this.transition *= Math.exp(-f.dt * 1.1);

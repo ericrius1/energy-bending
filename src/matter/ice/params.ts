@@ -22,9 +22,11 @@ export const iceParams = defineParams('ice', {
   edges: 1,
   glint: 1,
   inside: 0.35,
-  /** thin ice (0.20, 0.46, 0.70) and thick (0.025, 0.09, 0.26), the reference's steel blue to navy */
-  thin: '#7bb3d9',
-  thick: '#30558a',
+  /** thin ice and thick: clear and white where it is thin, a deep cool glass where it is thick, so each facet is either
+   *  (report 18-bodies: it was the reference's steel blue to navy, #7bb3d9 to #30558a, and an ice body beside a water
+   *  body was one blue shape: report 17 issue 4; all white lost the ice against the temple's cream stone) */
+  thin: '#d4e8f2',
+  thick: '#44709a',
   ior: 1.31,
   dispersion: 0.04,
   /** mist and dust */

@@ -7,6 +7,7 @@ import bodyShader, { type Bodies, type Touch } from './body.wgsl';
 import { LIMITS } from '../../engine/limits';
 import { JOINT_FLOATS, MAXJ, type Rig } from '../../skeleton/rig';
 import { segmentTable } from './capsules';
+import { seatTints, tickSeatTints } from './seats';
 import type { Dancer } from '../../dancer/dancer';
 
 const SEG_FLOATS = 16;
@@ -18,7 +19,7 @@ export class BodyBuffers {
   readonly touch: UniformBuffer<Touch>;
   private jointData = new Float32Array(LIMITS.dancers * MAXJ * JOINT_FLOATS);
   private segData = new Float32Array(LIMITS.dancers * LIMITS.capsules * SEG_FLOATS);
-  private _bodies = { dancers: 0, floorY: 0, time: 0 };
+  private _bodies = { dancers: 0, floorY: 0, time: 0, seat: new Float32Array(LIMITS.dancers * 4) };
   /** dancers on the GPU this frame */
   count = 0;
 
@@ -44,6 +45,9 @@ export class BodyBuffers {
     this.count = D;
     this._bodies.dancers = D;
     this._bodies.time = time;
+    // (who each body is, worn in its matter: matter/core/seats.ts)
+    this._bodies.seat.set(seatTints());
+    tickSeatTints();
     this.bodies.set(this._bodies);
   }
 }

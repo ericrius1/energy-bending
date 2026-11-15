@@ -149,6 +149,9 @@ export interface FireField {
   pad2: number;
   fusion: Vec4;
   fusionAt: Vec4;
+  seatSide: ArrayLike<number> | Vec4[];
+  seatA: Vec4;
+  seatB: Vec4;
 }
 export interface Seen {
   x: Vec4;

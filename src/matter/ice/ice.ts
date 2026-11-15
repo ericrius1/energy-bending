@@ -13,6 +13,7 @@ import { hex, onParams } from '../../engine/params';
 import { iceParams, MOTES, SET_SHARDS_MAX } from './params';
 import { SetIce, SHARD_FLOATS } from './setice';
 import { budget } from '../../engine/perf';
+import { seatTints } from '../core/seats';
 
 /** what ice needs of the pool */
 export interface IcePool {
@@ -93,6 +94,8 @@ export class IceDraws {
     L.size = P.size; L.frost = P.frost; L.glint = P.glint; L.edges = P.edges; L.inside = P.inside;
     L.tint = [...hex(P.thin), P.ior]; L.deep = [...hex(P.thick), P.dispersion];
     L.time = f.t;
+    // (who each body is: matter/core/seats.ts)
+    L.seat = seatTints() as unknown as IceLook['seat'];
     this.setIce.update(f.dt);
     L.setTime = this.setIce.now;
     this.look.set(L);

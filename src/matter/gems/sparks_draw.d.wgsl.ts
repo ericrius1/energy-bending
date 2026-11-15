@@ -140,6 +140,7 @@ export interface Look {
   heart: number;
   clap: number;
   streak: Vec4;
+  seat: ArrayLike<number> | Vec4[];
 }
 export interface Spark {
   pos: Vec3;

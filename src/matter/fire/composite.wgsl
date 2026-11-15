@@ -156,12 +156,22 @@ fn fusionLook(K: u32, Tc: f32, Td: f32, n: f32, side: f32, fil: f32, w: vec2f, y
   let fil = pow(r1, 8.0) + 0.7 * pow(r2, 10.0);
   let flick = mix(1.0, 0.75 + 0.5 * vnoise2(vec2f(t * 41.0, w.y * 1.7 + w.x * 0.8)), field.flicker);
   let Tp = clamp(Tc * (0.25 + 3.2 * fil) * flick - 0.03, 0.0, 3.6);
-  let plasma = (plasmaRamp(Tp) * 0.5 + vec3f(0.30, 0.06, 0.55) * 0.5 * smoothstep(0.02, 0.6, Tc)) * field.plasmaGlow;
+  // who this body is (matter/core/seats.ts): + seatA's colour, − seatB's, its share of the pixel's flames
+  let ss = clamp(fl.a * inv, -1.0, 1.0);
+  let seatC = select(field.seatB.rgb, field.seatA.rgb, ss > 0.0);
+  let sk = abs(ss) * smoothstep(0.003, 0.05, T);
+  // plasma's haze, the soft light between its threads, is the seat's colour (violet where none)
+  let haze = mix(vec3f(0.24, 0.08, 0.55), seatC * 0.42, 0.75 * sk);
+  let plasma = (plasmaRamp(Tp) * 0.5 + haze * 0.5 * smoothstep(0.02, 0.6, Tc)) * field.plasmaGlow;
   // the torch: sharper tongues, half-formed threads in it
   let Tt = max(0.0, Tc * (0.2 + 1.6 * ns) * (0.7 + 0.9 * sqrt(fil)) - field.cut);
   let torch = torchRamp(Tt);
   var col = mix(fire, torch, smoothstep(0.0, 0.5, form));
   col = mix(col, plasma, smoothstep(0.5, 1.0, form));
+  // fire wears its seat in its body's light, not its core: the licks and the cooler flame take a cast of the seat's
+  // colour (rose-gold, fern-gold) and the white-gold core stays the sun's
+  let cool = smoothstep(0.03, 0.35, Td) * (1.0 - smoothstep(0.8, 1.9, Td));
+  col += seatC * sk * cool * (1.0 - smoothstep(0.5, 1.0, form)) * 0.22;
   // a fusion's body: its share of the pixel through the kind's look (the landing swells it for a moment)
   let wF = clamp(h.a / max(T, 1e-4), 0.0, 1.0);
   if (wF > 0.002) {

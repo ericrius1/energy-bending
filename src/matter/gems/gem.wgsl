@@ -52,6 +52,8 @@ struct Look {
   heart: f32,      // how much a heart (hearts.wgsl) lights the stones round it
   clap: f32,       // how bright a clap (Sim.caps' w on the hands) lights the stones of the hands
   streak: vec4f,   // streaks behind flying stones: seconds of travel drawn, brightness
+  /** who each body is (matter/core/seats.ts): per dancer slot, rgb its seat's hue, w how strongly its stones wear it */
+  seat: array<vec4f, MAX_DANCERS>,
 }
 
 struct Spark { pos: vec3f, life: f32, vel: vec3f, size: f32, col: vec4f }

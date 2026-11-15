@@ -4,7 +4,7 @@
 //   heat  r: temperature (summed)   g: temperature × form (form = g / r; a fusion's flames: × their side)   b: smoke
 //         a: temperature of a fusion's flames (a / r: how much of a pixel is the fusion's body)
 //   flow  rg: temperature × the flame's velocity across the screen (m/s, camera right and up)
-//   b: temperature × view distance (m)   a: unused
+//   b: temperature × view distance (m)   a: temperature × its seat (+ seatA's, − seatB's, × how strongly: seats.ts)
 //
 // and one composite (composite.wgsl) turns the sums into light. The ramp is applied once, to the sum, as the 2D
 // prototype does (docs/element-looks.md §1): a non-linear ramp of a summed field gives contours (the licks), where a
@@ -44,7 +44,15 @@ struct FireField {
   fusion: vec4f,
   /** the pair's middle (xyz) and floor (m), for the kinds' colour by height */
   fusionAt: vec4f,
+  /** who each flame's body is (matter/core/seats.ts, report 18-bodies): per dancer slot d (seatSide[d / 4][d % 4]),
+   *  + its colour is seatA's, − seatB's, × how strongly it wears it; 0 none */
+  seatSide: array<vec4f, 2>,
+  seatA: vec4f,
+  seatB: vec4f,
 }
+
+/** a dancer's seat side (seatSide) */
+fn seatSideOf(f: FireField, d: u32) -> f32 { return f.seatSide[min(d, 7u) / 4u][d % 4u]; }
 
 /** the in-between of fire and plasma (form 0.5): a blue torch, deep blue at its skin, cyan-white inside, a white cone
  *  at its core. Hotter than fire, not yet ionised: its own state, not a pink crossfade */

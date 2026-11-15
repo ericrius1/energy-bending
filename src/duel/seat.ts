@@ -27,6 +27,10 @@ const BONES: [number, number, number][] = [
 ];
 /** how much of the light the halo gives (× SEAT_RGB), how much more in the power form, the head's radius (m) */
 export const SEAT_HALO = { I: 1, form: 0.9, head: 0.13 };
+/** how strongly a body's matter wears its seat's colour inside it (matter/core/seats.ts: water's light inside and its
+ *  rising caustic, ice's lit cells and facet edges, fire's cooler flame and plasma's haze, a gem's glow), and how much
+ *  more in the power form (report 18-bodies: the halo alone was a rim at 720p) */
+export const SEAT_MATTER = { I: 0.85, form: 0.15 };
 /** per matter: how far past the body the halo reaches (× each bone's radius) and how bright. An opaque body (gems, ice
  *  shards) hides the halo's core, so it is wider and brighter there and reads as a rim; a translucent one (water, fire,
  *  plasma) shows it through, so it is narrower and fainter there and reads as a tint with a soft edge */

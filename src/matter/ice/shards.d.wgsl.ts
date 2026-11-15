@@ -284,6 +284,7 @@ export interface IceLook {
   setTime: number;
   inside: number;
   pad0: number;
+  seat: ArrayLike<number> | Vec4[];
 }
 export interface SetShard {
   pos: Vec4;
@@ -309,6 +310,7 @@ export interface VOut {
   wet: number;
   local: Vec3;
   clip: number;
+  seat: Vec4;
 }
 
 declare const shader: Shader<{ Frame: Frame; Joint: Joint; Seg: Seg; Particle: Particle; Home: Home; BodyStep: BodyStep; WaterSim: WaterSim; Aux: Aux; Geode: Geode; Forest: Forest; Pool: Pool; Temple: Temple; FireLight: FireLight; FireLights: FireLights; WorldLight: WorldLight; SightBody: SightBody; SightPiece: SightPiece; Sight: Sight; KeyLight: KeyLight; Seen: Seen; ViewSeen: ViewSeen; IceLook: IceLook; SetShard: SetShard; SetNow: SetNow; VOut: VOut }, 'frame' | 'worldLight' | 'sim' | 'look' | 'seen' | 'state' | 'aux' | 'homes' | 'sets' | 'poolWaves' | 'templeWaves' | 'samp_linear' | 'samp_repeat' | 'samp_nearest' | 'samp_shadow'>;

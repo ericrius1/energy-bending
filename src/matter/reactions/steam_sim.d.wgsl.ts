@@ -62,6 +62,7 @@ export interface Bodies {
   floorY: number;
   time: number;
   pad: number;
+  seat: ArrayLike<number> | Vec4[];
 }
 export interface Touch {
   rayOrigin: Vec3;
