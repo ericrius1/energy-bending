@@ -9,7 +9,7 @@
 import type { Ledge, Wall } from '../../engine/camera';
 import { stagePlane } from '../stage';
 import type { Solid } from '../solids';
-import { arenas, drumSolid, floorWithDrops, mergeWalls, slicePlane, type Arena, type Drop, type PieceGroup } from '../../duel/arena';
+import { arenas, mirrorExits, drumSolid, floorWithDrops, mergeWalls, slicePlane, type Arena, type Drop, type PieceGroup } from '../../duel/arena';
 import { layoutWoods } from './layout';
 import { layoutStage, packPieces, type Piece } from './stage';
 import { windHazard } from '../../duel/hazards';
@@ -104,7 +104,7 @@ function build(): RedwoodsDuel {
   bough('bough4', 4, 0.35, 1.6, 2.6, 4.8, 0.22);
   bough('bough2', 2, -0.15, 1.5, 2.4, 4.8, 0.22);
   bough('bough3', 3, 0.25, 2.0, 2.5, 4.9, 0.22);
-  stump('stumpL', P(-4.0, 0, 4.2), 0.75, 1.2);
+  stump('stumpL', P(-3.0, 0, 5.6), 0.75, 1.0);
   stump('stumpB', P(5.2, 0, -3.8), 0.8, 2.2);
   stump('stumpBL', P(-6.6, 0, -3.4), 0.65, 1.7);
   {
@@ -137,7 +137,7 @@ function build(): RedwoodsDuel {
   const arena: Arena = {
     world: 'redwoods',
     space: { center: [0.4, 0, 0], radius: 11, yKill: -2.2, yTop: 8.6 },
-    spawns: [P(-0.2, 0, 2.6), P(3.6, 0, 2.2), P(-5.0, 1.1, 0), P(5.2, 2.2, -3.8), P(-4.0, 1.2, 4.2), P(1.0, 0, -5.5), P(2.0, 1.5, 0)],
+    spawns: [P(-0.2, 0, 2.6), P(3.6, 0, 2.2), P(-5.0, 1.1, 0), P(5.2, 2.2, -3.8), P(-3.0, 1.0, 5.6), P(1.0, 0, -5.5), P(2.0, 1.5, 0)],
     pieces: groups.flatMap((g) => g.solids), plane, drops,
     camera: { minDist: 6, maxDist: 9.5, lens: 40, low: -0.6 },
     // (the lanterns' warm light, a little green from the leaves; softer since phase 5: a sheen on the tops, not gold sticks)
@@ -145,6 +145,12 @@ function build(): RedwoodsDuel {
     // the hazard: the wind through the clearing, a gust on seven phrases of ten, mostly along the stage one way or the
     // other, now and then slanting across it (hazards.ts)
     hazard: windHazard({ dirs: [0, Math.PI, 0.8, Math.PI + 0.8, Math.PI - 0.5, -0.5].map((a) => a + Math.atan2(right[2], right[0])), often: 7 }),
+    // the shared energy here (phase 5, report 18-flow): the flowing movement carries the two further apart; gains a little
+    // larger and ebbs a little slower keep the fusion about as often as before (Node: 9 of 40 sets, 8 before)
+    energy: { gain: 1.04, ebb: 0.94 },
+    // the ways out (phase 5: report 18-flow): the mirrors' sites (p5-wayfinding) in two gaps of the ring, in front on
+    // the right and behind on the right
+    exits: mirrorExits('redwoods', { at: [-10.03, 0, 5.23], dir: [-0.885, 0.466], r: 1.4 }),
   };
   return { arena, pieces: packPieces(pieces), big: big.length, count: pieces.length, runs, stumps };
 }

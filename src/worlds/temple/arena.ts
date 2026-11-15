@@ -8,7 +8,7 @@
 import { mulberry32 } from 'math/random';
 import type { Ledge, Wall } from '../../engine/camera';
 import { stagePlane } from '../stage';
-import { arenas, floorWithDrops, mergeWalls, sides, type Arena, type Drop } from '../../duel/arena';
+import { arenas, mirrorExits, floorWithDrops, mergeWalls, sides, type Arena, type Drop } from '../../duel/arena';
 import { layoutTemple, solidsOf, STAGE_Z, STONE_FLOATS, type Stone } from './layout';
 import { tideHazard } from '../../duel/hazards';
 
@@ -96,23 +96,30 @@ function build(): TempleDuel {
     let y = 0;
     heights.forEach((h, i) => { drum([x, y, z], rad * (1 - 0.01 * y), h, { carve: 3, broken: i === heights.length - 1 ? 0.06 : 0 }); y += h; });
   };
-  lying(-3.6, 2.9, 0.5, 1.0, 0.35);
-  lying(4.3, 2.1, 0.48, 0.96, 1.25);
-  block([0, 0, 4.4], [2.2, 0.9, 1.6], { carve: 2 });
-  block([-6.4, 0, 3.9], [3.0, 0.7, 1.0], { yaw: 0.5, broken: 0.05, carve: 1 });
-  stack(6.9, 4.5, 0.55, [1.0, 0.9]);
-  block([2.9, 0, 7.0], [1.8, 0.5, 1.3]);
-  block([3.0, 0.5, 7.1], [1.1, 0.55, 0.9], { broken: 0.04 });
-  stack(-2.7, 7.3, 0.6, [1.4]);
-  stack(-9.9, 1.2, 0.6, [1.3, 1.2, 1.1]);
-  stack(9.9, 0.6, 0.6, [1.5, 1.5]);
-  block([-9.4, 0, 5.0], [1.7, 0.95, 1.0]);
-  block([-9.5, 0.95, 5.0], [1.2, 0.5, 0.9], { broken: 0.05 });
-  lying(9.3, 5.4, 0.5, 1.0, 0.1);
+  // (phase 5, the flow: report 18-flow. The same stones, moved off the court's floor to its rim, where each run of them
+  // is a way up: the court in front of the stage is open floor to dance across (and the duel camera's side clear), and
+  // the two mirrors' sites at the court's sides, in front of the tall columns, are open with a lane in to each. The
+  // right rim is a stair from the front to its mirror: the stepped blocks, a fallen drum to hop on, a snapped stack;
+  // past the mirror the tall stack beside the broken column. The left the same from the steps by the gate to its mirror,
+  // then the stub and the tall stack up to the column; behind, the plinth, the cube, the low block and the stack toward
+  // the high lintel)
+  block([8.6, 0, 6.0], [1.8, 0.5, 1.3], { yaw: 0.6 });
+  block([8.7, 0.5, 6.1], [1.1, 0.55, 0.9], { yaw: 0.6, broken: 0.04 });
+  lying(10.2, 4.4, 0.5, 1.0, 0.25);
+  stack(9.9, 2.6, 0.55, [1.0, 0.9]);
+  stack(10.4, -3.0, 0.6, [1.5, 1.5]);
+  block([6.0, 0, -7.6], [2.2, 0.9, 1.6], { yaw: 0.6, carve: 2 });
+  stack(-10.4, -2.2, 0.6, [1.4]);
+  lying(-9.0, -5.2, 0.5, 1.0, 1.0);
+  block([-10.2, 0, 3.0], [1.7, 0.95, 1.0], { yaw: 1.3 });
+  block([-10.25, 0.95, 3.0], [1.2, 0.5, 0.9], { yaw: 1.3, broken: 0.05 });
+  stack(-10.6, -4.6, 0.6, [1.3, 1.2, 1.1]);
+  block([-7.4, 0, -7.6], [3.0, 0.7, 1.0], { yaw: -0.65, broken: 0.05, carve: 1 });
+  lying(-4.6, -8.7, 0.48, 0.96, 0.2);
   block([-2.4, 0, -7.6], [1.4, 1.4, 1.4], { carve: 2 });
   block([-0.6, 0, -6.7], [1.6, 0.55, 1.1]);
-  stack(3.6, -7.8, 0.55, [1.6, 1.4]);
-  block([8.9, 0, -6.8], [1.2, 2.2, 1.2], { broken: 0.06 });
+  stack(3.0, -8.0, 0.55, [1.6, 1.4]);
+  block([9.4, 0, -5.2], [1.2, 2.2, 1.2], { broken: 0.06 });
 
   // the court's floor with its two drops: between each tall column and the broken pillar beside it
   const drops: Drop[] = [
@@ -135,7 +142,11 @@ function build(): TempleDuel {
   const arena: Arena = {
     world: 'temple',
     space: { center: [0, 0, -0.5], radius: 11, yKill: -2.2, yTop: 9.0 },
-    spawns: [[-3, 0, SZ], [3, 0, SZ], [0, 0.9, 4.4], [-7.6, colTop + arch.thick, SZ], [7.6, colTop + arch.thick, SZ], [3.6, 3.0, -7.8], [-6, 0, 6.5]],
+    // (phase 5: the set starts out in the open court in front of the stage, not under its lintels)
+    spawns: [[-2.6, 0, 1.6], [2.6, 0, 1.6], [6.0, 0.9, -7.6], [-7.6, colTop + arch.thick, SZ], [7.6, colTop + arch.thick, SZ], [3.0, 3.0, -8.0], [-3.5, 0, 5.5]],
+    // the ways out (phase 5: report 18-flow): the two mirrors' sites (p5-wayfinding), at the court's sides in front of
+    // the tall columns, each with a lane three metres deep in front of it and a stair of stones leading to it
+    exits: mirrorExits('temple', { at: [-7.3, 0, 5.0], dir: [-0.8, 0.6], r: 1.0 }),
     pieces: solidsOf(all), plane, drops,
     camera: { minDist: 9, maxDist: 22, lens: 30, low: -0.6 },
     // (the afterglow's warmth: the moon already silvers every top)
@@ -144,6 +155,10 @@ function build(): TempleDuel {
     // line): at its height 1.45 m deep, the court's floor and its low stones under it and the drops pools to swim,
     // a body floating with its feet 0.3 m over the floor; at its lowest the drops' water 0.5 m down their sides
     hazard: tideHazard({ low: -0.5, high: 1.45, bars: 16 }),
+    // the shared energy here (phase 5, report 18-flow): the flowing movement carries the two further apart after a fling
+    // (1.8 m apart on average, 1.6 before) and the energy ebbs more; gains a little larger and ebbs a little slower keep
+    // the fusion about as often as before (Node: 7 of 40 sets, 5 before)
+    energy: { gain: 1.06, ebb: 0.92 },
   };
   return { arena, data, blocks: blocks.length, drums: drums.length, stones: all };
 }

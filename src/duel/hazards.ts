@@ -62,8 +62,11 @@ export const HAZARD = {
   FLOAT: 1.15,
   /** a body counts as in the water with its feet this far under the surface */
   WADE: 0.3,
-  /** in the water: the top speed across it (m/s), how fast faster is eased down to it (per s) */
-  SWIM: 3.4, SWIM_EASE: 5,
+  /** in the water: the top speed across it (m/s), how fast faster is eased down to it (per s); and (phase 5, the flow:
+   *  report 18-flow) a glide: the speed a body comes into the water with (a run, a dash, a fling, a slide off a stone)
+   *  is its top speed there at first, easing down to SWIM at GLIDE_EASE (per s), so water carries a body on as a
+   *  channel does rather than catching it */
+  SWIM: 3.6, SWIM_EASE: 5, GLIDE_EASE: 0.9,
   /** the tide's current on a floating body (m/s at its fastest change) */
   CURRENT: 0.9,
   /** the swell: its speed across the pool is its reach over SWELL_BEATS beats; the push along its crest (m/s at its top),
@@ -215,6 +218,8 @@ export class DuelHazards {
   readonly rides: Record<string, { n: number; s: number }> = {};
   waterS = 0;
   private wasIn = [false, false];
+  /** each body's glide in the water (m/s: its top speed there now) */
+  private glide = [0, 0];
   /** what each seat rides now ('tide', 'swell', 'gust', 'hum'), or null */
   readonly ride: (string | null)[] = [null, null];
   private rideT = [0, 0];
@@ -314,6 +319,7 @@ export class DuelHazards {
         const under = w - r[1], inWater = under > P.WADE;
         if (inWater && !this.wasIn[k] && !c.grounded) this.fx.push({ k: 'splash', seat: k, at: [r[0], w, r[2]], strength: clamp(-c.v[1] / 8, 0.25, 1) });
         else if (inWater && !this.wasIn[k]) this.fx.push({ k: 'splash', seat: k, at: [r[0], w, r[2]], strength: 0.2 });
+        if (inWater && !this.wasIn[k]) this.glide[k] = Math.hypot(c.v[0], c.v[2]);
         this.wasIn[k] = inWater;
         if (inWater) {
           this.waterS += dt;
@@ -322,7 +328,9 @@ export class DuelHazards {
           if (c.grounded && !carried) {
             // (slower across the water: wading, swimming)
             const sp = Math.hypot(c.v[0], c.v[2]);
-            if (sp > P.SWIM) { const s = (P.SWIM + (sp - P.SWIM) * Math.exp(-P.SWIM_EASE * dt)) / sp; c.v = [c.v[0] * s, c.v[1], c.v[2] * s]; }
+            this.glide[k] = P.SWIM + Math.max(0, Math.min(this.glide[k], sp) - P.SWIM) * Math.exp(-P.GLIDE_EASE * dt);
+            const top = this.glide[k];
+            if (sp > top) { const s = (top + (sp - top) * Math.exp(-P.SWIM_EASE * dt)) / sp; c.v = [c.v[0] * s, c.v[1], c.v[2] * s]; }
           }
           if (floating && !carried) {
             let drift: V2 = [0, 0];

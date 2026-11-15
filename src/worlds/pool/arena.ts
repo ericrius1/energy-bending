@@ -14,7 +14,8 @@
 import { mulberry32 } from 'math/random';
 import { stagePlane } from '../stage';
 import { boxOn, type Solid } from '../solids';
-import { arenas, mergeWalls, slicePlane, topAt, type Arena, type PieceGroup } from '../../duel/arena';
+import { arenas, mirrorExits, mergeWalls, slicePlane, topAt, type Arena, type PieceGroup } from '../../duel/arena';
+import { MIRROR_SITES } from '../../portals/mirrors';
 import { swellHazard, waterFloor, type Mover } from '../../duel/hazards';
 
 type V3 = [number, number, number];
@@ -39,6 +40,14 @@ export interface PoolDuel {
 
 /** how deep the stones go into the water (their feet), and the water's surface */
 const FOOT = -1.6;
+/** the mirrors' sites (p5-wayfinding: a gate to another world each, at the field's edge), kept open water this far round
+ *  (m, to a stone's middle) */
+const MIRRORS: [number, number][] = MIRROR_SITES.filter((s) => s.world === 'pool').map((s) => [s.x, s.z]);
+const MIRROR_CLEAR = 2.4;
+/** the channels of open water out from the middle (bearings, atan2(z, x)): toward the gate to the geode and toward each
+ *  mirror; and how far either side of each line no stone stands (m) */
+const CHANNELS = [Math.atan2(4.5, -7.5), ...MIRRORS.map(([x, z]) => Math.atan2(z, x))];
+const CHANNEL_HALF = 1.5;
 
 function build(): PoolDuel {
   const rng = mulberry32.create(71);
@@ -86,12 +95,17 @@ function build(): PoolDuel {
     if (Math.hypot(x, z) > 11.6) continue;
     if (Math.abs(z) < 2.4 && Math.abs(x) < 10) continue;
     if (Math.hypot(x - gate[0], z - gate[1]) < 2.6) continue;
+    // (phase 5, the flow: report 18-flow. Channels of open water run out from the middle, a stone's width and more,
+    // to glide along: to the gate and to each mirror's site, beside the one along the stage; round each mirror open water)
+    if (MIRRORS.some(([mx, mz]) => Math.hypot(x - mx, z - mz) < MIRROR_CLEAR)) continue;
+    if (CHANNELS.some((a) => { const along = x * Math.cos(a) + z * Math.sin(a); return along > 2 && Math.abs(-x * Math.sin(a) + z * Math.cos(a)) < CHANNEL_HALF; })) continue;
     places.push([x, z]);
   }
-  // the standing stones: six round the field at mid radius, alternating sides; a block a jump high beside each
+  // the standing stones: five round the field toward its rim (phase 5, report 18-flow: seven at mid radius before,
+  // walling the pair and the camera in), spread round it; a block a jump high beside each
   const tall = new Set<number>(), steps = new Set<number>();
-  const order = places.map((p, k) => [k, Math.atan2(p[1], p[0]), Math.hypot(p[0], p[1])] as const).filter(([, , d]) => d > 4.5 && d < 9.5).sort((a, b) => a[1] - b[1]);
-  for (let k = 0; k < order.length && tall.size < 7; k += Math.max(1, Math.floor(order.length / 7))) tall.add(order[k][0]);
+  const order = places.map((p, k) => [k, Math.atan2(p[1], p[0]), Math.hypot(p[0], p[1])] as const).filter(([, , d]) => d > 7.5 && d < 10.8).sort((a, b) => a[1] - b[1]);
+  for (let k = 0; k < order.length && tall.size < 5; k += Math.max(1, Math.floor(order.length / 5))) tall.add(order[k][0]);
   for (const t of tall) {
     let best = -1, bd = Infinity;
     places.forEach((p, k) => {
@@ -122,6 +136,7 @@ function build(): PoolDuel {
   for (const want of [Math.PI * 0.5, Math.PI * 1.5, Math.PI * 0.15, Math.PI * 1.15]) {
     let best: [number, number] | null = null, bd = Infinity;
     for (const [x, z] of places) {
+      if (spawns.some((s) => Math.hypot(s[0] - x, s[2] - z) < 3.5)) continue;
       const d = Math.abs(Math.atan2(Math.sin(Math.atan2(z, x) - want), Math.cos(Math.atan2(z, x) - want))) * 6 + Math.abs(Math.hypot(x, z) - 7.5);
       if (d < bd) { bd = d; best = [x, z]; }
     }
@@ -134,6 +149,8 @@ function build(): PoolDuel {
     spawns, pieces, plane,
     camera: { minDist: 8, maxDist: 24, lens: 26, low: -1.0 },
     drops: [],
+    // the ways out (phase 5: report 18-flow): the mirrors' sites, each at the end of its channel
+    exits: mirrorExits('pool', { at: [-7.5, 0, 4.5], dir: [-0.83, 0.55], r: 1.4 }),
     // (the evening sun's gold, faint: the stones and rafts are dark and warm now, the bodies on them pale)
     rim: [0.34, 0.24, 0.11],
     // the hazard: a swell across the pool on each phrase, from a different side in turn (hazards.ts)
@@ -141,8 +158,10 @@ function build(): PoolDuel {
     // the shared energy here (shared/duel.ts DuelTune): the water keeps the two within reach and the swell throws them
     // together, so they meet more and more often in the air (three catches in four from the air, a third more catches
     // than elsewhere) and the energy sat at the top; its gains a little smaller and its ebbs a little faster keep the
-    // fusion as rare as in the other worlds (report 14-pool-fusion: 31 of 40 sets fused, now about 1 in 9)
-    energy: { gain: 0.93, ebb: 1.15 },
+    // fusion as rare as in the other worlds (report 14-pool-fusion: 31 of 40 sets fused, now about 1 in 9). Phase 5
+    // (report 18-flow): with the channels open and the flowing movement the two are carried further apart, and 0.93
+    // and 1.15 fused no set of 40 in Node (8 before); 1.0 and 1.02 fuse 8 of 40 again
+    energy: { gain: 1.0, ebb: 1.02 },
   };
   const data = new Float32Array(rocks.length * ROCK_FLOATS);
   rocks.forEach((k, i) => data.set([...k.at, k.yaw, ...k.size, k.ice ? 1 : 0, k.seed, k.round, k.plan, k.look], i * ROCK_FLOATS));

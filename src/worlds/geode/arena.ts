@@ -137,7 +137,9 @@ function build(): GeodeDuel {
     [-6.4, -3.4, 2.0, 0.9, 0.3], [6.6, -3.0, 2.4, 0.9, -0.4], [-3.4, -6.9, 3.6, 0.8, 0.2], [3.4, -6.6, 2.8, 0.9, -0.2],
     [-8.4, -5.6, 1.4, 1.0, 0.6], [8.3, -5.8, 3.4, 0.8, -0.5], [0, -8.9, 1.6, 1.0, 0],
     [1.6, 3.4, 1.0, 0.8, 0.4], [-1.7, 3.6, 1.3, 0.8, -0.3],
-    [0, 7.4, 1.6, 0.8, 0],
+    // (phase 5, report 18-flow: off the redwoods gate's path in front, where it stood at [0, 7.4] and the camera's eye
+    // passes, to the right side behind the plane's end)
+    [8.4, -1.9, 1.6, 0.8, 0.3],
   ];
   for (const [x, z, top, w, yaw] of beams3) {
     beam(x - w / 2, x + w / 2, top, w, z, yaw);
@@ -178,7 +180,12 @@ function build(): GeodeDuel {
     // the easiest world to fuse in Node (28 of 120 sets); its gains a little smaller and its ebbs a little faster keep it
     // about 1 in 8 in the page (3 of 28; Node 22 of 120), as elsewhere. (×0.96 and ×1.05 was 15 of 120 in Node but 1 of
     // 28 in the page: report 16)
-    energy: { gain: 0.98, ebb: 1.025 },
+    // (phase 5, report 18-flow: the flowing movement carries the two further apart, and 0.98 and 1.025 fused 1 set of 40
+    // in Node, 9 before: now 1.05 and 0.93)
+    energy: { gain: 1.05, ebb: 0.93 },
+    // the ways out (phase 5: report 18-flow): the hub's three gates (r: inside each one's crown of crystals), each with a
+    // clear lane to it from the middle (the front beam moved off the redwoods gate's path)
+    exits: Object.entries(HUB_GATES).map(([id, [x, z]]) => { const dx = x, dz = z, l = Math.hypot(dx, dz); return { id, at: [x, 0, z] as V3, dir: [dx / l, dz / l] as [number, number], r: 1.2 }; }),
   };
   // (the gates stand clear: none within 2 m of the plane between the ends, nor of a piece)
   for (const [w, [x, z]] of Object.entries(HUB_GATES)) {

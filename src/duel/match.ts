@@ -6,7 +6,8 @@
 //     combo of the dancer who made it; a fling landed is the flinger's lead
 //   - the bodies' own events, links too: a wall jump, a wall run, a dash, a flip, a kick or an aú in the air (none for
 //     a body while it is held: the contact carries it, and `Character.env.held` keeps it off the walls)
-//   - the space's soft wall (free: past its radius a body is eased back and its outward speed taken away)
+//   - the space's soft edge (free: near its radius a body's way out is turned along the edge, its speed kept; past it,
+//     eased back)
 //   - the rules' clock: the set, falls (a body below the kill floor reforms in a moment, near the other so the dance
 //     goes on), combos ending, the shared energy and the merge
 import { Character } from '../dancer/character';
@@ -26,6 +27,11 @@ export function duelPlane(a: Arena): StagePlane {
   const p = a.plane, pr = (v: V3): [number, number] => [(v[0] - p.origin[0]) * p.right[0] + (v[2] - p.origin[2]) * p.right[2], v[1] - p.origin[1]];
   return { ...p, spawns: [pr(a.spawns[0]), pr(a.spawns[1])], lens: a.camera?.lens ?? p.lens };
 }
+
+/** the space's soft edge (match.ts softWall): the band inside the radius where a way out is turned along it (m), how
+ *  fast (a share of the way out a frame at the radius, eased in over the band), the share of the turned speed kept along
+ *  the edge, how far past the radius a body is eased back each frame, and past how far it is stopped outright */
+export const EDGE = { band: 1.6, turn: 0.22, keep: 0.85, ease: 0.2, hard: 1.4 };
 
 export interface MatchOptions {
   /** the world's solids (and the arena's pieces) */
@@ -60,6 +66,8 @@ export class DuelMatch {
   /** what the last step decided: the rules' events, and the contact's */
   events: DuelEvent[] = [];
   touches: ContactEvent[] = [];
+  /** the speed (m/s) the space's soft edge took from each body this frame (the flow measure's: flow.ts) */
+  bounded: [number, number] = [0, 0];
   /** each body's own events of the last step, drained from the Characters */
   bodyEvents: Record<string, unknown>[][] = [[], []];
   /** every event so far with its time (ms), trimmed */
@@ -131,7 +139,8 @@ export class DuelMatch {
         out.push(...duelLink(d, k, B, beatOn, now, setMs));
       }
       c.env.held = this.contact.held(k);
-      if (!c.plane) this.softWall(c);
+      this.bounded[k] = 0;
+      if (!c.plane) this.bounded[k] = this.softWall(c);
     }
     const body = (c: Character) => ({ y: c.root[1], grounded: c.grounded, x: c.root[0], z: c.root[2] });
     const ev = duelStep(d, now, dt, [body(this.chars[0]), body(this.chars[1])], { yKill: this.arena.space.yKill, bpm, setMs: this.o.setMs });
@@ -143,14 +152,27 @@ export class DuelMatch {
     return out;
   }
 
-  /** the space's soft wall: past its radius a body is eased back and its outward speed taken away */
+  /** the space's soft edge (phase 5, report 18-flow: it was a wall that took a body's outward speed at the radius,
+   *  a stop): from EDGE.band inside the radius a body's way out is turned along the edge, more the further out, its
+   *  speed kept (most of it), so a run at the edge curves round it as a skater's would; past the radius it is eased back
+   *  in as before; far past it (a fling at full speed), stopped as before. Returns the speed taken (m/s) */
   private softWall(c: Character) {
     const S = this.arena.space, dx = c.root[0] - S.center[0], dz = c.root[2] - S.center[2], d = Math.hypot(dx, dz);
-    if (d <= S.radius) return;
+    const E = EDGE, inner = S.radius - E.band;
+    if (d <= inner || d < 1e-6) return 0;
     const nx = dx / d, nz = dz / d, over = d - S.radius;
-    c.root[0] -= nx * over * 0.35; c.root[2] -= nz * over * 0.35;
+    if (over > 0) { c.root[0] -= nx * over * E.ease; c.root[2] -= nz * over * E.ease; }
     const out = c.v[0] * nx + c.v[2] * nz;
-    if (out > 0) { c.v[0] -= nx * out; c.v[2] -= nz * out; }
+    if (out <= 0) return 0;
+    if (over > E.hard) { c.v[0] -= nx * out; c.v[2] -= nz * out; return out; }
+    // (how much of the way out is turned this frame: none at the band's inner edge, all of it at the radius)
+    const k = Math.min(1, (d - inner) / E.band), turn = out * Math.min(1, k * k * E.turn + (over > 0 ? 1 : 0));
+    let tx = c.v[0] - nx * out, tz = c.v[2] - nz * out, tl = Math.hypot(tx, tz);
+    // (straight out: turned toward the way the body faces, else either way)
+    if (tl < 0.3) { const f = Math.sin(c.yaw) * -nz + Math.cos(c.yaw) * nx >= 0 ? 1 : -1; tx = -nz * f; tz = nx * f; tl = 0; } else { tx /= tl; tz /= tl; }
+    const along = tl + turn * E.keep;
+    c.v[0] = tx * along + nx * (out - turn); c.v[2] = tz * along + nz * (out - turn);
+    return turn * (1 - E.keep);
   }
 
   /** where a seat (re)forms: its home (free) and its plane spawn (locked), standing at the spawn's own height (free,
