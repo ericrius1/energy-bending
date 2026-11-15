@@ -87,11 +87,15 @@ function hasTop(s: Solid): boolean {
 
 /** a piece's slot in the uniform (an empty one: strength 0), with how much of its outline to keep (none unless it is a
  *  floor: report 18) */
-function pieceSlot(s: Solid | null, k: number, line = 0): SightPiece {
+function pieceSlot(s: Solid | null, k: number, line = 0, round = false): SightPiece {
   if (!s) return { a: [0, 0, 0, 0], x: [0, 0, 0, 0], y: [0, 0, 0, 0], h: [0, 0, 0, 0] };
   if (s.kind === 'capsule') return { a: [...s.a, k], x: [...s.b, 1], y: [0, 1, 0, 0], h: [0, 0, 0, s.r] };
-  return { a: [...s.c, k], x: [...s.x, 0], y: [...s.y, isFloor(s) ? line : 0], h: [...s.h, 0] };
+  return { a: [...s.c, k], x: [...s.x, 0], y: [...s.y, isFloor(s) && !round ? line : 0], h: [...s.h, 0] };
 }
+
+/** the arenas whose boxes stand in for round things (a short stump is a box to the movement, duel/arena.ts drumSolid):
+ *  a box's square top edges would draw a square over a round stump, so none is kept there (report 18) */
+const ROUND = new Set(['redwoods']);
 
 export class NearFade {
   private slot: LightSlot<Sight>;
@@ -186,9 +190,9 @@ export class NearFade {
     this.frame.update(dt, cam, solids, framed, on && P.frame && duel !== null);
     const top = this.frame.top(FRAME_SLOTS);
     for (let i = 0; i < FRAME_SLOTS; i++) {
-      const s = top[i]?.solid ?? null, P4 = (this.pieces[i] = pieceSlot(s, top[i]?.k ?? 0, top[i]?.line ?? 0));
+      const s = top[i]?.solid ?? null, P4 = (this.pieces[i] = pieceSlot(s, top[i]?.k ?? 0, top[i]?.line ?? 0, duel !== null && ROUND.has(duel)));
       [P4.a, P4.x, P4.y, P4.h].forEach((v, r) => { for (let c = 0; c < 4; c++) this.holes[i * 16 + r * 4 + c] = (v as ArrayLike<number>)[c]; });
-      this.holes[i * 16 + 11] = s && hasTop(s) ? top[i].line : 0;
+      this.holes[i * 16 + 11] = s && hasTop(s) && !(s.kind === 'box' && duel !== null && ROUND.has(duel)) ? top[i].line : 0;
     }
     this.seen.pieces = top.map((p) => Math.round(p.k * 100) / 100);
     this.seen.cover = top.reduce((a, p) => a + p.cover + p.corner, 0);
