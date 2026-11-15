@@ -53,7 +53,7 @@ export function lightFeet(data: Float32Array, ranges: readonly [number, number][
       const o = i * GLOW_FLOATS, I = data[o + 7];
       if (!(I >= LIT_MIN)) continue;
       const a: V3 = [data[o], data[o + 1], data[o + 2]], b: V3 = [data[o + 4], data[o + 5], data[o + 6]], r = data[o + 3], kind = data[o + 11];
-      const shape = kind % 4, flat = kind >= 4;
+      const shape = kind % 4, flat = kind >= 4 && kind < 8;
       if (flat) {
         // (a ring or a disc lying on the floor: its circle projected)
         const xs: number[] = [], ys: number[] = [];
@@ -175,6 +175,8 @@ export class MomentsProbe {
 export function momentsHook(c: {
   dancer: (k: number) => { skeleton: { world: Float32Array } } | null; project: Proj;
   glows: { data: Float32Array }; lit: () => [number, number][]; events: () => readonly DuelEvent[]; power: () => readonly { k: string }[]; t: () => number;
+  /** the fused finale's bloom this frame, a range of the glow list (fx.ts `bloom`) */
+  bloom?: () => [number, number] | null;
 }) {
   let probe = new MomentsProbe();
   const hud = () => (globalThis as unknown as { bend?: { hud?: { cover?: () => HudCover; stats?: () => { pops: { now: { total: number } } } } } }).bend?.hud;
@@ -182,6 +184,16 @@ export function momentsHook(c: {
     get probe() { return probe; },
     reset() { probe = new MomentsProbe(); },
     result: () => probe.result(),
+    /** the share of each body's core (and of its whole box) under the finale's bloom this frame (report 18: the bloom
+     *  must not cover the bodies), the most of the two; null when there is no bloom */
+    bloomCover(W = 1280, H = 720) {
+      const r = c.bloom?.();
+      if (!r) return null;
+      const feet = lightFeet(c.glows.data, [r], c.project, W, H);
+      const cores = [0, 1].map((k) => { const d = c.dancer(k); return d ? bodyBox(d.skeleton.world, CORE_JOINTS, c.project, W, H, 0.2, 0.06) : null; });
+      const bodies = [0, 1].map((k) => { const d = c.dancer(k); return d ? bodyBox(d.skeleton.world, ALL_JOINTS, c.project, W, H) : null; });
+      return { core: Math.max(...cores.map((b) => (b ? coverOf(b, feet) : 0))), body: Math.max(...bodies.map((b) => (b ? coverOf(b, feet) : 0))), glows: r[1] - r[0] };
+    },
     /** this frame (after it is drawn), dt its length (s) */
     sample(dt = 1 / 60) {
       const H = hud(), cv = H?.cover?.() ?? { W: 1280, H: 720, words: [], rings: [] }, W = cv.W || 1280, Hh = cv.H || 720;

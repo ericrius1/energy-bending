@@ -59,6 +59,7 @@ import { POWER_BUTTONS } from '../input/gamepad';
 import type { WaterPasses } from '../matter/water/pool';
 import type { PlasmaPasses } from '../matter/plasma/plasma';
 import { Finale } from './finale';
+import { bloomFrame } from './bloom';
 import { DuelCamera, type CamBody, type CamSpace } from './camera';
 import { spaceFor } from './camspace';
 import { SEAT_CSS } from './seat';
@@ -358,7 +359,9 @@ export async function startDuel(app: PlayApp, opts: { joined?: Joined } = {}) {
     if (!d) return null;
     const J = d.skeleton.world, at = (j: number): V3 => [J[j * JOINT_FLOATS], J[j * JOINT_FLOATS + 1], J[j * JOINT_FLOATS + 2]];
     const c = chars[k];
-    return { pts: FRAMED.map(at), sight: [at(JOINT.Hips), at(JOINT.Spine1)], head: at(JOINT.HeadEnd), root: [c.root[0], c.root[1], c.root[2]], vel: [c.v[0], c.v[1], c.v[2]], air: !c.grounded, away: c.reforming };
+    // (a fused finale's flyer: the bloom's flower over its head is framed too, bloom.ts)
+    const top = finale.active && finale.fused && k === finale.flyer ? [fx.flowerTop ?? bloomFrame(at(JOINT.HeadEnd))] : [];
+    return { pts: [...FRAMED.map(at), ...top], sight: [at(JOINT.Hips), at(JOINT.Spine1)], head: at(JOINT.HeadEnd), root: [c.root[0], c.root[1], c.root[2]], vel: [c.v[0], c.v[1], c.v[2]], air: !c.grounded, away: c.reforming };
   };
   rig.apexG = chars[0].phys.gravity;
   rig.headroom = 0.5;
@@ -469,7 +472,7 @@ export async function startDuel(app: PlayApp, opts: { joined?: Joined } = {}) {
     /** the HudState handed to the HUD this frame */
     hud: () => hudState,
     /** the moments probe (moments.ts): words on screen and the bodies covered, sampled after each frame is drawn */
-    moments: momentsHook({ dancer, project, glows, lit: () => [...fx.lit, ...powerFx.lit], events: () => frameEvents, power: () => powers.fx, t: () => now / 1000 }),
+    moments: momentsHook({ dancer, project, glows, lit: () => [...fx.lit, ...powerFx.lit], events: () => frameEvents, power: () => powers.fx, t: () => now / 1000, bloom: () => fx.bloom }),
     /** begin now (the human seats' devices not yet in), or from set 1 again */
     start: begin,
     restart: () => { finale.stop(); if (!started) begin(); else match.restart(now); },
