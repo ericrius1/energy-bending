@@ -29,6 +29,7 @@ import { FilmCamera, type CamKey, type FilmScene, type V3, type Ease, type CamPo
 import type { FilmApi } from './film';
 import { moodIndex } from '../audio/harmony';
 import { TRACKS, barOf } from '../audio/track';
+import { waterAt, type Hazard } from '../duel/hazards';
 
 type At = number | string;
 export interface ShotCue {
@@ -398,6 +399,11 @@ async function run(api: FilmApi, recorder: Recorder, shot: ShotSpec, plan: ShotP
   const keptOf = (f: number) => (inPoint < 0 || (f - inPoint) % every ? -1 : (f - inPoint) / every);
   let k = -1, t0 = performance.now();
   const duelLog: Record<string, unknown>[] = [];
+  // (the HUD's words standing on screen, alpha over 0.3 (src/hud/pops.ts `cover`), as [t, n] each time n changes: how
+  // many words a moment shows, for a scout; report 17)
+  const hudCover = (B as unknown as { hud?: { cover?: () => { words: readonly unknown[] } } }).hud?.cover;
+  const words: [number, number][] = [];
+  const cams: (number | null)[][] = [];
   for (; ; i++) {
     // the shot's clock for the frame about to be made
     if (fromStart) tau = (i - prerollFrames) * dt;
@@ -428,6 +434,20 @@ async function run(api: FilmApi, recorder: Recorder, shot: ShotSpec, plan: ShotP
       const D = B.duel as { events(): unknown[]; now(): number; powers?: { events?: unknown[] }; hazards?: { fx?: Record<string, unknown>[] } };
       const hz = (D.hazards?.fx ?? []).map((e) => ({ ...e, k: 'hazard', what: e.k }));
       for (const e of [...D.events(), ...(D.powers?.events ?? []), ...hz] as Record<string, unknown>[]) duelLog.push({ t: +tau.toFixed(3), d: +(D.now() / 1000).toFixed(3), ...e });
+      const n = hudCover?.().words.length;
+      if (n != null && n !== words[words.length - 1]?.[1]) words.push([+tau.toFixed(3), n]);
+      // (and every tenth of a second where the camera stands: its eye's distance from the pair's middle, the two apart,
+      // the taller body's height on screen (a share of the frame) and the water's height there, or null: report 17)
+      if (i % 6 === 0) {
+        const Dc = B.duel as unknown as { match?: { chars?: readonly { root: ArrayLike<number> }[] }; hazards?: { hazard?: Hazard | null } };
+        const r = Dc.match?.chars, eye = kit.camera.position, pl = (B as unknown as { hud?: { state?: { players?: { bounds?: number[] }[] } } }).hud?.state?.players;
+        if (r?.length === 2) {
+          const m = [0, 1, 2].map((a) => (r[0].root[a] + r[1].root[a]) / 2);
+          const tall = Math.max(0, ...(pl ?? []).map((p) => (p.bounds ? p.bounds[3] - p.bounds[1] : 0)));
+          const w = Dc.hazards?.hazard ? waterAt(Dc.hazards.hazard, m[0], m[2]) : null;
+          cams.push([+tau.toFixed(2), +Math.hypot(eye[0] - m[0], eye[1] - m[1], eye[2] - m[2]).toFixed(2), +Math.hypot(r[0].root[0] - r[1].root[0], r[0].root[1] - r[1].root[1], r[0].root[2] - r[1].root[2]).toFixed(2), +tall.toFixed(3), w == null ? null : +w.toFixed(2)]);
+        }
+      }
     }
     if (track && jogo && gridScore == null) {
       const b = J.beat() as number | null;
@@ -468,7 +488,7 @@ async function run(api: FilmApi, recorder: Recorder, shot: ShotSpec, plan: ShotP
     shot: shot.id, inPoint, inTime: (inPoint + 1) * dt, slowed, pageFrames: i, pageTime: i * dt, width: kit.size.render[0], height: kit.size.render[1], jogo: J?.stats?.() ?? null,
     // (a duel's state at the end and what happened when, in its own ms: the moments to cut on, for working on a timeline)
     // (and the hazards' rides, each one's count and seconds, and the duel's sounds: what played, how many a minute)
-    duel: B.duel ? { now0: duelNow0, beat0: B.music.clock.beatAt(dt), stats: B.duel.stats(), hazards: B.duel.hazards ? { rides: B.duel.hazards.rides, waterS: B.duel.hazards.waterS } : null, sound: B.duel.sound?.stats?.() ?? null, log: duelLog } : null,
+    duel: B.duel ? { now0: duelNow0, beat0: B.music.clock.beatAt(dt), stats: B.duel.stats(), hazards: B.duel.hazards ? { rides: B.duel.hazards.rides, waterS: B.duel.hazards.waterS } : null, sound: B.duel.sound?.stats?.() ?? null, log: duelLog, words, cams } : null,
     track: track ? { id: track.id, bpm: track.bpm, gridTime: gridScore, trackBeatAtGrid, trackBeatAtIn, trackBeat0: M.engine.trackBeat0, clockBpm: M.clock.bpm } : null,
   };
   await post('/end', JSON.stringify(info));   // the sink releases the lock before it answers

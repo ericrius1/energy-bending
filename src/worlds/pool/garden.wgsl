@@ -5,7 +5,8 @@
 //   vs_lotus  a flower: two rings of petals opening round a golden seed head, on its pad
 //   vs_reed   a clump: blades rising out of the water, swaying, some with a cattail's brown head
 // Lit by the low sun (pool.wgsl): leaves lit through from behind, the pads' wet sheen mirroring the sky. Decoration,
-// not solid: nothing stands on them, and like the redwoods' grass and ferns they don't call the near fade.
+// not solid: nothing stands on them, and they don't call the near fade; a reed or a flower in the way fades itself
+// (decorDrop, worlds/light.wgsl).
 #include "weft/frame"
 #include "../light"
 
@@ -179,6 +180,8 @@ fn gardenLight(albedo: vec3f, N: vec3f, V: vec3f, wp: vec3f, trans: f32) -> vec3
 
 @fragment fn fs(i: VOut, @builtin(front_facing) front: bool) -> @location(0) vec4f {
   let kind = i32(i.info.x + 0.5);
+  // (a reed or a flower across the lens or before a body fades, as the temple's banners do: decorDrop, worlds/light.wgsl)
+  if (kind > 0 && decorDrop(i.wp, i.pos.xy)) { discard; }
   let V = normalize(frame.camPos - i.wp);
   var N = normalize(i.n);
   if (!front) { N = -N; }

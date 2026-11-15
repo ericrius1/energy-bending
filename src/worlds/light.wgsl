@@ -266,6 +266,41 @@ fn sightDrop(p: vec3f, px: vec2f) -> bool {
   return f > 0.0 && f > sightDither;
 }
 
+/** how much of a world's decoration at p the main view drops, 0 … 1 (a banner, a reed: not a solid, so the near fade's
+ *  CPU never finds it in the way): what is within 2 to 3.6 m of the eye, and what stands across the line of sight to a
+ *  framed body well before it (the near fade's body capsules, `sight.body`, kept every frame whether anything fades or
+ *  not). In the duel a temple banner the camera passed through filled the whole frame with a blur of dyed cloth and hid
+ *  the pair, and the Pool's reeds stood across the lens at a finale (report 17) */
+fn decorFade(p: vec3f) -> f32 {
+  if (frame.user.x < 0.5) { return 0.0; }
+  let e = fromEye(p);
+  let dist = length(e);
+  var f = 1.0 - smoothstep(2.0, 3.6, dist);
+  let d = e / max(dist, 1e-4);
+  for (var k = 0u; k < 2u; k++) {
+    let b = worldLight.sight.body[k];
+    if (b.lo.w <= 0.0) { continue; }
+    // (the ray from the eye through p at its closest to the body's axis, as sightFade's: a wider radius, p before it)
+    let A = b.lo.xyz - frame.camPos - frame.camLo;
+    let u = b.hi.xyz - b.lo.xyz;
+    let bu = dot(d, u);
+    let uu = max(dot(u, u), 1e-6);
+    let den = uu - bu * bu;
+    var t = 0.5;
+    if (den > 1e-6) { t = clamp((bu * dot(d, A) - dot(u, A)) / den, 0.0, 1.0); }
+    let q = A + u * t;
+    let s = dot(d, q);
+    let off = length(q - d * max(s, 0.0));
+    let r = b.lo.w;
+    let across = 1.0 - smoothstep(r * 1.2, r * 2.4, off);
+    let before = 1.0 - smoothstep(s - r - 0.8, s - r - 0.3, dist);
+    f = max(f, across * before);
+  }
+  return f;
+}
+/** decorFade by sightDrop's dither: `if (decorDrop(i.wp, i.pos.xy)) { discard; }` */
+fn decorDrop(p: vec3f, px: vec2f) -> bool { return decorFade(p) > ign(px) * 0.98 + 0.01; }
+
 /** a solid draw's colour with what is left of a dissolved piece (its edges) glowing a little in the arena's rim light,
  *  so the piece reads as a faint line of light. Where the piece is pale already (a white slab, sunlit stone) a kept edge
  *  would only be a white wire: there it isn't kept (dropped by the same dither as the rest of the piece) nor brightened.

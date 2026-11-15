@@ -106,7 +106,8 @@ shared/ server/ test/   the protocol and the jogo rules, the room server, the ne
 films/               the films' timelines (scripts/film.mjs renders them; docs/extending/film.md)
 scripts/             shot.mjs (stills + GPU timings; a step's `eval`/`eval2` run in the page with `bend`), film.mjs (a
                      timeline, shot by shot in takes under the lock; film-serve.mjs serves it without hot reload,
-                     film-seams.mjs checks the seams), critic-cap.mjs (a staged take frame by frame: stills, a sheet,
+                     film-seams.mjs checks the seams; front-cap.mjs films the front with its DOM, which a film's
+                     canvas frames never show), critic-cap.mjs (a staged take frame by frame: stills, a sheet,
                      timings; `ab` grabs each frame twice, a stepped frame apart), fade-cap.mjs (a duel's moments
                      grabbed with the near fade's frame test on and off), cam-sim.mjs (the duel camera's measure),
                      duel-page.mjs (whole duels in the page, stepped on the frames' clock, each world at its own
