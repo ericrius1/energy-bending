@@ -430,7 +430,7 @@ export async function startDuel(app: PlayApp, opts: { joined?: Joined } = {}) {
   let behind: { at: V3; n: V3; r: number; t: number } | null = null;
   /** the camera's way through the disc after the pair (crossing.ts ThroughCam: round onto its axis behind it, through
    *  it, and on round onto the duel camera's own view in the new world), asked for by the crossing (`wayOwed`) */
-  let way: ThroughCam | null = null, wayOwed: { out: string; rec: (typeof crossings)[number] } | null = null, wayRec: (typeof crossings)[number] | null = null;
+  let way: ThroughCam | null = null, wayOwed: { out: string; side: number; rec: (typeof crossings)[number] } | null = null, wayRec: (typeof crossings)[number] | null = null;
   /** the swing in behind the pair as they near a disc (0 … 1, eased), and that disc */
   let ahead = 0, aheadOn: { d: Disc; side: number } | null = null;
   /** the camera's measures (bend.duel.crossCam): the ways through, those that went round the disc first, the flashes */
@@ -456,7 +456,7 @@ export async function startDuel(app: PlayApp, opts: { joined?: Joined } = {}) {
     // the portals' offset); the way through starts from where the eye is, and the duel camera starts again in the new
     // world (its pose is where the way ends)
     if (wayOwed) {
-      const g = app.gates.gates.get(wayOwed.out), rec = wayOwed.rec;
+      const wayOwed0 = wayOwed, g = app.gates.gates.get(wayOwed.out), rec = wayOwed.rec;
       wayOwed = null;
       ahead = 0; aheadOn = null;
       // (back through before the view had gone over: the view never left; it stays)
@@ -469,7 +469,9 @@ export async function startDuel(app: PlayApp, opts: { joined?: Joined } = {}) {
       }
       if (rec.how) { /* stayed */ } else if (g && rig.mode !== 'locked' && app.main.world !== W.id && app.main.world === rec.from) {
         const d: Disc = { id: g.id, at: [...g.at] as V3, n: [...g.n] as V3, right: [...g.right] as V3, up: [...g.up] as V3, r: g.radius };
-        const side = (mid[0] - g.at[0]) * g.n[0] + (mid[1] - g.at[1]) * g.n[1] + (mid[2] - g.at[2]) * g.n[2] >= 0 ? 1 : -1;
+        // (the side the pair came out on: the far disc's same face as the one they went in at, Portals.bring; not the pair's middle, which a
+        // partner brought through held, still behind the disc, puts on its plane)
+        const side = wayOwed0.side;
         way = new ThroughCam(d, side, rig.eye, rig.look);
         wayRec = rec;
         crossCam.ways++;
@@ -536,7 +538,7 @@ export async function startDuel(app: PlayApp, opts: { joined?: Joined } = {}) {
   const gatesWas = { liveNear: gateParams.liveNear, depth: gateParams.depth };
   if (!keep) Object.assign(gateParams, { liveNear: 10, depth: 1 });
   const playT = () => (now - match.state.playFrom) / 1000;
-  const moveTo = (id: string, through: string, out: string) => {
+  const moveTo = (id: string, through: string, out: string, front: boolean) => {
     if (id === W.id) return;
     const g = app.gates.gates.get(out);
     behind = g ? { at: [...g.at] as V3, n: [...g.n] as V3, r: g.radius, t: 4 } : null;
@@ -553,7 +555,7 @@ export async function startDuel(app: PlayApp, opts: { joined?: Joined } = {}) {
     const meant = voyage.crossed(playT(), through, g ? { id: g.id, at: [...g.at] as V3, n: [...g.n] as V3, right: [...g.right] as V3, up: [...g.up] as V3, r: g.radius } : null);
     const rec = { d: +(now / 1000).toFixed(3), from: was, to: W.id, meant, out, t: music.now() };
     crossings.push(rec);
-    wayOwed = { out, rec };
+    wayOwed = { out, side: front ? 1 : -1, rec };
     // the music: the new world's track on the next beat, at the place in it that matches the set's energy, the tempo
     // eased across (sound.ts SetMusic.cross), and the crossing's chime on that beat
     const B = sound.cross(W.id, match.state.energy), beatIn = B ? Math.max(0, B.tB - music.now()) : 0.35;
@@ -574,7 +576,7 @@ export async function startDuel(app: PlayApp, opts: { joined?: Joined } = {}) {
     // (and the one who crossed: a grip or a swing pulling it straight back through the disc took the pair back and
     // forth a frame at a time, five crossings in five frames in a scouted set; report 19)
     app.gates.holdBack(show.dancers[e.dancer], hold);
-    moveTo(e.to, e.gate, e.partner);
+    moveTo(e.to, e.gate, e.partner, e.front);
   });
 
   frame.tick('travel', (f: FrameCtx) => {
@@ -620,7 +622,7 @@ export async function startDuel(app: PlayApp, opts: { joined?: Joined } = {}) {
     fx.update(danceReal, ev, match.touches, match.contact, match.state);
     powerFx.update(f.danceDt, powers);
     hazardFx.update(f.danceDt, hazards);
-    crossFx.update(f.dt, glows, (b) => app.main.world === b.to);
+    crossFx.update(f.dt, glows, (b) => app.main.world === b.to, cam.position);
     if (rippleAt && music.now() >= rippleAt.t) {
       for (const id of rippleAt.ids) app.gates.ripple(id, 1.3);
       rippleAt = null;

@@ -53,7 +53,10 @@ export class CrossFx {
 
   /** each frame: the petals drift (time: the page's, s), and every burst is drawn at the disc of `world` (the main
    *  view's): `a` while it is the old world, `b` once it is the new */
-  update(dt: number, glows: Glows, newWorld: (b: { to: string }) => boolean) {
+  update(dt: number, glows: Glows, newWorld: (b: { to: string }) => boolean, eye?: ArrayLike<number>) {
+    // (nothing of it within a metre or so of the eye: the camera goes through the disc after the pair, and a petal at the
+    // lens is a blur over the whole frame)
+    const near = (p: ArrayLike<number>) => (eye ? smooth((Math.hypot(p[0] - eye[0], p[1] - eye[1], p[2] - eye[2]) - 0.7) / 1.3) : 1);
     this.bursts = this.bursts.filter((B) => B.age < 3.6);
     for (const B of this.bursts) {
       B.age += dt;
@@ -69,7 +72,7 @@ export class CrossFx {
         let prev = W([R, 0, 0.02]);
         for (let i = 1; i <= n; i++) {
           const a = (i / n) * Math.PI * 2, p = W([Math.cos(a) * R, Math.sin(a) * R, 0.02]);
-          glows.seg(prev, p, 0.035 + 0.03 * (1 - u), col, I * fade * g);
+          glows.seg(prev, p, 0.035 + 0.03 * (1 - u), col, I * fade * g * near(p));
           prev = p;
         }
       };
@@ -83,7 +86,8 @@ export class CrossFx {
         P.v[0] *= drag; P.v[2] *= drag; P.v[1] = P.v[1] * drag - (P.mote ? -0.25 : 0.55) * dt;
         P.p[0] += P.v[0] * dt; P.p[1] += P.v[1] * dt; P.p[2] += P.v[2] * dt;
         P.a += P.spin * dt;
-        const k = smooth(P.age / 0.12) * (1 - smooth((P.age - P.life + 0.8) / 0.8)), base = W(P.p);
+        const base = W(P.p), k = smooth(P.age / 0.12) * (1 - smooth((P.age - P.life + 0.8) / 0.8)) * near(base);
+        if (k <= 0.002) continue;
         if (P.mote) { glows.dot(base, P.size, [1.0, 0.9, 0.6], 1.4 * k * g, 'spark'); continue; }
         const ax = Math.cos(P.a), ay = Math.sin(P.a), L = P.size * 2.2;
         const tip = W([P.p[0] + ax * L, P.p[1] + ay * L, P.p[2] + Math.sin(P.a * 0.7) * L * 0.5]);

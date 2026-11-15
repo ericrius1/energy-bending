@@ -51,7 +51,7 @@ for (let f = 0; f < 6600 && left > 0; f++) {
   const r = await page.evaluate(async (nth) => {
     const B = window.bend, url = await B.grab('image/jpeg', 0.88), D = B.duel, G = B.gates, c = B.kit.camera;
     const X = D.crossings[nth - 1], g = X ? G.gates.get(X.out) : null, p = c.position, z = g ? +((p[0] - g.at[0]) * g.n[0] + (p[1] - g.at[1]) * g.n[1] + (p[2] - g.at[2]) * g.n[2]).toFixed(2) : null, fz = g ? +(c.forward[0] * g.n[0] + c.forward[1] * g.n[1] + c.forward[2] * g.n[2]).toFixed(2) : null;
-    return { z, fz, url, n: D.crossings.length >= nth ? D.crossings[nth - 1] : null, done: D.state.phase === 'done', offset: !!G.offset, eye: [...c.position].map((v) => +v.toFixed(2)), how: D.crossings.at(-1)?.how ?? null, cam: { ...D.crossCam } };
+    return { ms: +B.kit.profiler.frameMs.toFixed(3), z, fz, url, n: D.crossings.length >= nth ? D.crossings[nth - 1] : null, done: D.state.phase === 'done', offset: !!G.offset, eye: [...c.position].map((v) => +v.toFixed(2)), how: D.crossings.at(-1)?.how ?? null, cam: { ...D.crossCam } };
   }, nth);
   ring.push({ f, ...r });
   if (!at && r.n) { at = { frame: f, cross: r.n }; console.log(`crossing ${nth} at frame ${f}: ${JSON.stringify(r.n)}`); }
@@ -64,7 +64,7 @@ for (const r of ring) {
   const t = (r.f - at.frame) / 60, buf = Buffer.from(r.url.split(',')[1], 'base64');
   writeFileSync(join(dir, `f${String(i++).padStart(4, '0')}.jpg`), buf);
   for (const s of stills) if (Math.abs(t - s) < 1 / 120) writeFileSync(join(out, `${name}-${s >= 0 ? '+' : ''}${s.toFixed(2)}s.jpg`), buf);
-  log.push({ t: +t.toFixed(3), offset: r.offset, z: r.z, fz: r.fz, eye: r.eye, how: r.how, cam: r.cam });
+  log.push({ t: +t.toFixed(3), ms: r.ms, offset: r.offset, z: r.z, fz: r.fz, eye: r.eye, how: r.how, cam: r.cam });
 }
 const f0 = ring[0].f, f1 = ring[ring.length - 1].f;
 writeFileSync(join(out, `${name}.json`), JSON.stringify({ q, at, log }, null, 1));
