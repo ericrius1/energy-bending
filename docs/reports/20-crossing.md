@@ -182,5 +182,8 @@ shared clock should make the new track's bar 1 its new epoch) and the light are 
 - The deck's rate ramps were checked in Node, not against a live AudioContext.
 - A held crossing's partner (brought behind the far disc) and the human seat's experience of a bot's voyage were not
   looked at specifically.
+- The 72 "after" sets were measured just before the last two fixes (the side the pair came out on taken from the
+  crossing's face, and no petals at the lens); the meant clip and its stills are after them. The side fix changes which
+  way a held crossing's camera goes through, not whether it does; not re-measured.
 - A page reloaded doesn't always dance the same set twice (shaders compiling on the first frames shift it), so
   `cross-clip.mjs` grabs in one pass and the before and after clips are different crossings.
