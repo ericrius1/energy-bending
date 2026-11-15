@@ -102,6 +102,9 @@ export interface CamInput {
   pad?: number;
   /** the arena's world (ARENA_CAM: what the camera does differently there) */
   arena?: string;
+  /** the player's own body (report 18-you): the camera stands a little behind it rather than seat 1's, `turn` rad more
+   *  than `behind` (the opening of a set). None: behind seat 1 */
+  you?: { seat: number; turn: number };
 }
 
 /** what the camera does differently in an arena (by its world): over water, the plain view comes down by `waterLow`
@@ -524,8 +527,8 @@ export class DuelCamera {
       this.side = wrap(this.side + wrap(t - this.side) * Math.min(1, dt * 2 * sep + (this.fresh ? 1 : 0)));
     }
     if (this.side == null) this.side = this.yaw;
-    // which way is behind seat 1 (a little turn toward it)
-    const behind = Math.atan2(-dx, -dz);
+    // which way is behind seat 1, or the player's own body (a little turn toward it)
+    const mine = I.you?.seat === 1 ? -1 : 1, behind = Math.atan2(-dx * mine, -dz * mine), behindBy = P.behind + Math.max(0, Math.min(0.4, I.you?.turn ?? 0));
 
     const K = P.costs;
     const ahead: V3[] = [];
@@ -582,7 +585,7 @@ export class DuelCamera {
       if (out3 > 0) s += K.inside + out3 * 2;
       // side on (with the turn toward behind seat 1) unless the pair is on top of each other; the lower view; the
       // lens unwidened; little turn from what it is heading for; the other side only for a real gain
-      const ideal = base + P.behind * Math.sign(wrap(behind - base));
+      const ideal = base + behindBy * Math.sign(wrap(behind - base));
       s += Math.abs(wrap(yaw - ideal)) * K.side * sep;
       s += Math.abs(pitch - plain) * K.pitch;
       // (looking toward the world's landmarks and sky, ARENA_CAM.face)

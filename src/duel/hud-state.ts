@@ -44,6 +44,10 @@ export interface HudPlayer {
   screen?: [number, number];
   /** the body's bounds on screen (0 … 1: x0, y0, x1, y1): the pops keep clear of them */
   bounds?: [number, number, number, number];
+  /** the player's own seat (report 18-you, src/duel/you.ts): its tag's word (YOU, or P1 with two at one screen), a
+   *  word under it in the opening (the seat's colour's name, or the device: W A S D, ARROWS, PAD), the opening 0 … 1
+   *  and the first press's answer 0 … 1. None: not this page's player (a bot, the other page's, a film) */
+  you?: { label: string; sub?: string; intro: number; pulse: number };
   /** the powers (phase 2): the flow 0 … 1, the power form left 0 … 1, the two powers (ready, cost, the key) */
   flow?: number; form?: number; powers?: { id: string; name: string; ready: boolean; cost: number; key?: string }[];
 }
@@ -132,6 +136,10 @@ export interface HudSeat {
   dash: number;
   holding: boolean;
   held: boolean;
+  /** the player's own seat (report 18-you, src/duel/you.ts): its tag's word (YOU, or P1 with two at one screen), a
+   *  word under it in the opening (the seat's colour's name, or the device: W A S D, ARROWS, PAD), the opening 0 … 1
+   *  and the first press's answer 0 … 1. None: not this page's player (a bot, the other page's, a film) */
+  you?: { label: string; sub?: string; intro: number; pulse: number };
   /** the powers, when the duel has them (src/duel/powers.ts hud()) */
   bend?: { flow: number; form: number; powers: { id: string; name: string; ready: boolean; cost: number; key?: string }[] };
 }
@@ -284,6 +292,7 @@ export class DuelHud {
         reforming: S.fellAt >= 0 ? Math.min(1, (now - S.fellAt) / DUEL.REFORM_MS) : 0,
         ...(s?.screen ? { screen: s.screen } : {}),
         ...(s?.bounds ? { bounds: s.bounds } : {}),
+        ...(s?.you ? { you: s.you } : {}),
         ...(s?.bend ? { flow: s.bend.flow, form: s.bend.form, powers: s.bend.powers } : {}),
       };
     });

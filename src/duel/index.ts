@@ -63,6 +63,7 @@ import { bloomFrame } from './bloom';
 import { DuelCamera, type CamBody, type CamSpace } from './camera';
 import { spaceFor } from './camspace';
 import { SEAT_CSS } from './seat';
+import { YouTell, ownSeats } from './you';
 import { camKind } from './weight';
 import { momentsHook } from './moments';
 import { DuelHud, screenOf, screenBounds, type HudSeat, type HudState, type HudWord } from './hud-state';
@@ -88,12 +89,15 @@ class SeatGate implements IntentSource {
   /** what the contact reads this frame, and the powers */
   contact: ContactInput = noInput();
   power: PowerInput = noPower();
+  /** the device pressed something this frame (held or not: the "you" tell answers the first press, you.ts) */
+  pressed = false;
   private _mode: InputMode = 'locked';
   constructor(seat: number, private held: () => boolean, private split: (it: Intent) => ContactInput) { this.name = `duel.seat${seat}`; }
   get mode() { return this._mode; }
   set mode(m: InputMode) { this._mode = m; if (this.inner) this.inner.mode = m; }
   update(dt: number): Intent {
     const it = this.inner ? this.inner.update(dt) : makeIntent();
+    this.pressed = pressedOf(it);
     if (this.held()) { const o = makeIntent(); o.source = it.source; this.contact = noInput(); this.power = noPower(); return o; }
     const p1 = !!it.power1, p2 = !!it.power2, form = !!it.form;
     it.form = false; it.merge = false; it.interact = false;
@@ -103,6 +107,9 @@ class SeatGate implements IntentSource {
     return it;
   }
 }
+
+/** an Intent with something pressed or pushed in it */
+const pressedOf = (it: Intent | null | undefined) => !!it && (Math.hypot(it.moveX, it.moveZ) > 0.3 || it.jump || it.punch || it.kick || it.spin || it.dodge || it.dash || !!it.power1 || !!it.power2);
 
 /** a brain's spec on the address or through bend.duel.setBrain */
 export interface BrainSpec { style?: DuelStyle; skill?: number; seed?: number }
@@ -272,6 +279,15 @@ export async function startDuel(app: PlayApp, opts: { joined?: Joined } = {}) {
   }, (k) => powers.rules.seats[k].matter);
   const hazardFx = new HazardFxDraw({ glows, eye: () => cam.position, ground: (x, z) => world().groundAt(x, z), field: field as unknown as ConstructorParameters<typeof HazardFxDraw>[0]['field'], ripple: (x, z, s, r) => { (world() as unknown as { ripple?: (x: number, z: number, s: number, r: number) => void }).ripple?.(x, z, s, r); } });
   const duelHud = new DuelHud();
+  // (online: this page's seat once the room has given it; `net` is made below, after an await the frames run through)
+  let netSeat: number | null = null, sentOf: ((k: number) => Intent | undefined) | null = null;
+  // which one is me (you.ts): the page's own seats told from the first second, outside the moments' keepOff
+  const you = new YouTell({
+    glows, head: (k) => { const d = dancer(k); if (!d) return null; const W0 = d.skeleton.world, o = JOINT.HeadEnd * JOINT_FLOATS; return [W0[o], W0[o + 1], W0[o + 2]]; },
+    root: (k) => [chars[k].root[0], chars[k].root[1], chars[k].root[2]], ground: (x, z) => world().groundAt(x, z), eye: () => [cam.position[0], cam.position[1], cam.position[2]],
+    pressed: (k) => (sentOf ? pressedOf(sentOf(k)) : gates[k].pressed),
+    away: (k) => (finale.holds(k) ? 1 : 0), device: (k) => gates[k].inner?.name ?? null,
+  }, () => ownSeats({ online, netSeat, human: humanSeats, bot: (k) => !!brains[k] && !(online && q.has('bot')), film: !!app.film }));
   /** the keys a seat's powers are on (its device's), for the HUD */
   const powerKeys = (k: number): [string, string, string] | null => {
     const n = gates[k].inner?.name ?? '';
@@ -292,7 +308,8 @@ export async function startDuel(app: PlayApp, opts: { joined?: Joined } = {}) {
     const dash = typeof c.dashReady === 'number' ? (c.dashReady as number) : typeof c.dashCharge === 'number' ? (c.dashCharge as number) : 1;
     const B = powers.hud(k), keys = powerKeys(k);
     const bend = { flow: B.flow, form: B.form, powers: B.powers.map((p, i) => ({ ...p, ...(keys ? { key: keys[i] } : {}) })) };
-    return { name: brains[k] ? `P${k + 1} · ${(brains[k] as DuelBrain).style ?? 'bot'}` : `P${k + 1}`, matter: elementOf(d), screen: head ? project([head[0], head[1] + 0.12, head[2]]) : null, bounds: d ? screenBounds(d.skeleton.world, cam.viewProj) : null, dash, holding: match.contact.holding(k), held: match.contact.held(k), bend };
+    const me = you.hud(k);
+    return { name: me ? `P${k + 1} · ${me.label === 'YOU' ? 'YOU' : me.sub ?? ''}` : brains[k] ? `P${k + 1} · ${(brains[k] as DuelBrain).style ?? 'bot'}` : `P${k + 1}`, ...(me ? { you: me } : {}), matter: elementOf(d), screen: head ? project([head[0], head[1] + 0.12, head[2]]) : null, bounds: d ? screenBounds(d.skeleton.world, cam.viewProj) : null, dash, holding: match.contact.holding(k), held: match.contact.held(k), bend };
   });
 
   // ---------------------------------------------------------------- starting
@@ -316,6 +333,7 @@ export async function startDuel(app: PlayApp, opts: { joined?: Joined } = {}) {
     powerSolids, music, begin: () => begin(),
     source: (k) => (brains[k] ? gates[k].inner : devices[0] ?? devices[1]),
   }) : null;
+  if (net) { netSeat = net.seat; sentOf = (k) => (ctl[k].source as unknown as { it?: Intent }).it; }
 
   // ---------------------------------------------------------------- each frame
   let frameEvents: DuelEvent[] = [];
@@ -373,7 +391,7 @@ export async function startDuel(app: PlayApp, opts: { joined?: Joined } = {}) {
     const [w, h] = kit.size.render;
     rig.pose = dcam.update(f.dt, {
       bodies: [a, b], aspect: w / Math.max(1, h), gravity: chars[0].phys.gravity, space: camSpace(), near: rig.sight.near,
-      center: arena.space.center, room: arena.camera?.maxDist ?? arena.space.radius + 6, maxDist: arena.camera?.maxDist, pad: rig.framePad, arena: arena.world,
+      center: arena.space.center, room: arena.camera?.maxDist ?? arena.space.radius + 6, maxDist: arena.camera?.maxDist, pad: rig.framePad, arena: arena.world, you: you.favour() ?? undefined,
     });
   }, 'duel: the free camera, side on to the pair with head room');
   // the world's gates shut while the duel is on (a body flung through one left the arena, the camera with it; their
@@ -415,6 +433,8 @@ export async function startDuel(app: PlayApp, opts: { joined?: Joined } = {}) {
     fx.update(danceReal, ev, match.touches, match.contact, match.state);
     powerFx.update(f.danceDt, powers);
     hazardFx.update(f.danceDt, hazards);
+    for (const e of ev) { if (e.k === 'set') you.set(); else if (e.k === 'count') you.count(); }
+    you.update(f.dt);
     for (const e of powers.events) pendingPowers.push(e);
     for (const x of powers.fx) if (x.k === 'react') reactAt.set(x.kind, project(x.at));
     pendingHud.push(...ev); pendingTouches.push(...match.touches);
@@ -458,6 +478,8 @@ export async function startDuel(app: PlayApp, opts: { joined?: Joined } = {}) {
     match, arena, plane, finale, powers, hazards, sound,
     /** online (&net): the room, this page's seat, the measurements (net.stats()), the client; null offline */
     net,
+    /** which one is me (you.ts): the page's own seats (`seats` overrides), the tell's opening and its answer */
+    you,
     /** the free camera (camera.ts): its choice, what it framed, how clear its eye stood */
     camera: dcam, camSpace,
     /** cast a seat's power now (slot 0 or 1; the stick as a world x, z), or the form: as its buttons would */
