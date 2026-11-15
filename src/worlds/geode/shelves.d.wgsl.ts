@@ -51,11 +51,13 @@ export interface Geode {
   fog: number;
   moteSize: number;
   floorY: number;
-  pad0: number;
-  pad1: number;
-  pad2: number;
+  flies: number;
+  green: number;
+  dust: number;
   drops: ArrayLike<number> | Vec4[];
   dropFrame: Vec4;
+  wells: ArrayLike<number> | Vec4[];
+  sun: Vec4;
 }
 export interface Forest {
   pad: number;
@@ -184,6 +186,7 @@ export interface VOut {
   axis: Vec3;
   look: Vec4;
   size: Vec2;
+  pitch: number;
 }
 
 declare const shader: Shader<{ Frame: Frame; Geode: Geode; Forest: Forest; Pool: Pool; Temple: Temple; FireLight: FireLight; FireLights: FireLights; WorldLight: WorldLight; SightBody: SightBody; SightPiece: SightPiece; Sight: Sight; KeyLight: KeyLight; Blade: Blade; VOut: VOut }, 'frame' | 'worldLight' | 'blades' | 'poolWaves' | 'templeWaves' | 'samp_linear' | 'samp_repeat' | 'samp_nearest' | 'samp_shadow'>;

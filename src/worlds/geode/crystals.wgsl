@@ -2,7 +2,10 @@
 // from the wall, the rings round the gates. Each a six-sided prism (its faces a little uneven) rising from its root to a
 // six-faced point, made from the vertex index. Clear and dark in the body (what shows is what its faces mirror: the
 // studio and the wall's veins), lit from within toward its point in its own colour (the wall's vein where it grew, or
-// its gate's world), its edges catching a line of that light, a glint where a face turns the softbox to the eye.
+// its gate's world), its edges catching a line of that light, a glint where a face turns the softbox to the eye. Seen
+// at a glance its faces split the light like a prism (a soft rainbow along the fresnel). Tint 5 is not a crystal: a
+// brass-and-glass lantern hung under a shelf (phase 4's greenhouse), its six panes of warm light in a brass frame gone
+// a little green, a brass cap and finial, made from the same prism (its point hanging down).
 #include "weft/frame"
 #include "../light"
 
@@ -85,6 +88,21 @@ fn toWorld(b: Point, q: vec3f) -> vec3f {
   if (dot(N, V) < 0.0) { N = -N; }
   let seed = i.look.x;
   let along = i.face.y;
+  if (i.look.y > 4.5) {
+    // a lantern: brass at its cap (the root, up) and finial (the point), a brass frame round each pane, warm glass
+    let key = worldKey(i.wp, false, 0.0);
+    let brassC = vec3f(0.78, 0.56, 0.26);
+    let frameEdge = smoothstep(0.16, 0.06, min(i.face.x, 1.0 - i.face.x));
+    let cap = 1.0 - smoothstep(0.12, 0.16, along);
+    let finial = smoothstep(0.66, 0.7, along);
+    let metal = max(max(frameEdge, cap), finial);
+    let R = reflect(-V, N);
+    let flicker = 0.9 + 0.1 * sin(frame.time * 7.0 + seed * 50.0) * sin(frame.time * 3.1 + seed * 13.0);
+    let glass = vec3f(1.0, 0.62, 0.26) * (0.7 + 0.5 * (1.0 - abs(along - 0.4) * 2.0)) * 0.75 * i.look.z * flicker;
+    let brass = brassC * (geodeAmbient(N, 0.8) * 0.3 + key.col * max(dot(N, key.dir), 0.0) * 0.4 + studio(R) * 0.25)
+      + mix(brassC, vec3f(0.35, 0.6, 0.45), 0.25 * vnoise(i.wp * 30.0)) * 0.15 * i.look.z * (1.0 - cap);
+    return vec4f(sightLit(mix(glass, brass, metal)), dot(i.wp - frame.camPos, frame.camFwd));
+  }
   // its colour: milky quartz, a gate's world, or the wall's vein where it grew
   var tc = vec3f(0.78, 0.76, 1.0);
   if (i.look.y > -0.5) { tc = geodeGateTint(i.look.y); }
@@ -109,5 +127,7 @@ fn toWorld(b: Point, q: vec3f) -> vec3f {
   col += mix(tc, vec3f(1.0), 0.4) * smoothstep(0.9, 1.0, along) * glow * 0.8;
   // a glint where a face turns the softbox to the eye
   col += vec3f(1.0, 0.97, 0.92) * pow(max(dot(R, key.dir), 0.0), 200.0) * key.glint * 1.5 * step(0.55, faceH);
+  // a prism: at a glance its faces split the sun into a soft rainbow (the hue running with the angle)
+  col += geodeSpectrum(fract(cosV * 2.2 + faceH * 0.35)) * fres * 0.18 * L.sun.w * (0.4 + 0.6 * along);
   return vec4f(sightLit(col), dot(i.wp - frame.camPos, frame.camFwd));
 }

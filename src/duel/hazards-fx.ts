@@ -41,7 +41,8 @@ const POOL_FOAM: RGB = [1.25, 1.15, 0.95], POOL_GLINT: RGB = [1.7, 1.35, 0.85];
 // (leaves, and since report 16's solarpunk pass petals among them: coral, cream, rose)
 const LEAVES: RGB[] = [[0.55, 0.9, 0.3], [1.05, 0.62, 0.52], [0.95, 0.85, 0.3], [1.0, 0.93, 0.8], [0.8, 0.55, 0.22], [1.0, 0.6, 0.75], [0.45, 0.75, 0.32]];
 const NEEDLE: RGB = [0.7, 0.85, 0.45];
-const HONEY: RGB = [1.45, 1.1, 0.62], VIOLET: RGB = [1.1, 0.75, 1.6];
+// (the hum: the selenite's honey light and the fungi's teal, the geode's greenhouse colours since phase 4; it was violet)
+const HONEY: RGB = [1.45, 1.1, 0.62], VIOLET: RGB = [0.6, 1.35, 1.15];
 const hash = (n: number) => { const x = Math.sin(n * 127.1 + 311.7) * 43758.5453; return x - Math.floor(x); };
 const wrap = (x: number, h: number) => ((((x + h) % (2 * h)) + 2 * h) % (2 * h)) - h;
 const mix = (a: RGB, b: RGB, t: number): RGB => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t];

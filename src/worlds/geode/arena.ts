@@ -27,8 +27,13 @@ export interface GeodeDuel {
   pointCount: number;
 }
 
-/** the drops' depth (m) */
+/** the drops' depth (m), and how far they reach in front of the plane (2.2 m until phase 4: the pair dances most in
+ *  front of the middle, and the drops' front corners took most of the falls) */
 const DEEP = 2.4;
+const FRONT = 1.2;
+/** where the hum's column may rise: open agate with floor all round (r + 0.6 m clear of the drops) and nothing over it
+ *  for 6 m, spread where the pair dances (most in front of the middle: report 16's map of where the two stand) */
+const HUM_SPOTS: V3[] = [[0, 0, 2.6], [-2.5, 0, -4.5], [3.3, 0, 4.2], [-6.6, 0, 2.6], [0, 0, 4.8], [2.5, 0, -4.5], [-3.5, 0, 4.0], [0, 0, 6.8]];
 /** the arena's ends: the great crystals' faces */
 const HALF = 8.7;
 
@@ -98,8 +103,8 @@ function build(): GeodeDuel {
   }
   // the drops either side of the middle, each with a beam on its outer edge
   const drops: Drop[] = [
-    { s0: beamL[1], s1: -1.9, behind: 0.8, front: 2.2, deep: DEEP },
-    { s0: 1.9, s1: beamR[0], behind: 0.8, front: 2.2, deep: DEEP },
+    { s0: beamL[1], s1: -1.9, behind: 0.8, front: FRONT, deep: DEEP },
+    { s0: 1.9, s1: beamR[0], behind: 0.8, front: FRONT, deep: DEEP },
   ];
   const floor = floorWithDrops('floor', -HALF, HALF, 0, DEEP, drops.map((d) => [d.s0, d.s1]));
   ledges.unshift(...floor.ledges);
@@ -123,7 +128,8 @@ function build(): GeodeDuel {
   const beams3: [number, number, number, number, number][] = [
     // x, z, top, width (= depth), turn
     [-6.4, -3.4, 2.0, 0.9, 0.3], [6.6, -3.0, 2.4, 0.9, -0.4], [-3.4, -6.9, 3.6, 0.8, 0.2], [3.4, -6.6, 2.8, 0.9, -0.2],
-    [-8.4, -5.6, 1.4, 1.0, 0.6], [8.3, -5.8, 3.4, 0.8, -0.5], [0, -8.9, 1.6, 1.0, 0], [1.6, 3.4, 1.0, 0.8, 0.4], [-1.7, 3.6, 1.3, 0.8, -0.3],
+    [-8.4, -5.6, 1.4, 1.0, 0.6], [8.3, -5.8, 3.4, 0.8, -0.5], [0, -8.9, 1.6, 1.0, 0],
+    [1.6, 3.4, 1.0, 0.8, 0.4], [-1.7, 3.6, 1.3, 0.8, -0.3],
     [0, 7.4, 1.6, 0.8, 0],
   ];
   for (const [x, z, top, w, yaw] of beams3) {
@@ -137,6 +143,11 @@ function build(): GeodeDuel {
     raft([Math.cos(a) * root, y, Math.sin(a) * root], inward, [Math.cos(inward), -Math.sin(inward)], w, len);
     druse(Math.cos(a) * (root + 0.4), Math.sin(a) * (root + 0.4), y + 1.2, 5, 0.8);
   }
+
+  // brass-and-glass lanterns hung under the shelves (crystals.wgsl's tint 5, their points down; under 45 cm, not
+  // solids), laid without the dice so nothing grown before them moves
+  const lanterns: V3[] = [[-7.3, 3.6, 0.4], [7.3, 4.4, -0.4], [-4.3, 5.8, -1.2], [4.3, 5.8, -1.2], [-0.6, 7.4, -1.8], [0.6, 7.4, -3.2]];
+  lanterns.forEach(([x, y, z], k) => points.push({ at: [x, y - 0.5, z], yaw: 0, pitch: -Math.PI / 2, w: 0.2, thick: 0.2, len: 0.4, tip: 0.1, seed: (k * 0.37) % 1, tint: 5, glow: 1 }));
 
   const plane = {
     ...stagePlane({ id: 'geode.duel', origin: [0, 0, 0], right: [1, 0, 0], halfWidth: HALF, ground: null, ledges, spawns: [[-1.2, 0], [1.2, 0]], lens: 40, pitch: 0.06, yaw: 0.04, height: 8.6 }),
@@ -152,10 +163,15 @@ function build(): GeodeDuel {
     camera: { minDist: 6, maxDist: 10.5, lens: 40, low: -0.6 },
     // (the selenite's honey light)
     rim: [1.0, 0.78, 0.5],
-    // the hazard: the crystals' hum, a phrase each in turn, where the hollow stands open overhead (no shelf over it for
-    // 6.8 m) and the drops a way off (a body flung from the column's top lands on the agate): behind the drops either
-    // side of the great trunk, and in front of the middle and of the left beam (hazards.ts)
-    hazard: humHazard({ spots: [[-2.5, 0, -4.5], [0, 0, 4.5], [2.5, 0, -4.5], [-3.5, 0, 4.0]], r: 1.25, h: 4.2 }),
+    // the hazard: the crystals' hum, each phrase at the open spot nearest the pair as its warning begins (hazards.ts
+    // chooseHum: phase 4; it took four spots in turn before, two of them behind the stage where the pair seldom is)
+    hazard: humHazard({ spots: HUM_SPOTS, r: 1.25, h: 4.2 }),
+    // the world's energy (DuelTune): the hum lifting the pair together four times as often as before (14 rides a set
+    // against 3), more of the catches from the air (53 % against 40) and the peak up (0.91 against 0.86) made the geode
+    // the easiest world to fuse in Node (28 of 120 sets); its gains a little smaller and its ebbs a little faster keep it
+    // about 1 in 8 in the page (3 of 28; Node 22 of 120), as elsewhere. (×0.96 and ×1.05 was 15 of 120 in Node but 1 of
+    // 28 in the page: report 16)
+    energy: { gain: 0.98, ebb: 1.025 },
   };
   // (the gates stand clear: none within 2 m of the plane between the ends, nor of a piece)
   for (const [w, [x, z]] of Object.entries(HUB_GATES)) {

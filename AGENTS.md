@@ -109,6 +109,8 @@ scripts/             shot.mjs (stills + GPU timings; a step's `eval`/`eval2` run
                      film-seams.mjs checks the seams), critic-cap.mjs (a staged take frame by frame: stills, a sheet,
                      timings; `ab` grabs each frame twice, a stepped frame apart), fade-cap.mjs (a duel's moments
                      grabbed with the near fade's frame test on and off), cam-sim.mjs (the duel camera's measure),
+                     duel-page.mjs (whole duels in the page, stepped on the frames' clock, each world at its own
+                     tempo: the fusion table; duel-measure.mjs `--bpm own` the same in Node),
                      test-ts.mjs, test-audio.mjs, check-portals.mjs, check-limits.mjs,
                      check-bindings.mjs (the binding budget), audio-lab.mjs, lib/browser.mjs
 sketches/            dance-first-2d/: the 2D prototype, plain JS with its own package.json, ignored by typecheck/build
@@ -296,7 +298,7 @@ a shared group whole in every stage of a pipeline that uses any of it; a shader'
 whose entry uses them. For a render shader the shared groups any of its entries uses are counted in all of them (an
 upper bound: which vertex and fragment entries pair is the TypeScript's business). Per stage, vertex / fragment
 (v/f) or compute (c), the most any entry of that stage uses; the baseline less that is what is left. Samplers are 4
-of 16 everywhere (group 0's; no shader declares its own). The world light uniform is 4,640 of 65,536 bytes (the near
+of 16 everywhere (group 0's; no shader declares its own). The world light uniform is 4,720 of 65,536 bytes (the near
 fade's `sight` is 1,136 of them: its 16 pieces 1,024).
 Regenerate with `node scripts/check-bindings.mjs --table` (one row per stage) after changing a binding.
 

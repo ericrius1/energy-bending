@@ -1,0 +1,12 @@
+{
+  "generator": "GPT Image via the Codex CLI image tool (ChatGPT login)",
+  "codexModel": "gpt-5.6-terra",
+  "prompt": "Concept art for a real-time game arena, same camera and layout as the reference image: a hollow crystal geode cave turned into a sunlit solarpunk greenhouse grotto. Wide shafts of warm golden sunlight fall from round light wells in the vaulted crystal ceiling, with soft haze. The milky selenite crystal shelves and standing beams are overgrown with moss, small ferns and trailing vines with tiny white and coral flowers. Brass-and-glass lanterns with warm light hang from the shelves. In the shadowy corners, softly glowing teal bioluminescent mushrooms and a few fireflies. Clear quartz crystals act as prisms casting soft rainbow light patches on the polished agate floor, which is warm honey and cream banded stone with a moss green edge. Palette: sun gold, leaf and moss green, sky teal, cream, terracotta, a single accent of amethyst purple in a few crystals. Two small dancers made of glowing matter in the middle, one rose-tinted, one fern-green, clearly readable against the background. Hopeful, calm, awe, not dark, painterly but grounded, 16:9",
+  "inputs": {
+    "duel-c.png": "2c209958bfe44727314d26f1722201b564f7c5cdc7096c430f834b0dc2ef90fc"
+  },
+  "codexThread": "01a1dc62-7426-7731-a2d4-a06406c263b6",
+  "codexFile": "C:\\Users\\ericr\\.codex\\generated_images\\01a1dc62-7426-7731-a2d4-a06406c263b6\\exec-58aa3414-ba50-44ca-8f98-96625b3095d5.png",
+  "seconds": 107.6,
+  "sha256": "0aaeff2038458b8f757764fdf35b7a6d07daa7da6e677a25b8d3f30914f01b25"
+}
