@@ -89,19 +89,21 @@ export function steamHook(c: {
     hidden(part: 'all' | 'glow' | 'matter' | null) { if (hiding) c.hide(false, hiding); hiding = part; if (part) c.hide(true, part); },
     reset() { T = { steam: tally(), geyser: tally(), event: tally() }; eventLeft = 0; },
     /** step one frame (dt) as the player sees it, then grab it twice more a hair of time on (EPS: nothing moves), as
-     *  drawn and without steam; tally it. `t` the duel's time (s); `windowS` how long after a STEAM! its frames count
+     *  drawn and without steam (`part`: only the geyser's light, 'glow', or only steam's matter, 'matter': which of
+     *  them covers); tally it. `t` the duel's time (s); `windowS` how long after a STEAM! its frames count
      *  as the event's; `control` hides nothing (the probe's own noise: what two frames a hair apart differ by) */
-    async sample(dt = 1 / 60, t = 0, windowS = 1.0, control = false) {
+    async sample(dt = 1 / 60, t = 0, windowS = 1.0, control = false, part: 'all' | 'glow' | 'matter' = 'all') {
       capture ??= new Capture(c.kit);
       c.kit.step(dt);
-      if (c.steamed()) eventLeft = windowS;
+      const steamed = c.steamed();
+      if (steamed) eventLeft = windowS;
       const live = c.geyser();
       const on = await capture.step(EPS);
       const W = on.width, H = on.height;
       const boxes = [0, 1].map((k) => { const d = c.dancer(k); return d ? bodyBox(d.skeleton.world, CORE_JOINTS, c.project, W, H, 0.2, 0.06) : null; });
-      if (!control) c.hide(true);
+      if (!control) c.hide(true, part);
       let off: ImageData;
-      try { off = await capture.step(EPS); } finally { if (!control) c.hide(false); }
+      try { off = await capture.step(EPS); } finally { if (!control) c.hide(false, part); }
       const s = veilOf(on, off, boxes);
       const event = eventLeft > 0;
       eventLeft -= dt;
@@ -110,15 +112,17 @@ export function steamHook(c: {
       if (live) add(T.geyser, s);
       if (event) add(T.event, s);
       const core = Math.max(0, ...s.core.map((x) => x?.opaque ?? 0));
-      return { ...s, seen, live, event, worst: core, t };
+      return { ...s, seen, live, event, worst: core, t, steamed };
     },
     /** a frame as drawn (no second pass), for the frames between samples */
     async step(dt = 1 / 60) {
       capture ??= new Capture(c.kit);
       c.kit.step(dt);
-      if (c.steamed()) eventLeft = 1.0;
+      const steamed = c.steamed();
+      if (steamed) eventLeft = 1.0;
       eventLeft -= dt;
       await c.kit.device.queue.onSubmittedWorkDone();
+      return { steamed };
     },
     result() {
       const sum = (X: Tally) => ({

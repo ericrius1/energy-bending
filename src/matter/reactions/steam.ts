@@ -25,6 +25,7 @@ import { steamParams } from './params';
 import type { MatterEars } from '../../audio/matter';
 import { Trigger } from '../core/sounding';
 import { budget, BUDGETS } from '../../engine/perf';
+import { JOINT, JOINT_FLOATS } from '../../skeleton/rig';
 
 /** premultiplied "over" for the colour; the scene's alpha (its view distance) is kept */
 const OVER: GPUBlendState = { color: { srcFactor: 'one', dstFactor: 'one-minus-src-alpha' }, alpha: { srcFactor: 'zero', dstFactor: 'one' } };
@@ -81,7 +82,7 @@ export class SteamPasses implements MatterPasses {
       });
     }
     this.ctx.frame.add('air', pass, 'steam');
-    post.lens.fullscreen(compShader, { label: 'steam.comp', bind: { steam: this.sim, steamLow: low }, blend: OVER });
+    post.lens.fullscreen(compShader, { label: 'steam.comp', bind: { steam: this.sim, steamLow: low, sceneTex: post.sceneTex }, blend: OVER });
     post.lens.draw(frontShader, {
       label: 'steam.front', bind: { steam: this.sim, puffs: this.puffs, sceneTex: post.sceneTex },
       count: 6, instances: this.count - this.ends[0], firstInstance: this.ends[0], blend: ADD, depthWrite: false, cull: 'none',
@@ -90,6 +91,41 @@ export class SteamPasses implements MatterPasses {
 
   /** the main view's world, as of the last update */
   private mainWorld = '';
+  /** 0 … 1: a catch's frames (the duel sets it: fx.ts DuelFx.quiet): the veil keeps off the bodies all the more */
+  quiet = 0;
+  /** a column of mist over a geyser (the duel sets it each frame, null when none): its foot, radius, height, how much
+   *  of it stands (0 … 1) and the dusk (0 … 1); drawn in the composite (steam_comp.wgsl columnMist) */
+  column: { at: ArrayLike<number>; r: number; h: number; amount: number; dusk: number } | null = null;
+  private keep = new Float32Array(16);
+  private keepR = [0, 0, 0, 0];
+
+  /** each dancer in the main view's world as a capsule on screen from its hips to the top of its head (uv), its radius
+   *  a torso's half width and a little (uv of the screen's height), and the nearest one's view distance: steam's veil
+   *  thins over them (steam_comp.wgsl) and no wisp stands nearer the lens than they do (steam_draw.wgsl) */
+  private keepOff(f: FrameCtx) {
+    const m = f.kit.camera.viewProj, K = this.keep, R = this.keepR, P1 = f.kit.camera.proj[5];
+    K.fill(0); R.fill(0);
+    let n = 0, near = Infinity;
+    const at = (W: ArrayLike<number>, j: number, out: number[]) => {
+      const o = j * JOINT_FLOATS, x = W[o], y = W[o + 1], z = W[o + 2], w = m[3] * x + m[7] * y + m[11] * z + m[15];
+      if (!(w > 0.05)) return false;
+      out[0] = ((m[0] * x + m[4] * y + m[8] * z + m[12]) / w) * 0.5 + 0.5; out[1] = 0.5 - ((m[1] * x + m[5] * y + m[9] * z + m[13]) / w) * 0.5; out[2] = w;
+      return true;
+    };
+    const a = [0, 0, 0], b = [0, 0, 0];
+    for (const d of f.dancers) {
+      if (n >= 4) break;
+      if ((d as { world?: string }).world && (d as { world?: string }).world !== this.mainWorld) continue;
+      const W = d.skeleton.world;
+      if (!at(W, JOINT.Hips, a) || !at(W, JOINT.HeadEnd, b)) continue;
+      K.set([a[0], a[1], b[0], b[1]], n * 4);
+      // (0.3 m about the spine, at the nearer end's distance)
+      R[n] = (0.3 * P1 * 0.5) / Math.min(a[2], b[2]);
+      near = Math.min(near, a[2], b[2]);
+      n++;
+    }
+    return { n, near: n ? near : 0 };
+  }
 
   layout() { /* steam lives in the air, on no body */ }
 
@@ -100,6 +136,7 @@ export class SteamPasses implements MatterPasses {
     const deps = field.recentDeposits();
     deps.forEach((d, k) => near.set([d.p[0], d.p[1], d.p[2], d.r * 1.5], k * 4));
     const fu = field.fusionFront, hx = field.helix;
+    const kept = this.keepOff(f), aspect = f.kit.camera.aspect, col = this.column && this.column.amount > 0.003 ? this.column : null;
     this.sim.set({
       count: this.count, frameNo: f.frame, dt: Math.min(Math.max(f.danceDt, 0), 1 / 20), time: f.t,
       wispEnd: this.ends[0], frontEnd: this.ends[1], dripEnd: this.ends[2], capsules: CAPSULES.length,
@@ -111,6 +148,12 @@ export class SteamPasses implements MatterPasses {
       // amount 0: kind 0 at weight 0, a strict no-op in every shader (fusionIs is the amount)
       fusion: [FUSION_KINDS.indexOf(fu.kind), fu.amount, 0, 0],
       hAt: hx.at, hAxis: hx.axis, hShape: hx.shape, near,
+      keep: this.keep, keepR: this.keepR,
+      keepK: [P.keepOff + (P.keepOffCatch - P.keepOff) * this.quiet, kept.near, aspect, kept.n],
+      look: [P.shafts, P.scatter, P.dusk, P.warm],
+      column: col ? [col.at[0], col.at[1], col.at[2], col.r] : [0, 0, 0, 0],
+      columnB: col ? [col.h, col.amount * P.column, col.dusk, Math.max(0, kept.near - 0.5)] : [0, 0, 0, 0],
+      columnCol: [1.0, 0.8, 0.52, P.columnDensity],
     });
   }
 

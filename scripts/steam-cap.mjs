@@ -7,6 +7,7 @@
 //   node scripts/steam-cap.mjs <out.json> --url http://127.0.0.1:5487/energybending/ [--runs 'redwoods:fire,water:3:flyer,lead']
 //        [--size 640x360] [--until 64] [--every 4] [--stills dir] [--stills-at 8,40] [--stills-max 2] [--hour 18.9]
 //        [--control] (hide nothing: the probe's own noise floor) [--parts glow,matter,all] (each still again without them)
+//        [--part glow|matter] (the veil of only the geyser's light, or only steam's matter)
 //        [--force S] (every S s of play water rolls its wave at fire and fire flares in it: a geyser made, not waited for)
 // A run is world:dress:seed[:styles]; the default is fire and water pairs over the four worlds (the film's redwoods
 // set among them). Sampled every `every` frames, and every other frame while a geyser stands or after a STEAM!.
@@ -21,7 +22,7 @@ const base = arg('url', 'http://127.0.0.1:5487/energybending/');
 const [W, H] = arg('size', '640x360').split('x').map(Number);
 const until = Number(arg('until', '66')), every = Number(arg('every', '4'));
 const stills = arg('stills', ''), stillsAt = arg('stills-at', '8,40').split(',').map(Number), stillsMax = Number(arg('stills-max', '2'));
-const hour = arg('hour', ''), control = argv.includes('--control'), parts = arg('parts', '').split(',').filter(Boolean), force = Number(arg('force', '0'));
+const hour = arg('hour', ''), control = argv.includes('--control'), parts = arg('parts', '').split(',').filter(Boolean), force = Number(arg('force', '0')), part = arg('part', 'all');
 const DEF = [
   'redwoods:fire,water:3:flyer,lead', 'redwoods:fire,water:1', 'redwoods:water,fire:2', 'redwoods:fire,water:5:base,flyer',
   'pool:fire,water:1:lead,flyer', 'pool:water,fire:2', 'pool:fire,water:4',
@@ -36,6 +37,7 @@ const all = [];
 for (const R of runs) {
   const page = await browser.newPage();
   page.on('pageerror', (e) => console.log('  pageerror:', e.message));
+  page.on('console', (m) => { if (m.type() === 'error') console.log('  page error:', m.text().slice(0, 300)); });
   const url = `${base}?duel&world=${R.world}&dress=${R.dress}&p1=bot&p2=bot&style=${R.styles}&skill=0.85&seed=${R.seed}&go&noautores&class=laptop`;
   await page.goto(url, { timeout: 120000 });
   await page.waitForFunction(() => document.body.classList.contains('ready') && window.bend?.duel?.steam, { timeout: 180000, polling: 200 });
@@ -54,7 +56,7 @@ for (const R of runs) {
   const t0 = Date.now();
   let shots = 0, steams = 0;
   for (;;) {
-    const r = await page.evaluate(async (n, every, at, want, control, parts, force) => {
+    const r = await page.evaluate(async (n, every, at, want, control, parts, force, part) => {
       const B = window.bend, D = B.duel, S = D.steam, grabs = [];
       window.__steam ??= { since: -1, i: 0, n: 0, forceAt: 6, wave: -1, forced: 0 };
       const st = window.__steam;
@@ -75,12 +77,14 @@ for (const R of runs) {
         }
         const live = D.powers.live.some((L) => L.kind === 'geyser' && !L.done);
         const hot = live || (st.since >= 0 && st.since < 60);
-        let s = null;
-        if (st.i % (hot ? 2 : every) === 0) s = await S.sample(1 / 60, D.now() / 1000, 1.0, control);
-        else await S.step(1 / 60);
+        let s = null, steamed = false;
+        // (a probe without `steamed` in its answer: this frame's own reaction, as the powers have it now)
+        const reacted = () => D.powers.fx.some((x) => x.k === 'react' && x.kind === 'geyser');
+        if (st.i % (hot ? 2 : every) === 0) { s = await S.sample(1 / 60, D.now() / 1000, 1.0, control, part); steamed = s.steamed ?? reacted(); }
+        else { const r = await S.step(1 / 60); steamed = r?.steamed ?? reacted(); }
         st.i++;
         // (frames since the last STEAM!)
-        if (D.powers.fx.some((x) => x.k === 'react' && x.kind === 'geyser')) { st.since = 0; st.n++; }
+        if (steamed) { st.since = 0; st.n++; }
         else if (st.since >= 0) st.since++;
         if (s && (!worst || s.worst > worst.worst)) worst = { worst: s.worst, t: s.t, screen: s.screen };
         if (want > grabs.length && st.since >= 0 && at.includes(st.since) && st.n <= 3) {
@@ -92,7 +96,7 @@ for (const R of runs) {
         if (phase === 'finale' || phase === 'done') break;
       }
       return { phase, t, grabs, worst, steams: st.n, forced: st.forced };
-    }, 240, every, stillsAt, stills ? Math.max(0, stillsMax * stillsAt.length * (1 + parts.length) - shots) : 0, control, parts, force);
+    }, 240, every, stillsAt, stills ? Math.max(0, stillsMax * stillsAt.length * (1 + parts.length) - shots) : 0, control, parts, force, part);
     steams = r.steams;
     for (const g of r.grabs) {
       const name = `${R.world}-${R.dress.replace(',', '-')}-${R.seed}-steam${g.n}-${String(g.since).padStart(3, '0')}${g.part ? `-no-${g.part}` : ''}.jpg`;

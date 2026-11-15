@@ -270,7 +270,11 @@ export async function startDuel(app: PlayApp, opts: { joined?: Joined } = {}) {
     sfx: (name, o) => sound.jogo(name, o), ear,
     rumble: (k, s, ms) => { const i = humanSeats.indexOf(k); if (i >= 0) hub.rumble(i, s, ms); },
     fadeOf: (s) => app.fade?.strengthOf(s) ?? 0, keepOff: (r) => { fx.keepOff(r); }, hush: () => { fx.quiet = 1; }, eye: () => [cam.position[0], cam.position[1], cam.position[2]],
+    quiet: () => fx.quiet, viewProj: () => cam.viewProj,
+    dusk: () => { const v = (world() as unknown as { woods?: { values: { night: number; horizon: number[] } } }).woods?.values; return v ? Math.max(v.night, v.horizon[3]) : 0; },
   }, (k) => powers.rules.seats[k].matter);
+  // (steam's veil thins over the bodies, more through a catch's frames: matter/reactions/steam.ts)
+  const steamKind = app.kinds.find((k) => k.id === 'steam') as { quiet?: number; column?: PowerFxDraw['column'] } | undefined;
   const hazardFx = new HazardFxDraw({ glows, eye: () => cam.position, ground: (x, z) => world().groundAt(x, z), field: field as unknown as ConstructorParameters<typeof HazardFxDraw>[0]['field'], ripple: (x, z, s, r) => { (world() as unknown as { ripple?: (x: number, z: number, s: number, r: number) => void }).ripple?.(x, z, s, r); } });
   const duelHud = new DuelHud();
   /** the keys a seat's powers are on (its device's), for the HUD */
@@ -414,6 +418,7 @@ export async function startDuel(app: PlayApp, opts: { joined?: Joined } = {}) {
     fx.update(danceReal, ev, match.touches, match.contact, match.state);
     powerFx.update(f.danceDt, powers);
     hazardFx.update(f.danceDt, hazards);
+    if (steamKind) { steamKind.quiet = fx.quiet; steamKind.column = powerFx.hideSteam ? null : powerFx.column; }
     for (const e of powers.events) pendingPowers.push(e);
     for (const x of powers.fx) if (x.k === 'react') reactAt.set(x.kind, project(x.at));
     pendingHud.push(...ev); pendingTouches.push(...match.touches);
@@ -487,7 +492,7 @@ export async function startDuel(app: PlayApp, opts: { joined?: Joined } = {}) {
     restart: () => { finale.stop(); if (!started) begin(); else match.restart(now); },
     /** the duel's end: the arena off, the world's room back */
     stop: () => {
-      started = false; match.warp.reset(); showArena(null); field.fuse(null); powerFx.clear(); powers.clear(); hazardFx.clear();
+      started = false; match.warp.reset(); showArena(null); field.fuse(null); powerFx.clear(); powers.clear(); hazardFx.clear(); if (steamKind) { steamKind.column = null; steamKind.quiet = 0; }
       if (solidsWas) Object.defineProperty(W, 'solids', solidsWas); else delete (W as { solids?: unknown }).solids;
       rig.pose = null; rig.apexG = 0; rig.headroom = 0;
       app.gates.open(...W.portals.filter((p) => shut.includes(p.id)).map((p) => ({ ...p, world: W.id })));

@@ -27,6 +27,23 @@ struct Steam {
   hAt: vec4f,
   hAxis: vec4f,
   hShape: vec4f,
+  /** the bodies kept clear (steam.ts keepOff): each dancer's core on screen as a capsule from its hips to the top of its
+   *  head (uv: a.xy, b.xy), its radius in keepR (uv of the screen's height; 0: none in this slot) */
+  keep: array<vec4f, 4>,
+  keepR: vec4f,
+  /** x: how much of steam's veil is taken off a body's core (0 … 1), y: the nearest body's view distance (m: no wisp
+   *  stands nearer the lens than the pair; 0: no body), z: the screen's aspect (w / h), w: how many bodies */
+  keepK: vec4f,
+  /** the look (steam_draw.wgsl): x how strongly the sun's shafts light the mist, y forward scattering (g), z how much
+   *  the dusk's glow (moss, fireflies, lanterns) lights it from below, w how warm its white is (0 … 1) */
+  look: vec4f,
+  /** a column of mist standing over a geyser (the duel's: steam.ts SteamPasses.column; steam_comp.wgsl draws it):
+   *  column.xyz its foot, w its radius (m); columnB x its height (m), y how much of it stands (0: none), z the dusk
+   *  (0 … 1: lit by the moss from below, not by the sun), w the near cut (the pair's view distance less a little:
+   *  none of it nearer the lens); columnCol.rgb the light it carries by day, w how dense */
+  column: vec4f,
+  columnB: vec4f,
+  columnCol: vec4f,
   /** where the CPU's deposits are this frame (steam can be born round them, away from any body) */
   near: array<vec4f, FIELD_DEPOSITS>,
 }
