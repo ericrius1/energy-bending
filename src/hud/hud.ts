@@ -243,6 +243,10 @@ export class Hud {
     return f;
   }
 
+  /** what the HUD laid over the frame last frame, for the moments probe (src/duel/moments.ts): the pops' words (boxes)
+   *  and the tier flash's rings (circles), in px of a W × H layout */
+  cover() { return { W: this.L?.W ?? 0, H: this.L?.H ?? 0, words: this.pops.cover, rings: this.pair.cover }; }
+
   stats(reset = false): HudStats {
     const n = this.cpu.length || 1;
     const s: HudStats = {

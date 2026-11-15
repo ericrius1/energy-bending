@@ -1,0 +1,1085 @@
+{
+ "runs": [
+  {
+   "world": "redwoods",
+   "dress": "fire,water",
+   "seed": "2",
+   "styles": "lead,flyer",
+   "peak": {
+    "frames": 213,
+    "wordsMean": 0.57,
+    "wordsMax": 1,
+    "wordsP90": 1,
+    "covered": 0.028,
+    "byWord": 0,
+    "byLight": 0.028,
+    "coverMean": 0.04,
+    "coreMean": 0.011
+   },
+   "catch": {
+    "frames": 720,
+    "wordsMean": 0.92,
+    "wordsMax": 1,
+    "wordsP90": 1,
+    "covered": 0.007,
+    "byWord": 0,
+    "byLight": 0.007,
+    "coverMean": 0.018,
+    "coreMean": 0.004
+   },
+   "all": {
+    "frames": 3767,
+    "wordsMean": 0.77,
+    "wordsMax": 1,
+    "wordsP90": 1,
+    "covered": 0.024,
+    "byWord": 0,
+    "byLight": 0.024,
+    "coverMean": 0.015,
+    "coreMean": 0.011
+   },
+   "moments": 6,
+   "mostAtPeak": 1,
+   "mostMean": 1,
+   "list": [
+    {
+     "t": 20.42,
+     "kinds": [
+      "pair"
+     ],
+     "most": 1,
+     "covered": 0
+    },
+    {
+     "t": 29.3,
+     "kinds": [
+      "react"
+     ],
+     "most": 1,
+     "covered": 3
+    },
+    {
+     "t": 40.2,
+     "kinds": [
+      "pair"
+     ],
+     "most": 1,
+     "covered": 0
+    },
+    {
+     "t": 40.81,
+     "kinds": [
+      "range"
+     ],
+     "most": 1,
+     "covered": 0
+    },
+    {
+     "t": 58.59,
+     "kinds": [
+      "pair"
+     ],
+     "most": 1,
+     "covered": 0
+    },
+    {
+     "t": 60.61,
+     "kinds": [
+      "react"
+     ],
+     "most": 1,
+     "covered": 3
+    }
+   ],
+   "weight": {
+    "holdsPerMin": 10,
+    "frames": 5.5,
+    "slowsPerMin": 4,
+    "lostS": 2.21,
+    "skipped": 0,
+    "playMin": 1
+   }
+  },
+  {
+   "world": "pool",
+   "dress": "fire,water",
+   "seed": "2",
+   "styles": "lead,flyer",
+   "peak": {
+    "frames": 410,
+    "wordsMean": 0.72,
+    "wordsMax": 1,
+    "wordsP90": 1,
+    "covered": 0.08,
+    "byWord": 0,
+    "byLight": 0.08,
+    "coverMean": 0.06,
+    "coreMean": 0.057
+   },
+   "catch": {
+    "frames": 1006,
+    "wordsMean": 0.89,
+    "wordsMax": 1,
+    "wordsP90": 1,
+    "covered": 0.042,
+    "byWord": 0,
+    "byLight": 0.042,
+    "coverMean": 0.034,
+    "coreMean": 0.026
+   },
+   "all": {
+    "frames": 4237,
+    "wordsMean": 0.78,
+    "wordsMax": 1,
+    "wordsP90": 1,
+    "covered": 0.046,
+    "byWord": 0,
+    "byLight": 0.046,
+    "coverMean": 0.02,
+    "coreMean": 0.02
+   },
+   "moments": 12,
+   "mostAtPeak": 1,
+   "mostMean": 1,
+   "list": [
+    {
+     "t": 11.15,
+     "kinds": [
+      "pair"
+     ],
+     "most": 1,
+     "covered": 0
+    },
+    {
+     "t": 16.31,
+     "kinds": [
+      "pair"
+     ],
+     "most": 1,
+     "covered": 0
+    },
+    {
+     "t": 25.12,
+     "kinds": [
+      "range"
+     ],
+     "most": 1,
+     "covered": 31
+    },
+    {
+     "t": 26.31,
+     "kinds": [
+      "react"
+     ],
+     "most": 1,
+     "covered": 0
+    },
+    {
+     "t": 27.91,
+     "kinds": [
+      "range"
+     ],
+     "most": 1,
+     "covered": 0
+    },
+    {
+     "t": 28.35,
+     "kinds": [
+      "pair"
+     ],
+     "most": 1,
+     "covered": 0
+    },
+    {
+     "t": 30.03,
+     "kinds": [
+      "range"
+     ],
+     "most": 1,
+     "covered": 0
+    },
+    {
+     "t": 51.11,
+     "kinds": [
+      "pair"
+     ],
+     "most": 1,
+     "covered": 0
+    },
+    {
+     "t": 58.08,
+     "kinds": [
+      "range"
+     ],
+     "most": 1,
+     "covered": 0
+    },
+    {
+     "t": 60.76,
+     "kinds": [
+      "react"
+     ],
+     "most": 1,
+     "covered": 2
+    },
+    {
+     "t": 61.02,
+     "kinds": [
+      "geyser"
+     ],
+     "most": 1,
+     "covered": 0
+    },
+    {
+     "t": 63.36,
+     "kinds": [
+      "pair",
+      "geyser"
+     ],
+     "most": 1,
+     "covered": 0
+    }
+   ],
+   "weight": {
+    "holdsPerMin": 18.9,
+    "frames": 6.6,
+    "slowsPerMin": 4.7,
+    "lostS": 4.19,
+    "skipped": 4,
+    "playMin": 1.06
+   }
+  },
+  {
+   "world": "temple",
+   "dress": "water,ice",
+   "seed": "13",
+   "styles": "lead,flyer",
+   "peak": {
+    "frames": 381,
+    "wordsMean": 0.65,
+    "wordsMax": 1,
+    "wordsP90": 1,
+    "covered": 0.058,
+    "byWord": 0,
+    "byLight": 0.058,
+    "coverMean": 0.061,
+    "coreMean": 0.04
+   },
+   "catch": {
+    "frames": 1182,
+    "wordsMean": 0.95,
+    "wordsMax": 1,
+    "wordsP90": 1,
+    "covered": 0.031,
+    "byWord": 0,
+    "byLight": 0.031,
+    "coverMean": 0.037,
+    "coreMean": 0.021
+   },
+   "all": {
+    "frames": 4000,
+    "wordsMean": 0.77,
+    "wordsMax": 1,
+    "wordsP90": 1,
+    "covered": 0.03,
+    "byWord": 0,
+    "byLight": 0.03,
+    "coverMean": 0.018,
+    "coreMean": 0.013
+   },
+   "moments": 11,
+   "mostAtPeak": 1,
+   "mostMean": 1,
+   "list": [
+    {
+     "t": 10.97,
+     "kinds": [
+      "pair"
+     ],
+     "most": 1,
+     "covered": 0
+    },
+    {
+     "t": 16.01,
+     "kinds": [
+      "range"
+     ],
+     "most": 1,
+     "covered": 0
+    },
+    {
+     "t": 17.8,
+     "kinds": [
+      "pair"
+     ],
+     "most": 1,
+     "covered": 0
+    },
+    {
+     "t": 22.99,
+     "kinds": [
+      "pair"
+     ],
+     "most": 1,
+     "covered": 0
+    },
+    {
+     "t": 33.3,
+     "kinds": [
+      "range"
+     ],
+     "most": 1,
+     "covered": 20
+    },
+    {
+     "t": 34.39,
+     "kinds": [
+      "pair"
+     ],
+     "most": 1,
+     "covered": 0
+    },
+    {
+     "t": 38.37,
+     "kinds": [
+      "merge"
+     ],
+     "most": 1,
+     "covered": 1
+    },
+    {
+     "t": 38.72,
+     "kinds": [
+      "react"
+     ],
+     "most": 1,
+     "covered": 1
+    },
+    {
+     "t": 40.5,
+     "kinds": [
+      "range"
+     ],
+     "most": 1,
+     "covered": 0
+    },
+    {
+     "t": 56.71,
+     "kinds": [
+      "merge"
+     ],
+     "most": 1,
+     "covered": 0
+    },
+    {
+     "t": 58.61,
+     "kinds": [
+      "pair"
+     ],
+     "most": 1,
+     "covered": 0
+    }
+   ],
+   "weight": {
+    "holdsPerMin": 8.8,
+    "frames": 6.7,
+    "slowsPerMin": 4.9,
+    "lostS": 2.73,
+    "skipped": 2,
+    "playMin": 1.02
+   }
+  },
+  {
+   "world": "geode",
+   "dress": "ice,fire",
+   "seed": "1",
+   "styles": "lead,flyer",
+   "peak": {
+    "frames": 350,
+    "wordsMean": 0.63,
+    "wordsMax": 1,
+    "wordsP90": 1,
+    "covered": 0.02,
+    "byWord": 0,
+    "byLight": 0.02,
+    "coverMean": 0.054,
+    "coreMean": 0.012
+   },
+   "catch": {
+    "frames": 936,
+    "wordsMean": 0.91,
+    "wordsMax": 1,
+    "wordsP90": 1,
+    "covered": 0.028,
+    "byWord": 0,
+    "byLight": 0.028,
+    "coverMean": 0.034,
+    "coreMean": 0.019
+   },
+   "all": {
+    "frames": 3785,
+    "wordsMean": 0.82,
+    "wordsMax": 1,
+    "wordsP90": 1,
+    "covered": 0.031,
+    "byWord": 0,
+    "byLight": 0.031,
+    "coverMean": 0.035,
+    "coreMean": 0.016
+   },
+   "moments": 10,
+   "mostAtPeak": 1,
+   "mostMean": 1,
+   "list": [
+    {
+     "t": 9.91,
+     "kinds": [
+      "pair"
+     ],
+     "most": 1,
+     "covered": 0
+    },
+    {
+     "t": 15.61,
+     "kinds": [
+      "pair"
+     ],
+     "most": 1,
+     "covered": 0
+    },
+    {
+     "t": 17.27,
+     "kinds": [
+      "react"
+     ],
+     "most": 1,
+     "covered": 1
+    },
+    {
+     "t": 24.16,
+     "kinds": [
+      "pair"
+     ],
+     "most": 1,
+     "covered": 0
+    },
+    {
+     "t": 31.85,
+     "kinds": [
+      "pair"
+     ],
+     "most": 1,
+     "covered": 0
+    },
+    {
+     "t": 33.66,
+     "kinds": [
+      "react",
+      "react"
+     ],
+     "most": 1,
+     "covered": 6
+    },
+    {
+     "t": 40.68,
+     "kinds": [
+      "pair"
+     ],
+     "most": 1,
+     "covered": 0
+    },
+    {
+     "t": 46.5,
+     "kinds": [
+      "tier"
+     ],
+     "most": 1,
+     "covered": 0
+    },
+    {
+     "t": 46.98,
+     "kinds": [
+      "pair"
+     ],
+     "most": 1,
+     "covered": 0
+    },
+    {
+     "t": 48.6,
+     "kinds": [
+      "merge"
+     ],
+     "most": 1,
+     "covered": 0
+    }
+   ],
+   "weight": {
+    "holdsPerMin": 9.9,
+    "frames": 5,
+    "slowsPerMin": 6,
+    "lostS": 2.58,
+    "skipped": 1,
+    "playMin": 1.01
+   }
+  },
+  {
+   "world": "temple",
+   "dress": "fire,ice",
+   "seed": "1",
+   "styles": "lead,flyer",
+   "peak": {
+    "frames": 235,
+    "wordsMean": 0.6,
+    "wordsMax": 1,
+    "wordsP90": 1,
+    "covered": 0.038,
+    "byWord": 0,
+    "byLight": 0.038,
+    "coverMean": 0.054,
+    "coreMean": 0.023
+   },
+   "catch": {
+    "frames": 1102,
+    "wordsMean": 0.96,
+    "wordsMax": 1,
+    "wordsP90": 1,
+    "covered": 0.025,
+    "byWord": 0,
+    "byLight": 0.025,
+    "coverMean": 0.037,
+    "coreMean": 0.013
+   },
+   "all": {
+    "frames": 3863,
+    "wordsMean": 0.83,
+    "wordsMax": 1,
+    "wordsP90": 1,
+    "covered": 0.024,
+    "byWord": 0,
+    "byLight": 0.024,
+    "coverMean": 0.027,
+    "coreMean": 0.013
+   },
+   "moments": 7,
+   "mostAtPeak": 1,
+   "mostMean": 0.86,
+   "list": [
+    {
+     "t": 9.6,
+     "kinds": [
+      "pair"
+     ],
+     "most": 1,
+     "covered": 1
+    },
+    {
+     "t": 16.1,
+     "kinds": [
+      "pair"
+     ],
+     "most": 1,
+     "covered": 0
+    },
+    {
+     "t": 21.47,
+     "kinds": [
+      "react"
+     ],
+     "most": 1,
+     "covered": 3
+    },
+    {
+     "t": 24.87,
+     "kinds": [
+      "pair"
+     ],
+     "most": 1,
+     "covered": 0
+    },
+    {
+     "t": 34.48,
+     "kinds": [
+      "merge"
+     ],
+     "most": 1,
+     "covered": 5
+    },
+    {
+     "t": 53.46,
+     "kinds": [
+      "merge"
+     ],
+     "most": 0,
+     "covered": 0
+    },
+    {
+     "t": 53.74,
+     "kinds": [
+      "pair"
+     ],
+     "most": 1,
+     "covered": 0
+    }
+   ],
+   "weight": {
+    "holdsPerMin": 6.9,
+    "frames": 5,
+    "slowsPerMin": 3.9,
+    "lostS": 1.9,
+    "skipped": 1,
+    "playMin": 1.02
+   }
+  },
+  {
+   "world": "redwoods",
+   "dress": "water,fire",
+   "seed": "3",
+   "styles": "lead,flyer",
+   "peak": {
+    "frames": 415,
+    "wordsMean": 0.68,
+    "wordsMax": 1,
+    "wordsP90": 1,
+    "covered": 0.101,
+    "byWord": 0,
+    "byLight": 0.101,
+    "coverMean": 0.058,
+    "coreMean": 0.072
+   },
+   "catch": {
+    "frames": 886,
+    "wordsMean": 0.95,
+    "wordsMax": 1,
+    "wordsP90": 1,
+    "covered": 0.064,
+    "byWord": 0,
+    "byLight": 0.064,
+    "coverMean": 0.042,
+    "coreMean": 0.041
+   },
+   "all": {
+    "frames": 3672,
+    "wordsMean": 0.78,
+    "wordsMax": 1,
+    "wordsP90": 1,
+    "covered": 0.038,
+    "byWord": 0,
+    "byLight": 0.038,
+    "coverMean": 0.019,
+    "coreMean": 0.018
+   },
+   "moments": 12,
+   "mostAtPeak": 1,
+   "mostMean": 1,
+   "list": [
+    {
+     "t": 7.64,
+     "kinds": [
+      "range"
+     ],
+     "most": 1,
+     "covered": 0
+    },
+    {
+     "t": 9.56,
+     "kinds": [
+      "pair"
+     ],
+     "most": 1,
+     "covered": 0
+    },
+    {
+     "t": 17.1,
+     "kinds": [
+      "pair"
+     ],
+     "most": 1,
+     "covered": 0
+    },
+    {
+     "t": 19.62,
+     "kinds": [
+      "react"
+     ],
+     "most": 1,
+     "covered": 2
+    },
+    {
+     "t": 23.63,
+     "kinds": [
+      "pair"
+     ],
+     "most": 1,
+     "covered": 5
+    },
+    {
+     "t": 31.7,
+     "kinds": [
+      "react"
+     ],
+     "most": 1,
+     "covered": 0
+    },
+    {
+     "t": 34.03,
+     "kinds": [
+      "pair"
+     ],
+     "most": 1,
+     "covered": 0
+    },
+    {
+     "t": 41.38,
+     "kinds": [
+      "pair"
+     ],
+     "most": 1,
+     "covered": 0
+    },
+    {
+     "t": 45.37,
+     "kinds": [
+      "merge"
+     ],
+     "most": 1,
+     "covered": 0
+    },
+    {
+     "t": 51.78,
+     "kinds": [
+      "pair",
+      "range"
+     ],
+     "most": 1,
+     "covered": 34
+    },
+    {
+     "t": 56.12,
+     "kinds": [
+      "react"
+     ],
+     "most": 1,
+     "covered": 1
+    },
+    {
+     "t": 56.47,
+     "kinds": [
+      "geyser"
+     ],
+     "most": 1,
+     "covered": 0
+    }
+   ],
+   "weight": {
+    "holdsPerMin": 12,
+    "frames": 6.3,
+    "slowsPerMin": 6,
+    "lostS": 2.97,
+    "skipped": 1,
+    "playMin": 1
+   }
+  },
+  {
+   "world": "pool",
+   "dress": "water,ice",
+   "seed": "4",
+   "styles": "lead,flyer",
+   "peak": {
+    "frames": 398,
+    "wordsMean": 0.57,
+    "wordsMax": 1,
+    "wordsP90": 1,
+    "covered": 0.018,
+    "byWord": 0,
+    "byLight": 0.018,
+    "coverMean": 0.031,
+    "coreMean": 0.005
+   },
+   "catch": {
+    "frames": 1008,
+    "wordsMean": 0.88,
+    "wordsMax": 1,
+    "wordsP90": 1,
+    "covered": 0.061,
+    "byWord": 0,
+    "byLight": 0.061,
+    "coverMean": 0.055,
+    "coreMean": 0.042
+   },
+   "all": {
+    "frames": 4089,
+    "wordsMean": 0.79,
+    "wordsMax": 1,
+    "wordsP90": 1,
+    "covered": 0.041,
+    "byWord": 0,
+    "byLight": 0.041,
+    "coverMean": 0.024,
+    "coreMean": 0.019
+   },
+   "moments": 12,
+   "mostAtPeak": 1,
+   "mostMean": 0.92,
+   "list": [
+    {
+     "t": 10.21,
+     "kinds": [
+      "pair"
+     ],
+     "most": 1,
+     "covered": 0
+    },
+    {
+     "t": 15.78,
+     "kinds": [
+      "range"
+     ],
+     "most": 1,
+     "covered": 0
+    },
+    {
+     "t": 19.44,
+     "kinds": [
+      "pair"
+     ],
+     "most": 1,
+     "covered": 0
+    },
+    {
+     "t": 26.1,
+     "kinds": [
+      "pair"
+     ],
+     "most": 1,
+     "covered": 0
+    },
+    {
+     "t": 28.76,
+     "kinds": [
+      "range"
+     ],
+     "most": 1,
+     "covered": 0
+    },
+    {
+     "t": 46.56,
+     "kinds": [
+      "merge"
+     ],
+     "most": 1,
+     "covered": 0
+    },
+    {
+     "t": 48.48,
+     "kinds": [
+      "range"
+     ],
+     "most": 1,
+     "covered": 0
+    },
+    {
+     "t": 49.8,
+     "kinds": [
+      "pair"
+     ],
+     "most": 1,
+     "covered": 1
+    },
+    {
+     "t": 50.13,
+     "kinds": [
+      "react"
+     ],
+     "most": 1,
+     "covered": 0
+    },
+    {
+     "t": 56.31,
+     "kinds": [
+      "pair"
+     ],
+     "most": 1,
+     "covered": 0
+    },
+    {
+     "t": 63.86,
+     "kinds": [
+      "pair"
+     ],
+     "most": 0,
+     "covered": 6
+    },
+    {
+     "t": 63.96,
+     "kinds": [
+      "range"
+     ],
+     "most": 1,
+     "covered": 0
+    }
+   ],
+   "weight": {
+    "holdsPerMin": 20.8,
+    "frames": 5.9,
+    "slowsPerMin": 5.7,
+    "lostS": 4.41,
+    "skipped": 3,
+    "playMin": 1.06
+   }
+  },
+  {
+   "world": "geode",
+   "dress": "fire,water",
+   "seed": "4",
+   "styles": "lead,flyer",
+   "peak": {
+    "frames": 277,
+    "wordsMean": 0.59,
+    "wordsMax": 1,
+    "wordsP90": 1,
+    "covered": 0.076,
+    "byWord": 0,
+    "byLight": 0.076,
+    "coverMean": 0.07,
+    "coreMean": 0.034
+   },
+   "catch": {
+    "frames": 900,
+    "wordsMean": 0.95,
+    "wordsMax": 1,
+    "wordsP90": 1,
+    "covered": 0.016,
+    "byWord": 0,
+    "byLight": 0.016,
+    "coverMean": 0.031,
+    "coreMean": 0.009
+   },
+   "all": {
+    "frames": 4087,
+    "wordsMean": 0.76,
+    "wordsMax": 1,
+    "wordsP90": 1,
+    "covered": 0.024,
+    "byWord": 0,
+    "byLight": 0.024,
+    "coverMean": 0.018,
+    "coreMean": 0.011
+   },
+   "moments": 8,
+   "mostAtPeak": 1,
+   "mostMean": 1,
+   "list": [
+    {
+     "t": 13.19,
+     "kinds": [
+      "pair"
+     ],
+     "most": 1,
+     "covered": 0
+    },
+    {
+     "t": 19.08,
+     "kinds": [
+      "react"
+     ],
+     "most": 1,
+     "covered": 11
+    },
+    {
+     "t": 19.45,
+     "kinds": [
+      "pair"
+     ],
+     "most": 1,
+     "covered": 2
+    },
+    {
+     "t": 42.2,
+     "kinds": [
+      "pair"
+     ],
+     "most": 1,
+     "covered": 3
+    },
+    {
+     "t": 43.59,
+     "kinds": [
+      "merge"
+     ],
+     "most": 1,
+     "covered": 5
+    },
+    {
+     "t": 46.68,
+     "kinds": [
+      "range"
+     ],
+     "most": 1,
+     "covered": 0
+    },
+    {
+     "t": 47.28,
+     "kinds": [
+      "pair"
+     ],
+     "most": 1,
+     "covered": 0
+    },
+    {
+     "t": 61.54,
+     "kinds": [
+      "merge"
+     ],
+     "most": 1,
+     "covered": 0
+    }
+   ],
+   "weight": {
+    "holdsPerMin": 9.9,
+    "frames": 5.5,
+    "slowsPerMin": 4,
+    "lostS": 2.28,
+    "skipped": 1,
+    "playMin": 1.01
+   }
+  }
+ ],
+ "sum": {
+  "peak": {
+   "frames": 2679,
+   "wordsMean": 0.63,
+   "wordsMax": 1,
+   "covered": 0.055,
+   "coreMean": 0.034,
+   "byWord": 0,
+   "byLight": 0.055,
+   "coverMean": 0.054
+  },
+  "catch": {
+   "frames": 7740,
+   "wordsMean": 0.93,
+   "wordsMax": 1,
+   "covered": 0.035,
+   "coreMean": 0.022,
+   "byWord": 0,
+   "byLight": 0.035,
+   "coverMean": 0.037
+  },
+  "all": {
+   "frames": 31500,
+   "wordsMean": 0.79,
+   "wordsMax": 1,
+   "covered": 0.032,
+   "coreMean": 0.015,
+   "byWord": 0,
+   "byLight": 0.032,
+   "coverMean": 0.022
+  }
+ },
+ "moments": 78,
+ "mostMean": 0.9751282051282052,
+ "hist": {
+  "0": 2,
+  "1": 76
+ }
+}

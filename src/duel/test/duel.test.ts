@@ -11,7 +11,7 @@ import { DuelMatch, duelPlane } from '../match';
 import { simulateDuel, makeBrains, nodeArena } from '../sim';
 import { DuelBrain, holdFor, jumpHeight } from '../../ai/duel-brain';
 import { makeIntent } from '../../input/intent';
-import { DuelHud, type HudSeat } from '../hud-state';
+import { DuelHud, type HudSeat, type HudWord } from '../hud-state';
 import { box } from '../../worlds/solids';
 
 const arena = { yKill: -2.2, bpm: 120, setMs: 30000 };
@@ -477,40 +477,59 @@ test('past ×4, tiers: a word and a colour at 12, 18, 26, 36 varied links (repea
   return tiers.map((x) => `${x.name} at ${x.n}`).join(', ');
 });
 
-test('the HUD\'s pops: one SWING a hold counting up in place (its id kept); no more than a few new words a second', () => {
+test('the HUD\'s pops: one word at a moment, the biggest (a tier or a reaction over a power\'s name over a catch over PERFECT), the rest folded into the chip; one SWING a hold counting up in place', () => {
   const { d, t } = playing();
   const hud = new DuelHud();
   const seats: HudSeat[] = [0, 1].map((k) => ({ name: `P${k + 1}`, matter: 'fire', screen: [0.3 + 0.4 * k, 0.5], dash: 1, holding: false, held: false }));
   const T0: ContactEvent = { kind: 'catch', seat: 0, other: 1, perfect: false, at: [0, 1, 0] };
   const sw = (n: number): ContactEvent => ({ kind: 'swing', seat: 0, other: 1, perfect: false, at: [0, 1, 0], n });
-  hud.events([], [T0], seats, [0.5, 0.5]); hud.build(d, t, 0.3, seats, 0, 120, 60000, { on: true });
+  // a catch, then its hold's swings: the catch has its moment, then one SWING counting up in place
+  hud.events([], [T0], seats, [0.5, 0.5]); hud.build(d, t, 0.6, seats, 0, 120, 60000, { on: true });
   const ids: number[] = [], texts: string[] = [];
   for (let n = 1; n <= 4; n++) {
     hud.events([], [sw(n)], seats, [0.5, 0.5]);
     const st = hud.build(d, t + n * 500, 0.5, seats, 0, 120, 60000, { on: true });
     const p = st.pops.find((q) => q.kind === 'swing')!;
     ids.push(p.id!); texts.push(p.text);
+    assert(st.pops.length === 1, `one word on screen (${st.pops.map((q) => q.text)})`);
   }
   assert(new Set(ids).size === 1, `one SWING pop (${ids})`);
   assert(texts.join() === 'SWING,SWING ×2,SWING ×3,SWING ×4', texts.join());
-  // a new hold: a new SWING
-  hud.events([], [{ ...T0, kind: 'fling' }, T0, sw(1)], seats, [0.5, 0.5]);
-  const st2 = hud.build(d, t + 3000, 0.016, seats, 0, 120, 60000, { on: true });
-  assert(st2.pops.some((q) => q.kind === 'swing' && q.id !== ids[0]), 'a new hold, a new SWING');
-  // a burst: twelve named moves inside a second; the set's own words (MERGE) still show
+  // a moment: an air catch, PERFECT, a cast, the reaction and the pair's tier in one frame: one word, the tier's
+  const h = new DuelHud();
+  h.events([{ k: 'pairTier', seat: 0, tier: 1, name: 'DUET', color: '#fff', n: 14 }], [{ ...T0, kind: 'aerial', perfect: true }], seats, [0.5, 0.5], undefined,
+    [{ text: 'WAVE', kind: 'power', seat: 1, prio: 1 }, { text: 'STEAM!', kind: 'react', prio: 3 }]);
+  let st = h.build(d, t, 1 / 60, seats, 0, 120, 60000, { on: true });
+  assert(st.pops.length === 1 && st.pops[0].text === 'DUET ×14' && st.pops[0].kind === 'pair', `one word, the biggest: ${st.pops.map((q) => q.text)}`);
+  assert(st.pair?.echo?.text != null, `the rest folded into the chip (echo ${st.pair?.echo?.text})`);
+  // the next frames: a smaller word folds while the tier has its moment; a reaction comes after and takes its place
+  // only once the moment is over
+  h.events([], [{ ...T0, kind: 'fling' }], seats, [0.5, 0.5]);
+  st = h.build(d, t + 300, 0.3, seats, 0, 120, 60000, { on: true });
+  assert(st.pops.length === 1 && st.pops[0].text === 'DUET ×14', `FLING folded under the tier (${st.pops.map((q) => q.text)})`);
+  for (let i = 0; i < 4; i++) st = h.build(d, t + 600 + i * 200, 0.2, seats, 0, 120, 60000, { on: true });
+  h.events([], [], seats, [0.5, 0.5], undefined, [{ text: 'FREEZE!', kind: 'react', prio: 3 }]);
+  st = h.build(d, t + 1500, 1 / 60, seats, 0, 120, 60000, { on: true });
+  assert(st.pops.length === 1 && st.pops[0].text === 'FREEZE!', `then the reaction (${st.pops.map((q) => q.text)})`);
+  // ranks: PERFECT under a catch, a catch under a power's name, a power's name under a tier or a reaction
+  const one = (tc: ContactEvent[], w: HudWord[], ev: DuelEvent[] = []) => { const x = new DuelHud(); x.events(ev, tc, seats, [0.5, 0.5], undefined, w); return x.build(d, t, 1 / 60, seats, 0, 120, 60000, { on: true }).pops.map((q) => q.text).join(); };
+  assert(one([{ ...T0, perfect: true }], []) === 'CATCH', 'a catch over PERFECT');
+  assert(one([T0], [{ text: 'WHIP', kind: 'power', seat: 0, prio: 1 }]) === 'WHIP', 'a power\'s name over a catch');
+  assert(one([], [{ text: 'WHIP', kind: 'power', seat: 0, prio: 1 }], [{ k: 'tier', seat: 0, tier: 1, name: 'FLOW', color: '#fff', n: 12 }]) === 'FLOW ×12', 'a tier over a power\'s name');
+  assert(one([], [{ text: 'MELT!', kind: 'react', prio: 3 }, { text: 'POWER FORM', kind: 'power', seat: 1, prio: 2 }]) === 'MELT!', 'a reaction over the power form');
+  // a burst: twelve named moves inside a second: a word or two, and MERGE still shows
   const h2 = new DuelHud(), born = new Set<number>();
-  const burst: ContactEvent[] = [];
-  for (let i = 0; i < 12; i++) burst.push({ kind: (['catch', 'fling', 'lift', 'vault', 'counter', 'swing'] as const)[i % 6], seat: i % 2, other: 1 - i % 2, perfect: i % 3 === 0, at: [0, 1, 0], n: 1 });
   let merge = false;
   for (let i = 0; i < 12; i++) {
-    h2.events(i === 6 ? [{ k: 'merge', energy: 0.9, n: 1 }] : [], [burst[i]], seats, [0.5, 0.5]);
-    const st = h2.build(d, t + i * 80, 0.08, seats, 0, 120, 60000, { on: true });
-    for (const p of st.pops) if (p.kind !== 'merge') born.add(p.id!); else merge = true;
+    const x: ContactEvent = { kind: (['catch', 'fling', 'lift', 'vault', 'counter', 'swing'] as const)[i % 6], seat: i % 2, other: 1 - i % 2, perfect: i % 3 === 0, at: [0, 1, 0], n: 1 };
+    h2.events(i === 6 ? [{ k: 'merge', energy: 0.9, n: 1 }] : [], [x], seats, [0.5, 0.5]);
+    const s2 = h2.build(d, t + i * 80, 0.08, seats, 0, 120, 60000, { on: true });
+    assert(s2.pops.length <= 1, `one word at a time (${s2.pops.map((q) => q.text)})`);
+    for (const p of s2.pops) if (p.kind !== 'merge') born.add(p.id!); else merge = true;
   }
-  assert(born.size <= 4 && merge, `${born.size} new words (not the set's) in ~1 s of twelve moves; MERGE shown ${merge}`);
-  return `SWING ×4 in one pop; ${born.size} words for twelve moves in a second`;
+  assert(born.size <= 3 && merge, `${born.size} words (not the set's) in ~1 s of twelve moves; MERGE shown ${merge}`);
+  return `SWING ×4 in one pop; one word at a moment; ${born.size} words for twelve moves in a second (${h2.counts.folded} folded)`;
 });
-
 test('the pacing, played: virtual players over seeds in the temple and the pool, free and locked: the merge late and rare, the fusion earned, no wall-run bursts, a few words a second', () => {
   const out: string[] = [];
   let sets = 0, fused = 0, mergedSets = 0, firstMin = Infinity, popsMax = 0, mergesMax = 0;
@@ -607,45 +626,64 @@ test('the pair combo: both dancers\' contact links on one chain, its own tiers, 
   return `${tiers.map((x) => `${x.name} at ${x.n}`).join(', ')}; banked ${end.banked.join(' + ')}`;
 });
 
-test('the weight of contact: a catch holds the bodies\' time a few frames (more out of the air, most at range or a geyser\'s top), then eases back; a pair tier slows a beat', () => {
+test('the weight of contact: no hold on a ground catch or a fling; an air catch holds a little, a catch at range or at a geyser\'s top 8 to 12 frames; a breath, eased back with no step; a pair tier slows a beat', () => {
   const at: [number, number, number] = [0, 1, 0];
   const touch = (kind: ContactEvent['kind'], speed?: number): ContactEvent => ({ kind, seat: 0, other: 1, perfect: false, at, ...(speed ? { speed } : {}) });
   const ctx = { bpm: 120, at: () => at };
   const j = (ev: DuelEvent[], t: ContactEvent[], p: { k: string; seat?: number; power?: string }[] = [], top = false) => juiceOf(ev, t, p, { ...ctx, geyserTop: () => top });
   const hold = (x: Juice[]) => x.map((e) => `${e.what}:${e.hold}`).join(',');
-  assert(hold(j([], [touch('catch')])) === `catch:${WEIGHT.FRAMES.catch}`, hold(j([], [touch('catch')])));
-  assert(hold(j([], [touch('aerial')])) === `aerial:${WEIGHT.FRAMES.aerial}`, 'an air catch');
-  assert(j([], [touch('aerial')], [], true)[0].via === 'geyser' && j([], [touch('aerial')], [], true)[0].hold === WEIGHT.FRAMES.geyser, 'at a geyser\'s top');
+  const F = WEIGHT.FRAMES;
+  assert(hold(j([], [touch('catch')])) === 'catch:0', `a ground catch: ${hold(j([], [touch('catch')]))}`);
+  assert(hold(j([], [touch('aerial')])) === `aerial:${F.aerial}`, 'an air catch');
+  assert(j([], [touch('aerial')], [], true)[0].via === 'geyser' && j([], [touch('aerial')], [], true)[0].hold === F.geyser, 'at a geyser\'s top');
   const r = j([], [], [{ k: 'catch', seat: 1, power: 'whip' }]);
-  assert(r[0].what === 'range' && r[0].via === 'whip' && r[0].hold === WEIGHT.FRAMES.range, 'a whip\'s catch is at range');
-  assert(WEIGHT.FRAMES.catch < WEIGHT.FRAMES.aerial && WEIGHT.FRAMES.aerial < WEIGHT.FRAMES.range && WEIGHT.FRAMES.catch >= 3 && WEIGHT.FRAMES.range <= 6, 'more in the air, most at range, 3 to 6');
+  assert(r[0].what === 'range' && r[0].via === 'whip' && r[0].hold === F.range, 'a whip\'s catch is at range');
+  for (const k of ['range', 'geyser', 'lift']) assert(F[k] >= 8 && F[k] <= 12, `${k}: ${F[k]} frames, 8 to 12`);
+  assert(F.aerial > 0 && F.aerial < 8 && F.catch === 0 && F.fling === 0, 'an air catch between; nothing on a ground catch or a fling');
   const fl = j([], [touch('fling', 4)])[0], ff = j([], [touch('fling', 16)])[0];
-  assert(fl.what === 'fling' && fl.hold === WEIGHT.FRAMES.fling && ff.w > fl.w, 'a fling\'s release, weightier faster');
+  assert(fl.what === 'fling' && fl.hold === 0 && ff.w > fl.w, 'a fling\'s release: weightier faster, never held');
   const pt = j([{ k: 'pairTier', seat: 0, tier: 1, name: 'DUET', color: '#fff', n: 14 }], [])[0];
   assert(pt.what === 'pair' && pt.slow === WEIGHT.PAIR_SLOW && Math.abs((pt.slowS ?? 0) - 0.5) < 1e-9, `a pair tier: a beat slowed (${pt.slowS} s)`);
   assert(j([{ k: 'finale', fused: true, peak: 1 }], [])[0]?.what === 'fusion' && !j([{ k: 'finale', fused: false, peak: 0.8 }], []).length, 'the fusion');
-  // the warp: held, then eased back, never frozen
+  // the warp: landed, held as a breath, eased back with no step, never frozen
   const W = new TimeWarp(), dt = 1 / 60, ks: number[] = [];
-  W.add({ hold: 4 });
-  for (let i = 0; i < 14; i++) ks.push(W.step(dt));
-  assert(ks.slice(0, 4).every((k) => k === WEIGHT.HOLD_SCALE) && ks[4] > WEIGHT.HOLD_SCALE && ks[13] === 1 && Math.min(...ks) > 0, `held 4 frames, eased back (${ks.map((k) => k.toFixed(2)).join(' ')})`);
-  W.add({ hold: 0, slow: 0.4, slowS: 0.5 });
+  const h = { hold: F.range };
+  W.add(h);
+  for (let i = 0; i < 60; i++) ks.push(W.step(dt));
+  assert(h.hold === F.range && ks[0] < 0.5 && ks[0] > WEIGHT.HOLD_SCALE, `it lands softly (${ks[0].toFixed(2)})`);
+  const inHold = ks.slice(WEIGHT.IN_FRAMES, F.range);
+  assert(inHold.every((k) => k <= WEIGHT.HOLD_BREATH + 1e-9 && k >= WEIGHT.HOLD_SCALE - 1e-9) && inHold[inHold.length - 1] > inHold[0], `held ${F.range} frames, breathing (${inHold.map((k) => k.toFixed(2)).join(' ')})`);
+  const out = ks.slice(F.range);
+  let maxJump = 0;
+  for (let i = 1; i < ks.length; i++) if (i > WEIGHT.IN_FRAMES) maxJump = Math.max(maxJump, Math.abs(ks[i] - ks[i - 1]));
+  assert(out[0] < 0.3 && ks[59] === 1 && maxJump < 0.12 && Math.min(...ks) > 0, `eased back over ${(WEIGHT.EASE_S + WEIGHT.EASE_PER * F.range / 60).toFixed(2)} s, no step (largest change a frame ${maxJump.toFixed(3)}): ${out.slice(0, 16).map((k) => k.toFixed(2)).join(' ')}`);
+  // fewer: a hold too soon after the last is let go, a longer one is not
+  const W2 = new TimeWarp();
+  W2.add({ hold: F.aerial });
+  for (let i = 0; i < F.aerial + 10; i++) W2.step(dt);
+  const again = { hold: F.aerial }, longer = { hold: F.range };
+  W2.add(again); W2.add(longer);
+  assert(again.hold === 0 && longer.hold === F.range && W2.skipped === 1, `an air catch 10 frames after another is let go (${again.hold}); a catch at range is not (${longer.hold})`);
+  W.add({ hold: 0, slow: WEIGHT.PAIR_SLOW, slowS: 0.5 });
   const sl: number[] = [];
   for (let i = 0; i < 40; i++) sl.push(W.step(dt));
-  assert(Math.min(...sl) < 0.45 && sl[39] === 1 && sl.filter((k) => k < 0.5).length > 10, `slowed a beat (${Math.min(...sl).toFixed(2)} at the least)`);
-  return `frames held: catch ${WEIGHT.FRAMES.catch}, air ${WEIGHT.FRAMES.aerial}, range ${WEIGHT.FRAMES.range}, fling ${WEIGHT.FRAMES.fling}, lift ${WEIGHT.FRAMES.lift}`;
+  let slJump = 0;
+  for (let i = 1; i < 31; i++) slJump = Math.max(slJump, Math.abs(sl[i] - sl[i - 1]));
+  assert(Math.min(...sl) < 0.42 && sl[39] === 1 && sl.filter((k) => k < 0.5).length > 10 && slJump < 0.15, `slowed a beat (${Math.min(...sl).toFixed(2)} at the least, largest change a frame ${slJump.toFixed(3)})`);
+  return `frames held: air ${F.aerial}, range ${F.range}, geyser ${F.geyser}, lift ${F.lift}; ground catch and fling none; a range hold ${ks.slice(0, 14).map((k) => k.toFixed(2)).join(' ')}`;
 });
 
-test('juice events reach the duel\'s stream: a played set has catches, flings and pair tiers held, and the warp takes a little time from the bodies', () => {
+test('juice events reach the duel\'s stream: a played set has catches, flings and pair tiers, fewer of them held, and the warp takes a little time from the bodies', () => {
   const { arena: A, world: W } = nodeArena('temple');
-  const seen: Record<string, number> = {};
+  const seen: Record<string, number> = {}, held: Record<string, number> = {};
   const r = simulateDuel({ arena: A, world: W, brains: makeBrains(['lead', 'flyer'], [0.85, 0.85], [1, 8]), sets: 1, setMs: 30000, seconds: 60, warp: true,
-    each: ({ events }) => { for (const e of events) if (e.k === 'juice') seen[e.what] = (seen[e.what] ?? 0) + 1; } });
-  const lost = r.match.warp.lost;
+    each: ({ events }) => { for (const e of events) if (e.k === 'juice') { seen[e.what] = (seen[e.what] ?? 0) + 1; if (e.hold > 0) held[e.what] = (held[e.what] ?? 0) + 1; } } });
+  const lost = r.match.warp.lost, holds = Object.values(held).reduce((a, b) => a + b, 0), all = Object.values(seen).reduce((a, b) => a + b, 0);
   assert((seen.catch ?? 0) + (seen.aerial ?? 0) + (seen.range ?? 0) > 3 && (seen.fling ?? 0) > 2, `juice ${JSON.stringify(seen)}`);
+  assert(!held.catch && !held.fling && holds < all / 2, `held only the big ones: ${JSON.stringify(held)} of ${JSON.stringify(seen)}`);
   assert(r.match.history.some((h) => h.e.k === 'juice'), 'in the history (the film\'s log)');
-  assert(lost > 0.3 && lost < 0.15 * r.seconds, `the warp took ${lost.toFixed(2)} s of ${r.seconds.toFixed(1)}`);
-  return `${JSON.stringify(seen)}; ${lost.toFixed(2)} s held of ${r.seconds.toFixed(1)}`;
+  assert(lost > 0.1 && lost < 0.15 * r.seconds, `the warp took ${lost.toFixed(2)} s of ${r.seconds.toFixed(1)}`);
+  return `${JSON.stringify(seen)}, held ${JSON.stringify(held)}; ${lost.toFixed(2)} s held of ${r.seconds.toFixed(1)}`;
 });
 
 test('the finale: a fused lift reports its top once (the duel holds it); a bow never; the banner\'s "nearly" for a set that didn\'t fuse', () => {

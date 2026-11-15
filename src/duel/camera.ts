@@ -30,7 +30,9 @@
 //
 // Juice (phase 3): `impulse` (the feel's catches, flings, tiers, lifts and merges) leans the look point toward the
 // contact and eases the boom in or out for a moment, with a soft settle or sway, shaped u³(1 − u)⁴ (no step in speed or
-// acceleration), bounded, and faded wherever it would make the eye less clean. Time: the camera runs on real time (the
+// acceleration), bounded, and faded wherever it would make the eye less clean; a moment that holds the bodies (phase 4:
+// weight.ts) rises over its hold and settles after it, so the camera arrives as the bodies let go (`hold`, smootherstep
+// both ways, still no step in speed or acceleration). Time: the camera runs on real time (the
 // page's f.dt, not the game's danceDt), so in a hit-stop or a slow motion it keeps easing toward the slowed bodies.
 export type V3 = [number, number, number];
 
@@ -53,7 +55,10 @@ export interface CamSpace {
 /** what the feel asks of the camera at a moment of contact (DuelCamera.impulse): where it happened, what it was, and
  *  how big (0 … 1) */
 export type CamImpulseKind = 'catch' | 'fling' | 'tier' | 'lift' | 'merge';
-export interface CamImpulse { at: [number, number, number]; kind: CamImpulseKind; k: number }
+export interface CamImpulse { at: [number, number, number]; kind: CamImpulseKind; k: number;
+  /** the bodies' hold (s, weight.ts): the ease arrives as the hold lets go (its rise over the hold and half the ease
+   *  back after it), then settles over the rest of the kind's length; none: the kind's own shape */
+  hold?: number }
 
 /** a body as the camera frames it */
 export interface CamBody {
@@ -183,6 +188,12 @@ export const IMPULSE: Record<CamImpulseKind, { lean: number; push: number; len: 
 const IMP_REACH = 0.8, IMP_IN = 0.14, IMP_OUT = 0.08;
 /** u³(1 − u)⁴, its peak 1 (at u = 3/7) */
 const bump = (u: number) => (u <= 0 || u >= 1 ? 0 : (u * u * u * (1 - u) ** 4) / 0.008393);
+/** a held moment's shape: up over `rise` s and down over the rest of `len`, each a smootherstep (no step in speed or
+ *  acceleration at either end) */
+const held = (age: number, rise: number, len: number) => {
+  const s = (x: number) => { const k = Math.max(0, Math.min(1, x)); return k * k * k * (k * (k * 6 - 15) + 10); };
+  return age <= 0 || age >= len ? 0 : age < rise ? s(age / rise) : 1 - s((age - rise) / Math.max(1e-3, len - rise));
+};
 
 /** the unit directions through a cols × rows grid on the screen of a camera turned (yaw, pitch) with a lens */
 export function raysAt(yaw: number, pitch: number, fov: number, aspect: number, cols: number, rows: number): V3[] {
@@ -334,7 +345,7 @@ export class DuelCamera {
   private swingT = 0;
   private riseLow = 0;
   /** the impulses under way (their age in seconds of real time), and how much of them the clean eye lets through */
-  private imps: (CamImpulse & { age: number })[] = [];
+  private imps: (CamImpulse & { age: number; rise: number })[] = [];
   /** how far the plain view has come down over water now (rad: ARENA_CAM) */
   private low = 0;
   private impGain = 1;
@@ -357,7 +368,10 @@ export class DuelCamera {
   impulse(e: CamImpulse) {
     const k = Math.max(0, Math.min(1, Number.isFinite(e.k) ? e.k : 0));
     if (k <= 0 || !IMPULSE[e.kind] || !e.at.every(Number.isFinite)) return;
-    this.imps.push({ at: [e.at[0], e.at[1], e.at[2]], kind: e.kind, k, age: 0 });
+    // (held: the rise over the hold and half its ease back, 0.25 s at the least, at most half the kind's length)
+    const h = Number.isFinite(e.hold) && e.hold! > 0 ? e.hold! : 0, len = IMPULSE[e.kind].len;
+    const rise = h > 0 ? Math.min(len * 0.5, Math.max(0.25, h + 0.5 * (0.12 + 0.8 * h))) : 0;
+    this.imps.push({ at: [e.at[0], e.at[1], e.at[2]], kind: e.kind, k, age: 0, rise });
     if (this.imps.length > 6) this.imps.shift();
   }
 
@@ -371,7 +385,7 @@ export class DuelCamera {
       m.age += dt;
       const u = m.age / S.len;
       if (u >= 1) return false;
-      const b = bump(u) * m.k;
+      const b = (m.rise > 0 ? held(m.age, m.rise, S.len) : bump(u)) * m.k;
       const to: V3 = [m.at[0] - this.look[0], m.at[1] - this.look[1], m.at[2] - this.look[2]], L = Math.hypot(...to);
       const w = L > 1e-6 ? (Math.min(L * S.lean, IMP_REACH) / L) * b : 0;
       const sway = S.sway * m.k * Math.sin((2 * Math.PI * m.age) / S.period) * Math.sin(Math.PI * u) ** 2;

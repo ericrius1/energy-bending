@@ -100,6 +100,7 @@ export function installHud(c: HudCtx) {
     /** run the demo state from now (false stops it and clears the HUD) */
     startDemo(on = true) { demo = on ? new HudDemo() : null; if (!on) hud.set({ ...hud.current, mode: 'none' }); return demo; },
     stats: (reset = false) => hud.stats(reset),
+    cover: () => hud.cover(),
   };
   return { hud, api, overlay, compose: (g: CanvasRenderingContext2D, w: number, h: number) => hud.compose(g, w, h) };
 }
