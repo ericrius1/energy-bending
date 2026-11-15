@@ -5,7 +5,8 @@
 //
 //   combo   each dancer's chain of moves without long on the ground: every link (a catch, a swing, a fling, a lift, a
 //           vault, a wall jump or run, a dash, a flip, a kick in the air, a flight landed) adds to it and to its
-//           multiplier; a link on the beat (an 8th-note line within PERFECT_MS) counts double; a link the same as the
+//           multiplier; a link on the beat (an 8th-note line within PERFECT_MS at 112 bpm, the same share of the beat at
+//           any tempo: perfectMs) counts double; a link the same as the
 //           last two counts little (variety over repetition). Only what a dancer does counts: a held body's own wall
 //           runs and dashes don't (the contact carries it), and a flown body's link is for what it does with the
 //           flight (landing it, a wall jump, a catch of its own), not for being flung. The combo is banked into style
@@ -45,8 +46,12 @@ export const DUEL = {
   SET_MS: 60000,
   FINALE_MS: 2900, // (the two's duet on the last bar, src/duel/finale.ts: at most 2.6 s, then the banner)
   DONE_MS: 4000,
-  /** on the beat: within this of an 8th-note line */
+  /** on the beat: within this of an 8th-note line at PERFECT_BPM; at another tempo the same share of the beat (perfectMs:
+   *  71 ms at the temple's 94 bpm, 56 at the Pool's 121). A window fixed in ms was a bigger share of a faster beat, so a
+   *  faster track made more links perfect (each a double gain of the shared energy): the Pool's tempo fused about a
+   *  third more often than the temple's in Node (report 16) */
   PERFECT_MS: 60,
+  PERFECT_BPM: 112,
   PERFECT_GRID: 0.5,
   PERFECT_MUL: 2,
   /** a combo ends after this long on the ground (a moment's step between moves keeps it), this long with no link, or
@@ -257,11 +262,14 @@ export function frozen(d: DuelState, seat: number) { return d.phase === 'intro' 
 /** play is on (links count) */
 export const playing = (d: DuelState) => d.phase === 'play';
 
-/** is a beat (music clock) on the 8th-note grid, within PERFECT_MS at this tempo? */
+/** the on-beat window (ms either side of an 8th-note line) at a tempo: PERFECT_MS at PERFECT_BPM, the same share of the
+ *  beat at any other */
+export const perfectMs = (bpm: number) => (DUEL.PERFECT_MS * DUEL.PERFECT_BPM) / Math.max(40, bpm || DUEL.PERFECT_BPM);
+/** is a beat (music clock) on the 8th-note grid, within the window (perfectMs) at this tempo? */
 export function onBeat(beat: number | null, bpm: number) {
   if (beat == null || !Number.isFinite(beat)) return false;
   const g = DUEL.PERFECT_GRID, x = beat / g, off = (x - Math.round(x)) * g;
-  return Math.abs((off * 60000) / Math.max(40, bpm)) <= DUEL.PERFECT_MS;
+  return Math.abs((off * 60000) / Math.max(40, bpm)) <= perfectMs(bpm);
 }
 
 /** the tier a combo of n links has reached (0: none) */

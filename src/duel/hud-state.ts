@@ -11,7 +11,7 @@
 // cashed, players' lead and best, pops' id and dir), which src/hud/state.ts doesn't type yet: the build is checked
 // against src/hud's HudState below, so the two stay in step. Types only: a value from src/hud would sit in main.ts's
 // chunk, see screenOf.)
-import { DUEL, fusionCharge, tierInfo, pairTierInfo, pairMult, type DuelEvent, type DuelState } from '../../shared/duel.ts';
+import { DUEL, fusionCharge, tierInfo, pairTierInfo, pairMult, perfectMs, type DuelEvent, type DuelState } from '../../shared/duel.ts';
 import type { ContactEvent } from './contact';
 import type { HudState as HudContract } from '../hud/state';
 
@@ -249,7 +249,7 @@ export class DuelHud {
       shared: { energy: d.energy, peak: d.peak, merge: d.merge, fusion: +fusionCharge(d).toFixed(3), high: +(d.highBest / 1000).toFixed(2), highFor: DUEL.FUSE_HOLD_MS / 1000, highAt: DUEL.FUSE_AT, merges: d.merges },
       set: { time: Math.max(0, time), length: setMs / 1000, phase: d.phase, ...(d.phase === 'intro' ? { countdown: countLeft(d, now) } : {}), ...(d.winner != null ? { winner: d.winner } : {}), ...(d.phase === 'finale' || d.phase === 'done' ? { fused: d.fused } : {}) },
       pair: this.pairOf(d, players),
-      beat: { phase: beat - Math.floor(beat), bpm, window: DUEL.PERFECT_MS / 1000 },
+      beat: { phase: beat - Math.floor(beat), bpm, window: perfectMs(bpm) / 1000 },
       pops: this.pops.map((p) => ({ ...p, at: [p.at[0], p.at[1]] })),
     };
     this.ended = [null, null];

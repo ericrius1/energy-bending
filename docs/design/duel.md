@@ -234,6 +234,15 @@ or sway, not a jolt), report 13's issues 1 and 3 became these (report 14):
   (`Arena.energy: { gain, ebb }`, read into `DuelState.tune`). The Pool's swell and water make its dance denser (a third
   more catches, three in four from the air), so its gains are ×0.93 and its ebbs ×1.15. At skill 0.85 the fusion is
   about 1 set in 8 there as elsewhere (the Pool 31 of 40 before, 16 of 120 after).
+- **The beat's window by the beat, not the clock** (phase 4, report 16). A link is on the beat within `perfectMs(bpm)`
+  of an 8th-note line: `PERFECT_MS` (60) at `PERFECT_BPM` (112), the same share of the beat at any tempo (71 ms at the
+  temple's 94 bpm, 56 at the Pool's 121). A window fixed in ms was a bigger share of a faster beat, so a faster track
+  made more links perfect (each a double gain of the shared energy) and held the energy near the top longer. The HUD's
+  beat ring shows the same window.
+- **The geode's hum rises where the pair is** (phase 4, report 16): each phrase its column takes the open spot nearest
+  the two as its warning begins (eight spots spread where they dance, most in front of the middle), following them
+  through the warning's first bar, then standing (`chooseHum`, hazards.ts). Its drops reach 1.2 m in front of the plane
+  (2.2 before), where the pair dances most and most of the geode's falls were.
 
 ## The contracts the parallel work shares
 
