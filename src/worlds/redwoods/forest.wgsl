@@ -14,7 +14,7 @@ struct Forest {
   key: vec4f,       // xyz: towards the light (the sun, or the moon at night); w: how strong it is unshaded
   keyCol: vec4f,    // its colour; w: the canopy's height (m)
   zenith: vec4f,    // the sky overhead; w: how many stars show
-  horizon: vec4f,   // the sky low down; w: -
+  horizon: vec4f,   // the sky low down; w: how many fireflies are out (from dusk: day.ts)
   glow: vec4f,      // the glow round the sun in the sky (nothing once it's down)
   sunDisc: vec4f,   // xyz: towards the sun; w: its disc's brightness
   moonDisc: vec4f,  // xyz: towards the moon; w: its disc's brightness
@@ -28,7 +28,7 @@ struct Forest {
   stageLog: vec4f,  // the fallen log on the stage: its axis on the ground (x0, z0, x1, z1)
   stagePlate: vec4f,// x: its radius; yzw: its root plate (x, z, radius)
   gate: vec4f,      // the gate's worn path: xz where it starts (at the gate), xz where it fades into the meadow
-  near: vec4f,      // w: how many dancers are in `dancers`
+  near: vec4f,      // xy: the duel's gust's way (xz), z: its strength (0 … 1; garden.wgsl); w: how many dancers are in `dancers`
   dancers: array<vec4f, 4>,         // each dancer: where its chest is, w: 1 (fireflies gather round them)
   kicks: array<vec4f, 4>,           // the last landing of each dancer: where its feet came down, w: when (clock.x)
   lamps: array<vec4f, MAXLAMP>,     // each lantern: its centre, w: how brightly it's lit

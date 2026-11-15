@@ -248,7 +248,7 @@ struct FOut {
   let period = 2.4 + 3.6 * h2.z;
   let ph = fract(t / period + h2.x);
   let flash = smoothstep(0.0, 0.035, ph) * (1.0 - smoothstep(0.05, 0.16, ph));
-  o.bright = worldLight.forest.night * (flash + 0.04);
+  o.bright = worldLight.forest.horizon.w * (flash + 0.04);
   let c = array<vec2f, 6>(vec2f(-1.0, -1.0), vec2f(1.0, -1.0), vec2f(1.0, 1.0), vec2f(-1.0, -1.0), vec2f(1.0, 1.0), vec2f(-1.0, 1.0))[vi];
   o.uv = c;
   let size = 0.035 + 0.02 * h2.y;

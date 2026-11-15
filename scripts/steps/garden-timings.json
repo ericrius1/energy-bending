@@ -1,0 +1,10 @@
+[
+ { "name": "temple-a", "query": "duel&world=temple&dress=fire,water&p1=bot&p2=bot&style=lead,flyer&skill=0.85&seed=3", "frames": 600, "timings": true },
+ { "name": "temple-b", "query": "duel&world=temple&dress=fire,water&p1=bot&p2=bot&style=lead,flyer&skill=0.85&seed=3", "frames": 60, "timings": true },
+ { "name": "temple-c", "query": "duel&world=temple&dress=fire,water&p1=bot&p2=bot&style=lead,flyer&skill=0.85&seed=3", "frames": 60, "timings": true },
+ { "name": "temple-d", "query": "duel&world=temple&dress=fire,water&p1=bot&p2=bot&style=lead,flyer&skill=0.85&seed=3", "frames": 60, "timings": true },
+ { "name": "redwoods-a", "query": "duel&world=redwoods&dress=water,fire&p1=bot&p2=bot&style=lead,flyer&skill=0.85&seed=3", "frames": 600, "timings": true },
+ { "name": "redwoods-b", "query": "duel&world=redwoods&dress=water,fire&p1=bot&p2=bot&style=lead,flyer&skill=0.85&seed=3", "frames": 60, "timings": true },
+ { "name": "redwoods-c", "query": "duel&world=redwoods&dress=water,fire&p1=bot&p2=bot&style=lead,flyer&skill=0.85&seed=3", "frames": 60, "timings": true },
+ { "name": "redwoods-d", "query": "duel&world=redwoods&dress=water,fire&p1=bot&p2=bot&style=lead,flyer&skill=0.85&seed=3", "frames": 60, "timings": true }
+]

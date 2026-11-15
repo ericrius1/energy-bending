@@ -162,10 +162,11 @@ binding: the numbers ride in the world light uniform as `WorldLight.sight` (a me
 fragment pays one uniform branch), and grass, ferns and flowers don't call it. **In the duel** (the arena shown) it
 also dissolves a piece standing in the near part of the frame (`worlds/fade-frame.ts`, pure: a ray grid through the
 lens, a share of the frame or a near corner, hysteresis, eased; never what a body stands on, hangs from or is about to
-land on; boxes side by side are one piece), patch by patch, its edges kept as a faint line: up to 16 pieces in
-`Sight.piece`, and `return vec4f(sightLit(col), …)` in each solid shader brightens what is left with the arena's rim
-light. Call `sightDrop` in uniform control flow (it takes the facet from the derivatives). The gems' pillar dims with it
-(`PlayApp.fade.strengthOf`). Params `fade` (`frame`, `outline`) and `fadeFrame`; `bend.fade.seen` says what the CPU
+land on; boxes side by side are one piece), patch by patch, its edges kept as a faint line only near the pair (none on
+a piece the pair is nowhere near, none where the piece is pale already: report 16): up to 16 pieces in `Sight.piece`,
+and `return vec4f(sightLit(col), …)` in each solid shader brightens what is left with the arena's rim light (or drops
+it, pale). Call `sightDrop` in uniform control flow (it takes the facet from the derivatives). The gems' pillar dims with it
+(`PlayApp.fade.strengthOf`). Params `fade` (`frame`, `outline`, `lines`) and `fadeFrame`; `bend.fade.seen` says what the CPU
 found (`pieces`, `cover`); report 14-camera, "The near fade in the duel's frame".
 
 **What each stage costs** (RTX 5090, 1280×800, the critic's six scenes, 5-integration.md): sim about 0.1 ms (field,

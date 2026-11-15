@@ -15,7 +15,8 @@ struct Seg {
 
 struct Look {
   rim: vec4f,    // the rim light's colour; w: its strength
-  beat: vec4f,   // x: the beat's phase (0 … 1), y: how much it breathes, z: segments, w: -
+  beat: vec4f,   // x: the beat's phase (0 … 1), y: how much it breathes, z: how locked the view is, w: the water's
+                 // height over the arena (a tide; very low: none): a rim under it is drowned, and fades out
 }
 
 @group(1) @binding(0) var<storage, read> segs: array<Seg>;
@@ -27,6 +28,7 @@ struct LOut {
   @builtin(position) pos: vec4f,
   @location(0) uv: vec2f,                         // x: across the ribbon (-1 … 1), y: along it (0 … 1)
   @location(1) @interpolate(flat) info: vec4f,    // kind, its length (m), -, -
+  @location(2) y: f32,                            // its height (world)
 }
 
 @vertex fn vs(@builtin(vertex_index) vi: u32, @builtin(instance_index) ii: u32) -> LOut {
@@ -43,6 +45,7 @@ struct LOut {
   o.pos = frame.viewProj * vec4f(p, 1.0);
   o.uv = corner;
   o.info = vec4f(s.a.w, L, 0.0, 0.0);
+  o.y = p.y;
   return o;
 }
 
@@ -82,5 +85,10 @@ fn kindColour(k: u32) -> vec3f {
   let breath = 1.0 + look.beat.y * (pow(1.0 - look.beat.x, 3.0) - 0.25);
   // (walls a little fainter than the tops: the tops are where a body lands)
   let w = select(1.0, 0.7, k >= 2u);
-  return vec4f(look.rim.rgb * look.rim.w * across * ends * breath * w * lock, 0.0);
+  // under the tide a rim is drowned: a trace just under the surface, gone a hand's depth down (the glow is laid over
+  // the water, so a drowned court's rims floated as gold lines over it: report 15, issue 5)
+  let drowned = 1.0 - 0.85 * smoothstep(look.beat.w + 0.03, look.beat.w - 0.04, i.y) - 0.15 * smoothstep(look.beat.w - 0.04, look.beat.w - 0.2, i.y);
+  if (drowned <= 0.002) { discard; }
+  return vec4f(look.rim.rgb * look.rim.w * across * ends * breath * w * lock * drowned, 0.0);
+
 }

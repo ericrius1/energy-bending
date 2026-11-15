@@ -1,0 +1,10 @@
+{
+  "generator": "GPT Image via the Codex CLI image tool (ChatGPT login)",
+  "codexModel": "gpt-5.6-terra",
+  "prompt": "Concept art for a real-time game arena, side-on view at golden hour: a solarpunk sunlit water temple court. Pale limestone and white ceramic columns and lintels (some broken, ruin-like, on a flat flagstone court with two square pits of clear turquoise water), flowering vines and wooden trellises climbing the columns and hanging from the lintels with pink and white blossoms, a high canopy of art-nouveau stained solar glass in teal, gold, coral and leaf green overhead casting coloured light pools on the wet floor, brass details gone verdigris green, narrow water channels and small fountains, clean bright shallow water lapping over the court, long silk banners and wind chimes moving in the breeze, warm golden sun and soft bounce light, hopeful, calm, awe. Two small dancers in the middle, one rose, one fern green. No people faces, no text.",
+  "inputs": {},
+  "codexThread": "01a1dc5c-71e0-7d42-98a2-8006786abbcb",
+  "codexFile": "C:\\Users\\ericr\\.codex\\generated_images\\01a1dc5c-71e0-7d42-98a2-8006786abbcb\\exec-d34874ce-6d64-42ca-a5b6-1e068ebe480f.png",
+  "seconds": 66.3,
+  "sha256": "81c517b4df5beb84e17d18c8d13973b1f655d29621360ab9279c2de68a0036e2"
+}

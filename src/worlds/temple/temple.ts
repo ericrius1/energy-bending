@@ -13,13 +13,17 @@ import type { Temple as TempleU } from '../light.wgsl';
 import { lightSlot, type LightSlot } from '../shared';
 import backdropShader from './backdrop.wgsl';
 import stoneShader from './stones.wgsl';
+import gardenShader from './garden.wgsl';
+import fountainShader from './fountains.wgsl';
+import { layoutGarden } from './garden';
 import type { Grade, PortalDef, World, WorldCtx } from '../world';
 import type { ScenePass } from '../../engine/scene';
 import type { FrameCtx } from '../../engine/frame';
 import { defineParams, hex, onParams } from '../../engine/params';
 import { Ripples } from '../water/ripples';
 import { stagePlane, spawnsOf, type StagePlane } from '../stage';
-import { layoutTemple, MOON_BEARING, packStones, solidsOf, STAGE_Z, type TempleLayout } from './layout';
+import { layoutTemple, packStones, solidsOf, STAGE_Z, type TempleLayout } from './layout';
+
 import { clearOf, type Solid } from '../solids';
 import { JOINT } from '../../skeleton/rig';
 import { arenaShown, dropsUniform, inDrop } from '../../duel/arena';
@@ -33,40 +37,50 @@ export const templeParams = defineParams('temple', {
   tideBars: 8,
   /** hold the tide at a point of its cycle (0 low … 0.5 high … 1 low), or follow the music (< 0) */
   tideHold: -1,
-  zenith: '#060b22',
-  horizon: '#141a2e',
-  dusk: '#ffa36b',
-  duskAmt: 0.45,
-  moonCol: '#c4d2f4',
-  moonLight: 1.0,
-  /** the moon's size (degrees across) and height over the sea (degrees) */
-  moonSize: 3.6,
-  moonHeight: 8,
-  stars: 0.8,
-  stone: '#a29e94',
+  // (the solarpunk pass, report 16: a sunlit afternoon in place of the moonlit dusk. The light's members keep their
+  // names: `moon*` is the temple's one key light, now the sun; `dusk` the warm haze low over the sea and the bounce
+  // from the sunlit court)
+  zenith: '#2f7fb4',
+  horizon: '#b4d6d4',
+  dusk: '#ffc58a',
+  duskAmt: 0.5,
+  moonCol: '#ffe6c0',
+  moonLight: 1.5,
+  /** the sun's size (degrees across), its height over the sea (degrees) and its bearing (rad from straight behind the
+   *  stage, -z, toward -x: behind the stage and to the left, so the columns' sides and every top are sunlit and the
+   *  shadows fall across the court toward the right and the camera) */
+  moonSize: 1.4,
+  moonHeight: 34,
+  sunBearing: -1.05,
+  stars: 0,
+  stone: '#c2b8a4',
   wetGloss: 1,
-  /** the afterglow's low light on the stones' fronts (it rakes the carving) */
-  afterglow: 0.16,
-  /** the moonlit sky's cool fill on the stone */
-  skyFill: 0.05,
-  /** how much of the moon's direct light the stone takes (a face square to it would go white at 1), and how weathered
-   *  the side facing the sea and the moon is */
-  moonStone: 0.5,
-  weather: 1,
+  /** the sunlit court's warm bounce on the stones' fronts (it rakes the carving) */
+  afterglow: 0.32,
+  /** the sky's cool fill on the stone */
+  skyFill: 0.1,
+  /** how much of the sun's direct light the stone takes (a face square to it would go white at 1), and how weathered
+   *  the side facing away from the eye is (kept: the temple is tended now, its stone clean) */
+  moonStone: 0.62,
+  weather: 0.2,
+  /** the vines and flowers over the columns and lintels (how much of the stone they cover), and the stained glass's
+   *  light on the court (how strongly it tints the sun) */
+  vines: 1,
+  canopy: 1,
   /** how quickly the stone dries once the tide has left it (per cycle of the tide) */
   dry: 4,
   /** the moon's path on the water: how bright, how wide (the facets' slope), how fine its sparkle (per m) */
   glitter: 1.2,
   glitterWidth: 0.11,
   sparkle: 7,
-  /** the thin cloud across the moon (how thick) */
-  veil: 0.75,
-  sea: '#06141c',
-  depthDim: 1.2,
+  /** (the moon's veil of cloud: unused by the day sky) */
+  veil: 0,
+  sea: '#0f5e66',
+  depthDim: 1.0,
   mirror: 0.05,
   ripples: 1,
   wind: 0.06,
-  haze: 0.013,
+  haze: 0.006,
   /** how far the dancers' own light reaches (m), and a light for every dancer (for stills; the game sets each its own) */
   fireReach: 6,
   firelight: 0,
@@ -112,7 +126,7 @@ export class Temple implements World {
   readonly mirrorFloor = false;
   /** its colour (src/post/grade.ts): cool teal-blue shadows, warm highlights, a little less saturation so the stone
    *  stays stone (docs/reports/4-worlds-redwoods-temple.md; its vignette 0.3 is not per world yet) */
-  readonly grade: Grade = { lift: [0, 0.006, 0.016], gamma: [1.0, 1.0, 1.02], gain: [1.03, 1.0, 0.95], saturation: 0.92, contrast: 1.1 };
+  readonly grade: Grade = { lift: [0.006, 0.005, 0.004], gamma: [1.0, 1.0, 1.0], gain: [1.03, 1.0, 0.96], saturation: 1.04, contrast: 1.06 };
   readonly room = 16;
   readonly maxDist = 18;
   readonly layout: TempleLayout;
@@ -129,6 +143,9 @@ export class Temple implements World {
   private seen = -1;
   private packed: ReturnType<typeof packStones>;
   private buf: ReturnType<Kit['storage']>;
+  /** what hangs in the air (garden.ts): the court's, then the duel arena's */
+  private garden: ReturnType<typeof layoutGarden>;
+  private gardenBuf: ReturnType<Kit['storage']>;
   private lights = new Float32Array(8 * 4);
   private glows = new Float32Array(8 * 4);
   private own: (number[] | null)[] = [];
@@ -149,6 +166,8 @@ export class Temple implements World {
     this.duelSolids = [...this.courtSolids, ...duel.arena.pieces!];
     this.duelBuf = kit.storage({ label: 'temple.duel', data: duel.data, usage: ['storage'] });
     this.buf = kit.storage({ label: 'temple.stones', data: this.packed.data, usage: ['storage'] });
+    this.garden = layoutGarden(this.layout.stones, coarse);
+    this.gardenBuf = kit.storage({ label: 'temple.garden', data: this.garden.data, usage: ['storage'] });
     this.u = lightSlot(kit, 'temple');
     this.waves = new Ripples(kit, frame, {
       label: 'temple', cells: coarse ? 160 : 288, cell: coarse ? 0.09 : 0.055,
@@ -181,12 +200,12 @@ export class Temple implements World {
 
   private upload() {
     const P = templeParams;
-    const el = (P.moonHeight * Math.PI) / 180, az = MOON_BEARING;
+    const el = (P.moonHeight * Math.PI) / 180, az = P.sunBearing;
     this.u.set({
-      zenith: [...hex(P.zenith), P.stars], horizon: [...hex(P.horizon), 0], dusk: [...hex(P.dusk), P.duskAmt], duskDir: [0, 0, 1, 2.2],
+      zenith: [...hex(P.zenith), P.stars], horizon: [...hex(P.horizon), P.vines], dusk: [...hex(P.dusk), P.duskAmt], duskDir: [0, 0, 1, 2.2],
       moon: [Math.sin(az) * Math.cos(el), Math.sin(el), -Math.cos(az) * Math.cos(el), (P.moonSize * Math.PI) / 360],
       moonCol: [...hex(P.moonCol), P.moonLight], sea: [...hex(P.sea), P.depthDim], stone: [...hex(P.stone), P.wetGloss],
-      glitter: [P.glitter, P.glitterWidth, P.sparkle, P.veil], tide2: [P.afterglow, P.skyFill, P.moonStone, P.weather],
+      glitter: [P.glitter, P.glitterWidth, P.sparkle, P.canopy], tide2: [P.afterglow, P.skyFill, P.moonStone, P.weather],
     });
     this.march[2] = P.haze;
     this.u.set({ march: this.march });
@@ -254,6 +273,15 @@ export class Temple implements World {
         label: 'temple.duel.drums', vertex: 'vs_drum', bind: { stones: this.duelBuf }, count: DS * (DR - 1 + DC * 2) * 6, instances: duel.drums,
         constants: { FIRST: duel.blocks, SIDES: DS, RINGS: DR, CAPR: DC }, cull: 'none', enabled: shown,
       });
+      // what hangs in the air: banners, flowering strands, chimes (garden.ts), the duel's over its lintels while shown
+      const G = this.garden, SEG = coarse ? 8 : 14;
+      pass.draw(gardenShader, { label: 'temple.garden', bind: { hangs: this.gardenBuf }, count: SEG * 6, instances: G.court, constants: { FIRST: 0, SEG }, cull: 'none', enabled: on });
+      pass.draw(gardenShader, { label: 'temple.garden.duel', bind: { hangs: this.gardenBuf }, count: SEG * 6, instances: G.duel, constants: { FIRST: G.court, SEG }, cull: 'none', enabled: shown });
+    } else if (s.phase === 'glow') {
+      // the fountains' jets at the channels' corners
+      const per = coarse ? 80 : 160;
+      pass.draw(fountainShader, { label: 'temple.fountains', count: 6, instances: 4 * per, constants: { PER: per }, blend: 'add', depthWrite: false, cull: 'none', enabled: on });
+
     }
   }
 
@@ -272,7 +300,7 @@ export class Temple implements World {
     for (const [x0, x1, z0, z1, top] of this.layout.tops) if (x >= x0 && x <= x1 && z >= z0 && z <= z1) return top;
     return 0;
   }
-  exposure() { return 1.1; }
+  exposure() { return 0.9; }
   tone() { return { water: 7000, cave: 0.45, hearth: 0.15, depth: 0.55, forest: 0 }; }
   ambience() { return null; }
 }

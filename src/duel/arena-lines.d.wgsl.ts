@@ -43,6 +43,7 @@ export interface LOut {
   pos: Vec4;
   uv: Vec2;
   info: Vec4;
+  y: number;
 }
 
 declare const shader: Shader<{ Frame: Frame; Seg: Seg; Look: Look; LOut: LOut }, 'frame' | 'look' | 'segs' | 'samp_linear' | 'samp_repeat' | 'samp_nearest' | 'samp_shadow'>;

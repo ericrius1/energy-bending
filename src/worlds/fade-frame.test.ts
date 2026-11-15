@@ -106,6 +106,32 @@ test(`never more pieces dissolving than the shaders' ${FRAME_SLOTS} slots`, () =
   return `${most} at once`;
 });
 
+test('the outline only where the pair can use the piece: kept near a body, gone on one the pair is nowhere near', () => {
+  // the block 2.6 m from the eye, the pair 3.4 m beyond it: nobody near; then a body beside it
+  const f = new FrameFade();
+  run(f, [block], 90);
+  const far = f.top()[0];
+  assert(far && far.k > 0.95 && far.line < 0.01, `far from the pair: line ${far?.line.toFixed(2)} (dist ${far?.dist.toFixed(2)} m)`);
+  const g = new FrameFade();
+  run(g, [block], 90, view(), [body([-0.6, 0, 0]), body([1.6, 0, 2.0])]);
+  const near = g.top()[0];
+  assert(near && near.k > 0.95 && near.line > 0.6, `a body beside it: line ${near?.line.toFixed(2)} (dist ${near?.dist.toFixed(2)} m)`);
+  return `line ${far.line.toFixed(2)} at ${far.dist.toFixed(1)} m from the pair, ${near.line.toFixed(2)} at ${near.dist.toFixed(1)} m`;
+});
+
+test('a held decision while the camera turns: a piece swept out of the frame by a turn stays dissolved till it settles', () => {
+  const f = new FrameFade(), list = [block];
+  run(f, list, 60);
+  // the camera turns away (forward swinging at 1 rad/s) for 3 s: longer than the hold
+  const turned = (a: number): FrameView => ({ ...view(), forward: [Math.sin(-a), 0, -Math.cos(a)], right: [Math.cos(a), 0, Math.sin(a)] });
+  let a = 0;
+  for (let i = 0; i < 180; i++) { a += DT * (i % 120 < 60 ? 1 : -1); run(f, list, 1, turned(a)); }
+  assert(f.strengthOf(block) > 0.95, `held through the turn (${f.strengthOf(block).toFixed(2)}, turning ${f.turning.toFixed(2)} rad/s)`);
+  // steady, out of frame: held for the hold, then back
+  run(f, list, 420, turned(-1.2));
+  assert(f.strengthOf(block) === 0, `back once the turn settled (${f.strengthOf(block).toFixed(3)})`);
+});
+
 test('off (the jogo, a film, `fade.frame` false): everything eases back', () => {
   const f = new FrameFade();
   run(f, [block], 60);
