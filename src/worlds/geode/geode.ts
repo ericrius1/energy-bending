@@ -65,7 +65,7 @@ export const geodeParams = defineParams('geode', {
   rays: 0.7,
   causticCells: 4.2,
   causticSpeed: 0.25,
-  motes: 1400,
+  motes: 2400,
   moteSize: 0.008,
   haze: 0.03,
   hazeCol: '#1c1a10',
@@ -147,7 +147,7 @@ export class Geode implements World {
 
   constructor(ctx: WorldCtx) {
     const P = geodeParams;
-    if (ctx.coarse) Object.assign(P, { caveStones: 1000, motes: 700 });
+    if (ctx.coarse) Object.assign(P, { caveStones: 1000, motes: 1200 });
     this.u = lightSlot(ctx.kit, 'geode');
     this.shared = {};
     // the hub's gates (HUB_GATES), one to each world

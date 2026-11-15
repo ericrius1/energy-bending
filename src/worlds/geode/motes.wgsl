@@ -30,6 +30,29 @@ struct MOut {
     return o;
   }
   let h = rnd3(ii * 7u + 1u);
+  let c0 = array<vec2f, 6>(vec2f(-1.0, -1.0), vec2f(1.0, -1.0), vec2f(1.0, 1.0), vec2f(-1.0, -1.0), vec2f(1.0, 1.0), vec2f(-1.0, 1.0))[vi];
+  // (phase 6: half the dust is pollen drifting in the light wells' beams, the sun's slant through the glass vault)
+  if ((ii & 1u) == 1u) {
+    let k = i32((ii >> 1u) % 4u);
+    let W = worldLight.geode.wells[k];
+    let S = geodeSunDir();
+    let sF = (worldLight.geode.floorY - W.y) / min(S.y, -0.2);
+    let g = rnd3(ii * 11u + 3u);
+    // along the beam, falling slowly down it; round its axis, a little wider low down; a slow drift
+    let sb = sF * fract(g.x + frame.time * (0.004 + 0.006 * g.y));
+    let ax = normalize(cross(S, vec3f(0.0, 1.0, 0.0)));
+    let ay = cross(S, ax);
+    let rr = W.w * (0.85 + 0.35 * sb / sF) * sqrt(g.y) * 0.9;
+    let ang = g.z * 6.2831853 + frame.time * 0.05;
+    let wob = vec3f(sin(frame.time * 0.31 + g.x * 17.0), sin(frame.time * 0.23 + g.y * 13.0), cos(frame.time * 0.27 + g.z * 11.0)) * 0.12;
+    let centre = W.xyz + S * sb + (ax * cos(ang) + ay * sin(ang)) * rr + wob;
+    let size = worldLight.geode.moteSize * (0.8 + 1.2 * h.y);
+    o.pos = frame.viewProj * vec4f(centre + (frame.camRight * c0.x + frame.camUp * c0.y) * size, 1.0);
+    o.uv = c0;
+    let ends = smoothstep(0.0, 1.5, sb) * smoothstep(sF, sF * 0.7, sb);
+    o.bright = worldLight.geode.sun.w * 0.5 * ends * (0.35 + 0.65 * pow(0.5 + 0.5 * sin(frame.time * (0.8 + 2.0 * h.z) + h.x * 40.0), 3.0)) * step(0.0, W.w - 0.01);
+    return o;
+  }
   let top = worldLight.geode.shaftCol.w;
   let fall = 0.012 + 0.03 * h.x;
   let y = top * fract(h.z - frame.time * fall / top * 3.0);

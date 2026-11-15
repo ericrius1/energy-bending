@@ -5,6 +5,7 @@
 // trailing over the shelves' edges. Nothing here is solid; the near fade drops it where it stands in the lens.
 import { mulberry32 } from 'math/random';
 import type { GeodeDuel } from './arena';
+import { HUB_GATES } from './gates';
 
 type V3 = [number, number, number];
 
@@ -75,6 +76,28 @@ export function layoutGeodeGarden(duel: GeodeDuel['decor'], wallR: number, coars
   for (let k = 0; k <= GW_N; k++) {
     const s = (k - GW_N / 2) * GW_BAY, b = GW_MID + s / ringR;
     potAt(b, ringR, 0.42 + 0.06 * r(), 0.62 + 0.1 * r());
+  }
+  // the hanging gardens (phase 6): planters hung round the room's edge over the water channel, outside the duel's
+  // space, each on a vine-wrapped chain from the vault, ferns over its rim and long vines trailing from it; clear of the
+  // gates' ways
+  const gates = Object.values(HUB_GATES).map(([x, z]) => Math.atan2(z, x));
+  const N = coarse ? 8 : 14;
+  for (let k = 0; k < N; k++) {
+    const b = (k / N) * Math.PI * 2 + 0.13 + (r() - 0.5) * 0.12;
+    if (gates.some((g) => Math.abs(Math.atan2(Math.sin(b - g), Math.cos(b - g))) < 0.32)) continue;
+    const rr = 10.9 + 0.3 * r(), y = 4.7 + 1.8 * r(), R = 0.32 + 0.06 * r(), H = 0.42;
+    const at: V3 = [Math.cos(b) * rr, y, Math.sin(b) * rr];
+    pots.push(at[0], y, at[2], R, H, r(), 0, 0);
+    const top: V3 = [at[0], y + H * 0.92, at[2]];
+    fern(top, 0.6 + 0.2 * r(), coarse ? 5 : 7);
+    flowers(top, R * 0.5, 2, Math.floor(r() * 4), 0.35);
+    for (let j = 0; j < 4; j++) {
+      const a = r() * Math.PI * 2;
+      vine([at[0] + Math.cos(a) * R * 1.02, y + H, at[2] + Math.sin(a) * R * 1.02], 0.8 + 1.4 * r());
+    }
+    // its chain: a vine from the vault down to its rim (the vault's height there: the wall's ellipsoid)
+    const vy = wallR * 1.45 * Math.sqrt(Math.max(0, 1 - (rr / wallR) ** 2));
+    vine([at[0], vy, at[2]], Math.max(0.5, vy - y - H));
   }
   const hubPlants = plants.length / PLANT_FLOATS;
 

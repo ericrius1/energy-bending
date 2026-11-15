@@ -425,11 +425,20 @@ fn geodeGreenhouse(p: vec3f, d: vec3f) -> vec4f {
   // ------------------------------------------------ the tiers
   if (p.y < GH_GLASS) {
     let s = az * rxz;
-    let n1 = vnoise(vec3f(s * 1.6, p.y * 2.2, 1.0));
-    let n2 = vnoise(vec3f(s * 5.0, p.y * 6.0, 4.0));
-    // deep planting behind everything: dark leaves with sunlit edges
-    let fleck = smoothstep(0.72, 0.9, vnoise(vec3f(s * 9.0, p.y * 9.0, 6.0))) * smoothstep(4.6, 6.4, p.y);
-    var c = (mix(vec3f(0.012, 0.03, 0.01), vec3f(0.06, 0.13, 0.035), (0.5 + 0.5 * n2) * (0.4 + 0.6 * n1)) + vec3f(0.2, 0.26, 0.06) * fleck * 0.35) * (0.5 + 0.7 * sunK);
+    // deep planting behind everything, seen through the arcade 2.5 m back (the view carried on to there, so it moves
+    // against the arches as the eye does: a room of green behind them, not paint on the wall): dark leaves, sunlit
+    // where the glass above lights them, deeper in shadow under the ledge
+    let nOut = vec3f(p.x, 0.0, p.z) / rxz;
+    let q = p + d * (2.5 / max(dot(d, nOut), 0.3));
+    let sq = atan2(q.z, q.x) * length(q.xz);
+    let n1 = vnoise(vec3f(sq * 1.6, q.y * 2.2, 1.0));
+    let n2 = vnoise(vec3f(sq * 5.0, q.y * 6.0, 4.0));
+    let fleck = smoothstep(0.66, 0.9, vnoise(vec3f(sq * 7.0, q.y * 7.0, 6.0)));
+    let shaft = smoothstep(0.5, 0.95, sin((sq - q.y * 0.55) * 1.7) * 0.5 + 0.5) * 0.6;
+    let inner = mix(0.25, 1.0, smoothstep(4.2, 7.2, q.y));
+    var c = (mix(vec3f(0.012, 0.03, 0.01), vec3f(0.07, 0.15, 0.04), (0.5 + 0.5 * n2) * (0.4 + 0.6 * n1)) + vec3f(0.3, 0.32, 0.08) * fleck * (0.25 + shaft) * inner) * inner * (0.5 + 0.7 * sunK);
+    // (the sun's haze in the room behind, catching light high up)
+    c += GEO_SUN * 0.03 * sunK * shaft * smoothstep(4.6, 7.2, q.y);
     // the arcade above the rail: cream stone piers and pointed arches every 2.4 m, the planting seen deep through them
     let bay = 2.4;
     let bx = (fract(s / bay) - 0.5) * bay;
