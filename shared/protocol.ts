@@ -412,12 +412,34 @@ export interface DuelWelcome extends DuelHello {
   tickMs: number;
   t0: number;
   music: MusicClock;
+  /** the crossings so far (0: still in the world it began in; `world` is where the duel is now) and the last one */
+  crossings?: number;
+  last?: DuelCrossing | null;
+}
+/** the duel went through a mirror (or any gate) into another world, as the server judged it (src/duel/crossing.ts
+ *  DuelCross, with its tick and count): one body's middle passed `gate` (in `from`) and both came out of `partner` (in
+ *  `to`), the other brought along (joined: by the gate's own move). From this tick the arena, its solids and hazard are
+ *  `to`'s, and the music is `music`: the new world's tempo from the next bar line (its epoch) */
+export interface DuelCrossing {
+  /** the tick it happened, and which crossing of the room's this is (1 the first) */
+  n: number;
+  i: number;
+  seat: number;
+  gate: string;
+  partner: string;
+  from: string;
+  to: string;
+  front: boolean;
+  u: number;
+  v: number;
+  held: boolean;
+  music: MusicClock;
 }
 /** who sits in a duel's room, and the set: `running` once both seats have come (the match then goes on its own clock) */
 export interface DuelRoomState { seats: [boolean, boolean]; watchers: number; running: boolean; tick: number }
-/** a tick's events (the duel's rules', the contact's, the powers' rules' and their effects' moments), as the server
- *  made them; the client types them (src/net/duel-client.ts) */
-export interface DuelTickEvents { n: number; ev?: unknown[]; tc?: unknown[]; pe?: unknown[]; fx?: unknown[] }
+/** a tick's events (the duel's rules', the contact's, the powers' rules' and their effects' moments, and a crossing
+ *  into another world), as the server made them; the client types them (src/net/duel-client.ts) */
+export interface DuelTickEvents { n: number; ev?: unknown[]; tc?: unknown[]; pe?: unknown[]; fx?: unknown[]; x?: DuelCrossing[] }
 
 /** the rules' state (shared/duel.ts DuelState without its stats and the numbers that change every tick, which the
  *  snapshots carry as `e`) and the powers' rules' state, at tick `n` */

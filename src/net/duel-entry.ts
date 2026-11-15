@@ -11,3 +11,4 @@ export { Scene } from '../ai/scene';
 export { Character } from '../dancer/character';
 export { duelPlane } from '../duel/match';
 export { makeIntent } from '../input/intent';
+export { duelDoors, CROSS } from '../duel/crossing';

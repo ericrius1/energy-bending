@@ -25,7 +25,7 @@ export interface Authority {
   seat(k: number, here: boolean): void;
   reseat(k: number): void;
   receive(k: number, list: readonly DuelInput[]): void;
-  step(): { n: number; ev: unknown[]; tc: unknown[]; pe: unknown[]; fx: unknown[]; st?: string };
+  step(): { n: number; ev: unknown[]; tc: unknown[]; pe: unknown[]; fx: unknown[]; st?: string; x?: unknown[] };
   slowNow(): string;
   snapshot(seat: number | null): Uint8Array;
   stats(): Record<string, unknown>;
@@ -104,12 +104,13 @@ export class DuelRoom {
     while (this.a.tick < due && n < max) {
       const out = this.a.step();
       n++;
-      if (out.ev.length || out.tc.length || out.pe.length || out.fx.length) {
+      if (out.ev.length || out.tc.length || out.pe.length || out.fx.length || out.x?.length) {
         const m: Record<string, unknown> = { t: 'dev', n: out.n };
         if (out.ev.length) m.ev = out.ev;
         if (out.tc.length) m.tc = out.tc;
         if (out.pe.length) m.pe = out.pe;
         if (out.fx.length) m.fx = out.fx;
+        if (out.x?.length) m.x = out.x;
         const data = JSON.stringify(m);
         const k = this.sink.slots().length;
         this.sent.dev += data.length * k; this.sent.devs += k;

@@ -20,19 +20,20 @@ import { Finale } from '../duel/finale';
 import { DuelHazards } from '../duel/hazards';
 import type { Arena } from '../duel/arena';
 import type { WorldLike } from '../duel/fallback';
-import { worldFor, NODE_WORLDS } from '../duel/stages';
+import { NODE_WORLDS } from '../duel/stages';
+import { CrossJudge, crossPair, duelDoors, nodeWorld } from '../duel/crossing';
 import type { Solid } from '../worlds/solids';
 import { onBeat, duelLink, duelFlingLanded, DUEL, type DuelEvent, type DuelState } from '../../shared/duel.ts';
 import { matterOf, type PowerEvent, type PowersState } from '../../shared/powers.ts';
-import { tempoOf, RULES } from '../../shared/rules.ts';
-import { DUEL_NET, DUEL_FLAG, encodeDuelSnap, type DuelHello, type DuelInput, type DuelWelcome, type MusicClock } from '../../shared/protocol.ts';
+import { tempoOf, beatAt, nextBar, RULES } from '../../shared/rules.ts';
+import { DUEL_NET, DUEL_FLAG, encodeDuelSnap, type DuelHello, type DuelCrossing, type DuelInput, type DuelWelcome, type MusicClock } from '../../shared/protocol.ts';
 import { bodySnap, intentOf, kitOf, poseHazard, EDGE_BITS } from './duel-body';
 
 type V3 = [number, number, number];
 
 /** the worlds a duel can be played in online: those Node can build (src/duel/stages.ts) */
 export function duelWorld(id: string): { arena: Arena; world: WorldLike } | null {
-  const w = worldFor(id);
+  const w = nodeWorld(id);
   return w ? { arena: w.arena, world: w } : null;
 }
 /** the worlds a duel can be played in online: every world the duel's Node harness builds */
@@ -67,7 +68,7 @@ interface ContactInner {
 const STILL_TICKS = 15;
 
 /** a tick's output: its events, in order, as the clients get them; the slow state (JSON) when it changed */
-export interface TickOut { n: number; ev: DuelEvent[]; tc: ContactEvent[]; pe: PowerEvent[]; fx: PowerFx[]; st?: string }
+export interface TickOut { n: number; ev: DuelEvent[]; tc: ContactEvent[]; pe: PowerEvent[]; fx: PowerFx[]; st?: string; x?: DuelCrossing[] }
 
 /** the rules' numbers that change every tick (they ride every snapshot; the rest is sent when it changes) */
 const FAST = ['energy', 'merge', 'peak', 'highSince', 'highBest'] as const;
@@ -93,14 +94,16 @@ export interface AuthorityOptions extends DuelHello {
 export class DuelAuthority {
   static readonly TICK_MS = 1000 / DUEL_NET.TICK_HZ;
   readonly tickMs = DuelAuthority.TICK_MS;
-  readonly arena: Arena;
-  readonly world: WorldLike;
+  /** the world the duel is in now, its arena (a crossing changes them: crossing.ts) */
+  arena: Arena;
+  world: WorldLike;
   readonly chars: [Character, Character];
   readonly match: DuelMatch;
   readonly powers: DuelPowers;
   readonly finale: Finale;
-  readonly hazards: DuelHazards | null;
-  readonly music: MusicClock;
+  hazards: DuelHazards | null;
+  /** the music's clock: the world's tempo from its epoch (a crossing moves it to the new world's from the next bar) */
+  music: MusicClock;
   readonly setMs: number;
   readonly t0: number;
   readonly hello: DuelHello;
@@ -120,6 +123,9 @@ export class DuelAuthority {
   /** catches judged where the catcher saw them that the present would have missed, and grabs it didn't judge so (why) */
   rewound = 0;
   readonly refused: Record<string, number> = {};
+  /** the mirrors: who crosses (crossing.ts), and every crossing so far */
+  private judge = new CrossJudge(duelDoors());
+  readonly crossings: DuelCrossing[] = [];
   private no(why: string) { this.refused[why] = (this.refused[why] ?? 0) + 1; }
 
   constructor(o: AuthorityOptions) {
@@ -133,7 +139,8 @@ export class DuelAuthority {
     this.music = { epoch: this.t0, bpm, mood: RULES.STAGE_MOODS[o.world] ?? 0 };
     const plane = duelPlane(this.arena);
     this.solids = [...(this.world.solids ?? [])];
-    const terrain = { groundAt: (x: number, z: number) => this.world.groundAt(x, z), fallY: this.world.fallY, solids: this.solids };
+    const self = this;
+    const terrain = { groundAt: (x: number, z: number) => this.world.groundAt(x, z), get fallY() { return self.world.fallY; }, solids: this.solids };
     this.chars = [0, 1].map((k) => {
       const c = new Character({ seat: k, plane: o.locked ? plane : null, terrain });
       c.setProfile('duel');
@@ -150,7 +157,7 @@ export class DuelAuthority {
   }
 
   /** what a joiner is told of the room */
-  welcome(): DuelWelcome { return { ...this.hello, setMs: this.setMs, tickMs: this.tickMs, t0: this.t0, music: this.music }; }
+  welcome(): DuelWelcome { return { ...this.hello, setMs: this.setMs, tickMs: this.tickMs, t0: this.t0, music: this.music, crossings: this.crossings.length, last: this.crossings[this.crossings.length - 1] ?? null }; }
   /** the server time (ms) of a tick */
   timeOf(tick: number) { return this.t0 + tick * this.tickMs; }
   /** the duel's clock (ms) at the current tick: what DuelState's times are on */
@@ -196,12 +203,12 @@ export class DuelAuthority {
   step(): TickOut {
     const t0 = performance.now();
     this.tick++;
-    const now = this.now, dt = this.tickMs / 1000, bpm = this.bpm, beat = (now * bpm) / 60000;
+    const now = this.now, dt = this.tickMs / 1000, bpm = this.bpm, beat = beatAt(this.music, this.timeOf(this.tick));
     const C = this.chars, M = this.match, P = this.powers;
     // (the arena's hazard is one object every room in this process shares: the worlds' layouts are made once. Put this
     // room's beat and its stones back on it before its bodies step; another room stepped it with its own)
     const H = this.arena.hazard;
-    if (H) { H.on = true; poseHazard(H, ((this.tick - 1) * this.tickMs * bpm) / 60000); }
+    if (H) { H.on = true; poseHazard(H, beatAt(this.music, this.timeOf(this.tick - 1))); }
     C[0].lookAt = C[1].root; C[1].lookAt = C[0].root;
     const ins: ContactInput[] = [], pins: PowerInput[] = [], grabs: (DuelInput | null)[] = [null, null];
     for (let k = 0; k < 2; k++) {
@@ -242,6 +249,9 @@ export class DuelAuthority {
       this.hazards?.step(beat, this.tickMs);
       out.ev = ev; out.tc = [...preTouch, ...M.touches]; out.pe = P.events; out.fx = P.fx;
     } else for (const c of C) c.events.length = 0;
+    // the mirrors: a body whose middle passed a disc takes the duel to that world (crossing.ts), the other brought along
+    const x = crossPair(C, this.world.id, this.judge, dt, M.contact.link);
+    if (x) out.x = [this.moveTo(x)];
     const st = this.slowDelta();
     if (st) out.st = st;
     // (each body as it stands now, for a catch judged later where a catcher saw it)
@@ -254,6 +264,29 @@ export class DuelAuthority {
     this.cost.push(performance.now() - t0);
     if (this.cost.length > 600) this.cost.splice(0, 300);
     return out;
+  }
+
+  /** the duel goes into the world a crossing leads to: its arena, solids, hazard and plane; the powers' effects settle
+   *  (they stood in the old world); the music takes the new world's tempo from the next bar line; the set goes on */
+  private moveTo(x: ReturnType<typeof crossPair> & {}): DuelCrossing {
+    const N = nodeWorld(x.to)!;
+    this.hazards?.rest();
+    this.powers.settle();
+    this.world = N; this.arena = N.arena;
+    const plane = duelPlane(this.arena);
+    this.solids.length = 0; this.solids.push(...(N.solids ?? []));
+    for (const s of this.powers.solids) this.solids.push(s);
+    this.match.moveTo(this.arena, plane);
+    (this.powers as unknown as { o: { yKill?: number } }).o.yKill = this.arena.space.yKill;
+    this.hazards = this.arena.hazard ? new DuelHazards(this.chars, this.match, this.arena, { on: true }) : null;
+    this.hello.world = x.to;
+    // (both bodies were moved by the gate: not a push of the other's, and no catch is judged against where they were)
+    for (const list of this.past) list.length = 0;
+    const t = this.timeOf(this.tick);
+    this.music = { epoch: Math.round(nextBar(this.music, t)), bpm: tempoOf(x.to), mood: RULES.STAGE_MOODS[x.to] ?? 0 };
+    const c: DuelCrossing = { n: this.tick, i: this.crossings.length + 1, ...x, music: { ...this.music } };
+    this.crossings.push(c);
+    return c;
   }
 
   /** a grab pressed by seat k while its screen showed the other at tick `x.view`: judged against the other as it was
@@ -355,6 +388,7 @@ export class DuelAuthority {
     const d = M.state as DuelState;
     const x: Record<string, unknown> = {
       run: this.running,
+      w: this.world.id, xi: this.crossings.length,
       e: [...FAST.map((k) => r3(d[k])), ...d.seats.map((s) => r3(s.groundSince))],
       L: L ? { holder: L.holder, held: L.held, part: L.part, at: rv(L.at), flying: L.flying, rest: r3(L.rest), age: r3(M.contact.age), swings: L.swings } : null,
       fl: M.contact.flown ? { flinger: M.contact.flown.flinger, flyer: M.contact.flown.flyer } : null,
@@ -382,7 +416,7 @@ export class DuelAuthority {
       tick: this.tick, running: this.running, phase: this.match.state.phase, set: this.match.state.set,
       tickMs: { mean: c.reduce((a, b) => a + b, 0) / Math.max(1, c.length), p50: q(0.5), p99: q(0.99), max: c[c.length - 1] ?? 0 },
       seats: this.seats.map((S) => ({ ack: S.ack, queue: S.queue.length, starved: S.starved, folded: S.folded, lost: S.lost })),
-      rewound: this.rewound, refused: { ...this.refused }, style: this.match.state.seats.map((s) => Math.round(s.style)), stats: { ...this.match.state.stats },
+      rewound: this.rewound, refused: { ...this.refused }, world: this.world.id, crossings: this.crossings.map((c) => ({ n: c.n, from: c.from, to: c.to, seat: c.seat, held: c.held })), heldBack: this.judge.held.map((h) => ({ tick: Math.round(h.t * DUEL_NET.TICK_HZ), seat: h.k, gate: h.gate })), style: this.match.state.seats.map((s) => Math.round(s.style)), stats: { ...this.match.state.stats },
     };
   }
 }

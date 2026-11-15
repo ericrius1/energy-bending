@@ -20,13 +20,16 @@ import { POWERS, POWER, type Matter } from '../shared/powers.ts';
 const argv = process.argv.slice(2);
 const SECONDS = Number(argv.find((a) => /^\d+$/.test(a)) ?? 14);
 const jsonAt = argv.indexOf('--json'), JSON_OUT = jsonAt >= 0 ? argv[jsonAt + 1] : null;
+// (DUEL_ONLY=cross runs only the mirrors' steps)
+const ONLY = process.env.DUEL_ONLY ?? '';
+const LAGS = (process.env.DUEL_LAGS ?? '0,80,200').split(',').map(Number);
 const PORT = 5418, WS = `ws://127.0.0.1:${PORT}/ws`, HTTP = `http://127.0.0.1:${PORT}`;
 
 // the bundle's exports, as loosely as the test uses them
 type Any = any;
 const M = (await loadDuelEngine(() => {})) as unknown as Record<string, Any>;
 assert.ok(M, 'the duel engine bundles');
-const { DuelAuthority, DuelClient, DuelBrain, BrainDriver, Scene, duelWorld, inputOf, duelPlane, Character } = M;
+const { DuelAuthority, DuelClient, DuelBrain, BrainDriver, Scene, duelWorld, inputOf, duelPlane, Character, duelDoors } = M;
 
 const HELLO: DuelHello = { world: 'temple', dress: ['fire', 'water'], matter: ['fire', 'water'], locked: false, setS: 40 };
 const report: Record<string, unknown> = {};
@@ -95,7 +98,7 @@ try {
       assert.equal(r.engine, true);
     });
 
-    for (const lag of [0, 80, 200]) {
+    for (const lag of ONLY === 'cross' ? [] : [0, 80, 200]) {
       await step(`two virtual players in one room at ${lag} ms of lag: prediction, catches, the same events`, async () => {
         const jitter = lag ? lag / 5 : 0;
         const room = `D${lag}X${Date.now() % 1000}`;
@@ -169,6 +172,110 @@ try {
         assert.ok(reps.every((r) => r.snaps / secs > 15), 'snapshots arrive near 20 Hz');
         assert.ok(reps.every((r) => r.inKBs < 16 && r.outKBs < 6), 'bytes within budget');
         if (lag === 0) assert.ok(reps.every((r) => r.err.p95Mm < 60), 'at no lag the prediction is close');
+        for (const nn of nets) nn.close();
+      });
+    }
+
+    // the mirrors online (src/duel/crossing.ts): seat 1 walks through a mirror of whichever world the duel is in (the
+    // temple's to the Pool, the Pool's to the redwoods, the redwoods' to the temple), seat 2 follows it; the server
+    // judges each crossing and both come out in the next world. Each page predicts its own body's crossing (seat 1's)
+    // or is brought along (seat 2's), and a watcher follows. Measured: the prediction's error at the acks within a
+    // second of a crossing, the predictions the server didn't make (put back), the shown world going back and forth
+    for (const lag of ONLY && ONLY !== 'cross' ? [] : LAGS) {
+      await step(`two virtual players crossing the mirrors at ${lag} ms of lag: both carried, predicted, one world on every page`, async () => {
+        const jitter = lag ? lag / 5 : 0;
+        const room = `X${lag}Y${Date.now() % 1000}`;
+        const nets = [new Net(WS, { lag, jitter }), new Net(WS, { lag, jitter }), new Net(WS, { lag, jitter })];
+        const clients: Any[] = [null, null, null], early: [string, Any][][] = [[], [], []];
+        nets.forEach((n, k) => {
+          n.on('dev' as Any, (m: Any) => (clients[k] ? clients[k].onEvents(m, JSON.stringify(m).length) : early[k].push(['dev', m])));
+          n.on('dst' as Any, (m: Any) => (clients[k] ? clients[k].onState(m, JSON.stringify(m).length) : early[k].push(['dst', m])));
+        });
+        for (const n of nets) await n.connect({ room, create: true, duel: { ...HELLO, setS: 120 } });
+        nets.forEach((n, k) => {
+          const c = new DuelClient({ welcome: n.duel as DuelWelcome, seat: k < 2 ? k : null, link: n, plane: null });
+          n.onFrame = (b) => c.onFrame(b);
+          for (const [t, m] of early[k]) { if (t === 'dev') c.onEvents(m); else c.onState(m); }
+          clients[k] = c;
+        });
+        const D = duelDoors();
+        // (between the temple and the redwoods, dry floors both sides: there and back through the same pair of mirrors)
+        const route: Record<string, string> = { temple: 'temple.to.redwoods', redwoods: 'redwoods.to.temple', pool: 'pool.to.temple', geode: 'geode.temple' };
+        /** a stick toward a world point (the camera's yaw 0: moveX east, moveZ north) */
+        const toward = (from: number[], to: number[], speed = 1) => { const dx = to[0] - from[0], dz = to[2] - from[2], l = Math.hypot(dx, dz) || 1; const it = M.makeIntent(); it.moveX = (dx / l) * speed; it.moveZ = (-dz / l) * speed; return it; };
+        let calm = false;
+        const think = (k: number) => {
+          if (calm) return M.makeIntent();
+          const c = clients[k], me = c.pred.root;
+          if (k === 1) {
+            // (seat 2 follows seat 1 as this page shows it, close behind)
+            const o = c.shownChars[0].root;
+            return Math.hypot(o[0] - me[0], o[2] - me[2]) > 1.2 ? toward(me, o) : M.makeIntent();
+          }
+          const g = D.get(route[c.predWorld]);
+          // (to a point in front of the disc, then straight in through its middle)
+          const front = [g.at[0] + g.n[0] * 2.2, 0, g.at[2] + g.n[2] * 2.2];
+          const side = (me[0] - g.at[0]) * g.n[0] + (me[2] - g.at[2]) * g.n[2], across = Math.abs((me[0] - g.at[0]) * g.n[2] - (me[2] - g.at[2]) * g.n[0]);
+          // (from in front only: one behind the disc it came out of goes round to the front again, through it or not)
+          return side > -0.1 && side < 2.6 && across < 0.6 ? toward(me, [g.at[0] - g.n[0] * 2, 0, g.at[2] - g.n[2] * 2]) : toward(me, front);
+        };
+        let last = performance.now();
+        const run = async (ms: number) => {
+          const end = performance.now() + ms;
+          while (performance.now() < end) {
+            const t = performance.now(), dt = Math.min(100, t - last); last = t;
+            for (let k = 0; k < 3; k++) {
+              const c = clients[k];
+              c.update(dt, k < 2 && c.running ? think(k) : null, 0);
+              c.show(dt);
+              c.takeCrossings();
+            }
+            await sleep(4);
+          }
+        };
+        await run(3500);
+        await run(SECONDS * 2000);
+        calm = true;                           // (the dancing stops: the last crossing settles on every page)
+        await run(3000 + lag * 4);
+        const duel = (await (await fetch(HTTP + '/duels')).json()).duels.find((d: Any) => d.room === room.toUpperCase());
+        const reps = clients.map((c) => c.report());
+        if (process.env.CROSS_DEBUG) { for (const c of clients.slice(0, 2)) console.log("     put back", JSON.stringify(c.putBacks)); console.log("     server held back", JSON.stringify(((await (await fetch(HTTP + "/duels")).json()).duels.find((d: Any) => d.room === room.toUpperCase())).heldBack)); }
+        for (const [k, r] of reps.entries()) {
+          const x = r.crossings;
+          console.log(`     ${k < 2 ? `page ${k}` : 'watcher'}: crossings heard ${x.server}, predicted ${x.predicted} (the server agreed ${x.agreed}), brought along ${x.brought}, put back ${x.putBack}; shown world changed ${x.shown}, back and forth ${x.flips}; ${x.world}/${x.shownWorld}${x.lost ? ` LOST (${x.lost})` : ''}; error near a crossing rms ${x.err.rmsMm} mm, p50 ${x.err.p50Mm}, p95 ${x.err.p95Mm}, max ${x.err.maxMm} (${x.err.n}); all acks rms ${r.err.rmsMm} p95 ${r.err.p95Mm}; corrections ${r.corrections}, cuts ${r.cuts}${x.worst ? `; worst near a crossing ${JSON.stringify(x.worst)}` : ''}`);
+        }
+        console.log(`     server: ${duel.crossings.length} crossings ${duel.crossings.map((c: Any) => `${c.from}>${c.to}@${c.n}${c.held ? ' held' : ''} by ${c.seat + 1}`).join(', ')}; now in ${duel.world}; a tick ${duel.tickMs.mean.toFixed(3)} ms mean, ${duel.tickMs.p99.toFixed(3)} p99`);
+        report[`cross${lag}`] = { pages: reps.map((r) => ({ crossings: r.crossings, err: r.err, corrections: r.corrections, cuts: r.cuts })), server: { crossings: duel.crossings, world: duel.world, tickMs: duel.tickMs } };
+        assert.ok(duel.crossings.length >= 2, `the duel crossed (${duel.crossings.length})`);
+        for (const [k, r] of reps.entries()) {
+          assert.ok(!r.crossings.lost, `page ${k} followed every crossing`);
+          assert.equal(r.crossings.world, duel.world, `page ${k} has the server's world`);
+          assert.ok(r.crossings.flips <= 2 && r.crossings.putBack <= 2, `page ${k}'s world went back and forth ${r.crossings.flips} times (${r.crossings.putBack} predictions put back)`);
+        }
+        // every page ends shown in the server's world (the seats' predicted, the watcher's played back)
+        for (const [k, c] of clients.entries()) assert.equal(c.shownWorld, duel.world, `page ${k} shows the server's world`);
+        assert.ok(reps[0].crossings.predicted >= 1, 'the crosser predicted its crossing');
+        if (lag === 0) assert.ok(reps[0].crossings.err.p95Mm < 100, 'at no lag the prediction is close around a crossing');
+        // (the same events, the crossings among them, on both seats)
+        const tickOf = (l: string) => Number(l.slice(0, l.indexOf(' ')));
+        let [la, lb] = [clients[0].log as string[], clients[1].log as string[]];
+        const from = Math.max(tickOf(la[0]), tickOf(lb[0]));
+        la = la.filter((l) => tickOf(l) >= from); lb = lb.filter((l) => tickOf(l) >= from);
+        for (let i = 0; i < Math.min(la.length, lb.length); i++) assert.equal(la[i], lb[i], `event ${i} differs`);
+        // a snapshot carries the world; a seat that drops and comes back after the crossings is told the world it is in
+        const snap = await new Promise<Uint8Array>((ok) => { const was = nets[2].onFrame; nets[2].onFrame = (b) => { was?.(b); ok(b); }; });
+        assert.equal((decodeDuelSnap(snap)!.x as Any).w, duel.world, 'the snapshot says the world');
+        const tok = nets[1].token;
+        (nets[1] as Any).ws.close();
+        const back = await waitFor(nets[1], 'open', null, 5000);
+        assert.equal(back.slot, 1); assert.equal(nets[1].token, tok);
+        const W2 = nets[1].duel as DuelWelcome;
+        assert.equal(W2.world, duel.world, 'the rejoined seat is told the world the duel is in now');
+        assert.equal(W2.crossings, duel.crossings.length);
+        const fresh = new DuelClient({ welcome: W2, seat: 1, link: nets[1], plane: null });
+        nets[1].onFrame = (b) => fresh.onFrame(b);
+        await sleep(300 + lag * 2);
+        assert.ok(!fresh.lost && fresh.newest[1] && fresh.world === duel.world, 'a page made from the new welcome stands in the right world');
         for (const nn of nets) nn.close();
       });
     }

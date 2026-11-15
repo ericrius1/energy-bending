@@ -11,6 +11,11 @@
 //     says so), which index.ts plays exactly as it plays the local duel's
 //   - runs the room's beat (the music's clock: both pages hear the same bar), and shows a waiting card with the room's
 //     link until the other dancer comes (or why it couldn't join)
+//   - follows the mirrors (src/duel/crossing.ts, report 20-online): the server judges each crossing; this page's own
+//     body crosses in its prediction, and every change of the world the client shows is handed to index.ts
+//     (`crossed`: both bodies brought through the gate, the duel moved to the new world, as offline). The page's own
+//     gates judge nothing of the duel's bodies (the server's word is the crossing). A crossing this page missed (a
+//     dropped connection) starts it again in the room's world (the address's &world is only the world a room begins in)
 // The address: ?duel&net=ROOM[&server=wss://…/ws][&world=temple|geode|redwoods|pool][&dress=a,b][&lock|&free][&set=S][&bot]
 // [&lag=&jitter=&loss=]. The first to come is seat 1, the second seat 2, anyone after watches (up to six).
 import type { FrameCtx } from '../engine/frame';
@@ -28,9 +33,10 @@ import type { DuelPowers } from './powers';
 import type { Finale } from './finale';
 import type { Link } from './contact';
 import { Net } from '../net/net';
-import { worldFor } from './stages';
 import { roomServer } from '../net/where';
-import { DuelClient, type DuelFrameEvents } from '../net/duel-client';
+import { DuelClient, type DuelFrameEvents, type ShownCrossing } from '../net/duel-client';
+import { gateDiff } from './crossing';
+import type { Dancer } from '../dancer/dancer';
 import { copyShown } from '../net/duel-body';
 import { DUEL_FLAG, type DuelWelcome, type DuelRoomState } from '../../shared/protocol.ts';
 import { POWER } from '../../shared/powers.ts';
@@ -59,6 +65,10 @@ export interface OnlineCtx {
   music: Music;
   /** the duel begins on this page (the set's clock is the server's) */
   begin: () => void;
+  /** the duel's two dancers (the page's gates are kept from judging them: the server judges their crossings) */
+  dancers?: () => readonly (Dancer | null | undefined)[];
+  /** the world shown changed: bring both bodies through `x.gate` and move the duel to `x.to` (index.ts) */
+  crossed?: (x: ShownCrossing) => void;
 }
 
 /** what index.ts reads of the online duel each frame */
@@ -167,23 +177,15 @@ export async function startOnline(o: OnlineCtx): Promise<OnlineDuel> {
   app.wake();
   console.info(`duel: online room ${room} at ${url}, ${seat == null ? 'watching' : `seat ${seat + 1}`}; ${welcome.world}, ${welcome.dress.join(' v ')}${welcome.locked ? ', locked' : ''}`);
 
-  // the predicted body stands in the page's world as the page's body does (its floor, its solids with the powers')
   // The predicted body stands in the world exactly as the server's does: the server's own description of it
   // (src/duel/stages.ts worldFor, the same pure layouts the server builds), with the powers' temporary solids as the
-  // server has them. The page's World.solids is the page's to draw and frame with; a solid it has and the server's
-  // hasn't (or the other way) pushed the predicted body out of it every tick and the server's not
-  const nw = worldFor(welcome.world);
-  let solidsAt = -1, solidsList: Solid[] = [];
-  const terrain = nw ? {
-    groundAt: (x: number, z: number) => nw.groundAt(x, z),
-    fallY: nw.fallY,
-    get solids(): readonly Solid[] {
-      const v = client?.solidsVersion ?? 0, own = client?.solids ?? [];
-      if (solidsAt !== v) { solidsAt = v; solidsList = [...(nw.solids ?? []), ...own]; }
-      return solidsList;
-    },
-  } : chars[seat ?? 0].terrain;
-  const c = client = new DuelClient({ welcome, seat, link: net, terrain, plane: welcome.locked ? o.plane : null, arena: nw?.arena ?? o.arena });
+  // server has them, in whichever world it has crossed into (the client keeps it). The page's World.solids is the
+  // page's to draw and frame with; a solid it has and the server's hasn't (or the other way) pushed the predicted body
+  // out of it every tick and the server's not
+  const c = client = new DuelClient({ welcome, seat, link: net, plane: welcome.locked ? o.plane : null });
+  // (the gates the server judges crossings by are a copy of the page's: say so if they have drifted apart)
+  const drift = gateDiff([...app.gates.gates.values()].map((g) => ({ id: g.id, world: g.world, at: g.at, radius: g.radius })));
+  if (drift.length) console.warn(`duel: online, the page's gates differ from the server's table (src/duel/crossing.ts): ${drift.join('; ')}`);
   for (const [t, m] of early) { if (t === 'dev') c.onEvents(m as never); else c.onState(m as never); }
   if (welcome.locked) { for (const x of o.ctl) x.setPlane(o.plane); app.rig.lock(o.plane); }
 
@@ -198,15 +200,17 @@ export async function startOnline(o: OnlineCtx): Promise<OnlineDuel> {
 
   // ---------------------------------------------------------------- each frame: the beat, the thumbs, the bodies
   let synced = '';
-  let begun = false;
+  let begun = false, leaving = false;
   app.frame.tick('input', (f: FrameCtx) => {
-    // the room's beat: both pages on one bar (the music follows it)
-    const music = welcome.music;
+    // the room's beat: both pages on one bar (the music follows it; a crossing gives it the new world's from its next bar)
+    const music = c.music;
     f.beat.beats = c.beat(); f.beat.bpm = music.bpm;
     const live = o.music as unknown as { clock: { measure(a: number, b: number, dt: number): void }; heardTime(): number; syncTo(s: { epoch: number; bpm: number; world: string }): void };
     live.clock.measure(net.now() / 1000, live.heardTime(), f.dt);
     const k0 = `${music.epoch}/${music.bpm}`;
-    if (k0 !== synced) { synced = k0; live.syncTo({ epoch: music.epoch, bpm: music.bpm, world: welcome.world }); }
+    if (k0 !== synced) { synced = k0; live.syncTo({ epoch: music.epoch, bpm: music.bpm, world: c.world }); }
+    // (the server judges the duel's crossings: the page's gates leave its two bodies alone)
+    for (const d of o.dancers?.() ?? []) if (d) app.gates.holdBack(d, 0.25);
     // this seat's thumbs (the lock button is a view here: the room's lock is its creator's)
     let it: Intent | null = null;
     if (seat != null) {
@@ -216,6 +220,17 @@ export async function startOnline(o: OnlineCtx): Promise<OnlineDuel> {
     }
     c.update(f.dt * 1000, it, o.ctl[seat ?? 0].inputYaw);
     c.show(f.dt * 1000);
+    // the world shown changed (this seat's prediction, the server's word, a prediction put right): the page follows
+    for (const x of c.takeCrossings()) o.crossed?.(x);
+    if (c.lost && !leaving) {
+      // (a crossing missed while the connection was down: start again in the room's world, the seat kept by its token)
+      leaving = true;
+      const u = new URL(location.href);
+      u.searchParams.set('world', net.duel?.world ?? c.world);
+      card.say(`the duel went on to ${net.duel?.world ?? c.world}: following`, false);
+      console.warn(`duel: online, ${c.lostWhy}: reloading into ${u.searchParams.get('world')}`);
+      location.replace(u.toString());
+    }
     // the waiting card, and the set begins when the server's does
     const both = roomState ? roomState.seats[0] && roomState.seats[1] : false;
     if (c.running && !begun) { begun = true; o.begin(); }

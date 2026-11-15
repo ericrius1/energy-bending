@@ -19,6 +19,16 @@
 //              twice); one that doesn't come is a denial
 //   events     everything else is the server's: each tick's events, played as they come, the same on every page
 //   the rules  the rules' state, the link, the powers' effects: the last snapshot's
+//   crossings  a mirror (src/duel/crossing.ts): the server judges every crossing and sends it with its tick (`x` in a
+//              tick's events), and each snapshot says which world it is in. This page's own body crosses in its
+//              prediction the moment its middle passes the disc (the same judge, the same carry), and is brought along
+//              the moment the server says the other crossed; a prediction the server doesn't make is put right like any
+//              other (the server's world, the inputs since stepped again there). The other body's snapshots are kept in
+//              one frame across the crossings (`toF`: each world's coordinates into the first world's), so its playback
+//              goes through the disc without a cut. What the page shows is in one world (`shownWorld`): this seat's
+//              predicted world, or for a watcher (and a seat shown from the server, joined or carried) the world the
+//              playback has reached. Each change of it is queued for the page (`takeCrossings`: the gate to bring both
+//              bodies through, as Portals.bring does offline)
 import { Character, type Terrain } from '../dancer/character';
 import { makeIntent, EDGES, type Intent } from '../input/intent';
 import { Contact, splitIntent, type ContactEvent, type Link } from '../duel/contact';
@@ -33,8 +43,12 @@ import type { PowerEvent } from '../../shared/powers.ts';
 import { beatAt } from '../../shared/rules.ts';
 import {
   DUEL_NET, DUEL_FLAG, encodeDuelInputs, decodeDuelSnap,
-  type DuelBodySnap, type DuelInput, type DuelSnap, type DuelTickEvents, type DuelWelcome, type DuelSlowState, type V3,
+  type DuelBodySnap, type DuelCrossing, type DuelInput, type DuelSnap, type DuelTickEvents, type DuelWelcome, type DuelSlowState, type MusicClock, type V3,
 } from '../../shared/protocol.ts';
+import { Rigid } from '../portals/rigid';
+import { CROSS, CrossJudge, bringMove, carryBody, duelDoors, middleOf, nodeWorld, yawOfMove, type JudgeState } from '../duel/crossing';
+import type { NodeWorld } from '../duel/stages';
+import { duelPlane } from '../duel/match';
 import { PoseBuffer, DIM, YAW, LOCAL, type BufferParams } from './net';
 import { inputOf, intentOf, kitOf, kitField, setKit, poseHazard, saveChar, loadChar, puppet, styleByte, type CharSave, type Kit, type ShownBody } from './duel-body';
 
@@ -69,12 +83,24 @@ export const CLIENT = {
   LATE_MS: 800,
   /** after a fling, a counter or a lift the holder can't catch again for the contact's REGRAB (s) */
   REGRAB_S: 0.35,
+  /** a snapshot past a crossing this page hasn't heard of is kept back this long (ms) before the crossing counts as missed */
+  AHEAD_MS: 2500,
+  /** the shown world going back within this long (ms) counts as a flip-flop (the server holds 1.5 s between crossings) */
+  FLIP_MS: 1000,
+  /** this page's prediction holds its body back this much longer after a crossing than the server does (s): the tick an
+   *  input will be stepped on is known only to a tick or two, and a crossing right at the end of the hold, predicted a
+   *  tick early, was put back a moment later (a flip-flop); a tick late, the server's word brings it along instead */
+  HOLD_PAD: 0.1,
 };
 
 /** a tick's events as the page plays them (`local`: this page's own catch, felt before the server says so) */
-export interface DuelFrameEvents { n: number; ev: DuelEvent[]; tc: ContactEvent[]; pe: PowerEvent[]; fx: PowerFx[]; local?: boolean }
+export interface DuelFrameEvents { n: number; ev: DuelEvent[]; tc: ContactEvent[]; pe: PowerEvent[]; fx: PowerFx[]; local?: boolean; x?: DuelCrossing[] }
 
-interface Hist { x: DuelInput; save: CharSave; root: V3; v: V3; beat: number; grounded: boolean }
+interface Hist { x: DuelInput; save: CharSave; root: V3; v: V3; at: number; grounded: boolean; world: string; judge: JudgeState }
+
+/** a change of the world this page shows, for the page to follow (src/duel/online.ts: both bodies brought through
+ *  `gate`, the duel moved to `to`): why it changed (this seat's prediction, the server's word, a correction going back) */
+export interface ShownCrossing { gate: string; partner: string; from: string; to: string; front: boolean; held: boolean; why: 'predicted' | 'server' | 'corrected'; t: number }
 const dist = (a: ArrayLike<number>, b: ArrayLike<number>) => Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
 
 export interface DuelClientOptions {
@@ -82,11 +108,11 @@ export interface DuelClientOptions {
   /** this page's seat (0, 1), or null watching */
   seat: number | null;
   link: DuelLink;
-  /** the world as this page's body stands in it (its floor, its solids with the powers' temporary ones, its fall-out) */
-  terrain: Terrain;
+  /** unused: the client stands its body in the world it is in (crossing.ts nodeWorld), with the powers' solids */
+  terrain?: Terrain;
   /** the arena's plane when the room is locked to it */
   plane: StagePlane | null;
-  /** the arena (its gentle hazard moves the predicted body as the server's moves the server's: the tide, the wind) */
+  /** unused: the arena is the world's (its gentle hazard moves the predicted body as the server's moves the server's) */
   arena?: Arena | null;
   buffer?: Partial<BufferParams>;
 }
@@ -123,6 +149,8 @@ export class DuelClient {
   private sent: DuelInput[] = [];
   private hist = new Map<number, Hist>();
   private ack = -1;
+  /** the server tick of the last ack */
+  private ackTick = 0;
   private replaying = false;
   private yaw = 0;
   /** what a correction moved on screen, easing out */
@@ -137,12 +165,48 @@ export class DuelClient {
   /** the arena's hazard as the server steps it, on the predicted body */
   private hz: DuelHazards | null = null;
   private hzMatch: { bodyEvents: Record<string, unknown>[][] } | null = null;
+  private hzPair: [Character, Character] | null = null;
+  private hzOn(A: Arena | null) { this.hz = A?.hazard && this.hzPair && this.hzMatch ? new DuelHazards(this.hzPair, this.hzMatch as unknown as DuelMatch, A) : null; }
+  /** the arena this seat's body is predicted in */
+  private get arenaNow(): Arena | null { return this.N?.arena ?? this.o.arena ?? null; }
   /** the server tick before which each seat can't catch again (a fling, a counter or a lift just ended its hold) */
   private noGrab = [0, 0];
   private judge: Contact | null = null;
   private lastSnapTick = -1;
   /** every server event, in order, as a line each (the tests compare two pages' logs) */
   readonly log: string[] = [];
+  // ---- the worlds (crossing.ts)
+  /** the world the server's duel is in (its newest word), this seat's predicted body's, and the one shown */
+  world: string;
+  predWorld: string;
+  shownWorld: string;
+  /** the music's clock now (the welcome's, then each crossing's) */
+  music: MusicClock;
+  /** the server's crossings this page has heard of (from the room's `xi0`-th on) */
+  readonly xs: DuelCrossing[] = [];
+  private xi0 = 0;
+  /** how many of them (the list keeps the last few) */
+  private xn = 0;
+  /** a crossing was missed (a dropped connection): the page should start again in the room's world */
+  lost = false;
+  lostWhy = "";
+  private aheadSince = -1;
+  /** the predictions put back, what they were (for the measures) */
+  readonly putBacks: Record<string, unknown>[] = [];
+  /** the worst error near a crossing, and what it was */
+  worstX: Record<string, unknown> & { e: number } | null = null;
+  /** each world's coordinates into the frame the snapshots are kept in (the first world's) */
+  private toF = new Map<string, Rigid>();
+  /** the gate last crossed between two worlds ("from>to"), either way */
+  private gateOf = new Map<string, { gate: string; front: boolean; held: boolean }>();
+  private cross = new CrossJudge(duelDoors());
+  private shownQ: ShownCrossing[] = [];
+  private shownAt: { to: string; from: string; t: number } | null = null;
+  /** the world each newest snapshot body was in */
+  private newestW: string[];
+  private N: NodeWorld | null;
+  private terrain: Terrain;
+  private plane: StagePlane | null;
   readonly stats = {
     snaps: 0, bytesIn: 0, bytesOut: 0, devBytes: 0, ticks: 0,
     /** the prediction's error at each acknowledged input (m), before any correction */
@@ -151,6 +215,11 @@ export class DuelClient {
      *  wave): not this page's to predict */
     errAfter: [] as number[],
     corrections: 0, cuts: 0, replayed: 0,
+    /** crossings: this seat's predicted (and how many the server then made too), brought along by the other's (heard
+     *  from the server), predictions put back (the server didn't cross), changes of the shown world and those that went
+     *  straight back within 1.5 s (a flip-flop), and the prediction's error at the acks within a second of a crossing */
+    crossPred: 0, crossOk: 0, crossBrought: 0, crossBack: 0, shown: 0, flips: 0,
+    errX: [] as number[],
     /** this page's catches: felt here, confirmed by the server, denied */
     caught: 0, confirmed: 0, denied: 0, mutual: 0,
     /** ticks shown from the server (joined, carried) */
@@ -161,17 +230,36 @@ export class DuelClient {
   constructor(readonly o: DuelClientOptions) {
     this.seat = o.seat;
     this.w = o.welcome;
+    this.world = this.predWorld = this.shownWorld = o.welcome.world;
+    this.music = { ...o.welcome.music };
+    this.xi0 = o.welcome.crossings ?? 0;
+    this.toF.set(this.world, new Rigid());
+    this.newestW = [this.world, this.world];
+    this.N = nodeWorld(this.world);
+    this.plane = o.plane;
+    // the world as this page's body stands in it: its floor, its solids with the powers' temporary ones (as the server
+    // has them), its fall-out; the world it is in is whichever it has crossed into
+    const self = this;
+    let solidsAt = -1, solidsList: Solid[] = [], solidsOf: NodeWorld | null = null;
+    this.terrain = o.terrain && !this.N ? o.terrain : {
+      groundAt: (x: number, z: number) => (self.N ? self.N.groundAt(x, z) : 0),
+      get fallY() { return self.N?.fallY; },
+      get solids(): readonly Solid[] {
+        if (solidsAt !== self.solidsVersion || solidsOf !== self.N) { solidsAt = self.solidsVersion; solidsOf = self.N; solidsList = [...(self.N?.solids ?? []), ...self.solids]; }
+        return solidsList;
+      },
+    };
     this.bufs = [0, 1].map(() => new PoseBuffer(o.buffer));
-    this.shownChars = [0, 1].map((k) => { const c = new Character({ seat: k, plane: null, terrain: o.terrain }); c.setProfile('duel'); return c; }) as [Character, Character];
+    this.shownChars = [0, 1].map((k) => { const c = new Character({ seat: k, plane: null, terrain: this.terrain }); c.setProfile('duel'); return c; }) as [Character, Character];
     if (o.seat != null) {
-      const c = new Character({ seat: o.seat, plane: o.plane, terrain: o.terrain });
+      const c = new Character({ seat: o.seat, plane: o.plane, terrain: this.terrain });
       c.setProfile('duel');
       c.yaw = o.seat ? -Math.PI / 2 : Math.PI / 2;
       this.pred = c;
       // the arena's hazard on the predicted body, as the server steps it after the powers: a stand-in for the match
       // (the phase, who is frozen or held, this body's own events) and a body that stands in for the other seat
-      if (o.arena?.hazard) {
-        const other = new Character({ seat: 1 - o.seat, plane: null, terrain: o.terrain });
+      {
+        const other = new Character({ seat: 1 - o.seat, plane: null, terrain: this.terrain });
         const pair = (o.seat === 0 ? [c, other] : [other, c]) as [Character, Character];
         const self = this;
         const stand = {
@@ -181,7 +269,8 @@ export class DuelClient {
           bodyEvents: [[], []] as Record<string, unknown>[][],
         };
         this.hzMatch = stand;
-        this.hz = new DuelHazards(pair, stand as unknown as DuelMatch, o.arena);
+        this.hzPair = pair;
+        this.hzOn(this.N?.arena ?? o.arena ?? null);
       }
     } else this.pred = null;
     this.stats.since = performance.now();
@@ -192,7 +281,7 @@ export class DuelClient {
   now() { return this.o.link.now() - this.w.t0; }
   /** the server's tick now (fractional) */
   serverTick() { return this.now() / this.tickMs; }
-  beat(t = this.o.link.now()) { return beatAt(this.w.music, t); }
+  beat(t = this.o.link.now()) { return beatAt(this.music, t); }
   /** the powers' clock now (s) */
   powersClock() { return this.last && this.running ? this.pclock + Math.max(0, this.o.link.now() - this.last.ts) / 1000 : this.pclock; }
   /** the other body's playback delay (ms) */
@@ -225,8 +314,7 @@ export class DuelClient {
     for (const e of EDGES) (this.pending as unknown as Record<string, boolean>)[e] = false;
     // (the beat this input will be stepped on at the server: half a round trip and the queue ahead of now)
     const q = Number(this.last?.x.q ?? 3);
-    const beat = this.beat(this.o.link.now() + this.o.link.rtt / 2 + q * this.tickMs);
-    this.predict(x, beat, null);
+    this.predict(x, this.o.link.now() + this.o.link.rtt / 2 + q * this.tickMs, null);
     this.sent.push(x);
     if (this.sent.length > DUEL_NET.REDUNDANT + 1) this.sent.shift();
     const frame = encodeDuelInputs(this.sent);
@@ -241,9 +329,9 @@ export class DuelClient {
   /** this seat's flags as the server last had them */
   private get flags() { return this.seat != null ? this.newest[this.seat]?.flags ?? 0 : 0; }
 
-  /** one tick of this seat's body, as the server will step it */
-  private predict(x: DuelInput, beat: number, h: Hist | null) {
-    const c = this.pred!, k = this.seat!;
+  /** one tick of this seat's body, as the server will step it (`at`: the server time it will be stepped at) */
+  private predict(x: DuelInput, at: number, h: Hist | null) {
+    const c = this.pred!, k = this.seat!, beat = this.beat(at), bpm = this.music.bpm;
     let it = intentOf(x, true);
     const frozen = this.running && !!(this.flags & DUEL_FLAG.FROZEN);
     if (frozen) it = makeIntent();
@@ -251,24 +339,129 @@ export class DuelClient {
     // costs no correction)
     const L = this.link;
     const ci = frozen ? null : splitIntent(c, it, L?.holder === k, L?.held === k);
-    c.inputYaw = x.yaw; c.bpm = this.w.music.bpm;
+    c.inputYaw = x.yaw; c.bpm = bpm;
     // (it faces the other where the other is now, as the server's body does: the newest snapshot carried on by its
     // velocity, not the other as shown, a little in the past)
-    const N = this.newest[1 - k];
-    if (N) {
+    const N = this.newest[1 - k], Mo = N ? this.move(this.newestW[1 - k], this.predWorld) : null;
+    if (N && Mo) {
       const a = Math.min(0.3, Math.max(0, (this.o.link.now() - N.ts) / 1000));
-      this.look[0] = N.root[0] + N.v[0] * a; this.look[1] = N.root[1]; this.look[2] = N.root[2] + N.v[2] * a;
+      const r = Mo.pt(N.root), v = Mo.dir(N.v);
+      this.look[0] = r[0] + v[0] * a; this.look[1] = r[1]; this.look[2] = r[2] + v[2] * a;
       c.lookAt = this.look;
     } else c.lookAt = this.shownChars[1 - k].root;
     // (the hazard's water and stones where the server's will be when it steps this input: its last tick's beat)
-    poseHazard(this.o.arena?.hazard, beat - (this.w.music.bpm * this.tickMs) / 60000);
-    c.update(this.tickMs / 1000, it, { beats: beat, bpm: this.w.music.bpm });
+    poseHazard(this.arenaNow?.hazard, this.beat(at - this.tickMs));
+    c.update(this.tickMs / 1000, it, { beats: beat, bpm });
     if (this.hz && this.hzMatch) { this.hzMatch.bodyEvents[k] = c.events.slice(); this.hz.step(beat, this.tickMs); this.hzMatch.bodyEvents[k] = []; }
     c.events.length = 0;
     if (ci?.grabEdge && !this.replaying) this.tryCatch(x.seq);
-    const rec: Hist = h ?? { x, save: {}, root: [0, 0, 0], v: [0, 0, 0], beat, grounded: false };
+    // the mirrors: this body's middle through a disc of its world crosses at once, as the server will judge it
+    // (on the server's clock: the tick this input will be stepped on, from the last ack's. A crossing the server made
+    // holds this body back as the server holds it, from the server's tick, however late this page heard of it)
+    this.cross.t = (this.ack >= 0 ? this.ackTick + (x.seq - this.ack) : this.serverTick()) * this.tickMs / 1000;
+    const X = this.xs[this.xs.length - 1];
+    if (X && X.to === this.predWorld) {
+      const tX = (X.n * this.tickMs) / 1000;
+      this.cross.exempt[k] = Math.max(this.cross.exempt[k], tX + (X.held ? CROSS.HOLD_HELD : CROSS.HOLD_FREE) + CLIENT.HOLD_PAD);
+      if (!this.cross.behind || this.cross.behind.until < tX + CROSS.BEHIND_S) this.cross.behind = { gate: X.partner, until: tX + CROSS.BEHIND_S };
+    }
+    const hit = this.cross.body(k, this.predWorld, middleOf(c));
+    if (hit && hit.gate.partner) {
+      const g = hit.gate, held = !!L;
+      carryBody(c, g.through);
+      this.cross.after({ partner: g.partner!.id, held });
+      this.cross.exempt[k] += CLIENT.HOLD_PAD;
+      this.link3(g.id, hit.front, held);
+      this.setPredWorld(g.partner!.world);
+      if (!this.replaying) this.stats.crossPred++;
+      if (!this.replaying) this.predX.push({ seq: x.seq, to: g.partner!.world });
+    }
+    const rec: Hist = h ?? { x, save: {}, root: [0, 0, 0], v: [0, 0, 0], at, grounded: false, world: '', judge: this.cross.save() };
     rec.save = saveChar(c); rec.root = [c.root[0], c.root[1], c.root[2]]; rec.v = [c.v[0], c.v[1], c.v[2]]; rec.grounded = c.grounded;
+    rec.world = this.predWorld; rec.judge = this.cross.save();
     if (!h) this.hist.set(x.seq, rec);
+  }
+
+  // ---------------------------------------------------------------- the worlds
+  /** this seat's predicted crossings (the input's seq, the world it went to), for the error around them */
+  private predX: { seq: number; to: string }[] = [];
+  /** a gate crossed: the frame of the world it leads to, and the gate remembered between the two (either way) */
+  private link3(id: string, front: boolean, held: boolean) {
+    const g = duelDoors().get(id);
+    if (!g?.partner) return;
+    const from = g.world, to = g.partner.world, F = this.toF.get(from);
+    if (F) this.toF.set(to, F.mul(g.partner.through));
+    this.gateOf.set(`${from}>${to}`, { gate: g.id, front, held });
+    this.gateOf.set(`${to}>${from}`, { gate: g.partner.id, front, held });
+  }
+  /** the move from world a's coordinates into world b's (null: not known) */
+  move(a: string, b: string): Rigid | null {
+    if (a === b) return IDENTITY;
+    const A = this.toF.get(a), B = this.toF.get(b);
+    return A && B ? B.inverse().mul(A) : null;
+  }
+  /** this seat's body is in another world: its floor, solids, arena hazard and plane are that world's */
+  private setPredWorld(id: string) {
+    if (id === this.predWorld) return;
+    this.predWorld = id;
+    this.N = nodeWorld(id);
+    this.hzOn(this.N?.arena ?? null);
+    if (this.plane && this.pred && this.N) { this.plane = duelPlane(this.N.arena); this.pred.setPlane(this.plane); }
+  }
+  /** a crossing the server judged: the music's clock, the frames; this seat's body brought along (or carried, if it
+   *  crossed and the prediction missed it) unless the prediction made it already */
+  private heard(x: DuelCrossing) {
+    this.xs.push(x); this.xn++;
+    if (this.xs.length > 64) this.xs.splice(0, 32);
+    this.music = { ...x.music };
+    this.link3(x.gate, x.front, x.held);
+    this.world = x.to;
+    if (this.seat == null || !this.pred) return;
+    if (this.predWorld === x.to) { this.stats.crossOk++; return; }
+    // (the prediction elsewhere, a crossing of its own in flight: the next acknowledged input puts it right)
+    const seqN = this.ack + (x.n - this.ackTick);
+    if (this.predWorld !== x.from || [...this.hist].some(([q, h]) => q >= seqN && h.world !== x.from)) return;
+    const g = duelDoors().get(x.gate)!, c = this.pred;
+    // (the bring as the server made it: from where this body was at the input the server stepped on the crossing's tick,
+    // which the last ack and its tick tell; then that same rigid move for every state predicted since, and for now)
+    const hN = this.hist.get(seqN), mid = middleOf(c);
+    const at: V3 = hN ? [hN.root[0], hN.root[1] + (mid[1] - c.root[1]), hN.root[2]] : mid;
+    const Mv = x.seat === this.seat ? g.through : bringMove(g, at, x.front, x.held);
+    carryBody(c, Mv);
+    this.cross.after({ partner: x.partner, held: x.held });
+    for (const [q, h] of this.hist) {
+      if (q < seqN) continue;
+      h.root = Mv.pt(h.root); h.v = Mv.dir(h.v); h.world = x.to; h.save = this.carried(h.save, Mv);
+      h.judge = { ...this.cross.save(), t: h.judge.t };
+    }
+    this.setPredWorld(x.to);
+    this.stats.crossBrought++;
+  }
+  /** a saved body carried by a move (a stand-in body loaded, carried, saved again) */
+  private scratch: Character | null = null;
+  private carried(s: CharSave, M: Rigid): CharSave {
+    const t = (this.scratch ??= (() => { const c = new Character({ seat: this.seat ?? 0, plane: null, terrain: this.terrain }); c.setProfile('duel'); return c; })());
+    loadChar(t, s); carryBody(t, M);
+    return saveChar(t);
+  }
+  /** the crossings the page should follow since the last call (both bodies through the gate, the duel moved) */
+  takeCrossings(): ShownCrossing[] { const q = this.shownQ; this.shownQ = []; return q; }
+  /** the world the server's duel was in at server time t (the playback's, a little in the past) */
+  private worldAt(t: number) {
+    let w = this.xs.length ? this.xs[0].from : this.world;
+    for (const x of this.xs) if (this.w.t0 + x.n * this.tickMs <= t) w = x.to;
+    return w;
+  }
+  /** the page goes into another world (why: whose word) */
+  private showIn(to: string, why: ShownCrossing['why']) {
+    const from = this.shownWorld, G = this.gateOf.get(`${from}>${to}`), g = G ? duelDoors().get(G.gate) : null;
+    if (!G || !g?.partner) { this.lost = true; this.lostWhy = `no gate ${from}>${to}`; return; }
+    const t = this.o.link.now();
+    if (this.shownAt && this.shownAt.from === to && this.shownAt.to === from && t - this.shownAt.t < CLIENT.FLIP_MS) this.stats.flips++;
+    this.shownAt = { from, to, t };
+    this.shownWorld = to;
+    this.stats.shown++;
+    this.shownQ.push({ gate: G.gate, partner: g.partner.id, from, to, front: G.front, held: G.held, why, t });
   }
 
   /** a grab pressed: within reach of the other as shown? Then it is felt now (the server's word follows) */
@@ -278,7 +471,7 @@ export class DuelClient {
     // (just let go of a hold: not yet, as the server would say; its tick about when this input reaches it)
     if (this.serverTick() + this.o.link.rtt / 2 / this.tickMs < this.noGrab[k]) return;
     const me = this.pred!, them = this.shownChars[1 - k];
-    if (me.reforming || them.reforming) return;
+    if (me.reforming || them.reforming || this.predWorld !== this.shownWorld) return;
     const pair = (k === 0 ? [me, them] : [them, me]) as [Character, Character];
     if (!this.judge || this.judge.chars[0] !== pair[0]) this.judge = new Contact(pair);
     const hit = (this.judge as unknown as { tryCatch(k: number): { at: V3 } | null }).tryCatch(k);
@@ -289,7 +482,7 @@ export class DuelClient {
     this.tent = { seq, until: performance.now() + this.o.link.rtt + CLIENT.CONFIRM_MS, kind };
     void holder;
     this.stats.caught++;
-    const beat = this.beat(), bpm = this.w.music.bpm, perfect = onBeat(beat, bpm);
+    const beat = this.beat(), bpm = this.music.bpm, perfect = onBeat(beat, bpm);
     const C = s.seats?.[k]?.combo;
     const n = (C?.n ?? 0) + 1;
     this.queue.push({
@@ -317,17 +510,30 @@ export class DuelClient {
     this.finale = x.fin ?? null;
     this.mirrorLive((x.lv ?? []) as Live[]);
     const now = this.o.link.now();
+    // (the world it is in: a world this page has no way into is a crossing it missed, a dropped connection)
+    const Ws = typeof x.w === 'string' ? x.w : this.world;
+    // (a snapshot past a crossing whose event hasn't come yet: the conditioner, or a slow reliable channel, can pass the
+    // snapshots ahead of the events. Kept back until the event comes; still ahead after AHEAD_MS, it was missed)
+    const F = this.toF.get(Ws), ahead = (typeof x.xi === 'number' && x.xi > this.xi0 + this.xn) || !F;
+    if (ahead) {
+      const t = performance.now();
+      if (this.aheadSince < 0) this.aheadSince = t;
+      if (t - this.aheadSince > CLIENT.AHEAD_MS && !this.lost) { this.lost = true; this.lostWhy = F ? `crossing ${x.xi} not heard (${this.xi0}+${this.xn})` : `no way into ${Ws}`; }
+      return;
+    }
+    this.aheadSince = -1;
+    const dy = yawOfMove(F);
     for (const B of s.bodies) {
       if (B.seat > 1) continue;
-      this.newest[B.seat] = B;
-      const v = new Float64Array(DIM);
-      v[0] = B.root[0]; v[1] = B.root[1]; v[2] = B.root[2]; v[YAW] = B.yaw;
+      this.newest[B.seat] = B; this.newestW[B.seat] = Ws;
+      const v = new Float64Array(DIM), r = F.pt(B.root);
+      v[0] = r[0]; v[1] = r[1]; v[2] = r[2]; v[YAW] = B.yaw + dy;
       v.set(B.p, LOCAL);
       this.bufs[B.seat].push(B.ts, v, { flags: B.flags, energy: B.energy * 255, world: '', move: B.move }, now);
     }
     if (this.seat != null && this.pred) {
       const B = s.bodies.find((b) => b.seat === this.seat);
-      if (B && s.ack >= 0) this.reconcile(s.ack, B, x.k as Kit | undefined);
+      if (B && s.ack >= 0) this.reconcile(s.ack, B, x.k as Kit | undefined, Ws, s.tick);
     }
     // a local catch not confirmed in time, or the server past its input with nobody joined: denied
     if (this.tent && (performance.now() > this.tent.until || (s.ack >= this.tent.seq + CLIENT.CONFIRM_TICKS && !this.link))) {
@@ -365,8 +571,9 @@ export class DuelClient {
   /** a tick's events from the server (reliable, in order) */
   onEvents(m: DuelTickEvents, bytes = 0) {
     this.stats.devBytes += bytes;
-    const e: DuelFrameEvents = { n: m.n, ev: (m.ev ?? []) as DuelEvent[], tc: (m.tc ?? []) as ContactEvent[], pe: (m.pe ?? []) as PowerEvent[], fx: (m.fx ?? []) as PowerFx[] };
-    this.log.push(`${m.n} ${JSON.stringify([m.ev ?? [], m.tc ?? [], m.pe ?? []])}`);
+    const e: DuelFrameEvents = { n: m.n, ev: (m.ev ?? []) as DuelEvent[], tc: (m.tc ?? []) as ContactEvent[], pe: (m.pe ?? []) as PowerEvent[], fx: (m.fx ?? []) as PowerFx[], ...(m.x?.length ? { x: m.x } : {}) };
+    this.log.push(`${m.n} ${JSON.stringify([m.ev ?? [], m.tc ?? [], m.pe ?? [], ...(m.x?.length ? [m.x.map((c) => [c.i, c.gate, c.seat, c.held])] : [])])}`);
+    for (const x of m.x ?? []) if (x.i > this.xi0 + this.xn) this.heard(x);
     if (this.log.length > 20000) this.log.splice(0, 10000);
     // (the holder of a hold that just ended can't catch again for a moment: the server's rule, kept here too)
     for (const t of e.tc) {
@@ -417,9 +624,9 @@ export class DuelClient {
   }
 
   /** the server applied input `ack` and its body stood as `B` (and its kit `K`): was the prediction right? */
-  private reconcile(ack: number, B: DuelBodySnap, K: Kit | undefined) {
+  private reconcile(ack: number, B: DuelBodySnap, K: Kit | undefined, Ws: string = this.world, sTick = 0) {
     if (ack <= this.ack) return;
-    this.ack = ack;
+    this.ack = ack; this.ackTick = sTick;
     const c = this.pred!;
     const wasFollow = this.follow;
     this.follow = !!(B.flags & (DUEL_FLAG.CARRIED | DUEL_FLAG.HELD | DUEL_FLAG.HOLDING));
@@ -428,10 +635,21 @@ export class DuelClient {
     if (!h) {
       // (nothing predicted for it: the first snapshot, or a gap) the server's state as it is
       if (K) setKit(c, K); else { c.root = [...B.root]; c.v = [...B.v]; }
+      this.setPredWorld(Ws); this.cross.forget();
       this.hist.delete(ack);
       return;
     }
-    const e = dist(h.root, B.root), ev = dist(h.v, B.v);
+    // (in another world than predicted: compared where the gate puts it)
+    const Mh = h.world === Ws ? IDENTITY : this.move(h.world, Ws);
+    const hr = Mh ? Mh.pt(h.root) : h.root, hv = Mh ? Mh.dir(h.v) : h.v;
+    const e = Mh ? dist(hr, B.root) : 9, ev = dist(hv, B.v);
+    // (within a second of a crossing, the server's or this seat's own: the error around the crossing)
+    const xn = this.xs.length ? this.xs[this.xs.length - 1].n : -1e9, px = this.predX.length ? this.predX[this.predX.length - 1].seq : -1e9;
+    // (as the error at large: not while shown from the server, frozen, or moved by the other or a power (the count-in's
+    // spawn, a wave): a crossing is neither)
+    const own = !this.follow && !(B.flags & (DUEL_FLAG.FROZEN | DUEL_FLAG.PUSHED));
+    if (own && (Math.abs(sTick - xn) <= DUEL_NET.TICK_HZ || Math.abs(ack - px) <= DUEL_NET.TICK_HZ)) { this.stats.errX.push(e); if (e > (this.worstX?.e ?? 0)) this.worstX = { e: +e.toFixed(3), ack, sTick, xn, px, h: h.world, s: Ws, follow: this.follow, flags: B.flags, hr: hr.map((v) => +v.toFixed(2)), b: B.root.map((v) => +v.toFixed(2)) }; if (this.stats.errX.length > 5000) this.stats.errX.splice(0, 2500); }
+    while (this.predX.length && this.predX[0].seq < ack - 4 * DUEL_NET.TICK_HZ) this.predX.shift();
     const kitOff = K ? ['grounded', 'airJumps', 'dashes', 'wallSide'].some((f) => kitField(K, f) !== h.save[f]) : h.grounded !== !(B.flags & DUEL_FLAG.AIRBORNE);
     if (!this.follow && !(B.flags & DUEL_FLAG.FROZEN)) (wasFollow || B.flags & DUEL_FLAG.PUSHED ? this.stats.errAfter : this.stats.err).push(e);
     // (the worst steady errors, with what differed: the probe's way to find what a prediction gets wrong)
@@ -449,14 +667,29 @@ export class DuelClient {
     }
     if (this.stats.err.length > 20000) this.stats.err.splice(0, 10000);
     this.hist.delete(ack);
-    if (e <= CLIENT.EPS && ev <= CLIENT.EPS_V && !kitOff && !this.follow) return;
-    // corrected: back to the server's state at that input, the inputs since stepped again
-    const before: V3 = [c.root[0], c.root[1], c.root[2]];
-    loadChar(c, h.save);
+    const otherWorld = h.world !== Ws;
+    if (e <= CLIENT.EPS && ev <= CLIENT.EPS_V && !kitOff && !this.follow && !otherWorld) return;
+    // corrected: back to the server's state at that input, the inputs since stepped again (in the server's world)
+    const wasWorld = this.predWorld, Mb = this.move(wasWorld, Ws);
+    const before: V3 = Mb ? Mb.pt(c.root) : [c.root[0], c.root[1], c.root[2]];
+    // (a state saved in another world carried into the server's first: its pose, its move under way, its walls)
+    loadChar(c, otherWorld && Mh ? this.carried(h.save, Mh) : h.save);
     if (K) setKit(c, K); else { c.root = [...B.root]; c.v = [...B.v]; }
+    this.cross.load(h.judge);
+    // (the body is in the server's world now, whatever the prediction since had crossed into: the replay crosses again
+    // if the inputs still take it through)
+    if (!otherWorld) this.setPredWorld(Ws);
+    if (otherWorld) {
+      // (the server didn't cross where this page did, or crossed where it didn't: its world, no crossing back at once)
+      if (wasWorld !== Ws && this.predX.some((p) => p.to === wasWorld) && !this.xs.some((x) => x.to === wasWorld && x.n >= sTick - DUEL_NET.TICK_HZ)) { this.stats.crossBack++; const p = this.predX[this.predX.length - 1]; this.putBacks.push({ ack, sTick, from: wasWorld, to: Ws, predSeq: p?.seq, predTick: p ? this.ackTick + (p.seq - ack) : null, exempt: h.judge.exempt.map((e) => Math.round(e * DUEL_NET.TICK_HZ)), behind: h.judge.behind, held: this.cross.held.slice(-3) }); if (this.putBacks.length > 8) this.putBacks.shift(); }
+      this.setPredWorld(Ws);
+      this.cross.forget();
+      const X = this.xs[this.xs.length - 1];
+      if (X && X.to === Ws) this.cross.after({ partner: X.partner, held: X.held });
+    }
     this.replaying = true;
     const later = [...this.hist.values()].sort((a, b) => a.x.seq - b.x.seq);
-    for (const r of later) this.predict(r.x, r.beat, r);
+    for (const r of later) this.predict(r.x, r.at, r);
     this.replaying = false;
     this.stats.replayed += later.length;
     if (this.follow) return;
@@ -480,9 +713,9 @@ export class DuelClient {
     const r = this.bufs[k].sample(this.sampled, now);
     const N = this.newest[k];
     if (!r.ok || !N) return null;
-    const S = this.sampled;
+    const S = this.sampled, F = this.toF.get(this.shownWorld), Fi = F ? F.inverse() : IDENTITY, Mv = this.move(this.newestW[k], this.shownWorld) ?? IDENTITY;
     return {
-      root: [S[0], S[1], S[2]], yaw: S[YAW], p: S.slice(LOCAL, LOCAL + 39), v: [...N.v] as V3, flags: r.flags ?? N.flags,
+      root: Fi.pt([S[0], S[1], S[2]]), yaw: S[YAW] + yawOfMove(Fi), p: S.slice(LOCAL, LOCAL + 39), v: Mv.dir(N.v), flags: r.flags ?? N.flags,
       move: r.move?.[0] ?? null, moveT: r.move?.[1] ?? 0, lgy: N.lgy, style: N.style, energy: (r.energy ?? 0) / 255,
     };
   }
@@ -490,12 +723,25 @@ export class DuelClient {
   /** both bodies as this page shows them now, posed onto `shownChars` (and returned) */
   show(dtMs: number): [Character, Character] {
     const now = this.o.link.now(), dt = dtMs / 1000;
+    // the world shown: this seat's predicted one; a watcher's (or a seat shown from the server) where the playback is
+    if (!this.lost) {
+      // (a seat shows its own predicted world even while its body is shown from the server, joined or carried: the
+      // playback, a little behind, is seen through the disc a moment; switching with the follow went back and forth)
+      const fromServer = this.seat == null || !this.pred;
+      const want = fromServer ? this.worldAt(now - this.delay) : this.predWorld;
+      // (a prediction going straight back to the world just left, within FLIP_MS: shown only once the server's world
+      // says so, or the moment passes. A crossing judged right at the end of its hold can come and go in the
+      // prediction as the ack's tick moves by one; meanwhile the body is seen through the disc)
+      const back = !fromServer && this.shownAt?.from === want && this.o.link.now() - this.shownAt.t < CLIENT.FLIP_MS && this.world !== want;
+      if (want !== this.shownWorld && !back) this.showIn(want, fromServer || this.predWorld === this.world ? (this.shownAt?.from === want ? 'corrected' : 'server') : 'predicted');
+    }
     for (let k = 0; k < 2; k++) {
       let b: ShownBody | null = null;
       if (k === this.seat && this.pred) {
-        const c = this.pred, f = this.flags;
+        const c = this.pred, f = this.flags, Mp = this.move(this.predWorld, this.shownWorld) ?? IDENTITY;
+        const pr = Mp.pt(c.root), dyw = yawOfMove(Mp);
         const own: ShownBody = {
-          root: [c.root[0] + this.offset[0], c.root[1] + this.offset[1], c.root[2] + this.offset[2]], v: [...c.v] as V3, yaw: c.yaw,
+          root: [pr[0] + this.offset[0], pr[1] + this.offset[1], pr[2] + this.offset[2]], v: Mp.dir(c.v), yaw: c.yaw + dyw,
           p: localOfChar(c), flags: (c.grounded ? 0 : DUEL_FLAG.AIRBORNE) | (c.dir < 0 ? DUEL_FLAG.FACING_LEFT : 0) | (c.onWall ? DUEL_FLAG.ON_WALL : 0) | (c.reforming ? DUEL_FLAG.REFORMING : 0) | (c.dashing ? DUEL_FLAG.DASHING : 0) | (f & (DUEL_FLAG.HELD | DUEL_FLAG.HOLDING)),
           move: c.move?.name ?? null, moveT: c.move?.t ?? 0, lgy: c.lastGroundY, style: styleByte(c), energy: c.energy,
         };
@@ -522,6 +768,14 @@ export class DuelClient {
       err: { n: e.length, rmsMm: +(1000 * Math.sqrt(e.reduce((a, b) => a + b * b, 0) / Math.max(1, e.length))).toFixed(1), p50Mm: +(1000 * q(0.5)).toFixed(1), p95Mm: +(1000 * q(0.95)).toFixed(1), maxMm: +(1000 * (e[e.length - 1] ?? 0)).toFixed(1) },
       corrections: this.stats.corrections, perSecond: +(this.stats.corrections / s).toFixed(2), cuts: this.stats.cuts, replayed: this.stats.replayed,
       catches: { felt: this.stats.caught, confirmed: this.stats.confirmed, mutual: this.stats.mutual, denied: this.stats.denied },
+      crossings: (() => {
+        const x = [...this.stats.errX].sort((a, b) => a - b), qx = (p: number) => x[Math.min(x.length - 1, Math.floor(p * x.length))] ?? 0;
+        return {
+          server: this.xs.length, predicted: this.stats.crossPred, agreed: this.stats.crossOk, brought: this.stats.crossBrought, putBack: this.stats.crossBack,
+          shown: this.stats.shown, flips: this.stats.flips, worst: this.worstX, putBacks: this.putBacks.slice(-4), world: this.world, predWorld: this.predWorld, shownWorld: this.shownWorld, lost: this.lost ? this.lostWhy || true : false,
+          err: { n: x.length, rmsMm: +(1000 * Math.sqrt(x.reduce((a, b) => a + b * b, 0) / Math.max(1, x.length))).toFixed(1), p50Mm: +(1000 * qx(0.5)).toFixed(1), p95Mm: +(1000 * qx(0.95)).toFixed(1), maxMm: +(1000 * (x[x.length - 1] ?? 0)).toFixed(1) },
+        };
+      })(),
       worst: this.worst.slice(0, 6),
       delay: +this.delay.toFixed(0), queue: this.last?.x.q ?? null, events: this.log.length,
     };
@@ -529,9 +783,11 @@ export class DuelClient {
   resetStats() {
     const S = this.stats;
     this.worst = [];
-    Object.assign(S, { snaps: 0, bytesIn: 0, bytesOut: 0, devBytes: 0, ticks: 0, err: [], errAfter: [], corrections: 0, cuts: 0, replayed: 0, caught: 0, confirmed: 0, denied: 0, mutual: 0, followTicks: 0, since: performance.now() });
+    Object.assign(S, { snaps: 0, bytesIn: 0, bytesOut: 0, devBytes: 0, ticks: 0, err: [], errAfter: [], corrections: 0, cuts: 0, replayed: 0, caught: 0, confirmed: 0, denied: 0, mutual: 0, followTicks: 0, crossPred: 0, crossOk: 0, crossBrought: 0, crossBack: 0, shown: 0, flips: 0, errX: [], since: performance.now() });
   }
 }
+
+const IDENTITY = new Rigid();
 
 function localOfChar(c: Character) {
   const out = new Float64Array(39), cy = Math.cos(c.yaw), sy = Math.sin(c.yaw), r = c.root;

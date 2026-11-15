@@ -338,7 +338,7 @@ export async function startDuel(app: PlayApp, opts: { joined?: Joined } = {}) {
     started = true;
     app.wake();
     // (the "mirrors" chip a while: M, the d-pad's left or a tap names where every mirror leads; online the gates are shut)
-    if (!online && !app.film && q.get('mirrors') !== '0') app.gates.names?.offer();
+    if (!app.film && q.get('mirrors') !== '0') app.gates.names?.offer();
     if (!music.live && !app.film) music.start(show.program.key);
     match.restart(now);
   };
@@ -353,6 +353,9 @@ export async function startDuel(app: PlayApp, opts: { joined?: Joined } = {}) {
   const net = online ? await (await import('./online')).startOnline({
     app, q, chars, ctl, match, powers, finale, plane, arena, world: W.id, dress: [show.dress[0], show.dress[1]], matter: [kindOf(0), kindOf(1)],
     powerSolids, music, begin: () => begin(),
+    // (online the server judges the crossing, online.ts: both bodies brought through by the gate's own move, the duel moved)
+    dancers: () => play.dancers,
+    crossed: (x) => { for (const d of play.dancers) if (d && app.gates.worldOf(d) === x.from) app.gates.bring(show.dancers, show.dancers.indexOf(d), x.gate, { front: x.front, rigid: true, hold: 0.3 }); moveTo(x.to, x.partner); },
     source: (k) => (brains[k] ? gates[k].inner : devices[0] ?? devices[1]),
   }) : null;
   if (net) { netSeat = net.seat; sentOf = (k) => (ctl[k].source as unknown as { it?: Intent }).it; }
@@ -459,10 +462,10 @@ export async function startDuel(app: PlayApp, opts: { joined?: Joined } = {}) {
   // other brought through with them (Portals.bring: held, by the same move, so the grip keeps its shape; free, just
   // behind), the set going on. The arena, its hazard and the solids change with it; the powers' effects settle; the
   // camera's eye follows through the disc; the music takes the new world's track from its next bar line (Music.retone,
-  // as the main view goes through). Online the room server plays the duel in one world: there the world's gates shut
-  // while the duel is on, as before (report 18-wayfinding: the crossing online is the next step)
+  // as the main view goes through). Online the room server judges the crossing and online.ts hands it here (`crossed`
+  // above, report 20-online): the page's gates leave the duel's bodies alone
   // (a film keeps its world unless it asks for the mirrors, &mirrors=1; &mirrors=0 shuts them: the gates as before)
-  const keep = online || (app.film && q.get('mirrors') !== '1') || q.get('mirrors') === '0';
+  const keep = !online && ((app.film && q.get('mirrors') !== '1') || q.get('mirrors') === '0');
   const shut = keep ? [...app.gates.gates.values()].filter((g) => g.world === W.id).map((g) => g.def) : [];
   for (const g of shut) app.gates.close(g.id);
   // (the mirrors' cost while the duel plays: a mirror far off shows its still, and no gate is drawn live through another)
@@ -489,7 +492,7 @@ export async function startDuel(app: PlayApp, opts: { joined?: Joined } = {}) {
     console.info(`duel: through the mirror from ${was} to ${W.id}`);
   };
   const offTravel = app.gates.on((e) => {
-    if (keep || e.who !== 'dancer' || e.pair) return;
+    if (keep || net || e.who !== 'dancer' || e.pair) return;
     const k = play.dancers.findIndex((d) => show.dancers.indexOf(d) === e.dancer);
     if (k < 0) return;
     const od = play.dancers[1 - k];
