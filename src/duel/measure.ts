@@ -8,6 +8,8 @@
 //   node scripts/duel-measure.mjs [--world temple,redwoods,geode,pool] [--sets 20] [--skills 0.85,0.85] [--hazards 1]
 //                                 [--seed 1] [--view free] [--json out.json] [--bpm own|N] [--phrase 1] [--warp 1]
 //   (phase 4: the links a minute and the share on the beat; `--bpm own` each world at its own track's tempo)
+//   (phase 6: `--mirrors 1` the pair dances through the mirrors (crossing.ts) and the sets count the crossings: how many
+//   a set, into which worlds, joined or free, and how many came within 3 s of the last)
 import { simulateDuel, nodeArena, makeBrains, type DuelSimResult } from './sim';
 import type { DuelStyle } from '../ai/duel-brain';
 import { DUEL } from '../../shared/duel.ts';
@@ -24,6 +26,7 @@ const jsonOut = arg('json', '');
 // the weight of contact's time warp, as the page plays it (--warp 1), and rule constants to try (--duel KEY=V,KEY=V:
 // shared/duel.ts DUEL, for tuning)
 const warp = arg('warp', '0') !== '0';
+const mirrors = arg('mirrors', '0') !== '0';
 for (const kv of arg('duel', '').split(',').filter(Boolean)) { const [k, v] = kv.split('='); (DUEL as unknown as Record<string, number>)[k] = Number(v); }
 // the music's tempo: `--bpm own` each world's own track's (public/music/tracks.json, as the page plays it), a number for
 // every world, default 112 (the harness's tempo until phase 4); `--phrase 1` a set of whole phrases of that tempo, as the
@@ -68,7 +71,7 @@ for (const world of worlds) {
     const onStep = [false, false];
     let eWas = 0, wasJoined = false, apartAt = -1, tNow = 0;
     const res = simulateDuel({
-      arena, world: W, locked: view === 'locked', dress, hazards, warp, brains: makeBrains(styles, skills, [seed, seed + 7]), sets: 1, setMs, bpm, seconds: setMs / 1000 + 30,
+      arena, world: W, locked: view === 'locked', dress, hazards, warp, mirrors, brains: makeBrains(styles, skills, [seed, seed + 7]), sets: 1, setMs, bpm, seconds: setMs / 1000 + 30,
       each: ({ powers, bodies, match, events }) => {
         const d = match.state;
         if (d.phase === 'play') {
@@ -156,6 +159,14 @@ for (const world of worlds) {
     }
     Object.assign(line, { holdsPerMin: holds.length / min, holdFrames: mean(holds), slowsPerMin: slows / min, warpLost: lost / nSets });
     console.log(`  weight: ${f1(holds.length / min)} holds a minute, ${f1(mean(holds))} frames each (${Object.entries(kinds).map(([k, v]) => `${k} ${f1(v / min)}`).join(', ')} a minute); ${f1(slows / min)} slowed beats a minute; the warp took ${f2(lost / nSets)} s a set`);
+  }
+  if (mirrors) {
+    const xs = all.flatMap((r) => r.crossings), to: Record<string, number> = {};
+    let soon = 0, held = 0, sets = 0;
+    for (const r of all) { if (r.crossings.length) sets++; for (let i = 1; i < r.crossings.length; i++) if (r.crossings[i].t - r.crossings[i - 1].t < 3) soon++; }
+    for (const x of xs) { to[x.to] = (to[x.to] ?? 0) + 1; if (x.held) held++; }
+    Object.assign(line, { crossings: xs.length, crossingsPerSet: xs.length / nSets, setsCrossed: sets, crossedTo: to, crossedHeld: held, crossedSoon: soon });
+    console.log(`  mirrors: ${xs.length} crossings (${f2(xs.length / nSets)} a set, ${sets} of ${nSets} sets crossed), into ${Object.entries(to).map(([k, v]) => `${k} ${v}`).join(', ') || 'none'}; ${held} joined; ${soon} within 3 s of the one before`);
   }
   if (argv.includes('-v')) {
     const B: Record<string, number> = {};

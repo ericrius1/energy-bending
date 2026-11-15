@@ -22,6 +22,7 @@ import { DuelHud, type HudSeat } from './hud-state';
 import type { Solid } from '../worlds/solids';
 import { DuelPowers, noPower, type PowerInput } from './powers';
 import { DuelHazards } from './hazards';
+import { CrossJudge, crossPair, nodeWorld, type DuelCross } from './crossing';
 
 export interface DuelSimOptions {
   arena: Arena;
@@ -46,6 +47,10 @@ export interface DuelSimOptions {
   /** the arena's gentle hazards (hazards.ts: the tide, the wind, the swell, the crystals' hum); default on where the
    *  arena has them */
   hazards?: boolean;
+  /** the mirrors (crossing.ts): a body whose middle passes a disc takes the duel to that world, its partner brought
+   *  along, the set going on in the new world's arena with its solids and hazard (default off: the measures stay in one
+   *  world; on, `crossings` counts them) */
+  mirrors?: boolean;
   each?: (f: { t: number; beat: number; match: DuelMatch; powers: DuelPowers | null; bodies: readonly Character[]; intents: Intent[]; events: DuelEvent[] }) => void;
 }
 
@@ -85,6 +90,10 @@ export interface DuelSimResult {
   powers: { casts: [Record<string, number>, Record<string, number>]; forms: [number, number]; reactions: Record<string, number>; felt: DuelPowers['felt']; events: { t: number; e: PowerEvent }[] } | null;
   /** the hazards: each one's rides (how many, seconds), seconds the bodies spent in water; null: none */
   hazards: { rides: Record<string, { n: number; s: number }>; waterS: number } | null;
+  /** the crossings through the mirrors (`mirrors`): when (s), and the crossing (crossing.ts DuelCross) */
+  crossings: ({ t: number } & DuelCross)[];
+  /** the world the duel ended in */
+  world: string;
 }
 
 /** the arena and the world a world id duels in, in Node: the world's own arena (worlds/<id>/arena.ts), shown */
@@ -102,11 +111,12 @@ export function makeBrains(styles: [DuelStyle, DuelStyle], skills: [number, numb
 const blankStats = (): SeatStats => ({ links: {}, combos: 0, comboLinks: 0, longest: 0, style: 0, airTime: 0, falls: 0, brain: {} });
 
 export function simulateDuel(o: DuelSimOptions): DuelSimResult {
-  const dt = o.dt ?? 1 / 60, bpm = o.bpm ?? 112, A = o.arena, W = o.world;
-  const plane = duelPlane(A);
+  const dt = o.dt ?? 1 / 60, bpm = o.bpm ?? 112;
+  let A = o.arena, W = o.world;
+  let plane = duelPlane(A);
   // (the world's solids, with the arena's pieces while it is shown, as the page's World.solids)
   const solids: Solid[] = [...(W.solids ?? [])];
-  const terrain = { groundAt: (x: number, z: number) => W.groundAt(x, z), fallY: W.fallY, solids };
+  const terrain = { groundAt: (x: number, z: number) => W.groundAt(x, z), get fallY() { return W.fallY; }, solids };
   const chars = [0, 1].map((k) => {
     const c = new Character({ seat: k, plane: o.locked ? plane : null, terrain });
     c.setProfile('duel');
@@ -116,7 +126,30 @@ export function simulateDuel(o: DuelSimOptions): DuelSimResult {
   const match = new DuelMatch(chars, A, plane, 0, bpm, { solids: () => solids, setMs: o.setMs });
   const dress = o.dress ?? ['fire', 'water'];
   const powers = o.powers === false ? null : new DuelPowers(chars, match, { matter: [matterOf(dress[0]), matterOf(dress[1])], sink: solids, groundAt: terrain.groundAt, yKill: A.space.yKill });
-  const hazards = A.hazard ? new DuelHazards(chars, match, A, { on: o.hazards ?? true }) : null;
+  let hazards = A.hazard ? new DuelHazards(chars, match, A, { on: o.hazards ?? true }) : null;
+  // the mirrors: the duel goes into another world as the pair dances through one (crossing.ts), its arena, solids and
+  // hazard taken, the set going on
+  const judge = o.mirrors ? new CrossJudge() : null;
+  const hazardTotals = { rides: {} as Record<string, { n: number; s: number }>, waterS: 0 };
+  const banked = (h: DuelHazards | null) => {
+    if (!h?.on) return;
+    for (const [k, v] of Object.entries(h.rides)) { const R = (hazardTotals.rides[k] ??= { n: 0, s: 0 }); R.n += v.n; R.s += v.s; }
+    hazardTotals.waterS += h.waterS;
+  };
+  const moveTo = (id: string) => {
+    const N = nodeWorld(id);
+    if (!N) return;
+    banked(hazards);
+    hazards?.rest();
+    powers?.settle();
+    W = N; A = N.arena; plane = duelPlane(A);
+    solids.length = 0; solids.push(...(W.solids ?? []));
+    if (powers) for (const s of powers.solids) solids.push(s);
+    match.moveTo(A, plane);
+    if (powers) (powers as unknown as { o: { yKill?: number } }).o.yKill = A.space.yKill;
+    hazards = A.hazard ? new DuelHazards(chars, match, A, { on: o.hazards ?? true }) : null;
+    stage.stage = plane; if (o.locked) stage.plane = plane; stage.room = A.space.radius;
+  };
   const sight = (): DuelSight => {
     const L = match.contact.link;
     return {
@@ -134,7 +167,7 @@ export function simulateDuel(o: DuelSimOptions): DuelSimResult {
   const stage: StageView = { plane: o.locked ? plane : null, stage: plane, terrain, gates: [], room: A.space.radius, solids };
   const drivers = brains.map((b, k) => (b ? new BrainDriver(b, bodies[k], scene, () => stage) : null));
   const seats: [SeatStats, SeatStats] = [blankStats(), blankStats()];
-  const res: DuelSimResult = { seconds: 0, play: 0, sets: [], seats, stats: match.state.stats, holds: [], spread: [], ends: {}, merges: [[]], combos: [], pops: { max: 0, total: 0, updates: 0 }, energy: [[]], match, powers: null, hazards: null };
+  const res: DuelSimResult = { seconds: 0, play: 0, sets: [], seats, stats: match.state.stats, holds: [], spread: [], ends: {}, merges: [[]], combos: [], pops: { max: 0, total: 0, updates: 0 }, energy: [[]], match, powers: null, hazards: null, crossings: [], world: W.id };
   const powerEvents: { t: number; e: PowerEvent }[] = [];
   // (the HUD's pops as the page makes them, from the same events: how many words a second reach the screen)
   const hud = new DuelHud(), hudSeats: HudSeat[] = [0, 1].map((k) => ({ name: `P${k + 1}`, matter: 'fire', screen: [0.3 + 0.4 * k, 0.5], dash: 1, holding: false, held: false }));
@@ -172,6 +205,10 @@ export function simulateDuel(o: DuelSimOptions): DuelSimResult {
     ev.push(...match.juice(now, [], powers?.fx ?? [], powers?.live ?? []));
     if (powers && ev.some((e) => e.k === 'finale')) powers.settle();
     hazards?.step(beat, gdt * 1000);
+    if (judge) {
+      const x = crossPair(chars, W.id, judge, gdt, match.contact.link);
+      if (x) { res.crossings.push({ t: +t.toFixed(3), ...x }); moveTo(x.to); }
+    }
     if (match.state.phase === 'play') res.play += gdt;
     const L = match.contact.link;
     if (L && holdFrom < 0) holdFrom = t;
@@ -209,7 +246,9 @@ export function simulateDuel(o: DuelSimOptions): DuelSimResult {
     for (const { e } of powerEvents) if (e.k === 'cast') casts[e.seat][e.power] = (casts[e.seat][e.power] ?? 0) + 1;
     res.powers = { casts, forms: [powers.rules.seats[0].forms, powers.rules.seats[1].forms], reactions: { ...powers.rules.reactions }, felt: { ...powers.felt }, events: powerEvents };
   }
-  if (hazards?.on) res.hazards = { rides: Object.fromEntries(Object.entries(hazards.rides).map(([k, v]) => [k, { ...v }])), waterS: hazards.waterS };
+  banked(hazards);
+  if (hazards?.on || Object.keys(hazardTotals.rides).length) res.hazards = { rides: Object.fromEntries(Object.entries(hazardTotals.rides).map(([k, v]) => [k, { ...v }])), waterS: hazardTotals.waterS };
   hazards?.rest();
+  res.world = W.id;
   return res;
 }

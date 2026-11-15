@@ -148,6 +148,33 @@ other is still within 2.2 m of the hands: the rope then pulls it in) when the pr
 event then confirms it and is not played twice; a mutual catch (both at once, the other's hand first) joins all the
 same; no confirmation within rtt + 400 ms or 14 ticks is a denial (nothing of the body was changed for it).
 
+**The mirrors** (report 20-online). The duel crosses worlds online as it does offline. `src/duel/crossing.ts` is the
+crossing as pure numbers: the gates' table, the judge and the carry. The judge passes a body whose middle (root + 0.95 m)
+crosses an open disc within 15 cm of the rim, and holds both bodies back 1.5 s after a crossing and while a body is
+behind the disc it came out of (4 s). The carry moves the crosser by the gate's own move and brings the partner along
+(joined: by the same move; free: out in front of the far disc, 0.7 to 1.6 m). The Node harness (`simulateDuel({ mirrors:
+true })`, `duel-measure --mirrors 1`), the authority and each page's prediction run the same code.
+
+On the server, a crossing switches the room's world: the arena, its solids, its hazard and plane, the powers settled,
+and the music's clock (the new world's tempo from the old clock's next bar line). The set goes on.
+- **Events:** the crossing (`DuelCrossing`: tick, count, seat, gate, partner, from, to, face, joined, music) goes
+  out in that tick's events as `x`.
+- **Snapshots:** every snapshot names its world (`w`) and the crossings so far (`xi`).
+- **The welcome:** gives the current world and count, so a rejoin, a new watcher or a reload lands in the right world
+  (`&world` is only where a room begins).
+
+On the page, the crosser's own body crosses in its prediction the moment it passes the disc. The partner is brought
+along as soon as the server's event comes, from where it stood at the crossing's tick (the hist), so the acks after it
+match.
+- **The other body's playback:** kept in one frame across worlds (`toF`), so it goes through the disc without a cut.
+- **Corrections:** compare across worlds through the gate.
+- **A prediction going straight back:** shown only once it has held for 250 ms.
+- **The page follows:** each change of the shown world is handed to index.ts, which brings both dancers through with
+  `Portals.bring` and moves the duel to the new world with `moveTo`. The page's own gates judge nothing of the duel's
+  bodies.
+- **A missed crossing:** one dropped while the connection was down reloads the page into the room's world, and the
+  token keeps the seat.
+
 **Measuring.** `node test/duel.test.ts [seconds]` (in `npm run test:net`): codecs, a whole set in the authority (the
 tick's cost), two virtual players over the real server at 0, 80 and 200 ms of lag (bytes, the prediction's error at
 each acknowledged input, corrections, catches felt and confirmed, the two event logs compared), watchers, refusals, a

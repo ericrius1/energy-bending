@@ -81,7 +81,7 @@ export class DuelMatch {
   /** this frame's moments (juice events), also in `events` and the history once `juice` ran */
   juiceEvents: Juice[] = [];
 
-  constructor(readonly chars: readonly [Character, Character], readonly arena: Arena, readonly plane: StagePlane, now = 0, bpm = 112, readonly o: MatchOptions = {}) {
+  constructor(readonly chars: readonly [Character, Character], public arena: Arena, public plane: StagePlane, now = 0, bpm = 112, readonly o: MatchOptions = {}) {
     this.bpm = bpm;
     this.state = newDuel(now, bpm, arena.energy);
     this.contact = new Contact(chars);
@@ -94,6 +94,13 @@ export class DuelMatch {
   }
 
   get locked() { return !!this.chars[0].plane; }
+  /** the duel went through a mirror into another world (crossing.ts): its arena and plane from now on; the set, the
+   *  combos, the energy and the link go on (a locked pair is put on the new plane) */
+  moveTo(arena: Arena, plane: StagePlane) {
+    const locked = this.locked;
+    this.arena = arena; this.plane = plane;
+    if (locked) for (const c of this.chars) c.setPlane(plane);
+  }
   frozen(seat: number) { return frozen(this.state, seat); }
   restart(now: number) { restartDuel(this.state, now, this.bpm); }
   /** the shared energy, the merge charge (0 … 1) */
