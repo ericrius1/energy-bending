@@ -141,6 +141,7 @@ export interface IceLook {
   setTime: number;
   inside: number;
   pad0: number;
+  seat: ArrayLike<number> | Vec4[];
 }
 export interface SetShard {
   pos: Vec4;

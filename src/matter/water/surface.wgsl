@@ -2,7 +2,7 @@
 // It rebuilds the surface's position from the smoothed depth and its normal from the depth and, near the outline,
 // from the thickness (so thin edges round off), then shades it as matter lit by the world it stands in, not as
 // something that glows (docs/reports/6-critique.md, "Water"):
-//   water: clear, absorbing toward deep blue-green by its thickness, a little milky (the light scattered inside it is
+//   water: clear, absorbing toward a deep blue-teal by its thickness, a little milky (the light scattered inside it is
 //          the world's: its ambient, its key, the dancers' fire, a gem heart's), with the world's reflection by Fresnel,
 //          highlights from the world's key and from each fire, a rim only on the side a light comes from, and the scene
 //          behind seen through it, bent most at the edges. A faint light of its own (a caustic rising through it) keeps
@@ -13,7 +13,7 @@
 //          little darker, the world reflected in it, a meniscus at its edge that catches the light.
 //   ice:   large flat facets from a voronoi in the frame of the bone the pixel lies on (so they ride on the body), each
 //          tilted its own way and reflecting its own part of the world (dark facets among bright ones), lit by the
-//          world's key and fire, steel blue to navy by thickness, hairline edges, frost only where frost forms (edges
+//          world's key and fire, clear white to a deep cool glass by thickness, prismatic hairline edges, frost only where frost forms (edges
 //          that face up, the hands, feet and head), glints that flash one cell at a time; a white front where it
 //          freezes.
 // Four entries:
@@ -350,7 +350,11 @@ fn shade(qf: vec2f, wdims: vec2i, W: vec4f, keep: f32) -> Shade {
   // the water's own small waves (in the frame of the bone it runs on, so they ride the body and run down it): they
   // break the highlights and bend what is seen through it; ice is still
   let frost0 = clamp(W.w / max(W.y, 1e-5), 0.0, 1.0);
-  let bone = boneOf(capsuleAt(q, wdims), wp, N);
+  let capq = capsuleAt(q, wdims);
+  let bone = boneOf(capq, wp, N);
+  // who this body is (matter/core/seats.ts): its seat's colour in the light it carries (report 18-bodies)
+  let seat = seatOfSlot(capq);
+  let sk = seat.w;
   let wv = flow(bone.p * surf.ripple.y + bone.up * (surf.time * 0.6 * surf.ripple.y), surf.time * 1.3);
   N = normalize(N + (wv - N * dot(wv, N)) * surf.ripple.x * (1.0 - smoothstep(0.25, 0.75, frost0)));
   let cosV = clamp(dot(N, V), 0.0, 1.0);
@@ -395,9 +399,14 @@ fn shade(qf: vec2f, wdims: vec2i, W: vec4f, keep: f32) -> Shade {
     // side facing the fire (Report 10). Warm light inside blue water is a warm cast on it, not a lamp
     let li = amb * 0.06 + keyD * 0.3 + heartL * 0.4;
     let lfire = fireD * 0.6;
-    wc = surf.tint.rgb * li / (1.0 + luma(li)) * milk * 0.35
+    // (the light inside takes the seat's colour: sunlight through rose or fern glass into blue-teal water)
+    let tintIn = mix(surf.tint.rgb, seat.rgb, 0.5 * sk);
+    wc = tintIn * li / (1.0 + luma(li)) * milk * 0.35
        + vec3f(1.0, 0.8, 0.62) * lfire / (1.0 + max(lfire.r, max(lfire.g, lfire.b))) * milk * 0.22;
-    wc += surf.glow.rgb * surf.glow.w * (0.3 + 1.6 * rp * rp) * (0.25 + milk);
+    wc += surf.glow.rgb * surf.glow.w * (0.3 + 1.6 * rp * rp) * (0.25 + milk) * (1.0 - 0.6 * sk);
+    // the seat's own light: the caustic rising through the body in its colour, brightest in its lanes, a soft fill
+    // between them, deeper where the water is thick (a lantern in the water, not a coat on it)
+    wc += seat.rgb * sk * (0.05 + 1.4 * pow(rp, 4.0)) * (0.3 + 0.9 * smoothstep(0.05, 0.8, Wr));
     // the world reflected, and its lights: the key's highlight (sharp, and a broad sheen), each fire's, the view's fill
     wc += worldEnv(R, wp) * surf.reflect * F;
     let spec = key.col * (pow(max(dot(R, key.dir), 0.0), 260.0) * 14.0 + pow(max(dot(R, key.dir), 0.0), 26.0) * 0.5) * key.glint
@@ -405,7 +414,7 @@ fn shade(qf: vec2f, wdims: vec2i, W: vec4f, keep: f32) -> Shade {
     wc += spec * surf.glint;
     // a rim only on the side a light comes from: the key's, each fire's
     let rimL = key.col * rimK * smoothstep(-0.15, 0.6, dot(N, key.dir)) * 1.6;
-    wc += (rimL * surf.rim.rgb) * surf.rim.w;
+    wc += (rimL * mix(surf.rim.rgb, seat.rgb, 0.45 * sk)) * surf.rim.w;
     wc += fireSpec(wp, R, N, rimK * surf.rim.w) * surf.glint;
     // foam: churned water turns white and dull where it is thin, lit like anything else, but compressed as the light
     // scattered inside is, and the fire's part of it apart, so it keeps the flame's hue. Lit at a fire's full strength
@@ -444,13 +453,20 @@ fn shade(qf: vec2f, wdims: vec2i, W: vec4f, keep: f32) -> Shade {
     let keyF = max(dot(fn_, key.dir), 0.0);
     let lit = max(dot(fn_, normalize(Lv + key.dir * 0.4)), 0.0);
     let litIn = worldAmbient(fn_, 1.0, wp) * 0.6 + key.col * keyF + worldFire(wp, fn_) + heartL;
-    // each cell its own depth of blue (pale ones and navy ones side by side), deeper where the ice is thick: never a
+    // each cell its own depth (clear ones and deep ones side by side), deeper where the ice is thick: never a
     // pale band of the same width round the outline
     let body = mix(surf.iceThin.rgb, surf.iceThick.rgb, clamp(fract(cid * 5.31) * 0.85 + smoothstep(0.1, 0.9, Wr) * 0.35 - 0.1, 0.0, 1.0));
-    ic = body * (litIn * (0.25 + 1.2 * keyF * keyF) + vec3f(0.05 + 0.2 * lit * lit * lit) + surf.glow.rgb * surf.glow.w * 0.3);
+    ic = body * (litIn * (0.25 + 1.2 * keyF * keyF) + vec3f(0.05 + 0.2 * lit * lit * lit) + surf.glow.rgb * surf.glow.w * 0.3 * (1.0 - sk));
     ic += envF * (0.12 + 0.88 * Ff);
-    // hairline edges between facets, catching the light that reaches them
-    ic += vec3f(0.40, 0.72, 1.0) * (1.0 - smoothstep(0.0, 0.06, vr.y)) * (0.06 + 0.5 * luma(lightIn)) * surf.edges;
+    // the seat's colour as a light inside the crystal: some cells hold it deep (a lantern behind clear glass), the rest
+    // only a breath of it, so the body reads as clear ice lit from within in its seat's colour
+    let deepCell = smoothstep(0.7, 0.97, fract(cid * 5.31));
+    let core = smoothstep(0.15, 1.0, Wr);
+    ic += seat.rgb * sk * (0.03 + 0.3 * core * (0.6 + 0.4 * rp) + 0.7 * deepCell * (0.4 + 0.6 * core)) * (1.0 - Ff * 0.6);
+    // hairline edges between facets, catching the light that reaches them: prismatic (each edge splits the light its
+    // own way, as cut crystal does), a little of the seat's colour in them
+    let prism = mix(thinFilm(cid * 3.7 + dot(fn_, V) * 1.3 + surf.time * 0.05), seat.rgb, 0.35 * sk);
+    ic += prism * (1.0 - smoothstep(0.0, 0.06, vr.y)) * (0.08 + 0.6 * luma(lightIn)) * surf.edges;
     // frost: where it would form, on edges that face up and on the hands, feet and head, never as a band all round
     let upFace = smoothstep(0.15, 0.75, N.y) * (1.0 - smoothstep(0.35, 1.0, Wr));
     let tips = extremity(bone.cap) * (1.0 - smoothstep(0.3, 1.1, Wr));
@@ -461,7 +477,7 @@ fn shade(qf: vec2f, wdims: vec2i, W: vec4f, keep: f32) -> Shade {
     let glint = smoothstep(0.9, 1.0, tw) * (1.0 - smoothstep(0.0, 0.2, vr.x));
     ic += (key.col * (pow(max(dot(Rf, key.dir), 0.0), 60.0) * 6.0 + glint * 2.0) + vec3f(1.0) * glint * 0.25) * surf.iceGlint * key.glint;
     ic += fireSpec(wp, Rf, fn_, rimK * 0.5) * surf.iceGlint;
-    it = mix(vec3f(0.7, 0.85, 1.0), vec3f(0.35, 0.55, 0.8), smoothstep(0.2, 1.0, Wr)) * (1.0 - surf.iceOpacity) * (1.0 - Ff) * (1.0 - frostA * 0.7);
+    it = mix(vec3f(0.88, 0.94, 0.98), vec3f(0.62, 0.74, 0.84), smoothstep(0.2, 1.0, Wr)) * (1.0 - surf.iceOpacity) * (1.0 - Ff) * (1.0 - frostA * 0.7);
   }
 
   // ---------------------------------------------------------------- one or the other, and the freeze between them

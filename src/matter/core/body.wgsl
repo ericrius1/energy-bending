@@ -18,8 +18,17 @@
 // than trailCap, less the faster the limb. So a kick, a roll or a fall holds together and the slow dance keeps its lag.
 #include "./particle"
 
-/** how many dancers there are this frame (and the floor's height) */
-struct Bodies { dancers: u32, floorY: f32, time: f32, pad: f32 }
+/** how many dancers there are this frame (and the floor's height); each dancer's seat colour as its matter wears it
+ *  (matter/core/seats.ts: rgb the hue, brightest channel 1; w how strongly, 0 outside the duel) */
+struct Bodies { dancers: u32, floorY: f32, time: f32, pad: f32, seat: array<vec4f, MAX_DANCERS> }
+
+/** the seat tint of the dancer a capsule (slot + 1, 0 none) belongs to */
+fn seatOfSlot(s1: u32) -> vec4f {
+  if (s1 == 0u) { return vec4f(0.0); }
+  let d = (s1 - 1u) / SEGS;
+  if (d >= MAX_DANCERS) { return vec4f(0.0); }
+  return bodies.seat[d];
+}
 
 /** the hand: the pointer's ray through the scene, how it pushes, swirls and drags what it passes, and a blast */
 struct Touch {

@@ -31,7 +31,8 @@ import type { Glows, RGB } from '../play/glow';
 import type { DuelEvent, DuelState } from '../../shared/duel.ts';
 import type { Contact, ContactEvent } from './contact';
 import type { FinaleLook } from './finale';
-import { seatHalo, seatRGB, splitRing } from './seat';
+import { seatHalo, seatRGB, splitRing, SEAT_MATTER } from './seat';
+import { setSeatTint } from '../matter/core/seats';
 import { screenBounds, CORE_JOINTS } from './hud-state';
 import { GLOW_FLOATS } from '../play/glow';
 
@@ -221,6 +222,8 @@ export class DuelFx {
       const dn = this.ctx.dancer(k), c = this.ctx.character(k);
       this.halo[k] += ((c.reforming ? 0 : 1) - this.halo[k]) * (1 - Math.exp(-dt * 6));
       if (dn) seatHalo(this.ctx.glows, dn.skeleton.world, k, this.halo[k], this.ctx.form?.(k) ?? dn.form, this.ctx.element(k));
+      // and inside its matter: the light it carries in its seat's colour (matter/core/seats.ts, report 18-bodies)
+      setSeatTint(this.ctx.slot(k), seatRGB(k), this.halo[k] * SEAT_MATTER.I * (1 + SEAT_MATTER.form * (this.ctx.form?.(k) ?? dn?.form ?? 0)));
     }
     this.lit.length = 0;
     this.quiet = Math.max(0, this.quiet - dt / QUIET_S);

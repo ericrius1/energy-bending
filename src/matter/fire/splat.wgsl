@@ -102,7 +102,7 @@ const CORNERS = array<vec2f, 6>(vec2f(-1.0, -1.0), vec2f(1.0, -1.0), vec2f(1.0, 
   let veil = select(heartVeil(hearts, p, frame.camPos), 1.0, MIRROR == 1u);
   let g = field.gain * fade * veil / max(seen.keep * seen.grow * seen.grow, 1e-3);
   o.a = vec4f(T * tongue * g, f.look.x, smoke * field.smokeGain * fade / max(seen.keep * seen.grow * seen.grow, 1e-3), test);
-  o.b = vec4f(dot(v, frame.camRight), dot(v, frame.camUp), dist, 0.0);
+  o.b = vec4f(dot(v, frame.camRight), dot(v, frame.camUp), dist, seatSideOf(field, dancerOf(homes[ii])));
   return o;
 }
 
@@ -126,6 +126,6 @@ struct Field2 { @location(0) heat: vec4f, @location(1) flow: vec4f }
   // a fusion's flame: its side into g (where a flame's form goes) and itself into a
   let fus = isFusion(i.a.y);
   o.heat = vec4f(t, t * select(i.a.y, fusionSide(i.a.y), fus), i.a.z * k * seenHere, select(0.0, t, fus));
-  o.flow = vec4f(t * i.b.x, t * i.b.y, t * i.b.z, 0.0);
+  o.flow = vec4f(t * i.b.x, t * i.b.y, t * i.b.z, t * i.b.w);
   return o;
 }

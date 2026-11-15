@@ -63,12 +63,14 @@ fn shoulder(c: vec3f) -> vec3f {
   let x = m - 1.0;
   return c * ((1.0 + 0.6 * (1.0 - exp(-x / 0.6))) / m);
 }
-/** temperature to colour, plasma: violet, magenta-pink, white-hot (docs/element-looks.md, 4) */
+/** temperature to colour, plasma: the aurora (the art bible's solar wind: report 18-bodies): violet where it is thin,
+ *  teal through its threads, a cyan-white where it is hottest. (It was violet, magenta-pink and white: the pink was
+ *  the rose seat's hue, and a violet-white body beside a violet gem body was one shape: report 17 issue 4) */
 fn plasmaRamp(T: f32) -> vec3f {
   let t = clamp(T, 0.0, 3.6);
-  let c = vec3f(0.42, 0.10, 1.0) * 1.5 * t + vec3f(1.0, 0.30, 0.95) * 0.6 * t * t + vec3f(1.0) * 0.7 * t * t * t;
-  // its hottest is violet-white, not white: red and green held under blue
-  return shoulder(vec3f(min(c.r, c.b * 0.82), min(c.g, c.b * 0.56), c.b));
+  let c = vec3f(0.40, 0.10, 1.0) * 1.35 * t + vec3f(0.05, 0.95, 0.80) * 0.6 * t * t + vec3f(0.85, 1.0, 1.0) * 0.55 * t * t * t;
+  // its hottest is cyan-white, not white: red held under green
+  return shoulder(vec3f(min(c.r, c.g * 0.8), c.g, c.b));
 }
 
 /** how hot a flame is now: hot at birth, cooling fast at first (the core survives ~0.3 s), the tips fading quickly */

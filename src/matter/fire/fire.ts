@@ -39,6 +39,7 @@ import { LIMITS } from '../../engine/limits';
 import { layoutHomes } from '../core/layout';
 import { JOINT, JOINT_FLOATS } from '../../skeleton/rig';
 import { fireParams } from './params';
+import { seatPair } from '../core/seats';
 import { fireLights, writeFireLights, type FlameLight } from './lights';
 import type { LightSlot } from '../../worlds/shared';
 import type { FireLights } from './light.wgsl';
@@ -245,12 +246,15 @@ export class FirePasses implements MatterPasses {
     const curling = this.dancers.filter((d) => Math.min(1, d.form + this.form[d.dancer]) < 0.7).map((d) => d.dancer);
     this.curl.update(f, curling, this.count, P.curl, P.curlMax);
     // the field: each splat weighted by how many flames a dancer has, so the sum doesn't change with the count
+    const seat = seatPair();
     this.field.set({
       gain: P.density * 60_000 / Math.max(1000, this.perNow), spread: P.spread, soft: P.soft, smokeGain: P.smoke, drySmoke: P.drySmoke,
       reflect: P.reflect, stretch: P.stretch, tongues: P.tongues, intensity: P.intensity, gaps: P.gaps, scale: P.noiseScale,
       climb: P.climb, advect: P.advect, period: P.period, smokeDark: 2.5, plasmaGlow: P.plasmaGlow, flicker: P.flicker, cut: P.cut,
       focusT: P.focusT, time: f.t, embers: P.emberGlow, mirrorY: this.mirrorY(f), mirrorFall: this.onWater(f) ? 0.35 : 1.6,
       fusion: s.fusion, fusionAt: [hx.at[0], hx.at[1], hx.at[2], fu.floorY],
+      // (who each body is, worn in its flames: matter/core/seats.ts)
+      seatSide: [seat.side.slice(0, 4), seat.side.slice(4, 8)] as unknown as FireField['seatSide'], seatA: seat.a as [number, number, number, number], seatB: seat.b as [number, number, number, number],
     });
     this.updateLights(f);
     this.voice(f);

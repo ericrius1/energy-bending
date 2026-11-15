@@ -5,7 +5,7 @@
 // same pipeline draws the pieces of set ice (ice/setice.ts), which grow along their path and melt or shatter.
 // A shard is a jagged hexagonal crystal built from the vertex index (24 flat triangles, no mesh buffer), pointing out
 // of the body. What makes it read as ice and not as blue gems or water: flat facets with a steep light curve (some
-// dark, some lit), pale steel blue going to navy where the light goes deep, hard bright facet edges, a frosted white
+// dark, some lit), clear white going to a deep cool glass where the light goes deep, hard prismatic facet edges, a frosted white
 // rim at grazing angles broken up by fine noise, glints that flash one facet at a time a few times a second, and
 // refraction of the world inside with a little dispersion. One pipeline per world (WORLD) for its light.
 // A dancer's shards are drawn where this view sees them (engine/seen.wgsl: only in the dancer's world, carried
@@ -38,6 +38,8 @@ struct VOut {
   @location(6) local: vec3f,
   /** which side of this view's door (engine/seen.wgsl): discarded below 0 */
   @location(7) clip: f32,
+  /** its body's seat colour (matter/core/seats.ts; none for set ice) */
+  @location(8) @interpolate(flat) seat: vec4f,
 }
 
 /** one corner of the shard: 0..5 the ring at the top, 6..11 the ring at the bottom, 12 the top tip, 13 the bottom */
@@ -95,6 +97,7 @@ fn hidden() -> VOut { var o: VOut; o.pos = vec4f(2.0, 2.0, 2.0, 1.0); return o; 
     seed = pcg(pid * 7919u + 11u);
     if (rnd(seed ^ 0x5eu) > seen.keep) { return hidden(); }
     sd = seen.d[min(dancerOf(h), MAX_DANCERS - 1u)];
+    o.seat = look.seat[min(dancerOf(h), MAX_DANCERS - 1u)];
     body = true;
     centre = seenPos(sd, p.pos);
     // on the body the surface is the ice (water/surface.wgsl draws its facets); a shard stands only where the body
@@ -165,6 +168,8 @@ fn hidden() -> VOut { var o: VOut; o.pos = vec4f(2.0, 2.0, 2.0, 1.0); return o; 
     inside[c] = worldEnv(normalize(reflect(T, tiltN)), i.wp)[c];
   }
   col += inside * mix(look.tint.rgb, vec3f(1.0), 0.4) * look.inside;
+  // who this body is: its seat's colour as light inside the crystal, deeper in some shards than others
+  col += i.seat.rgb * i.seat.w * (0.1 + 0.8 * deepness * fh);
 
   // the surface: the world's reflection by Fresnel (wet, melting ice is glossier)
   let F = 0.04 + 0.96 * pow(1.0 - cosV, 5.0);
@@ -173,7 +178,8 @@ fn hidden() -> VOut { var o: VOut; o.pos = vec4f(2.0, 2.0, 2.0, 1.0); return o; 
   // hard bright edges between the facets
   let e = min(i.bary.x, min(i.bary.y, i.bary.z));
   let edge = 1.0 - smoothstep(0.0, 0.06, e);
-  col += vec3f(0.40, 0.72, 1.0) * edge * look.edges * (0.15 + 0.6 * diff + 0.3 * length(key.col));
+  // (prismatic: each edge splits the light its own way, as cut crystal does)
+  col += mix(thinFilm(fh * 3.0 + cosV * 1.3), i.seat.rgb, 0.35 * i.seat.w) * edge * look.edges * (0.15 + 0.6 * diff + 0.3 * length(key.col));
 
   // the frosted rim: white at a glance along the surface, broken up so the outline is crystalline, not glossy
   let grain = vnoise(i.wp * 120.0) * 0.7 + vnoise(i.wp * 31.0) * 0.3;

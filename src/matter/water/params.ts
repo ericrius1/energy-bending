@@ -86,13 +86,13 @@ export const waterParams = defineParams('water', {
   /** what light does in it (docs/reports/7-water.md): what shows through a unit of the reference's amount W, per
    *  channel (red goes first, so thick water is deep blue-green, not a flat blue), how milky it is per unit W (the
    *  light it scatters inside hides the world behind), and the most it hides (thin water about 0.3 to 0.45) */
-  deep: '#a4d4da',
+  deep: '#62b2c6',
   milk: 0.6,
   opacity: 0.6,
   /** the colour of the light scattered inside it (the world's light, taken in): pale cyan, as the reference's */
-  tint: '#cfefff',
+  tint: '#a4e4f0',
   /** its own faint light (the caustic rising through it): enough to read on black, far below a fire beside it */
-  glowColor: '#3bace4',
+  glowColor: '#2cb2d6',
   glow: 0.18,
   /** the rim, only on the side a light comes from (the world's key, each fire), × that light */
   rim: '#d8f4ff',

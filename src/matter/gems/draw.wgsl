@@ -47,6 +47,8 @@ struct VOut {
   @location(10) @interpolate(flat) env: f32,
   @location(11) clip: f32,
   @location(12) @interpolate(flat) clap: f32,
+  /** its body's seat colour (matter/core/seats.ts): rgb, w how strongly */
+  @location(13) @interpolate(flat) seat: vec4f,
 }
 
 @vertex fn vs(@builtin(vertex_index) vi: u32, @builtin(instance_index) ii: u32) -> VOut {
@@ -98,6 +100,7 @@ struct VOut {
   o.lod = lod;
   o.env = select(0.0, 1.0, env);
   o.clap = clap;
+  if (!env) { o.seat = look.seat[min(dancerOf(homes[pid]), MAX_DANCERS - 1u)]; }
   return o;
 }
 
@@ -254,6 +257,12 @@ fn ambient(N: vec3f, ao: f32, p: vec3f) -> vec3f { return worldAmbient(N, ao, p)
       let flake = step(0.93, hash3(floor(i.local * 30.0) + f32(i.kind)));
       col += vec3f(1.0, 0.45, 0.12) * flake * rust * pow(max(dot(R, Ld), 0.0), 16.0) * 5.0 * look.glint * glintK;
     }
+  }
+  // who this body is: the seat's colour as light from inside the stone, strongest where it turns away from the eye
+  // (light through the stone's edge, as a rose or fern glow round each gem) and a breath of it on the faces
+  if (i.env < 0.5 && i.seat.w > 0.0) {
+    let cs = clamp(dot(N, V), 0.0, 1.0);
+    col += i.seat.rgb * i.seat.w * (0.1 + 0.8 * pow(1.0 - cs, 2.0)) * mix(0.6, 1.0, i.ao) * select(0.6, 1.0, i.mat >= 2u && i.mat < 4u);
   }
   // a heart's light on the stones round it (the heart's own stones most of all)
   if (i.env < 0.5) { col += heartLight(hearts, i.wp) * look.heart * mix(vec3f(0.6), hue(K.crystal.rgb), 0.6) * mix(0.5, 1.0, 1.0 - i.ao); }

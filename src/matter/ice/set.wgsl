@@ -15,6 +15,8 @@ struct IceLook {
   setTime: f32,       // set ice's clock (ice/setice.ts SetIce.now)
   inside: f32,        // how much of the world is seen refracted inside
   pad0: f32,
+  /** who each body is (matter/core/seats.ts): per dancer slot, rgb its seat's hue, w how strongly its ice wears it */
+  seat: array<vec4f, MAX_DANCERS>,
 }
 
 /** a shard of set ice (ice/setice.ts writes these) */
