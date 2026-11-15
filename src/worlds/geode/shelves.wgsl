@@ -3,7 +3,9 @@
 // from its root to a chisel tip, made from the vertex index. Faceted (the normal is each face's own, each face shaded a
 // little its own way), milky and fibrous along their length: a satin sheen across the fibres, the studio and the wall's
 // veins in their faces, light gathering inside them toward the tip and along their long edges. Selenite glows honey;
-// a gate's crystals glow in its world's colour, the wall's great crystals in its veins'.
+// a gate's crystals glow in its world's colour, the wall's great crystals in its veins'. The greenhouse (phase 4): moss
+// grown over the selenite's tops with small flowers in it (cream, coral, gold), and vines hanging from their edges down
+// their faces, more of both on the bigger blades.
 #include "weft/frame"
 #include "../light"
 
@@ -22,6 +24,7 @@ struct VOut {
   @location(2) @interpolate(flat) axis: vec3f,
   @location(3) @interpolate(flat) look: vec4f,   // its length, the seed, the tint, the glow
   @location(4) @interpolate(flat) size: vec2f,   // width, thickness
+  @location(5) @interpolate(flat) pitch: f32,     // its tilt up from level (a beam stands at a quarter turn)
 }
 
 const SECTIONS: u32 = 6u;
@@ -91,6 +94,7 @@ fn toWorld(b: Blade, q: vec3f) -> vec3f {
   o.axis = normalize(toWorld(b, vec3f(0.0, 0.0, 1.0)) - b.at.xyz);
   o.look = vec4f(b.size.z, b.look.y, b.look.z, b.look.w);
   o.size = b.size.xy;
+  o.pitch = b.size.w;
   return o;
 }
 
@@ -150,5 +154,35 @@ fn toWorld(b: Blade, q: vec3f) -> vec3f {
   col += glowCol * smoothstep(0.82, 1.0, along) * (0.25 + i.look.w * 0.4) * L.cave.w;
   // a glint where a face turns the softbox to the eye
   col += vec3f(1.0, 0.97, 0.92) * pow(max(dot(R, Ld), 0.0), 120.0) * key.glint * 0.8 * step(0.5, faceH);
+  // the greenhouse (selenite only, and blades big enough to hold soil): moss over what faces up, flowers in it; vines
+  // hanging from the top edge down the faces (how far below the top: a shelf's own depth, a beam's from its flat top)
+  if (i.look.z < -0.5 && L.green > 0.0 && i.size.x > 0.25) {
+    let sp = sin(i.pitch);
+    let below = -i.local.y * cos(i.pitch) + (i.look.x - i.local.z) * sp;
+    let up = max(N.y, 0.0);
+    let lightUp = (geodeAmbient(vec3f(0.0, 1.0, 0.0), 0.8) * 0.12 + key.col * 0.08 + GEO_SUN * 0.03 * L.sun.w);
+    // (in cushions: thick in places, thin to the stone at their edges, never a felt over the whole top)
+    let cushion = vnoise(i.wp * 2.3 + vec3f(seed * 9.0)) * 0.7 + vnoise(i.wp * 7.0) * 0.3;
+    let mossy = smoothstep(0.6, 0.9, up) * smoothstep(0.42, 0.62, cushion) * L.green;
+    var moss = GEO_MOSS * (0.35 + 0.9 * vnoise(i.wp * 18.0)) * (0.6 + 0.6 * cushion) * lightUp * 1.5;
+    // flowers: a few cells of a fine grid on the moss hold one, cream, coral or gold
+    let fc = floor(i.wp.xz / 0.11);
+    let fh = fract(sin(vec3f(dot(fc, vec2f(12.9898, 78.233)), dot(fc, vec2f(39.35, 11.13)), dot(fc, vec2f(73.1, 51.7))) + seed) * 43758.5453);
+    let bloom = step(0.9, fh.x) * smoothstep(0.32, 0.12, length(fract(i.wp.xz / 0.11) - 0.5));
+    let petal = select(select(vec3f(1.0, 0.94, 0.82), vec3f(1.0, 0.5, 0.42), fh.y > 0.55), vec3f(1.0, 0.78, 0.3), fh.y > 0.85);
+    moss = mix(moss, petal * (lightUp * 3.0 + 0.02), bloom * smoothstep(0.7, 0.95, up));
+    col = mix(col, moss, mossy);
+    // vines: strands along the top edge, each its own length, wavering as they hang
+    let u = mix(i.local.z + i.local.x * 1.7, i.local.x + i.local.y * 1.7, sp) / 0.16;
+    let vh = fract(sin(floor(u) * 91.7 + seed * 37.0) * 43758.5453);
+    let hangs = 0.12 + 0.9 * fract(vh * 7.31);
+    let wig = 0.5 + 0.18 * sin(below * 6.0 + vh * 30.0);
+    // (a strand of leaves: its stem's line, the leaves either side in a broken chain)
+    let leaves = smoothstep(0.35, 0.65, vnoise(vec3f(u * 1.3, below * 13.0, seed * 5.0)));
+    let vine = step(0.72, vh) * smoothstep(0.16 + 0.22 * leaves, 0.06 + 0.12 * leaves, abs(fract(u) - wig)) * smoothstep(hangs, hangs - 0.15, below) * step(0.01, below)
+      * (1.0 - up) * L.green;
+    let leaf = 0.5 + 0.7 * leaves;
+    col = mix(col, GEO_LEAF * lightUp * 1.1 * leaf, vine * (0.55 + 0.45 * leaves));
+  }
   return vec4f(sightLit(col), dot(i.wp - frame.camPos, frame.camFwd));
 }

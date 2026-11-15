@@ -9,6 +9,12 @@
 //
 // It is the hub: a gate to every other world stands round its floor (portals), facing the middle, each in a crown of
 // crystals in its world's colour, a path worn across the agate to it.
+//
+// Phase 4 began turning it into a greenhouse (solarpunk, the first pass): the stone warm (cream selenite, honey calcite,
+// sky-teal celestite and citrine, amethyst an accent), the shaft and four light wells round the vault letting the sun
+// in as beams through the haze, pools of sun and prisms' rainbows on the agate, moss and vines over the wall and the
+// shelves with flowers in the moss, fungi glowing teal in the shadows and fireflies drifting there, brass-and-glass
+// lanterns hung under the shelves (geode.wgsl, backdrop.wgsl, shelves.wgsl, crystals.wgsl, motes.wgsl).
 import type { Texture } from '@ericrius1/weft';
 import type { Geode as GeodeU } from '../light.wgsl';
 import { lightSlot, type LightSlot } from '../shared';
@@ -34,24 +40,24 @@ export const geodeParams = defineParams('geode', {
   rimPower: 10,
   floorGloss: 1,
   fog: 0.03,
-  bgTop: '#050409',
-  bgBottom: '#0f0a14',
-  floorCol: '#a0607e',
-  rim: '#8f7bff',
+  bgTop: '#0a100c',
+  bgBottom: '#140f09',
+  floorCol: '#a8865e',
+  rim: '#ffcf8a',
   // the wall and the light
   cave: true,
   /** the stage's crystal shelves on the back wall */
   shelves: true,
   caveStones: 3600,
   caveRadius: 12,
-  caveTint: '#9a82e0',
+  caveTint: '#e0c48e',
   caveBright: 0.4,
-  floorBand: '#4a3d63',
+  floorBand: '#dccdae',
   floorBandAmt: 0.55,
-  shaft: 0.035,
+  shaft: 0.045,
   shaftRadius: 1.15,
   shaftTop: 11.5,
-  shaftCol: '#f4ece2',
+  shaftCol: '#ffe4ae',
   // the light came down through water: a net of caustics on the floor and the stones, rays in the air
   caustics: 0.5,
   rays: 0.7,
@@ -60,7 +66,11 @@ export const geodeParams = defineParams('geode', {
   motes: 1400,
   moteSize: 0.008,
   haze: 0.03,
-  hazeCol: '#08060f',
+  hazeCol: '#0c120b',
+  // the greenhouse (phase 4): the light wells' sun (how bright), how grown over the stone is, the fireflies
+  sun: 1,
+  green: 1,
+  fireflies: 90,
   /** the hollow's wall: how much higher than wide its vault reaches, how strongly its crystals glow, their glints */
   vault: 1,
   wallGlow: 1,
@@ -81,7 +91,16 @@ export const geodeParams = defineParams('geode', {
   haze: { min: 0, max: 0.2 },
   floorCol: { color: true, label: 'floor' },
   rim: { color: true },
+  sun: { min: 0, max: 3, label: 'sun through the wells' },
+  green: { min: 0, max: 1, label: 'moss and vines' },
+  fireflies: { min: 0, max: 400, step: 1 },
 });
+
+/** the light wells round the vault (bearing in degrees from +x, the window's radius), high up the dome, and the way the
+ *  sun's beams run down through them: each lands on the agate a few metres in from the wall */
+const WELLS: [number, number][] = [[205, 1.2], [250, 1.1], [292, 1.2], [150, 1.0]];
+const WELL_UP = 0.55;
+const SUN: [number, number, number] = [0.42, -1, 0.36];
 
 export class Geode implements World {
   readonly id = 'geode';
@@ -96,10 +115,9 @@ export class Geode implements World {
   readonly spawns: [number, number, number][];
   readonly fixtures: Fixture[];
   readonly mirrorFloor = true;
-  /** its colour (src/post/grade.ts): violet in the shadows, a warm white in the light, blacks kept for the bokeh
-   *  (the world agent's proposal, docs/reports/4-worlds-hub-pool-forge.md, in the hook's terms; its vignette 0.25 is
-   *  not per world yet) */
-  readonly grade: Grade = { lift: [0.004, 0.002, 0.008], shadows: [0.95, 0.92, 1.08], highlights: [1.02, 0.975, 0.92], saturation: 1.1, contrast: 1.05 };
+  /** its colour (src/post/grade.ts): a little green-teal in the shadows (the greenhouse's), sun gold in the light,
+   *  blacks kept for the bokeh (it was violet in the shadows until phase 4) */
+  readonly grade: Grade = { lift: [0.004, 0.006, 0.004], shadows: [0.96, 1.0, 0.98], highlights: [1.04, 0.99, 0.9], saturation: 1.08, contrast: 1.05 };
   readonly maxDist = 14;
   private u: LightSlot<GeodeU>;
   private pool = [0, 0, 2.2, 0];
@@ -152,7 +170,7 @@ export class Geode implements World {
     this.spawns = spawnsOf(this.stages[0]);
     // the wall: crystal points and clusters pointing in at the stage, thicker and bigger where the dome meets the floor
     this.fixtures = [{ kind: 'gems', id: 'geode.wall', shape: 'dome', count: Math.min(P.caveStones, 4096), radius: P.caveRadius,
-      specimens: ['quartz', 'citrine', 'amethyst', 'celestite'], seed: 4242, enabled: () => geodeParams.cave }];
+      specimens: ['quartz', 'citrine', 'celestite', 'malachite', 'amethyst'], seed: 4242, enabled: () => geodeParams.cave }];
     this.upload();
     onParams(P, () => this.upload());
   }
@@ -172,6 +190,16 @@ export class Geode implements World {
       shaftCol: [...hex(P.shaftCol), P.shaftTop], caustic: [P.caustics, P.causticCells, P.causticSpeed, P.rays], hazeCol: [...hex(P.hazeCol), P.haze],
       wall: [P.caveRadius + 0.4, P.vault, P.wallGlow, P.wallGlints], gates: this.gates,
       rimPower: P.rimPower, floorGloss: P.floorGloss, fog: P.fog, moteSize: P.moteSize, floorY: 0,
+      dust: P.motes, flies: P.fireflies, green: P.green, sun: [...SUN, P.sun], wells: this.wells(),
+    });
+  }
+
+  /** the light wells: each window's middle on the vault (the wall's ellipsoid, WELL_UP of the way up its dome) and radius */
+  private wells() {
+    const P = geodeParams, R = P.caveRadius + 0.4, el = WELL_UP;
+    return WELLS.flatMap(([deg, r]) => {
+      const a = (deg * Math.PI) / 180;
+      return [Math.cos(a) * Math.cos(el) * R, Math.sin(el) * R * P.vault, Math.sin(a) * Math.cos(el) * R, r];
     });
   }
 
@@ -197,7 +225,7 @@ export class Geode implements World {
       s.pass.draw(shelfShader, { label: 'geode.duel.shelves', bind: { blades: this.duelBlades }, count: 8 * 6 * 6 + 48, instances: duel.bladeCount, cull: 'none', enabled: shown });
       s.pass.draw(crystalShader, { label: 'geode.duel.crystals', bind: { points: this.duelPoints }, count: 54, instances: duel.pointCount, cull: 'none', enabled: shown });
     } else if (s.phase === 'glow') {
-      s.pass.draw(moteShader, { label: 'geode.motes', count: 6, instances: () => geodeParams.motes, blend: 'add', depthWrite: false, cull: 'none', enabled: s.on });
+      s.pass.draw(moteShader, { label: 'geode.motes', count: 6, instances: () => geodeParams.motes + Math.round(geodeParams.fireflies), blend: 'add', depthWrite: false, cull: 'none', enabled: s.on });
     }
   }
 

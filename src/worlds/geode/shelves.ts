@@ -117,6 +117,17 @@ export function layoutShelves(o: { caveRadius: number; gates?: GateSite[]; seed?
       }
     }
   }
+  // brass-and-glass lanterns standing either side of each worn path to a gate (crystals.wgsl's tint 5; under 45 cm, so
+  // not a solid: a body brushes past). Laid last and without the dice, so the crystals before them stay where they were
+  for (const g of o.gates ?? []) {
+    const [gx, , gz] = g.at, l = Math.hypot(gx, gz) || 1, side = [-gz / l, gx / l];
+    for (const [s, k] of [[0.8, 1]] as const) {
+      for (const e of [-1, 1]) {
+        const off = 0.95 * e * k;
+        points.push({ at: [gx * s + side[0] * off, 0, gz * s + side[1] * off], yaw: 0, pitch: Math.PI / 2, w: 0.2, thick: 0.2, len: 0.42, tip: 0.1, seed: (s * 7 + e * 3 + g.tint) % 1, tint: 5, glow: 1 });
+      }
+    }
+  }
   return { ledges, blades, points, high };
 }
 

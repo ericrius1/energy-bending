@@ -136,11 +136,13 @@ export interface Geode {
   fog: number;
   moteSize: number;
   floorY: number;
-  pad0: number;
-  pad1: number;
-  pad2: number;
+  flies: number;
+  green: number;
+  dust: number;
   drops: ArrayLike<number> | Vec4[];
   dropFrame: Vec4;
+  wells: ArrayLike<number> | Vec4[];
+  sun: Vec4;
 }
 export interface Forest {
   pad: number;

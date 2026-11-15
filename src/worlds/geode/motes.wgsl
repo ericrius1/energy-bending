@@ -1,5 +1,7 @@
 // Dust in the light: motes drifting down through the shaft from above, slow, twinkling. Procedural (no buffer): each
-// knows where it is from its index and the time. Additive; out of focus they open into soft discs.
+// knows where it is from its index and the time. Additive; out of focus they open into soft discs. After the dust
+// (index `dust` on), fireflies: drifting low in the shadows round the floor's edge and the druses, each glowing warm
+// yellow-green for a moment and going dark again (phase 4's greenhouse).
 #include "weft/frame"
 #include "../light"
 
@@ -11,6 +13,22 @@ struct MOut {
 
 @vertex fn vs(@builtin(vertex_index) vi: u32, @builtin(instance_index) ii: u32) -> MOut {
   var o: MOut;
+  let c6 = array<vec2f, 6>(vec2f(-1.0, -1.0), vec2f(1.0, -1.0), vec2f(1.0, 1.0), vec2f(-1.0, -1.0), vec2f(1.0, 1.0), vec2f(-1.0, 1.0))[vi];
+  if (f32(ii) >= worldLight.geode.dust) {
+    // a firefly: round the room in the shadows, wandering on slow loops, its light a blink now and then
+    let g = rnd3(ii * 13u + 5u);
+    let t = frame.time;
+    let a = g.x * 6.2831853 + t * (0.03 + 0.05 * g.y) * select(-1.0, 1.0, g.z > 0.5) + 0.4 * sin(t * 0.21 + g.z * 9.0);
+    let rr = 4.2 + 6.0 * g.y + 0.5 * sin(t * 0.33 + g.x * 11.0);
+    let y = 0.3 + 2.6 * g.z * g.z + 0.35 * sin(t * (0.5 + 0.4 * g.x) + g.y * 17.0);
+    let centre = vec3f(cos(a) * rr, y, sin(a) * rr - 1.0);
+    let blink = pow(max(sin(t * (0.6 + 0.9 * g.x) + g.y * 40.0), 0.0), 5.0);
+    let size = 0.022 + 0.012 * g.x;
+    o.pos = frame.viewProj * vec4f(centre + (frame.camRight * c6.x + frame.camUp * c6.y) * size, 1.0);
+    o.uv = c6;
+    o.bright = -(0.15 + 2.2 * blink);
+    return o;
+  }
   let h = rnd3(ii * 7u + 1u);
   let top = worldLight.geode.shaftCol.w;
   let fall = 0.012 + 0.03 * h.x;
@@ -32,5 +50,7 @@ struct MOut {
 
 @fragment fn fs(i: MOut) -> @location(0) vec4f {
   let k = exp(-dot(i.uv, i.uv) * 3.5);
+  // (a firefly's brightness comes negative: its own colour, its glow wider)
+  if (i.bright < 0.0) { return vec4f(vec3f(0.85, 1.0, 0.35) * (-i.bright) * exp(-dot(i.uv, i.uv) * 2.2) * 0.9, 0.0); }
   return vec4f(vec3f(1.0, 0.95, 0.88) * i.bright * k * 0.12, 0.0);
 }
