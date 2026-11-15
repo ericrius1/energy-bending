@@ -38,6 +38,7 @@ export const DUEL_GAIN: Record<DuelCue, number> = {
   cast: 1.1, form: 0.8, react: 0.85, launch: 0.5, swap: 0.6, redirect: 0.6,
   dash: 0.55, walljump: 0.6, land: 0.65, jump: 0.35,
   splash: 0.7, crest: 0.6, tide: 0.6, gust: 0.7, swell: 0.65, hum: 0.6, humlift: 0.7,
+  cross: 0.9,
 };
 /** each power's gain inside the cast's, so the ten sit together (measured alone, the flare, the ribbon, the blink and
  *  the arc were 4 to 7 dB under the ice step) */
@@ -45,7 +46,7 @@ const POWER_GAIN: Record<string, number> = { flare: 1.5, ribbon: 1.9, blink: 1.6
 /** voices a cue keeps sounding at once, and how long one lasts (s) for the count */
 const CAP: Partial<Record<DuelCue, number>> = { tide: 2, gust: 2, swell: 2, hum: 2, swing: 2, dash: 3, land: 3, walljump: 3, jump: 2, catch: 3, cast: 4 };
 /** the reverb's share for a cue */
-const WET: Partial<Record<DuelCue, number>> = { merge: 0.45, fusion: 0.5, finale: 0.45, banner: 0.45, tier: 0.35, go: 0.4, react: 0.4, form: 0.35 };
+const WET: Partial<Record<DuelCue, number>> = { cross: 0.55, merge: 0.45, fusion: 0.5, finale: 0.45, banner: 0.45, tier: 0.35, go: 0.4, react: 0.4, form: 0.35 };
 
 type Out = AudioNode;
 
@@ -174,6 +175,26 @@ export class DuelVoices {
     this.bowl(o, t, 'crystal', this.chordAt(c, 72, k), 0.5, 1.2);
     this.osc(o, t, 'sine', mtof(this.chordAt(c, 60, k)), 0.08, 0.004, 0.25);
     return 1.2;
+  }
+  /** through a mirror (phase 6, report 20-crossing): on the beat the new world's track comes in, in its key. A glass
+   *  bowl on its root and a crystal bell a fifth over, a run of chimes rising on its pentatonic in 16ths (a wind chime
+   *  stirred), a breath of air rising behind, and the chord held as a soft pad that swells and fades over two beats:
+   *  the one sound both worlds share while the tempo eases across */
+  c_cross(t: number, c: DuelCall, o: Out) {
+    const tones = this.tones(c), root = notes(tones, 48, 1)[0];
+    this.bowl(o, t, 'glass', root, 0.6, 4.5);
+    this.bowl(o, t + 0.01, 'crystal', notes(tones, 76, 1)[0], 0.38, 2.5);
+    this.pent(c, 74, 6).forEach((m, i) => this.bowl(o, t + (i + 1) * c.spb / 4, 'crystal', m, 0.3 - i * 0.025, 1.6));
+    this.air(o, t - 0.25, [[0, 320], [0.6, 2800], [1.6, 1200]], 0.8, 0.09, 0.45, 1.3);
+    const pad = this.n.bq('lowpass', 1600, 0.5); pad.connect(o);
+    for (const m of notes(tones, 55, 3)) {
+      const s = this.n.o('sine', mtof(m), t, t + 3.2), g = this.n.gn(0);
+      g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(0.045, t + 0.35); g.gain.setTargetAtTime(0, t + 2 * c.spb, 0.5);
+      this.n.link(s, g, pad);
+    }
+    this.tint(o, t + c.spb / 2, c.matter, this.pent(c, 79, 1)[0], 0.45, 0.9);
+    if (c.other) this.tint(o, t + c.spb * 0.75, c.other, this.pent(c, 84, 1)[0], 0.45, 0.9);
+    return 4.5;
   }
   /** BEND: the chord in bowls, opening */
   c_go(t: number, c: DuelCall, o: Out) {

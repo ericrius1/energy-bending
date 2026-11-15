@@ -1,0 +1,10 @@
+{
+  "generator": "GPT Image via the Codex CLI image tool (ChatGPT login)",
+  "codexModel": "gpt-5.6-terra",
+  "prompt": "Concept art for a real-time dance game moment, solarpunk, seen from just behind two glowing dancers made of light particles (one rose, one fern green) as they swing hand in hand through a tall round art-nouveau mirror: a ring of brass gone green with a crown of stained-glass panes and vines with leaves climbing it, standing at the edge of a sunlit garden court. The mirror's glass is a window into another world (a teal tide temple with clear water and white columns at golden hour); as the pair pass through, concentric ripples of golden light run across the glass from where they touch it, and a soft flurry of petals in sun gold, cream, coral and leaf green blows out from the rim on both sides, with a few motes of light rising. The camera follows them in, on their line, through the middle of the ring. Warm low sun, hopeful, calm, awe, palette of sun gold, leaf green, sky teal, cream, a touch of coral; no explosions, no damage, no text",
+  "inputs": {},
+  "codexThread": "01a1e042-6120-7ad1-b3ba-2119529a7d1e",
+  "codexFile": "C:\\Users\\ericr\\.codex\\generated_images\\01a1e042-6120-7ad1-b3ba-2119529a7d1e\\exec-99d9a1ed-6ed6-495e-977e-193c26cf9107.png",
+  "seconds": 62.7,
+  "sha256": "bad78801572a435a126b070b0cdae7a34814b82b3cc090250a0fc30ad220d753"
+}

@@ -21,7 +21,8 @@
 import type { DuelCall, DuelCue, Instrument, UnderLevels } from '../audio/instrument';
 import type { Harm } from '../audio/harmony';
 import { panOf, distOf, type Listener } from '../audio/spatial';
-import { trackChord, trackFor, type TrackInfo } from '../audio/track';
+import { trackChord, trackFor, trackBar, trackMood, type TrackInfo } from '../audio/track';
+import { TRACK_ENERGY } from '../audio/energy';
 import { DUEL } from '../../shared/duel.ts';
 import { HAZARD, gustNow, humNow, swellNow, tideAt, type Hazard } from './hazards';
 
@@ -62,6 +63,8 @@ export const TIMING: Record<DuelCue, { grids: number[]; ahead: number; gap?: num
   // (the hazards' phrase sounds come with their own beat: `CueReq.beat`)
   splash: { grids: [], ahead: 0, gap: 0.3 }, crest: { grids: [0.25], ahead: 0.04, gap: 0.3 },
   tide: { grids: [], ahead: 0, gap: 1 }, gust: { grids: [], ahead: 0, gap: 1 }, swell: { grids: [], ahead: 0, gap: 1 }, hum: { grids: [], ahead: 0, gap: 1 }, humlift: { grids: [1], ahead: 0.1, gap: 1 },
+  // (the crossing's chime is put on its beat by SetMusic.cross, the beat the new track comes in on)
+  cross: { grids: [], ahead: 0, gap: 1 },
 };
 
 // ---------------------------------------------------------------- the map
@@ -191,6 +194,23 @@ export function phraseSetMs(askedMs: number, bpm: number, bars = 4) {
 }
 /** the phrase line (beats since bar 1) nearest `beat`: every 4 bars from bar 1 before the track's loop, every 4 bars
  *  from the loop's start inside it (the loop's length is whole phrases, so the lines hold round it). Pure */
+/** where a crossing enters the new track (phase 6): the first bar of a 4-bar phrase of its body (its loop) whose
+ *  loudness (src/audio/energy.ts: dB against the track's median bar) is nearest the old track's around the bar it was
+ *  on, lifted a little for a set in full flow (`energy` 0 … 1), a phrase that starts with a dip a little worse. Never
+ *  its intro */
+export function entryBar(from: TrackInfo, fromBar: number, to: TrackInfo, energy: number) {
+  const A = TRACK_ENERGY[from.id], B = TRACK_ENERGY[to.id];
+  const mean = (E: readonly number[], b0: number, n: number) => { let s = 0, k = 0; for (let b = b0; b < b0 + n; b++) if (b >= 0 && b < E.length) { s += E[b]; k++; } return k ? s / k : 0; };
+  const want = (A ? mean(A, fromBar - 1, 4) : 0) + (Math.max(0, Math.min(1, energy)) - 0.5) * 1.2;
+  let best = to.loop.startBar, score = Infinity;
+  for (let b = to.loop.startBar; b + 4 <= to.loop.endBar; b += 4) {
+    if (!B) break;
+    const m = mean(B, b, 4), s = Math.abs(m - want) + 0.3 * Math.max(0, m - B[b]);
+    if (s < score - 1e-9) { score = s; best = b; }
+  }
+  return best;
+}
+
 export function phraseLine(beat: number, t: TrackInfo, bars = 4) {
   const P = bars * 4, L0 = t.loop.startBar * 4;
   if (beat < L0 - P / 2) return Math.max(0, Math.round(beat / P) * P);
@@ -333,6 +353,8 @@ export interface MusicLike {
     clock: { beatAt(t: number): number; anchor(t: number, beats: number, from?: number): void; readonly bpm: number; readonly sync: unknown };
     track: TrackInfo | null; trackAt: number; trackBeat0: number; setTrack(t: TrackInfo | null, now?: boolean): void;
     harmony: { setChord(i: number, t: number): void };
+    /** a mirror crossing's bridge to another track (engine.ts crossTo) */
+    crossTo?(t: TrackInfo, bar: number): { tB: number; tC: number; kB: number; kC: number; nb: number; rA: number; rB: number } | null;
   };
   deck: { stop(fade?: number): void } | null;
   live: { ctx: { state: string } } | null;
@@ -390,8 +412,21 @@ export function duelSound(o: DuelSoundOptions) {
     hazards: () => D().hazards?.fx ?? [],
   };
   const host: SoundHost = { out: E.out, now: () => M.now(), clock: E.clock as unknown as SoundHost['clock'], harmony: E.harmony, listener: o.listener };
-  const sound = new DuelSound(host, src, DUEL_SOUNDS, (name, x) => (M.sfx as unknown as (n: string, x: unknown) => void)(name, x)) as DuelSound & { music: SetMusic };
+  const sound = new DuelSound(host, src, DUEL_SOUNDS, (name, x) => (M.sfx as unknown as (n: string, x: unknown) => void)(name, x)) as DuelSound & { music: SetMusic; cross: (world: string, energy: number) => ReturnType<SetMusic["cross"]> };
   const music = sound.music = new SetMusic(M, o.world, o.film);
+  // through a mirror (phase 6): the new world's track on the next beat (SetMusic.cross), and the crossing's chime on
+  // that beat in the new track's key, in both dancers' colours. Returns the bridge (or null: a film, a room's clock)
+  sound.cross = (world: string, energy: number) => {
+    const B = music.cross(world, energy, D().now());
+    const T = trackFor(world);
+    if (!B || !T) return B;
+    const mood = trackMood(T), H: Harm = { mood, chord: mood.chords[trackChord(T, B.nb)] ?? mood.chords[0] };
+    const call: DuelCall = { cue: 'cross', matter: src.matter(0), other: src.matter(1), pan: 0, dist: 0.2, vel: 0.95, level: 1, H, spb: 60 / T.bpm, seed: frac(B.tB * 7.13) };
+    E.out.duel(B.tB, call);
+    sound.counts.cues.cross = (sound.counts.cues.cross ?? 0) + 1; sound.counts.total++;
+    sound.moments.push({ cue: 'cross', t: +B.tB.toFixed(3), beat: +E.clock.beatAt(B.tB).toFixed(3), snapped: true, waitMs: Math.round((B.tB - M.now()) * 1000) });
+    return B;
+  };
   let balanced: unknown;
   // (any first gesture starts the sound inside it: a context made there runs at once, Safari's and iOS's included;
   // one made outside a gesture, as the bots' duel makes it at load, waits for Live's own wake on the next gesture)
@@ -417,7 +452,7 @@ export function duelSound(o: DuelSoundOptions) {
 export class SetMusic {
   /** where the set is on the track: its "go" (duel ms) is this beat since the track's bar 1 */
   plan: { goMs: number; beat: number } | null = null;
-  readonly counts = { sets: 0, placed: 0, follows: 0, lastDriftBeats: 0, nudgedMs: 0 };
+  readonly counts = { sets: 0, placed: 0, follows: 0, lastDriftBeats: 0, nudgedMs: 0, crossed: 0 };
   /** how far the music is ahead of the set (ms, the last frame's) */
   private driftMs = 0;
   /** how much faster the set's clock may run to catch the music up (its own holds and hitches made up unheard). The
@@ -447,10 +482,33 @@ export class SetMusic {
     this.place(nowMs);
   }
 
+  /** through a mirror (phase 6, report 20-crossing): the new world's track comes in on the next beat (Engine.crossTo:
+   *  the tempo bent across over the bar), not on the bar line after the main view goes over, and not at its quiet bar
+   *  1: at the phrase of its body whose loudness matches where the old track was (and the set's energy). The set's
+   *  place on the track moves with it. Null where the set doesn't place the track (a film, a room's clock), or for the
+   *  same track */
+  cross(world: string, energy: number, nowMs: number) {
+    const M = this.music, E = M.engine, to = trackFor(world), from = E.track;
+    if (!this.on || !to || !from || from.id === to.id || !E.crossTo) return null;
+    const t = M.now();
+    const bar = entryBar(from, trackBar(from, E.clock.beatAt(t) - E.trackBeat0), to, energy);
+    const B = E.crossTo(to, bar);
+    if (!B) return null;
+    void M.loader?.want(to);
+    // (the set's place: from the bridge's end, on the new track's own tempo)
+    this.plan = { goMs: nowMs + (B.tC - t) * 1000, beat: B.nb + (B.kC - B.kB) / 4 };
+    this.quietUntil = B.tC + 0.1;
+    this.driftMs = 0;
+    this.counts.crossed++;
+    return B;
+  }
+  /** the music time until which the set leaves the track alone (a crossing's bridge under way) */
+  private quietUntil = -Infinity;
+
   /** each frame: put the track back where the set is if they drifted apart (not while the context is suspended) */
   follow(nowMs: number, phase = 'play') {
     const M = this.music;
-    if (!this.plan || !this.on || !M.live || M.live.ctx.state !== 'running') return;
+    if (!this.plan || !this.on || !M.live || M.live.ctx.state !== 'running' || M.now() < this.quietUntil) return;
     const E = M.engine, spb = 60 / E.clock.bpm, t = M.now();
     const want = this.plan.beat + (nowMs - this.plan.goMs) / 1000 / spb, is = E.clock.beatAt(t) - E.trackBeat0;
     this.counts.lastDriftBeats = is - want;
@@ -464,7 +522,7 @@ export class SetMusic {
    *  hit-stop, slow motion: its dance time runs slower than the frame's): it catches up after */
   nudge(dt: number, danceDt: number) {
     const M = this.music;
-    if (!this.plan || !this.on || !M.live || M.live.ctx.state !== 'running' || dt <= 0) return 0;
+    if (!this.plan || !this.on || !M.live || M.live.ctx.state !== 'running' || dt <= 0 || M.now() < this.quietUntil) return 0;
     if (Math.abs(danceDt - dt) > 0.03 * dt) return 0;
     const cap = this.slew * danceDt * 1000, n = Math.max(-cap, Math.min(cap, this.driftMs));
     this.driftMs -= n;

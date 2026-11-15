@@ -364,6 +364,9 @@ export class Portals implements SceneLayer {
     return true;
   }
 
+  /** a ripple from the middle of a gate's glass and a flash of its rim, now (a duel crossing's beat: crossing-fx.ts) */
+  ripple(id: string, s = 1) { const g = this.gates.get(id); if (!g) return; g.flash = Math.max(g.flash, 0.9); g.poke(0, 0, this.t, s, false); }
+
   /** let dancer `d` cross no gate for `s` seconds (a duel's pair just through a mirror: no crossing straight back) */
   holdBack(d: Dancer, s: number) { this.exempt.set(d, Math.max(this.exempt.get(d) ?? -1, this.t + s)); }
 

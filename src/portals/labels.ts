@@ -189,18 +189,37 @@ export class GateNames {
   }
 }
 
-/** the mirror's light over the whole screen for a moment (a gold-white bloom in the far world's colour, gone in half
- *  a second): what covers the main view's cut to the other world when the eye couldn't come through the disc
- *  (Portals.arrive). Stepped by hand (a capture), it fades on the page's own clock all the same */
+/** the mirror's light over the screen for a moment: what covers the main view's cut to the other world in the rare
+ *  crossing whose eye couldn't come through the disc (Portals.arrive; phase 6 made it rare, report 20-crossing). Not a
+ *  white-out: the screen seen as through the mirror's glass, a soft iris of honey light opening from the middle with a
+ *  ring of the far world's colour running out ahead of it, and the edges a moment longer in that colour, as a disc's
+ *  rim; all gone in under a second. Stepped by hand (a capture), it fades on the page's own clock all the same */
 export function mirrorFlash(world: string) {
   if (typeof document === 'undefined') return;
-  const v = document.createElement('div');
   const c = WORLD_CSS[world] ?? '#ffc861';
-  v.className = 'eb-mirror-flash';
-  v.setAttribute('aria-hidden', 'true');
-  v.style.cssText = 'position:fixed;inset:0;z-index:4;pointer-events:none;opacity:1;transition:opacity 0.6s ease-out;'
-    + `background:radial-gradient(circle at 50% 50%, rgba(255,248,226,0.95) 0%, color-mix(in srgb, ${c} 50%, rgba(255,236,190,0.9)) 50%, color-mix(in srgb, ${c} 70%, rgba(255,236,190,0.6)) 100%);`;
-  document.body.append(v);
-  requestAnimationFrame(() => requestAnimationFrame(() => { v.style.opacity = '0'; }));
-  setTimeout(() => v.remove(), 900);
+  const wrap = document.createElement('div');
+  wrap.className = 'eb-mirror-flash';
+  wrap.setAttribute('aria-hidden', 'true');
+  wrap.style.cssText = 'position:fixed;inset:0;z-index:4;pointer-events:none;overflow:hidden;';
+  // the iris: honey light at the middle, the far world's colour at its edge, opening out and thinning
+  const iris = document.createElement('div');
+  iris.style.cssText = 'position:absolute;left:50%;top:50%;width:150vmax;height:150vmax;margin:-75vmax 0 0 -75vmax;border-radius:50%;opacity:0.92;transform:scale(0.35);'
+    + 'transition:transform 0.85s cubic-bezier(0.2,0.7,0.2,1),opacity 0.85s ease-out;'
+    + `background:radial-gradient(circle, rgba(255,246,222,0.9) 0%, color-mix(in srgb, ${c} 30%, rgba(255,226,160,0.75)) 38%, color-mix(in srgb, ${c} 65%, rgba(255,226,160,0.35)) 58%, rgba(255,236,190,0) 72%);`;
+  // the ring running out ahead of it, in the far world's colour
+  const ring = document.createElement('div');
+  ring.style.cssText = 'position:absolute;left:50%;top:50%;width:60vmin;height:60vmin;margin:-30vmin 0 0 -30vmin;border-radius:50%;opacity:0.9;transform:scale(0.4);'
+    + `border:0.8vmin solid color-mix(in srgb, ${c} 70%, #fff2cf);box-shadow:0 0 4vmin color-mix(in srgb, ${c} 60%, #ffe2a0), inset 0 0 4vmin color-mix(in srgb, ${c} 50%, #ffe2a0);`
+    + 'transition:transform 0.7s cubic-bezier(0.2,0.7,0.2,1),opacity 0.7s ease-in;';
+  // the edges: the disc's rim round the screen, a moment longer
+  const rim = document.createElement('div');
+  rim.style.cssText = `position:absolute;inset:0;opacity:0.85;transition:opacity 1.1s ease-out;box-shadow:inset 0 0 18vmin color-mix(in srgb, ${c} 75%, #ffd88a);`;
+  wrap.append(iris, rim, ring);
+  document.body.append(wrap);
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    iris.style.transform = 'scale(1.25)'; iris.style.opacity = '0';
+    ring.style.transform = 'scale(3.2)'; ring.style.opacity = '0';
+    rim.style.opacity = '0';
+  }));
+  setTimeout(() => wrap.remove(), 1300);
 }
