@@ -17,5 +17,7 @@
     let sheen = worldLight.pool.glow.rgb * worldLight.pool.glow.w * 0.002 * vnoise2(p.xz * 0.7);
     return vec4f(worldLight.pool.deep.rgb + sheen, min(t * dot(d, frame.camFwd), 30000.0));
   }
-  return vec4f(poolSky(d, 1.0), 30000.0);
+  // the sky, and the far world on it at its own distance, so the air's haze lies over it by that much (report 20)
+  let v = poolVista(d, 1.0);
+  return vec4f(poolSkyWith(d, 1.0, v), min(v.dist * max(dot(d, frame.camFwd), 0.05), 30000.0));
 }

@@ -38,7 +38,8 @@ fn poolSun(d: vec3f) -> vec4f {
   if (r <= 0.0) { return vec4f(0.0); }
   let ang = acos(clamp(dot(d, S.xyz), -1.0, 1.0));
   // the glow: a wide warm one and a closer bright one (the low sun through the evening air)
-  var c = worldLight.pool.sunCol.rgb * (exp(-ang / (r * 1.6)) * 0.35 + exp(-ang / (r * 7.0)) * 0.06 + exp(-ang / (r * 30.0)) * 0.02);
+  // (report 20: a wider, warmer glow round it, now that it stands in the duel's frame: the hour glows)
+  var c = worldLight.pool.sunCol.rgb * (exp(-ang / (r * 1.6)) * 0.35 + exp(-ang / (r * 7.0)) * 0.1 + exp(-ang / (r * 18.0)) * 0.07 + exp(-ang / (r * 45.0)) * 0.03);
   let a = smoothstep(r, r * 0.85, ang);
   // its face: a little dimmer and redder at the limb
   let limb = 0.8 + 0.2 * sqrt(max(1.0 - (ang / r) * (ang / r), 0.0));
@@ -69,8 +70,34 @@ fn poolShoreAt(az: f32) -> vec3f {
   return vec3f(h, dome.x, dome.y);
 }
 
-/** the sky in direction d (d.y ≥ 0; lower comes back as the horizon) with the stars (stars: 0 none, 1 all) */
+#include "../vista"
+
+/** the far world behind the Pool's garden shore (vista.wgsl, report 20): terraced garden islands rising behind the
+ *  trees, spires and turbines, an aqueduct, sails, kites and birds, in the evening light (life: the kites and birds) */
+fn poolVista(d: vec3f, life: f32) -> Vista {
+  var L: VistaLook;
+  L.sun = worldLight.pool.sun.xyz;
+  L.sunCol = worldLight.pool.keyCol.rgb * worldLight.pool.key.w * 0.6;
+  let flat = normalize(vec3f(d.x, 0.0, d.z) + vec3f(1e-5, 0.0, 0.0));
+  let gather = pow(max(dot(flat, worldLight.pool.glowDir.xyz), 0.0), worldLight.pool.glowDir.w);
+  L.haze = worldLight.pool.horizon.rgb * 0.62 + worldLight.pool.glow.rgb * worldLight.pool.glow.w * 0.3 * gather;
+  L.shade = worldLight.pool.zenith.rgb * 0.8 + worldLight.pool.horizon.rgb * 0.15;
+  L.t = worldLight.pool.march.z;
+  L.seed = 0.81;
+  L.lift = worldLight.pool.shore.w * 0.55;
+  L.life = life;
+  return vistaAt(d, L);
+}
+
+/** the sky in direction d (d.y ≥ 0; lower comes back as the horizon) with the stars (stars: 0 none, 1 all); the far
+ *  world on it when the whole sky is asked for (stars > 0.5; report 20) */
 fn poolSky(d: vec3f, stars: f32) -> vec3f {
+  if (stars <= 0.5) { return poolSkyWith(d, stars, Vista(vec3f(0.0), 0.0, 30000.0)); }
+  return poolSkyWith(d, stars, poolVista(d, 1.0));
+}
+
+/** the sky with the vista v laid in it, behind the garden shore */
+fn poolSkyWith(d: vec3f, stars: f32, v: Vista) -> vec3f {
   let up = max(d.y, 0.0);
   var c = mix(worldLight.pool.horizon.rgb, worldLight.pool.zenith.rgb, smoothstep(0.0, 1.0, pow(up / max(worldLight.pool.horizon.w, 1e-3), 0.55)) );
   c = mix(c, worldLight.pool.zenith.rgb, smoothstep(0.2, 1.0, up));
@@ -97,6 +124,7 @@ fn poolSky(d: vec3f, stars: f32) -> vec3f {
   // the sun over it all
   let m = poolSun(d);
   c = c * (1.0 - m.a) + m.rgb;
+  c = c * (1.0 - v.a) + v.c;
   // the far garden shore: trees and the pavilions' glass domes on their ceramic drums, in the evening haze (more of
   // it toward the sun, where the shore stands dark against the light), the tops of the crowns lit gold
   let az = atan2(d.x, -d.z);

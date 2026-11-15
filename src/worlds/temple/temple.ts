@@ -40,25 +40,28 @@ export const templeParams = defineParams('temple', {
   // (the solarpunk pass, report 16: a sunlit afternoon in place of the moonlit dusk. The light's members keep their
   // names: `moon*` is the temple's one key light, now the sun; `dusk` the warm haze low over the sea and the bounce
   // from the sunlit court)
-  zenith: '#2f7fb4',
-  horizon: '#b4d6d4',
-  dusk: '#ffc58a',
-  duskAmt: 0.5,
-  moonCol: '#ffe6c0',
-  moonLight: 1.5,
+  // (report 20, the third coat: golden hour, late in the afternoon, in place of report 16's white noon: a deeper sky
+  // going to warm gold low down, the sun low behind the stage and to the left, in the frame's top, its light long and
+  // warm across the court and the shade cool)
+  zenith: '#2563a0',
+  horizon: '#dc9a62',
+  dusk: '#ff9a52',
+  duskAmt: 0.6,
+  moonCol: '#ffc485',
+  moonLight: 2.1,
   /** the sun's size (degrees across), its height over the sea (degrees) and its bearing (rad from straight behind the
    *  stage, -z, toward -x: behind the stage and to the left, so the columns' sides and every top are sunlit and the
    *  shadows fall across the court toward the right and the camera) */
-  moonSize: 1.4,
-  moonHeight: 34,
-  sunBearing: -1.05,
+  moonSize: 1.7,
+  moonHeight: 9.5,
+  sunBearing: -0.55,
   stars: 0,
   // (report 18: honey sandstone, a step warmer and deeper than the cream it was, so the white glaze, the brass and the
   // bodies stand off it)
   stone: '#c3ad8d',
   wetGloss: 1,
   /** the sunlit court's warm bounce on the stones' fronts (it rakes the carving) */
-  afterglow: 0.32,
+  afterglow: 0.2,
   /** the sky's cool fill on the stone */
   skyFill: 0.1,
   /** how much of the sun's direct light the stone takes (a face square to it would go white at 1), and how weathered
@@ -83,7 +86,12 @@ export const templeParams = defineParams('temple', {
   ripples: 1,
   wind: 0.06,
   // (report 18: half the sea haze it had: the court was washed out, cream on cream on pale teal)
-  haze: 0.003,
+  haze: 0.0011,
+  /** (report 20) the stained-glass screens' coloured light pooled on the court, their shafts in the air, and the low
+   *  sun's glow in the air toward it */
+  screenPool: 0.22,
+  shafts: 0.012,
+  sunAir: 0.08,
   /** how far the dancers' own light reaches (m), and a light for every dancer (for stills; the game sets each its own) */
   fireReach: 6,
   firelight: 0,
@@ -150,6 +158,11 @@ export class Temple implements World {
   private garden: ReturnType<typeof layoutGarden>;
   private gardenBuf: ReturnType<Kit['storage']>;
   private lights = new Float32Array(8 * 4);
+  private screenCount = 0;
+  private colsCourt: Float32Array;
+  private colsDuel: Float32Array;
+  private colsShown = false;
+  private colsN: [number, number];
   private glows = new Float32Array(8 * 4);
   private own: (number[] | null)[] = [];
   /** steps the reflection is marched in, how far, the haze, the pillars that throw shadows */
@@ -190,10 +203,32 @@ export class Temple implements World {
     this.spawns = spawnsOf(this.stages[0]);
     // one gate, back to the geode: on the court to the left of the stage, facing across it, the flagstones clear round it
     this.portals = [{ id: 'temple.geode', at: [-7.6, 1.4, 5.4], normal: [0.8, 0, -0.6], radius: 1.3, to: { world: 'geode', portal: 'geode.temple' } }];
-    const cols = new Float32Array(24 * 4);
-    // the pillars nearest the middle first (the loop over them stops at 24)
-    [...this.layout.pillars].sort((a, b) => Math.hypot(a[0], a[1]) - Math.hypot(b[0], b[1])).slice(0, 24).forEach((c, i) => cols.set(c, i * 4));
+    // the pillars nearest the middle first (the loop over them stops at 24); in the duel its arena's standing stacks
+    // and tall columns too (report 20: at this low sun their shadows run long across the court)
+    const colsOf = (ps: [number, number, number, number][]) => {
+      const cols = new Float32Array(24 * 4);
+      [...ps].sort((a, b) => Math.hypot(a[0], a[1]) - Math.hypot(b[0], b[1])).slice(0, 24).forEach((c, i) => cols.set(c, i * 4));
+      return cols;
+    };
+    const stacks = new Map<string, [number, number, number, number]>();
+    for (const st of duel.stones) {
+      if (st.kind !== 'drum' || st.tilt || st.size[1] < 0.5) continue;
+      const key = `${st.at[0].toFixed(1)},${st.at[2].toFixed(1)}`, top = st.at[1] + st.size[1], was = stacks.get(key);
+      if (!was || was[3] < top) stacks.set(key, [st.at[0], st.at[2], st.size[0], top]);
+    }
+    this.colsCourt = colsOf(this.layout.pillars);
+    this.colsDuel = colsOf([...this.layout.pillars, ...stacks.values()]);
+    this.colsN = [Math.min(24, this.layout.pillars.length), Math.min(24, this.layout.pillars.length + stacks.size)];
+    const cols = this.colsCourt;
     this.u.set({ cols });
+    // the stained-glass screens, for their coloured light on the court and their shafts in the air (report 20)
+    const SF = 12, scr = new Float32Array(32 * 4), from = this.garden.data.length / SF - this.garden.screens;
+    this.screenCount = Math.min(16, this.garden.screens);
+    for (let k = 0; k < this.screenCount; k++) {
+      const o = (from + k) * SF, g = this.garden.data;
+      scr.set([g[o], g[o + 2], g[o + 4], g[o + 5], g[o + 6], g[o + 7], g[o + 8], 0], k * 8);
+    }
+    this.u.set({ screens: scr });
     this.march = [coarse ? 12 : 22, 16, 0, Math.min(24, this.layout.pillars.length)];
     this.upload();
     onParams(templeParams, () => this.upload());
@@ -211,7 +246,7 @@ export class Temple implements World {
       glitter: [P.glitter, P.glitterWidth, P.sparkle, P.canopy], tide2: [P.afterglow, P.skyFill, P.moonStone, P.weather],
     });
     this.march[2] = P.haze;
-    this.u.set({ march: this.march });
+    this.u.set({ march: this.march, shafts: [P.screenPool, P.shafts, this.screenCount, P.sunAir] });
   }
 
   /** a dancer's own light (colour × strength, null to give it back to the panel's): it warms the stone round it */
@@ -243,6 +278,11 @@ export class Temple implements World {
     // where the tide's cycle is (for how long the stone above the water has been drying)
     const ph = spring ? tidePhase(H!, f.beat.beats) : P.tideHold >= 0 ? P.tideHold : f.beat.beats / (P.tideBars * 4);
     v.tide[0] = lo; v.tide[1] = hi; v.tide[2] = ph - Math.floor(ph); v.tide[3] = P.dry;
+    if (arenaShown(this.id) !== this.colsShown) {
+      this.colsShown = !this.colsShown;
+      this.march[3] = this.colsN[this.colsShown ? 1 : 0];
+      this.u.set({ cols: this.colsShown ? this.colsDuel : this.colsCourt, march: this.march });
+    }
     // the duel arena's drops in the court (empty unless it is shown)
     const duel = templeDuel(), drops = dropsUniform(duel.arena.plane, duel.arena.drops!, arenaShown(this.id));
     this.u.set({ ...v, drops: drops.rects, dropFrame: drops.frame });

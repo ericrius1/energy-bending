@@ -32,10 +32,12 @@ import { PoolEdge } from './edge';
 type V4 = [number, number, number, number];
 
 export const poolParams = defineParams('pool', {
-  zenith: '#5b9cbc',
-  horizon: '#f0c690',
+  // (report 20, the third coat: the golden hour made to glow: the sun lower, in the duel's frame, its glow wider and
+  // warmer, the sky deeper overhead; the far world on the horizon: vista.wgsl)
+  zenith: '#4a8ab8',
+  horizon: '#f5b77a',
   glow: '#ff9d52',
-  glowAmt: 0.55,
+  glowAmt: 1.05,
   stars: 0,
   /** the sun: the key light on the dancers and the stones, its colour, and the glow's rim on them from behind */
   keyLight: 2.4,
@@ -65,15 +67,15 @@ export const poolParams = defineParams('pool', {
   /** the sun: its colour, how bright its face, how big (degrees across), where it stands (degrees round from behind
    *  the stage, degrees up), how far it sinks in ten minutes (degrees), and hold it at a moment for stills (s, or < 0) */
   sunCol: '#ffd29a',
-  sun: 14,
-  sunSize: 1.8,
+  sun: 10,
+  sunSize: 2.2,
   sunBearing: 18,
-  sunUp: 17,
-  sunSink: 3,
+  sunUp: 7.5,
+  sunSink: 1.5,
   sunHold: -1,
   /** the haze lying on the far water, and the far shore's leaves and height (degrees) */
-  mistCol: '#e8c49a',
-  mist: 0.45,
+  mistCol: '#f0bf8a',
+  mist: 0.35,
   shoreCol: '#3b6a33',
   shore: 3.2,
 }, {
