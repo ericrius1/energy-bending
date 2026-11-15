@@ -247,11 +247,12 @@ struct FOut {
   // a flash every few seconds: up quickly, a slower fade
   let period = 2.4 + 3.6 * h2.z;
   let ph = fract(t / period + h2.x);
-  let flash = smoothstep(0.0, 0.035, ph) * (1.0 - smoothstep(0.05, 0.16, ph));
-  o.bright = worldLight.forest.horizon.w * (flash + 0.04);
+  // (phase 5: a longer glow after each flash, and a faint one between, so at 720p a meadow of them reads at dusk)
+  let flash = smoothstep(0.0, 0.035, ph) * (1.0 - smoothstep(0.05, 0.32, ph));
+  o.bright = worldLight.forest.horizon.w * (flash + 0.1);
   let c = array<vec2f, 6>(vec2f(-1.0, -1.0), vec2f(1.0, -1.0), vec2f(1.0, 1.0), vec2f(-1.0, -1.0), vec2f(1.0, 1.0), vec2f(-1.0, 1.0))[vi];
   o.uv = c;
-  let size = 0.035 + 0.02 * h2.y;
+  let size = 0.05 + 0.03 * h2.y;
   o.pos = select(frame.viewProj * vec4f(p + (frame.camRight * c.x + frame.camUp * c.y) * size, 1.0), vec4f(2.0, 2.0, 2.0, 1.0), o.bright <= 0.0);
   return o;
 }

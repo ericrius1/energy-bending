@@ -271,6 +271,9 @@ override PER: u32 = 4u;      // how many on each piece
     o.uv = vec2f(0.0, 0.0);
     o.seed = h2.z;
     light(&o, tint * mix(0.6, 1.0, u), p, n, 0.8);
+    // after dusk a bracket glows from within, pale teal at its rim, breathing (the woods' bioluminescence, report 18)
+    let breathe = 0.65 + 0.35 * sin(worldLight.forest.clock.x * (0.4 + 0.5 * h2.y) + h2.z * 30.0);
+    o.col += mix(vec3f(0.3, 0.9, 0.75), vec3f(0.6, 1.0, 0.7), u) * worldLight.forest.horizon.w * breathe * (0.25 + 0.5 * u);
     return o;
   }
   // a frond: out of the moss, arching over and hanging down (licorice ferns droop from a limb)
