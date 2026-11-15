@@ -7,16 +7,32 @@
 // every four bars, its head swelling on each beat, gold through the finale; the time left under it.
 import type { HudState } from './state';
 import type { Layout, Box } from './layout';
-import { GOLD, GOLD_HI, INK, glow, label, lift, rgba, sprite, stamp, stampLabel, approach, clamp01, type Ctx } from './style';
+import { GOLD, GOLD_HI, INK, glow, label, leaded, leadGold, leaf, lift, petals, rgba, sprite, stamp, stampLabel, approach, clamp01, type Ctx } from './style';
+import { PALETTE } from './theme';
 
 const mmss = (s: number) => { s = Math.max(0, Math.ceil(s - 1e-6)); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`; };
 const N = 26;
+/** how far the sun's crown of petals reaches past its disc (the set's ring runs just outside it) */
+const crownOf = (u: number, small: boolean) => (small ? 4.2 : 6) * u;
 
 /** the clock's times for a set of this length, to make ahead (Hud's warm-up) */
 export function warmShared(st: HudState, L: Layout, dpr: number): (() => void)[] {
   const u = L.u, fs = (L.compact ? 9 : 12) * u, out: (() => void)[] = [];
   for (let s = Math.ceil(st.set.length); s >= 0; s--) for (const c of [INK, GOLD_HI]) out.push(() => { label(mmss(s), fs, 600, 0.08, c, 0.5, Math.max(2, 2.6 * u), dpr); });
   return out;
+}
+
+/** the sun's petals lit (the merge's bloom over the still crown) */
+function sunPetals(R: number, u: number, small: boolean, dpr: number) {
+  const r1 = R + crownOf(u, small), P = r1 + 4;
+  return sprite(`sunpetals:${R.toFixed(2)}:${u.toFixed(3)}:${small}`, dpr, P * 2, P * 2, P, P, (s) => {
+    s.beginPath();
+    petals(s, P, P, R * 0.96, r1, 12, -Math.PI / 2);
+    const gr = s.createRadialGradient(P, P, R, P, P, r1);
+    gr.addColorStop(0, PALETTE.sunHi); gr.addColorStop(1, PALETTE.sun);
+    s.fillStyle = gr; s.fill();
+    s.lineWidth = Math.max(0.6, 0.6 * u); s.strokeStyle = rgba(PALETTE.honey, 0.8); s.stroke();
+  });
 }
 
 export class Shared {
@@ -45,31 +61,45 @@ export class Shared {
 
     const R = O.r, cx = O.x, cy = O.y, Se = st.set;
     const finale = Se.phase === 'finale', full = m >= 0.995;
-    const len0 = Math.max(1, Se.length), Ra = R + 5.5 * u, a0 = -Math.PI / 2;
+    const len0 = Math.max(1, Se.length), Ra = R + crownOf(u, L.compact) + (L.compact ? 2.8 : 3.6) * u, a0 = -Math.PI / 2;
     if (full || finale) stamp(g, glow(GOLD, R * 2.2, dpr, 0.45), cx, cy, 1 + 0.08 * beatK, (full ? 0.55 : 0.3) + 0.35 * beatK);
     // what stays still (the strands' track to the orb, the orb's well, the set's ring and its ticks every four bars):
     // a sprite, made again only for a new size, set length or tempo
     const sx0 = Math.min(S.x0, S.x1) - 4 * u, sx1 = Math.max(S.x0, S.x1) + 4 * u, sy0 = Math.min(y, cy) - Ra - 8 * u, sy1 = Math.max(y, cy) + Ra + 8 * u;
-    const still = sprite(`shared:${L.W}x${L.H}:${len0.toFixed(1)}:${spb.toFixed(4)}:${finale}`, dpr, sx1 - sx0, sy1 - sy0, cx - sx0, cy - sy0, (s) => {
+    const still = sprite(`shared2:${L.W}x${L.H}:${len0.toFixed(1)}:${spb.toFixed(4)}:${finale}`, dpr, sx1 - sx0, sy1 - sy0, cx - sx0, cy - sy0, (s) => {
       s.translate(-sx0, -sy0);
       s.lineCap = 'round';
+      // the strands' track: a stem from each panel to the sun, small leaves along it in pairs
       for (const [x0, x1, , dir] of ends) {
         if (dir * (x1 - x0) <= 4 * u) continue;
-        s.lineWidth = 3 * u; s.strokeStyle = 'rgba(6,4,12,0.28)';
+        s.lineWidth = 3 * u; s.strokeStyle = 'rgba(14,10,4,0.3)';
         s.beginPath(); s.moveTo(x0, y); s.lineTo(x1, y); s.stroke();
-        s.lineWidth = Math.max(1, 0.9 * u); s.strokeStyle = 'rgba(255,255,255,0.13)'; s.stroke();
+        s.lineWidth = Math.max(1, 0.9 * u); s.strokeStyle = rgba(PALETTE.brass, 0.32); s.stroke();
+        const span = Math.abs(x1 - x0), step = (L.compact ? 22 : 30) * u, n = Math.floor(span / step), lf = (L.compact ? 3.2 : 4.6) * u;
+        s.beginPath();
+        for (let i = 1; i < n; i++) {
+          const lx = x0 + dir * i * step, up = i % 2 ? -1 : 1;
+          leaf(s, lx, y, lf, lf * 0.55, (dir > 0 ? 0 : Math.PI) + up * (dir > 0 ? 1 : -1) * 0.75);
+        }
+        s.fillStyle = rgba(PALETTE.moss, 0.55); s.fill();
+        s.lineWidth = Math.max(0.5, 0.5 * u); s.strokeStyle = rgba(PALETTE.leaf, 0.3); s.stroke();
       }
-      const well = s.createRadialGradient(cx, cy - R * 0.3, 0, cx, cy, R);
-      well.addColorStop(0, 'rgba(26,20,40,0.85)'); well.addColorStop(1, 'rgba(8,6,14,0.82)');
+      // the sun: a crown of petals round a deep honey disc in gold leading
+      s.beginPath();
+      petals(s, cx, cy, R * 0.96, R + crownOf(u, L.compact), 12, -Math.PI / 2);
+      s.fillStyle = leadGold(s, cy - R, R * 2, 0.8); s.fill();
+      s.lineWidth = Math.max(0.5, 0.6 * u); s.strokeStyle = 'rgba(40,26,8,0.5)'; s.stroke();
+      const well = s.createRadialGradient(cx, cy - R * 0.35, 0, cx, cy, R);
+      well.addColorStop(0, 'rgba(74,55,26,0.9)'); well.addColorStop(1, 'rgba(18,13,6,0.88)');
       s.beginPath(); s.arc(cx, cy, R, 0, Math.PI * 2);
       s.fillStyle = well; s.fill();
-      s.lineWidth = 1; s.strokeStyle = 'rgba(255,255,255,0.18)'; s.stroke();
-      s.lineWidth = 3.4 * u; s.strokeStyle = 'rgba(6,4,12,0.3)';
+      leaded(s, cy - R, R * 2, Math.max(1, 1.1 * u));
+      s.lineWidth = 3.4 * u; s.strokeStyle = 'rgba(14,10,4,0.32)';
       s.beginPath(); s.arc(cx, cy, Ra, 0, Math.PI * 2); s.stroke();
-      s.lineWidth = Math.max(1, 1.2 * u); s.strokeStyle = finale ? rgba(GOLD, 0.35) : 'rgba(255,255,255,0.16)'; s.stroke();
+      s.lineWidth = Math.max(1, 1.2 * u); s.strokeStyle = finale ? rgba(GOLD, 0.45) : rgba(PALETTE.brass, 0.32); s.stroke();
       const phrase = spb * 16;
       s.lineWidth = Math.max(1, 1.1 * u);
-      s.strokeStyle = 'rgba(255,255,255,0.32)';
+      s.strokeStyle = rgba(PALETTE.parchment, 0.42);
       s.beginPath();
       for (let q = phrase; q < len0 - 0.5; q += phrase) {
         const an = a0 + (Math.PI * 2 * q) / len0, c = Math.cos(an), sn = Math.sin(an);
@@ -78,6 +108,8 @@ export class Shared {
       s.stroke();
     });
     stamp(g, still, cx, cy);
+    // the sun opens as the merge grows: its petals brighten to full gold
+    if (m > 0.01) stamp(g, sunPetals(R, u, L.compact, dpr), cx, cy, 1, Math.min(1, m * 1.15));
 
     // ---------------------------------------------------------------- the strands
     g.lineCap = 'round'; g.lineJoin = 'round';
@@ -132,18 +164,18 @@ export class Shared {
       cg.addColorStop(0, lift(ca, 0.15)); cg.addColorStop(0.5, lift(cb, 0.15)); cg.addColorStop(1, lift(ca, 0.15));
       g.beginPath(); g.arc(cx, cy, rc * (1 + 0.06 * beatK), 0, Math.PI * 2);
       g.fillStyle = cg; g.fill();
-      g.lineWidth = Math.max(1, u); g.strokeStyle = `rgba(255,255,255,${(0.35 + 0.4 * m).toFixed(3)})`; g.stroke();
-      stamp(g, glow('#fffaf0', Math.max(2, rc * 0.9), dpr, 0.9), cx, cy, 1, 0.3 + 0.7 * m * m);
+      g.lineWidth = Math.max(1, u); g.strokeStyle = rgba(PALETTE.sunHi, 0.35 + 0.4 * m); g.stroke();
+      stamp(g, glow(PALETTE.sunHi, Math.max(2, rc * 0.9), dpr, 0.9), cx, cy, 1, 0.3 + 0.7 * m * m);
     }
     // the set's time on the music: the arc so far, its head swelling on the beat
     const k = clamp01(Se.time / len0);
     g.lineCap = 'round';
     if (k > 0.002) {
       g.lineWidth = 2 * u;
-      g.strokeStyle = finale ? GOLD_HI : 'rgba(240,236,250,0.9)';
+      g.strokeStyle = finale ? GOLD_HI : rgba(PALETTE.cream, 0.92);
       g.beginPath(); g.arc(cx, cy, Ra, a0, a0 + Math.PI * 2 * k); g.stroke();
       const ah = a0 + Math.PI * 2 * k;
-      stamp(g, glow(finale ? GOLD : '#ffffff', 4.5 * u, dpr, 0.9), cx + Math.cos(ah) * Ra, cy + Math.sin(ah) * Ra, 1 + 0.6 * beatK, 0.7 + 0.3 * beatK);
+      stamp(g, glow(finale ? GOLD : PALETTE.sunHi, 4.5 * u, dpr, 0.9), cx + Math.cos(ah) * Ra, cy + Math.sin(ah) * Ra, 1 + 0.6 * beatK, 0.7 + 0.3 * beatK);
     }
     g.lineCap = 'butt';
     // the time left, under it

@@ -1,6 +1,6 @@
 // The front of the game and the jogo's few screens, in the page (DOM over the canvas; styles in index.html under
-// "jogo"). No marketing copy: icons, device glyphs and short labels only, and nothing at all during play (the meters
-// are in the world, hud.ts).
+// "jogo": the skin's honey glass in gold leading, docs/design/solarpunk.md). No marketing copy: icons, device glyphs and
+// short labels only, and nothing at all during play (the meters are in the world, hud.ts).
 //
 //   the front     which game: the dance (the jogo) or the duel (the dance battle, src/duel); how to play it (together
 //                 on one screen, with a partner, online; the dance also solo), where (the geode hub by default: its
@@ -28,7 +28,9 @@ export type Mode = 'same' | 'partner' | 'online' | 'solo';
 export type Game = 'dance' | 'duel';
 export interface Choice { game?: Game; mode: Mode; world: string; dress: [string, string]; lock: boolean; room?: string; create?: boolean; watch?: boolean }
 
-const WORLDS: [string, string][] = [['geode', '#8a5cff'], ['pool', '#5fb6ff'], ['temple', '#38c7b0'], ['redwoods', '#7fb85a']];
+/** the worlds and their medallions' colours (the art bible's per-world light: the geode's amethyst, the water garden's
+ *  clear blue, the temple's sunlit turquoise, the redwoods' moss) */
+const WORLDS: [string, string][] = [['geode', '#a57cff'], ['pool', '#5ec0ea'], ['temple', '#45d2bd'], ['redwoods', '#8cc265']];
 /** each preset's two colours (the swatch's living gradient) */
 const SWATCH: Record<string, [string, string]> = {
   fire: ['#ff5a14', '#ffd27a'], water: ['#1c6cff', '#7fe0ff'], ice: ['#a8dcff', '#ffffff'], plasma: ['#8a2cff', '#ff7af0'],
@@ -61,6 +63,22 @@ export const GLYPHS = {
   link: svg(`<path d="M20 28l8-8M17 22l-4 4a6 6 0 0 0 9 9l4-4M31 26l4-4a6 6 0 0 0-9-9l-4 4"/>`),
   watch: svg(`<path d="M4 24s7-12 20-12 20 12 20 12-7 12-20 12S4 24 4 24z"/><circle cx="24" cy="24" r="5"/>`),
 };
+/** play: a sun disc in a crown of sixteen petals (the art bible's emblem: docs/design/solarpunk.md), the play mark in
+ *  deep honey on it. Filled, not stroked: it is the one solid, warm thing on the strip */
+export function sunGlyph() {
+  const n = 16, c = 24, r0 = 13.6, r1 = 23.2;
+  let d = '';
+  for (let i = 0; i < n; i++) {
+    const a = (i / n) * Math.PI * 2 - Math.PI / 2, h = (Math.PI / n) * 0.66;
+    const p = (r: number, t: number) => `${(c + Math.cos(t) * r).toFixed(2)} ${(c + Math.sin(t) * r).toFixed(2)}`;
+    d += `M${p(r0, a - h)}Q${p(r1 * 0.97, a - h * 0.9)} ${p(r1, a)}Q${p(r1 * 0.97, a + h * 0.9)} ${p(r0, a + h)}Z`;
+  }
+  return `<svg viewBox="0 0 48 48" aria-hidden="true"><defs><radialGradient id="jg-sun" cx="0.42" cy="0.38" r="0.62"><stop offset="0" stop-color="#fffbe9"/><stop offset="0.45" stop-color="#ffd77e"/><stop offset="1" stop-color="#e09a3a"/></radialGradient>`
+    + `<linearGradient id="jg-petal" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff0c8"/><stop offset="1" stop-color="#e3a347"/></linearGradient></defs>`
+    + `<path d="${d}" fill="url(#jg-petal)" stroke="#9b6a24" stroke-width="0.6" stroke-linejoin="round"/>`
+    + `<circle cx="24" cy="24" r="14.2" fill="url(#jg-sun)" stroke="#a8742a" stroke-width="1.1"/><circle cx="24" cy="24" r="11.6" fill="none" stroke="#fff3d0" stroke-opacity="0.55" stroke-width="0.7"/>`
+    + `<path d="M20.6 17.4l9.6 6.6-9.6 6.6z" fill="currentColor" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/></svg>`;
+}
 const DEVICE_GLYPH: Record<string, string> = { keyboard: GLYPHS.keyboard, gamepad: GLYPHS.gamepad, touch: GLYPHS.touch, camera: GLYPHS.camera, bot: GLYPHS.partner };
 
 function el<K extends keyof HTMLElementTagNameMap>(tag: K, cls: string, html = '', attrs: Record<string, string> = {}) {
@@ -223,7 +241,7 @@ export function showFront(query: URLSearchParams, open: (href: string) => void =
   const foot = el('div', 'jg-row jg-foot');
   const helpBtn = button('jg-help', GLYPHS.help, 'how to play', () => { void import('../duel/help').then((m) => m.toggleHelp(m.guessDev(), c.game === 'duel' ? c.dress : [])); });
   const lockBtn = button('jg-lock', GLYPHS.lock, 'side', () => { c.lock = !c.lock; paint(); onChoose?.({ kind: 'lock', value: c.lock }); });
-  const goBtn = button('jg-go', GLYPHS.go, '', go);
+  const goBtn = button('jg-go', sunGlyph(), '', go);
   goBtn.setAttribute('aria-label', 'play');
   foot.append(helpBtn, lockBtn, goBtn);
   root.append(games, modes, worlds, bodies, online, net, foot);

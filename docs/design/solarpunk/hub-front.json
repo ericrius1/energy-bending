@@ -1,0 +1,10 @@
+{
+  "generator": "GPT Image via the Codex CLI image tool (ChatGPT login)",
+  "codexModel": "gpt-5.6-terra",
+  "prompt": "Game title-screen concept, wide view: a crystal greenhouse grotto. A geode cavern whose amethyst and citrine crystal walls meet a curved art-nouveau greenhouse roof of leaded glass and brass ribs, shafts of golden sunlight falling through it onto ferns, moss, hanging vines and small white flowers growing over the crystal ledges; clear water running in a stone channel. On a round mosaic floor two dancers made of matter: one of warm sunlight and drifting embers, one of clear living water. Behind them two round gates framed in verdigris copper art-nouveau rings, each showing another world inside (a redwood forest canopy, a white water temple). Along the bottom edge a low, calm menu strip of translucent cream glass with thin gold leaded lines, small leaf-shaped and round medallion buttons and one glowing sun-disc play button. Hopeful, peaceful, full of awe; a sunlit future where nature and craft live together. Palette: warm sun gold, leaf and moss green, sky teal, terracotta, cream, a touch of coral. Materials: white ceramic, brass, copper gone green with verdigris, honey wood, woven fibre, leaded stained glass. Art-nouveau curves and botanical ornament. Painterly, clean, luminous video game concept art. Not grim, not dystopian, not industrial, not neon, not cyberpunk, no text, no logos, no weapons, nothing burning or hurt.",
+  "inputs": {},
+  "codexThread": "01a1dc5d-1896-73b1-b8a7-5a5636efc3f5",
+  "codexFile": "C:\\Users\\ericr\\.codex\\generated_images\\01a1dc5d-1896-73b1-b8a7-5a5636efc3f5\\exec-379bf21a-9913-47d0-94da-05a830316310.png",
+  "seconds": 79.0,
+  "sha256": "50a4257cd6636f2de2c37e317aceaeb0ec531a50b0dd3c0db95bc1aad0d0bd1b"
+}

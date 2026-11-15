@@ -1,0 +1,10 @@
+{
+  "generator": "GPT Image via the Codex CLI image tool (ChatGPT login)",
+  "codexModel": "gpt-5.6-terra",
+  "prompt": "Concept art: a water garden arena for a dance game. A wide still pool reflecting a peach and teal sunset sky, with stepping stones and round floating platforms shaped like giant lily pads and lotus leaves in terracotta and white ceramic, edged with moss and small flowers; a delicate art-nouveau glass and brass pavilion at the far side, reeds, water lilies, gentle ripples catching light, a few paper kites in the sky. Hopeful, peaceful, full of awe; a sunlit future where nature and craft live together. Palette: warm sun gold, leaf and moss green, sky teal, terracotta, cream, a touch of coral. Materials: white ceramic, brass, copper gone green with verdigris, honey wood, woven fibre, leaded stained glass. Art-nouveau curves and botanical ornament. Painterly, clean, luminous video game concept art. Not grim, not dystopian, not industrial, not neon, not cyberpunk, no text, no logos, no weapons, nothing burning or hurt.",
+  "inputs": {},
+  "codexThread": "01a1dc5e-578d-77a2-b6c8-3b38e8d84707",
+  "codexFile": "C:\\Users\\ericr\\.codex\\generated_images\\01a1dc5e-578d-77a2-b6c8-3b38e8d84707\\exec-af9838e8-bc95-462b-81db-0f2f0b860e6c.png",
+  "seconds": 49.2,
+  "sha256": "e235602de34f00e00aab5b7c2d7920c40a1bb156cf29cadfa6d2f9b44726acb2"
+}

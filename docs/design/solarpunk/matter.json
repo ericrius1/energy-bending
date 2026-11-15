@@ -1,0 +1,10 @@
+{
+  "generator": "GPT Image via the Codex CLI image tool (ChatGPT login)",
+  "codexModel": "gpt-5.6-terra",
+  "prompt": "Concept sheet: five elemental dancers standing in a solarpunk garden courtyard, each body made of one matter: fire as warm sunlight with drifting embers like glowing seeds; water as clear living water with light inside; ice as frost-flowers and clear crystal petals; plasma as a soft aurora of solar wind, violet and teal ribbons; gems as faceted crystal blossoms in amethyst and citrine. Soft garden light, white ceramic and green copper architecture behind, flowers and vines. Hopeful, peaceful, full of awe; a sunlit future where nature and craft live together. Palette: warm sun gold, leaf and moss green, sky teal, terracotta, cream, a touch of coral. Materials: white ceramic, brass, copper gone green with verdigris, honey wood, woven fibre, leaded stained glass. Art-nouveau curves and botanical ornament. Painterly, clean, luminous video game concept art. Not grim, not dystopian, not industrial, not neon, not cyberpunk, no text, no logos, no weapons, nothing burning or hurt.",
+  "inputs": {},
+  "codexThread": "01a1dc5e-5281-7602-bdf8-beabe69e851d",
+  "codexFile": "C:\\Users\\ericr\\.codex\\generated_images\\01a1dc5e-5281-7602-bdf8-beabe69e851d\\exec-2dbf8148-d62d-404e-9fa8-0567c2ad8b4d.png",
+  "seconds": 58.7,
+  "sha256": "201413c1da1cb46b8c75c3d81a19a6627289ac9afb3fef265528f8143e34f206"
+}

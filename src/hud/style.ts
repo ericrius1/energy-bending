@@ -1,10 +1,15 @@
-// The HUD's look, shared by every part of it: the site's type (system-ui, a little tracking, lowercase-free caps for
-// the few words) and glass (index.html's `.jg-front`: a dark violet tint, a hairline of white), the elements' colours
-// (menu.ts's swatches), the matter glyphs, and sprites: anything soft (a glow, a text with its halo) is rendered once
-// into a small canvas and stamped after, because a canvas shadow or blur each frame is what makes a 2D HUD slow.
+// The HUD's look, shared by every part of it: the skin's type and colours (theme.ts: the solarpunk palette, the
+// display face for big words and numbers, the body face for labels), its glass (smoked honey glass framed in gold
+// leading, like the menus' in index.html), the elements' colours (menu.ts's swatches), the matter glyphs, and sprites:
+// anything soft (a glow, a text with its halo) is rendered once into a small canvas and stamped after, because a
+// canvas shadow or blur each frame is what makes a 2D HUD slow. A sprite made before the web fonts arrived would keep
+// the fallback face, so when they load every sprite and measure is dropped and made again (`fontEpoch`, `loadFaces`).
 // Everything here works in CSS pixels; the caller has set the transform for the pixel ratio.
+import { FACES, GLASS, PALETTE, TYPE } from './theme';
 
-export const FONT = 'system-ui, -apple-system, "Segoe UI", Roboto, sans-serif';
+/** the body face (labels, keys, small caps) and the display face (big words, the numbers) */
+export const FONT = TYPE.body;
+export const DISPLAY = TYPE.display;
 export type Ctx = CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D;
 
 /** each matter's two colours: deep and light (menu.ts SWATCH) */
@@ -14,7 +19,7 @@ export const MATTER: Record<string, [string, string]> = {
 };
 export const matterOf = (m: string): [string, string] => MATTER[m] ?? ['#9a8cff', '#e8e4ff'];
 
-export const GOLD = '#ffd68a', GOLD_HI = '#fff3d6', INK = '#ece6f4';
+export const GOLD: string = PALETTE.sun, GOLD_HI: string = PALETTE.sunHi, INK: string = PALETTE.cream;
 
 // ---------------------------------------------------------------- colour
 const parsed = new Map<string, [number, number, number]>();
@@ -52,43 +57,98 @@ export function roundRect(g: Ctx, x: number, y: number, w: number, h: number, r:
   g.closePath();
 }
 
-/** the site's glass: a dark violet tint (deeper than the menus', since it sits over bright worlds and must hold type),
- *  a hairline of white, a faint sheen along the top; `tint` washes in from the `from` side (the player's colour) */
-export function glass(g: Ctx, x: number, y: number, w: number, h: number, r: number, tint?: string, from: 'left' | 'right' = 'left', strength = 1) {
-  roundRect(g, x, y, w, h, r);
+/** the leading's gold: a gradient down the pane (light at the top, honey at the foot) */
+export function leadGold(g: Ctx, y: number, h: number, a = 1) {
+  const gr = g.createLinearGradient(0, y, 0, y + h);
+  gr.addColorStop(0, rgba(GLASS.gold[0], 0.92 * a));
+  gr.addColorStop(1, rgba(GLASS.gold[1], 0.78 * a));
+  return gr;
+}
+
+/** a leaded line along the current path: a dark lead under a thin gold came (a leaded pane's frame); w its gold's
+ *  width, y and h the box the gold's gradient runs down */
+export function leaded(g: Ctx, y: number, h: number, w: number, a = 1) {
+  g.lineJoin = 'round';
+  g.lineWidth = w * 2.6;
+  g.strokeStyle = rgba('#0e0a04', 0.5 * a);
+  g.stroke();
+  g.lineWidth = w;
+  g.strokeStyle = leadGold(g, y, h, a);
+  g.stroke();
+}
+
+/** the HUD's glass: smoked honey glass (dark and warm, so cream type holds over a white sky or a bright temple), a
+ *  thin gold leading round it over a darker lead, a cream hairline inside, warm light pooled along the top; `tint`
+ *  washes in from the `from` side (the player's colour). `shape` draws the pane's path (a cartouche: panel.ts), else
+ *  it is a rounded box */
+export function glass(g: Ctx, x: number, y: number, w: number, h: number, r: number, tint?: string, from: 'left' | 'right' = 'left', strength = 1, shape?: () => void) {
+  const path = () => { if (shape) shape(); else roundRect(g, x, y, w, h, r); };
+  path();
   const bg = g.createLinearGradient(0, y, 0, y + h);
-  bg.addColorStop(0, `rgba(16,12,26,${0.62 * strength})`);
-  bg.addColorStop(1, `rgba(9,7,16,${0.5 * strength})`);
+  bg.addColorStop(0, GLASS.top);
+  bg.addColorStop(1, GLASS.foot);
+  const ga = g.globalAlpha;
+  g.globalAlpha = ga * strength;
   g.fillStyle = bg;
   g.fill();
   if (tint) {
     const tg = from === 'left' ? g.createLinearGradient(x, 0, x + w, 0) : g.createLinearGradient(x + w, 0, x, 0);
-    tg.addColorStop(0, rgba(tint, 0.2 * strength));
-    tg.addColorStop(0.45, rgba(tint, 0.05 * strength));
+    tg.addColorStop(0, rgba(tint, 0.22));
+    tg.addColorStop(0.5, rgba(tint, 0.05));
     tg.addColorStop(1, rgba(tint, 0));
     g.fillStyle = tg;
     g.fill();
   }
-  g.lineWidth = 1;
-  g.strokeStyle = `rgba(255,255,255,${0.1 * strength})`;
+  const sh = g.createLinearGradient(0, y, 0, y + h * 0.55);
+  sh.addColorStop(0, GLASS.sheen);
+  sh.addColorStop(1, 'rgba(255,236,190,0)');
+  g.fillStyle = sh;
+  g.fill();
+  // the cream hairline inside the frame (a stroke clipped to the pane: only its inner half shows)
+  g.save();
+  g.clip();
+  g.lineWidth = Math.max(2, h / 28);
+  g.strokeStyle = GLASS.inner;
+  path();
   g.stroke();
-  // the sheen: a lighter hairline just inside the top edge
-  const sh = g.createLinearGradient(x, 0, x + w, 0);
-  sh.addColorStop(0, 'rgba(255,255,255,0)');
-  sh.addColorStop(0.5, `rgba(255,255,255,${0.12 * strength})`);
-  sh.addColorStop(1, 'rgba(255,255,255,0)');
-  g.strokeStyle = sh;
-  g.beginPath();
-  g.moveTo(x + r, y + 1.5);
-  g.lineTo(x + w - r, y + 1.5);
-  g.stroke();
+  g.restore();
+  // the leading
+  path();
+  leaded(g, y, h, Math.max(1, Math.min(1.5, h / 56)));
+  g.globalAlpha = ga;
+}
+
+/** a leaf's outline added to the path: from its stem at x, y, `len` long, `w` wide, pointing at angle a (radians) */
+export function leaf(g: Ctx, x: number, y: number, len: number, w: number, a: number) {
+  const c = Math.cos(a), s = Math.sin(a), nx = -s * w * 0.5, ny = c * w * 0.5;
+  const tx = x + c * len, ty = y + s * len, mx = x + c * len * 0.45, my = y + s * len * 0.45;
+  g.moveTo(x, y);
+  g.quadraticCurveTo(mx + nx * 2, my + ny * 2, tx, ty);
+  g.quadraticCurveTo(mx - nx * 2, my - ny * 2, x, y);
+}
+
+/** n petals round cx, cy (from radius r0 out to r1), as one path: a flower's crown, a sun's. Each petal swells from
+ *  a narrow base to a round tip (a daisy's, never a gear's tooth); `width` is how much of its share of the circle
+ *  it fills at its widest */
+export function petals(g: Ctx, cx: number, cy: number, r0: number, r1: number, n: number, rot = 0, width = 0.9) {
+  const step = (Math.PI * 2) / n;
+  const P = (r: number, t: number): [number, number] => [cx + Math.cos(t) * r, cy + Math.sin(t) * r];
+  for (let i = 0; i < n; i++) {
+    const a = rot + i * step, h = step * width * 0.5, rm = r0 + (r1 - r0) * 0.62;
+    const b0 = P(r0, a - h * 0.35), b1 = P(r0, a + h * 0.35), tip = P(r1, a);
+    const c0 = P(rm, a - h * 1.05), c1 = P(r1, a - h * 0.62), c2 = P(r1, a + h * 0.62), c3 = P(rm, a + h * 1.05);
+    g.moveTo(b0[0], b0[1]);
+    g.bezierCurveTo(c0[0], c0[1], c1[0], c1[1], tip[0], tip[1]);
+    g.bezierCurveTo(c2[0], c2[1], c3[0], c3[1], b1[0], b1[1]);
+    g.closePath();
+  }
 }
 
 /** text with a dark halo under it, so it reads over a white sky or a lava glow (drawn twice: halo, then fill) */
 export function haloText(g: Ctx, s: string, x: number, y: number, fill: string | CanvasGradient, halo = 0.55, width = 3) {
   g.lineJoin = 'round';
   g.lineWidth = width;
-  g.strokeStyle = `rgba(6,4,12,${halo})`;
+  g.strokeStyle = `rgba(14,10,4,${halo})`;
   g.strokeText(s, x, y);
   g.fillStyle = fill;
   g.fillText(s, x, y);
@@ -306,12 +366,28 @@ export const approach = (v: number, to: number, k: number, dt: number) => v + (t
 let measurer: Ctx | null = null;
 const widths = new Map<string, number>();
 
+/** how many times the web fonts have arrived (the HUD draws its still parts again when this changes) */
+export let fontEpoch = 0;
+let facesAsked = false;
+/** drop every sprite and measure: they were made with whatever face was there (the fonts just loaded) */
+export function resetText() {
+  fontEpoch++;
+  sprites.clear();
+  for (const A of atlases) { A?.keys.clear(); A?.reset(); }
+  widths.clear();
+}
+/** ask for the HUD's faces now (a canvas only asks once it draws, and draws the fallback meanwhile); when they are in,
+ *  everything drawn with words is made again */
+export function loadFaces() {
+  if (facesAsked || typeof document === 'undefined' || !document.fonts) return;
+  facesAsked = true;
+  void Promise.all(FACES.map((f) => document.fonts.load(f).catch(() => []))).then((got) => { if (got.some((x) => x.length)) resetText(); });
+}
+
 export interface Label { ref: SpriteRef; w: number }
-/** `text` at `size` (CSS px), weight, tracking (em), its colour and a dark halo (alpha, width px), as a sprite whose
- *  anchor is the start of its baseline; `w` is the text's advance */
-/** the advance of `text` at a size, weight and tracking (em), measured once */
-export function measure(text: string, size: number, weight: number | string, track: number) {
-  const font = `${weight} ${size.toFixed(2)}px ${FONT}`, ls = `${(size * track).toFixed(2)}px`;
+/** the advance of `text` at a size, weight and tracking (em), measured once; `face` the family (the body's) */
+export function measure(text: string, size: number, weight: number | string, track: number, face: string = FONT) {
+  const font = `${weight} ${size.toFixed(2)}px ${face}`, ls = `${(size * track).toFixed(2)}px`;
   const mk = `${font}|${ls}|${text}`;
   let w = widths.get(mk);
   if (w == null) {
@@ -324,10 +400,12 @@ export function measure(text: string, size: number, weight: number | string, tra
   return w;
 }
 
-export function label(text: string, size: number, weight: number | string, track: number, fill: string, halo: number, haloW: number, dpr: number): Label {
-  const font = `${weight} ${size.toFixed(2)}px ${FONT}`, ls = `${(size * track).toFixed(2)}px`;
+/** `text` at `size` (CSS px), weight, tracking (em), its colour and a dark halo (alpha, width px), as a sprite whose
+ *  anchor is the start of its baseline; `w` is the text's advance; `face` the family (the body's, or DISPLAY) */
+export function label(text: string, size: number, weight: number | string, track: number, fill: string, halo: number, haloW: number, dpr: number, face: string = FONT): Label {
+  const font = `${weight} ${size.toFixed(2)}px ${face}`, ls = `${(size * track).toFixed(2)}px`;
   const mk = `${font}|${ls}|${text}`;
-  const w = measure(text, size, weight, track);
+  const w = measure(text, size, weight, track, face);
   const pad = Math.ceil(haloW + 2), sw = w + pad * 2, sh = size * 1.45 + pad * 2, base = pad + size * 1.08;
   const ref = sprite(`label:${mk}|${fill}|${halo}|${haloW.toFixed(2)}`, dpr, sw, sh, pad, base, (g) => {
     g.font = font; g.letterSpacing = ls;
@@ -345,10 +423,10 @@ export function stampLabel(g: Ctx, l: Label, x: number, y: number, align: 'left'
 
 /** a number's text stamped digit by digit (each digit a label: a rolling score costs eleven sprites); returns its width */
 export function stampDigits(g: Ctx, text: string, size: number, weight: number | string, track: number, fill: string, halo: number, haloW: number, dpr: number,
-  x: number, y: number, align: 'left' | 'right' = 'left', a = 1): number {
+  x: number, y: number, align: 'left' | 'right' = 'left', a = 1, face: string = FONT): number {
   let w = 0;
   const ls: Label[] = [];
-  for (const ch of text) { const l = label(ch, size, weight, track, fill, halo, haloW, dpr); ls.push(l); w += l.w; }
+  for (const ch of text) { const l = label(ch, size, weight, track, fill, halo, haloW, dpr, face); ls.push(l); w += l.w; }
   let cx = align === 'left' ? x : x - w;
   for (const l of ls) { stamp(g, l.ref, cx, y, 1, a); cx += l.w; }
   return w;

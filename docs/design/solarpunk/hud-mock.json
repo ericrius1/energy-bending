@@ -1,0 +1,10 @@
+{
+  "generator": "GPT Image via the Codex CLI image tool (ChatGPT login)",
+  "codexModel": "gpt-5.6-terra",
+  "prompt": "A video game HUD mockup over a dance-duel scene in a sunlit garden. In the top-left and top-right corners two player panels shaped as art-nouveau cartouches of translucent warm cream-amber glass framed with thin gold leaded lines and small leaf flourishes; each has a round medallion emblem on its outer end (left: a flame glyph, right: a water drop glyph), a name in an elegant soft serif, a big serif score number, and a slim vine-like flow bar along its lower edge; the left panel is accented in rose pink, the right in fern green. Between them at the top centre a golden sun-disc orb with a ring of petals as a timer. At the bottom centre a small sundial-like beat ring. Two dancers in the middle of the scene, one rose-tinted fire, one fern-tinted water. Calm, legible, elegant, uncluttered. Hopeful, peaceful, full of awe; a sunlit future where nature and craft live together. Palette: warm sun gold, leaf and moss green, sky teal, terracotta, cream, a touch of coral. Materials: white ceramic, brass, copper gone green with verdigris, honey wood, woven fibre, leaded stained glass. Art-nouveau curves and botanical ornament. Painterly, clean, luminous video game concept art. Not grim, not dystopian, not industrial, not neon, not cyberpunk, no text, no logos, no weapons, nothing burning or hurt.",
+  "inputs": {},
+  "codexThread": "01a1dc5e-5a37-72a2-89e5-1bda17e1350f",
+  "codexFile": "C:\\Users\\ericr\\.codex\\generated_images\\01a1dc5e-5a37-72a2-89e5-1bda17e1350f\\exec-3eecb287-a3fa-481d-99e7-727b0ff7e6c6.png",
+  "seconds": 89.0,
+  "sha256": "3cd06e04110bfe3ffc34f74dc54f1cb4b93edd9c69b3936b5c51bc7415ff231c"
+}

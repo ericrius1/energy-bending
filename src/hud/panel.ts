@@ -14,35 +14,59 @@
 import type { HudPlayer, HudState } from './state';
 import type { Box, Layout } from './layout';
 import { linkIcon } from './icons';
-import { FONT, GOLD, GOLD_HI, INK, glass, glyph, glyphLines, glow, haloText, label, lift, matterOf, rgba, roundRect, sprite, stamp, stampDigits, stampLabel, approach, easeOut, easeOutBack, clamp01, type Ctx } from './style';
+import { DISPLAY, FONT, GOLD, GOLD_HI, INK, glass, glyph, glyphLines, glow, haloText, label, leaded, leadGold, leaf, lift, matterOf, measure, petals, rgba, roundRect, sprite, stamp, stampDigits, stampLabel, approach, easeOut, easeOutBack, clamp01, type Ctx } from './style';
+import { PALETTE } from './theme';
 
 interface Metrics {
-  em: { cx: number; cy: number; disc: number; glyph: number; ring: number; ringW: number };
-  name: { x: number; y: number; size: number; seat: number };
+  em: { cx: number; cy: number; disc: number; glyph: number; ring: number; ringW: number; petal: number };
+  name: { x: number; y: number; size: number; seat: number; display: boolean };
   style: { x: number; y: number; size: number; label: number };
   dash: { x: number; cy: number; size: number };
   chip: { cy: number; h: number; font: number; inset: number };
   combo: { inset: number; count: number; mult: number; icon: number; gap: number };
   r: number;
+  /** the cartouche's leaf tip at the inner end: how far it runs in from the inner edge */
+  tip: number;
+  /** the sprig of leaves on the top edge where the tip begins (0: none) */
+  sprig: number;
 }
 const DESKTOP: Metrics = {
-  em: { cx: 42, cy: 42, disc: 25, glyph: 30, ring: 31.5, ringW: 2.6 },
-  name: { x: 80, y: 29, size: 14, seat: 9 },
-  style: { x: 79, y: 64, size: 28, label: 8.5 },
-  dash: { x: 30, cy: 56, size: 14 },
-  chip: { cy: 24, h: 18, font: 8.5, inset: 14 },
+  em: { cx: 42, cy: 42, disc: 24, glyph: 29, ring: 30, ringW: 2.6, petal: 6.5 },
+  name: { x: 82, y: 28, size: 15, seat: 9.5, display: true },
+  style: { x: 81, y: 63, size: 29, label: 9 },
+  dash: { x: 38, cy: 58, size: 14 },
+  chip: { cy: 24, h: 18, font: 9, inset: 26 },
   combo: { inset: 12, count: 21, mult: 12.5, icon: 22, gap: 5 },
   r: 18,
+  tip: 30,
+  sprig: 10,
 };
 const COMPACT: Metrics = {
-  em: { cx: 20, cy: 20, disc: 13.5, glyph: 16, ring: 16.8, ringW: 1.7 },
-  name: { x: 39, y: 15.5, size: 9.5, seat: 7 },
+  em: { cx: 20, cy: 20, disc: 13, glyph: 15.5, ring: 15.5, ringW: 1.7, petal: 3 },
+  name: { x: 39, y: 14.5, size: 9.5, seat: 7, display: false },
   style: { x: 38.5, y: 33.5, size: 15, label: 0 },
-  dash: { x: 14, cy: 27, size: 8 },
-  chip: { cy: 13, h: 12, font: 6.5, inset: 7 },
+  dash: { x: 16, cy: 11.5, size: 8 },
+  chip: { cy: 12, h: 12, font: 7, inset: 9 },
   combo: { inset: 6, count: 12.5, mult: 8.5, icon: 14, gap: 2.5 },
   r: 12,
+  tip: 14,
+  sprig: 0,
 };
+
+/** the panel's pane: a cartouche, round at the outer end behind the medallion, a leaf's tip at the inner end. `x` maps
+ *  units from the outer edge to canvas px (it mirrors seat 2's), `y` units from the top */
+function cartouche(g: Ctx, M: Metrics, W: number, H: number, x: (v: number) => number, y: (v: number) => number) {
+  const c = M.em.cx, T = M.tip, R = H / 2;
+  g.beginPath();
+  g.moveTo(x(c), y(0));
+  g.lineTo(x(W - T), y(0));
+  g.bezierCurveTo(x(W - T * 0.6), y(0), x(W - T * 0.32), y(H * 0.42), x(W), y(R));
+  g.bezierCurveTo(x(W - T * 0.32), y(H * 0.58), x(W - T * 0.6), y(H), x(W - T), y(H));
+  g.lineTo(x(c), y(H));
+  g.bezierCurveTo(x(c - R * 0.56), y(H), x(c - R), y(H - R * 0.44), x(c - R), y(R));
+  g.bezierCurveTo(x(c - R), y(R * 0.44), x(c - R * 0.56), y(0), x(c), y(0));
+  g.closePath();
+}
 
 /** seconds: a new link popping in; a cashed combo gathering into the style; a dropped one sinking; the "+n" rising */
 const POP_IN = 0.28, CASH = 0.62, DROP = 0.7, PLUS = 1.3;
@@ -55,6 +79,8 @@ const fmt = (v: number) => {
   const s = String(Math.max(0, Math.round(v)));
   return s.length <= 3 ? s : s.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
 };
+/** the style's weight (the display face) */
+const STYLE_W = 600;
 const fmtMult = (m: number) => `×${Math.abs(m - Math.round(m)) < 0.05 ? Math.round(m) : m.toFixed(1)}`;
 
 export class PlayerPanel {
@@ -180,23 +206,56 @@ export class PlayerPanel {
     const t = this.t, col = p.color, [deep, light] = matterOf(p.matter);
 
     // the still part (a sprite)
-    const key = `panel2:${this.seat}:${compact}:${box.w.toFixed(1)}:${box.h.toFixed(1)}:${u.toFixed(3)}:${p.name}:${col}:${p.matter}`;
+    const key = `panel3:${this.seat}:${compact}:${box.w.toFixed(1)}:${box.h.toFixed(1)}:${u.toFixed(3)}:${p.name}:${col}:${p.matter}`;
     let nameEnd = 0;
     const still = sprite(key, dpr, box.w + 24 * u, box.h + 24 * u, 12 * u, 12 * u, (s) => {
       s.translate(12 * u, 12 * u);
       const x = (v: number) => (flip ? box.w - v * u : v * u), y = (v: number) => v * u;
-      glass(s, 0, 0, box.w, box.h, M.r * u, col, flip ? 'right' : 'left');
-      // the emblem: a dark well with the matter's glyph in it, its glow behind, a faint ring round it
+      const W = box.w / u, H = box.h / u;
+      // the pane: a cartouche of honey glass in gold leading, the seat's colour washing in from the medallion's side
+      glass(s, 0, 0, box.w, box.h, M.r * u, col, flip ? 'right' : 'left', 1, () => cartouche(s, M, W, H, x, y));
+      // a second came echoing the leaf tip inside it (a leaded pane's line), and a sprig of two leaves where it begins
+      // (the desktop's only: on a phone the powers sit in the tip)
+      const T = M.tip;
+      if (M.sprig) {
+        s.beginPath();
+        s.moveTo(x(W - T * 1.1), y(H * 0.16));
+        s.bezierCurveTo(x(W - T * 0.82), y(H * 0.16), x(W - T * 0.62), y(H * 0.42), x(W - T * 0.4), y(H / 2));
+        s.bezierCurveTo(x(W - T * 0.62), y(H * 0.58), x(W - T * 0.82), y(H * 0.84), x(W - T * 1.1), y(H * 0.84));
+        s.globalAlpha = 0.55;
+        leaded(s, 0, box.h, Math.max(0.8, 0.9 * u));
+        s.globalAlpha = 1;
+      }
+      if (M.sprig) {
+        const sx0 = x(W - T - 4), sy0 = y(0.5), d = flip ? -1 : 1, L = M.sprig * u;
+        const m = (a: number) => (flip ? Math.PI - a : a);
+        s.beginPath();
+        leaf(s, sx0, sy0, L, L * 0.5, m(-Math.PI * 0.2));
+        leaf(s, sx0, sy0, L * 0.8, L * 0.45, m(-Math.PI * 0.86));
+        const lg = s.createLinearGradient(sx0, sy0 - L, sx0 + d * L, sy0);
+        lg.addColorStop(0, lift(PALETTE.leaf, 0.2)); lg.addColorStop(1, PALETTE.moss);
+        s.fillStyle = lg; s.fill();
+        leaded(s, sy0 - L, L, Math.max(0.6, 0.7 * u));
+      }
+      // the medallion: a crown of gold petals (a sun), a dark lead ring with a came of the seat's colour, the deep
+      // honey well with the matter's glyph in it and its glow behind
       const ecx = x(M.em.cx), ecy = y(M.em.cy);
-      stamp(s, glow(deep, M.em.ring * u * 1.25, dpr, 0.4), ecx, ecy);
-      const well = s.createRadialGradient(ecx, ecy - M.em.disc * u * 0.3, 0, ecx, ecy, M.em.disc * u);
-      well.addColorStop(0, 'rgba(30,24,44,0.95)');
-      well.addColorStop(1, 'rgba(8,6,14,0.95)');
+      stamp(s, glow(deep, M.em.ring * u * 1.2, dpr, 0.32), ecx, ecy);
+      s.beginPath();
+      petals(s, ecx, ecy, M.em.ring * u * 0.86, (M.em.ring + M.em.petal) * u, compact ? 10 : 12, -Math.PI / 2);
+      s.fillStyle = leadGold(s, ecy - M.em.ring * u, M.em.ring * u * 2, 0.95); s.fill();
+      s.lineWidth = Math.max(0.6, 0.7 * u); s.strokeStyle = 'rgba(40,26,8,0.55)'; s.stroke();
+      s.beginPath(); s.arc(ecx, ecy, M.em.ring * u, 0, Math.PI * 2);
+      s.fillStyle = 'rgba(26,19,9,0.96)'; s.fill();
+      leaded(s, ecy - M.em.ring * u, M.em.ring * u * 2, Math.max(1, 1.3 * u));
+      s.beginPath(); s.arc(ecx, ecy, (M.em.disc + (M.em.ring - M.em.disc) * 0.5) * u, 0, Math.PI * 2);
+      s.lineWidth = Math.max(1, (M.em.ring - M.em.disc) * u * 0.42); s.strokeStyle = rgba(col, 0.85); s.stroke();
+      const well = s.createRadialGradient(ecx, ecy - M.em.disc * u * 0.35, 0, ecx, ecy, M.em.disc * u);
+      well.addColorStop(0, 'rgba(66,50,26,0.97)');
+      well.addColorStop(1, 'rgba(16,11,5,0.97)');
       s.beginPath(); s.arc(ecx, ecy, M.em.disc * u, 0, Math.PI * 2);
       s.fillStyle = well; s.fill();
-      s.lineWidth = 1; s.strokeStyle = rgba(light, 0.35); s.stroke();
-      s.beginPath(); s.arc(ecx, ecy, M.em.ring * u, 0, Math.PI * 2);
-      s.lineWidth = Math.max(1, M.em.ringW * u * 0.5); s.strokeStyle = rgba(lift(col, 0.3), 0.22); s.stroke();
+      s.lineWidth = 1; s.strokeStyle = rgba(light, 0.3); s.stroke();
       s.save();
       s.translate(ecx, ecy);
       const gs = M.em.glyph * u;
@@ -207,23 +266,26 @@ export class PlayerPanel {
       glyphLines(s, p.matter, gs);
       s.lineWidth = Math.max(0.8, u * (compact ? 0.7 : 1.1)); s.strokeStyle = 'rgba(255,255,255,0.5)'; s.stroke();
       s.restore();
-      // the name, in caps, and the seat after it
-      s.font = `600 ${M.name.size * u}px ${FONT}`;
-      s.letterSpacing = `${(M.name.size * u * 0.08).toFixed(2)}px`;
+      // the seat ("P1", in its colour) and the name in caps after it; a name that already starts with its seat ("P1 ·
+      // LEAD") is not told it twice
       s.textBaseline = 'alphabetic';
       s.textAlign = flip ? 'right' : 'left';
-      let name = p.name.toUpperCase();
-      const room = box.w - M.name.x * u - (M.dash.x + 14) * u * (compact ? 1.4 : 1);
+      const tag = `P${this.seat + 1}`, d = flip ? -1 : 1;
+      let full = p.name.toUpperCase();
+      if (full.startsWith(tag)) full =full.slice(tag.length).replace(/^[\s·:.-]+/, '');
+      s.font = `800 ${M.name.seat * u}px ${FONT}`;
+      s.letterSpacing = `${(M.name.seat * u * 0.1).toFixed(2)}px`;
+      const tw0 = s.measureText(tag).width, gap = 5 * u;
+      haloText(s, tag, x(M.name.x), y(M.name.y), lift(col, 0.25), 0.5, Math.max(2, 2.4 * u));
+      const nx = x(M.name.x) + d * (tw0 + gap);
+      s.font = M.name.display ? `600 ${M.name.size * u}px ${DISPLAY}` : `700 ${M.name.size * u}px ${FONT}`;
+      s.letterSpacing = `${(M.name.size * u * (M.name.display ? 0.07 : 0.05)).toFixed(2)}px`;
+      let name = full;
+      const room = box.w - M.name.x * u - tw0 - gap - (compact ? (M.dash.x + M.dash.size * 0.7 + 3) * u : (M.dash.x + 14) * u);
       while (name.length > 1 && s.measureText(name).width > room) name = name.slice(0, -1);
-      if (name !== p.name.toUpperCase()) name = name.slice(0, -1) + '…';
-      haloText(s, name, x(M.name.x), y(M.name.y), '#f4f0fa', 0.45, Math.max(2, 2.6 * u));
-      const nw = s.measureText(name).width;
-      s.font = `700 ${M.name.seat * u}px ${FONT}`;
-      s.letterSpacing = `${(M.name.seat * u * 0.12).toFixed(2)}px`;
-      s.fillStyle = rgba(lift(col, 0.35), 0.85);
-      s.fillText(`P${this.seat + 1}`, flip ? x(M.name.x) - nw - 6 * u : x(M.name.x) + nw + 6 * u, y(M.name.y));
-      nameEnd = M.name.x * u + nw + 6 * u + s.measureText(`P${this.seat + 1}`).width;
-      // the style's label, after the number's place (desktop)
+      if (name !== full) name = name.slice(0, -1) + '…';
+      haloText(s, name, nx, y(M.name.y), PALETTE.cream, 0.45, Math.max(2, 2.6 * u));
+      nameEnd = M.name.x * u + tw0 + gap + s.measureText(name).width;
     });
     if (nameEnd) this.chipRoom = box.w - nameEnd - M.chip.inset * u - 6 * u;
     stamp(g, still, box.x, box.y);
@@ -233,7 +295,7 @@ export class PlayerPanel {
     // reforming (after a fall): the glyph dims and a thin arc fills inside the ring
     if (this.reformShown > 0.003) {
       g.beginPath(); g.arc(ecx, ecy, M.em.disc * u - 0.5, 0, Math.PI * 2);
-      g.fillStyle = 'rgba(8,6,14,0.62)'; g.fill();
+      g.fillStyle = 'rgba(16,11,5,0.62)'; g.fill();
       g.lineWidth = Math.max(1.2, 1.6 * u);
       g.beginPath(); g.arc(ecx, ecy, M.em.disc * u - 3 * u, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * this.reformShown);
       g.strokeStyle = rgba(light, 0.9); g.stroke();
@@ -242,25 +304,30 @@ export class PlayerPanel {
 
     // ---------------------------------------------------------------- the style
     const flare = clamp01(1 - (t - this.flareAt) / 0.8);
-    const S = M.style, sx = X(S.x), sy = Y(S.y), size = S.size * u, haloW = Math.max(2.5, 3.2 * u * (S.size / 28));
-    // (digit by digit from sprites: the number rolls every frame while a combo cashes in)
+    const S = M.style, sx = X(S.x), sy = Y(S.y), haloW = Math.max(2.5, 3.2 * u * (S.size / 28));
+    // (digit by digit from sprites, in the display face: the number rolls every frame while a combo cashes in; on a
+    // phone a long one steps down a size rather than run under the powers)
     const txt = fmt(this.styleShown);
-    const tw = stampDigits(g, txt, size, 650, 0.02, '#f2eefa', 0.5, haloW, dpr, sx, sy, flip ? 'right' : 'left');
+    let size = S.size * u;
+    const roomS = compact ? box.w - S.x * u - (POW.compact.ix[0] + POW.compact.size * 0.62 + 3) * u : Infinity;
+    const want = measure(txt, size, STYLE_W, 0.01, DISPLAY);
+    if (want > roomS) size = Math.max(size * 0.6, Math.floor(size * (roomS / want) * 2) / 2);
+    const tw = stampDigits(g, txt, size, STYLE_W, 0.01, PALETTE.cream, 0.5, haloW, dpr, sx, sy, flip ? 'right' : 'left', 1, DISPLAY);
     if (flare > 0) {
-      stamp(g, glow(GOLD, size * 1.3, dpr, 0.5), flip ? sx - tw / 2 : sx + tw / 2, sy - size * 0.33, 1, flare * 0.85);
-      stampDigits(g, txt, size, 650, 0.02, lift(GOLD, 0.25), 0.5, haloW, dpr, sx, sy, flip ? 'right' : 'left', flare);
+      stamp(g, glow(GOLD, Math.min(size * 1.1, box.h * 0.5), dpr, 0.5), flip ? sx - tw / 2 : sx + tw / 2, sy - size * 0.33, 1, flare * 0.85);
+      stampDigits(g, txt, size, STYLE_W, 0.01, lift(GOLD, 0.35), 0.5, haloW, dpr, sx, sy, flip ? 'right' : 'left', flare, DISPLAY);
     }
     this.styleEnd = flip ? sx - tw : sx + tw;
-    if (S.label) stampLabel(g, label('STYLE', S.label * u, 600, 0.26, 'rgba(236,230,244,0.5)', 0, 0, dpr), flip ? sx - tw - 8 * u : sx + tw + 8 * u, sy - 1.5 * u, flip ? 'right' : 'left');
+    if (S.label) stampLabel(g, label('STYLE', S.label * u, 800, 0.24, rgba(PALETTE.parchment, 0.62), 0, 0, dpr), flip ? sx - tw - 8 * u : sx + tw + 8 * u, sy - 1.5 * u, flip ? 'right' : 'left');
 
     // ---------------------------------------------------------------- the dash, at the inner end
     const D = M.dash.size, ready = this.dashShown >= 0.999;
     const dcx = flip ? box.x + M.dash.x * u : box.x + box.w - M.dash.x * u, dcy = Y(M.dash.cy);
     const flash = this.readyAt >= 0 ? clamp01(1 - (t - this.readyAt) / 0.4) : 0;
     if (ready) stamp(g, glow(lift(col, 0.3), D * u * 1.6, dpr, 0.45), dcx, dcy, 1, 0.55 + 0.6 * flash);
-    chevrons(g, dcx, dcy - D * u * 0.12, D * u, flip, ready ? lift(col, 0.55 + 0.45 * flash) : 'rgba(255,255,255,0.3)', Math.max(1.3, 1.9 * u * (D / 13)));
+    chevrons(g, dcx, dcy - D * u * 0.12, D * u, flip, ready ? lift(col, 0.55 + 0.45 * flash) : rgba(PALETTE.parchment, 0.32), Math.max(1.3, 1.9 * u * (D / 13)));
     const bw = D * u * 1.5, by = dcy + D * u * 0.62, bh = Math.max(1, 1.6 * u * (D / 13));
-    g.fillStyle = 'rgba(255,255,255,0.12)';
+    g.fillStyle = rgba(PALETTE.parchment, 0.14);
     g.fillRect(dcx - bw / 2, by, bw, bh);
     if (!ready && this.dashShown > 0) {
       g.fillStyle = rgba(lift(col, 0.3), 0.9);
@@ -312,7 +379,7 @@ export class PlayerPanel {
       roundRect(g, x0, y0, w, ch, ch / 2);
       const bg = g.createLinearGradient(x0, 0, x0 + w, 0);
       bg.addColorStop(0, rgba(flip ? ocol : col, 0.42)); bg.addColorStop(1, rgba(flip ? col : ocol, 0.42));
-      g.fillStyle = 'rgba(10,8,18,0.55)'; g.fill();
+      g.fillStyle = 'rgba(28,20,9,0.62)'; g.fill();
       g.fillStyle = bg; g.fill();
       g.lineWidth = Math.max(1, 1.1 * u);
       g.strokeStyle = `rgba(255,255,255,${(0.3 + 0.35 * e + 0.3 * beatK).toFixed(3)})`; g.stroke();
@@ -388,13 +455,19 @@ export class PlayerPanel {
     // the glass under it
     if (pill > 0.01) {
       g.globalAlpha = pill;
-      roundRect(g, flip ? row.x + row.w - w : row.x, row.y + (grey ? dy : 0), w, row.h, row.h / 2);
-      g.fillStyle = 'rgba(10,8,18,0.5)'; g.fill();
-      // (the rim in the tier's colour once there is one, brighter as its word pops in)
+      const ry = row.y + (grey ? dy : 0);
+      roundRect(g, flip ? row.x + row.w - w : row.x, ry, w, row.h, row.h / 2);
+      const rg = g.createLinearGradient(0, ry, 0, ry + row.h);
+      rg.addColorStop(0, 'rgba(50,38,20,0.6)'); rg.addColorStop(1, 'rgba(18,13,7,0.55)');
+      g.fillStyle = rg; g.fill();
+      // (gold leading round it; the rim in the tier's colour once there is one, brighter as its word pops in)
       const tin = T && !grey ? clamp01(1 - (t - T.at) / 0.8) : 0;
-      g.lineWidth = T && !grey ? Math.max(1, (1.4 + 1.6 * tin) * u) : 1;
-      g.strokeStyle = grey ? 'rgba(255,255,255,0.08)' : T ? rgba(T.color, 0.55 + 0.4 * tin) : rgba(lift(p.color, 0.3), 0.28);
-      g.stroke();
+      if (T && !grey) {
+        g.lineWidth = Math.max(1, (1.4 + 1.6 * tin) * u);
+        g.strokeStyle = rgba(T.color, 0.55 + 0.4 * tin);
+        g.stroke();
+      } else if (grey) { g.lineWidth = 1; g.strokeStyle = 'rgba(230,215,184,0.1)'; g.stroke(); }
+      else leaded(g, ry, row.h, Math.max(0.8, 0.9 * u));
     }
     g.globalAlpha = a;
     // the icons
@@ -452,14 +525,14 @@ export function warmPanel(L: Layout, dpr: number): (() => void)[] {
   const M = compact(L), u = L.u, out: (() => void)[] = [];
   const S = M.style, size = S.size * u, haloW = Math.max(2.5, 3.2 * u * (S.size / 28));
   for (const ch of '0123456789,') {
-    out.push(() => { label(ch, size, 650, 0.02, '#f2eefa', 0.5, haloW, dpr); });
-    out.push(() => { label(ch, size, 650, 0.02, lift(GOLD, 0.25), 0.5, haloW, dpr); });
+    out.push(() => { label(ch, size, STYLE_W, 0.01, PALETTE.cream, 0.5, haloW, dpr, DISPLAY); });
+    out.push(() => { label(ch, size, STYLE_W, 0.01, lift(GOLD, 0.35), 0.5, haloW, dpr, DISPLAY); });
   }
   const C = M.combo, cs = C.count * u, ms = C.mult * u;
   for (let n = 1; n <= 12; n++) out.push(() => { label(String(n), cs, 700, 0, '#ffffff', 0.5, Math.max(2, 2.6 * u), dpr); });
   for (let m = 1; m <= 4; m += 0.5) for (const c of [GOLD, INK]) out.push(() => { label(fmtMult(m), ms, 650, 0.04, c, 0.5, Math.max(2, 2.4 * u), dpr); });
   for (const w of ['HOLDING', 'HELD']) out.push(() => { label(w, M.chip.font * u, 700, 0.2, '#ffffff', 0, 0, dpr); });
-  if (S.label) out.push(() => { label('STYLE', S.label * u, 600, 0.26, 'rgba(236,230,244,0.5)', 0, 0, dpr); });
+  if (S.label) out.push(() => { label('STYLE', S.label * u, 800, 0.24, rgba(PALETTE.parchment, 0.62), 0, 0, dpr); });
   return out;
 }
 
@@ -480,8 +553,8 @@ function chevrons(g: Ctx, cx: number, cy: number, s: number, flip: boolean, col:
 /** where the powers sit in a panel: the two icons at the inner end, left of the dash (their middles, from the inner
  *  edge, and their size), the keys under them, the flow bar along the panel's foot (from x0 to the inner edge less x1) */
 const POW = {
-  desk: { ix: [86, 58], cy: 50, size: 20, key: 7.5, bar: { x0: 80, x1: 18, y: 77, h: 3.2 } },
-  compact: { ix: [52, 36], cy: 25, size: 12, key: 0, bar: { x0: 39, x1: 9, y: 37, h: 2 } },
+  desk: { ix: [92, 62], cy: 43, size: 20, key: 11.5, bar: { x0: 82, x1: 32, y: 77, h: 3.4 } },
+  compact: { ix: [34, 19], cy: 27.5, size: 11, key: 0, bar: { x0: 39, x1: 15, y: 37.2, h: 2 } },
 };
 const pdot = (g: Ctx, x: number, y: number, r: number) => { g.moveTo(x + r, y); g.arc(x, y, r, 0, Math.PI * 2); };
 /** each power's glyph in a 24-unit box centred on 0, y down: strokes, and what is filled */
@@ -514,7 +587,7 @@ function powerIcon(id: string, size: number, col: string, ready: boolean, dpr: n
     const G = POWER_GLYPH[id] ?? POWER_GLYPH.flare;
     g.translate(s / 2 + pad, s / 2 + pad); g.scale(s / 24, s / 24);
     g.lineCap = 'round'; g.lineJoin = 'round';
-    for (const [w, c] of [[4.6, 'rgba(6,4,12,0.6)'], [2.1, ready ? lift(col, 0.35) : 'rgba(210,205,225,0.45)']] as const) {
+    for (const [w, c] of [[4.6, 'rgba(14,10,4,0.6)'], [2.1, ready ? lift(col, 0.35) : rgba(PALETTE.parchment, 0.45)]] as const) {
       g.beginPath(); G.line(g); g.lineWidth = w; g.strokeStyle = c; g.stroke();
       if (G.fill) { g.beginPath(); G.fill(g); g.fillStyle = c; g.fill(); }
     }
@@ -532,8 +605,10 @@ export function drawPowers(g: Ctx, p: HudPlayer, box: Box, compactL: boolean, u:
   // ---- the flow bar: a track along the foot, the flow in the matter's colour, marks where each power's cost falls;
   // full, it glows gold; in the form it runs down, gold and white
   const B = P.bar, bx0 = outer(B.x0), bx1 = inner(B.x1), x0 = Math.min(bx0, bx1), w = Math.abs(bx1 - bx0), y = box.y + B.y * u, h = Math.max(1.5, B.h * u);
+  // (the track: a slim channel of dark glass in gold leading, like a stem the flow climbs)
   roundRect(g, x0, y - h / 2, w, h, h / 2);
-  g.fillStyle = 'rgba(255,255,255,0.1)'; g.fill();
+  g.fillStyle = 'rgba(14,10,4,0.5)'; g.fill();
+  if (!compactL) leaded(g, y - h, h * 2, Math.max(0.7, 0.75 * u), 0.7);
   const f = clamp01(p.flow), fw = w * f;
   if (fw > 0.5) {
     const fx = flip ? x0 + w - fw : x0;
@@ -544,31 +619,81 @@ export function drawPowers(g: Ctx, p: HudPlayer, box: Box, compactL: boolean, u:
     // its leading edge, bright
     stamp(g, glow(inForm || full ? GOLD : lift(col, 0.3), h * 3.2, dpr, 0.55), flip ? fx : fx + fw, y, 1, inForm || full ? 0.6 + 0.4 * pulse : 0.45);
   }
-  if (full || inForm) stamp(g, glow(GOLD, Math.min(w, 120 * u) * 0.5, dpr, 0.18), x0 + w / 2, y, 1, (full ? 0.35 + 0.35 * pulse : 0.3) * (compactL ? 0.6 : 1));
-  const cost = p.powers[0]?.cost || 0.25;
-  if (!inForm) for (let c = cost; c < 0.999; c += cost) {
-    const mx = flip ? x0 + w - w * c : x0 + w * c;
-    g.fillStyle = f >= c ? 'rgba(255,255,255,0.55)' : 'rgba(255,255,255,0.22)';
-    g.fillRect(mx - 0.5, y - h * 0.9, 1, h * 1.8);
+  if (full || inForm) {
+    // (full: a soft gold light along the stem, flattened to it; drawn inside the box the live layer clears, or it would
+    // be left behind frame after frame)
+    const R = Math.min(w, 120 * u) * 0.5;
+    g.save(); g.translate(x0 + w / 2, y); g.scale(1, 0.22);
+    stamp(g, glow(GOLD, R, dpr, 0.22), 0, 0, 1, (full ? 0.4 + 0.35 * pulse : 0.35) * (compactL ? 0.6 : 1));
+    g.restore();
   }
-  out.push({ x: x0 - 10 * u, y: y - 10 * u, w: w + 20 * u, h: 20 * u });
-  // ---- the two powers: ready in the matter's colour (in the form, ringed gold: free), else grey with the flow's way
-  // toward their cost round them; the key under each
+  const cost = p.powers[0]?.cost || 0.25;
+  // (where each power's cost falls: a small leaf on the stem, gold once the flow has reached it)
+  if (!inForm) {
+    g.beginPath();
+    const reached: number[] = [];
+    for (let c = cost; c < 0.999; c += cost) {
+      const mx = flip ? x0 + w - w * c : x0 + w * c, L = (compactL ? 3.2 : 5) * u;
+      if (f >= c) reached.push(mx);
+      else leaf(g, mx, y - h * 0.3, L, L * 0.55, -Math.PI / 2 + (flip ? -0.5 : 0.5));
+    }
+    g.fillStyle = rgba(PALETTE.parchment, 0.35); g.fill();
+    if (reached.length) {
+      g.beginPath();
+      for (const mx of reached) { const L = (compactL ? 3.2 : 5) * u; leaf(g, mx, y - h * 0.3, L, L * 0.55, -Math.PI / 2 + (flip ? -0.5 : 0.5)); }
+      g.fillStyle = PALETTE.leaf; g.fill();
+    }
+  }
+  out.push({ x: x0 - 10 * u, y: y - 14 * u, w: w + 20 * u, h: 28 * u });
+  // ---- the two powers, each a cabochon in a gold setting: ready in the matter's colour (in the form, ringed gold:
+  // free), else dim with the flow's way toward their cost round them; the key under each on a cream keycap
   p.powers.forEach((q, i) => {
     const cx = inner(P.ix[i]), cy = box.y + P.cy * u, s = P.size * u, R = s * 0.62;
     if (q.ready) stamp(g, glow(inForm ? GOLD : lift(col, 0.25), R * 1.7, dpr, 0.4), cx, cy, 1, inForm ? 0.6 + 0.3 * pulse : 0.5);
+    stamp(g, cabochon(R, compactL, dpr), cx, cy);
     stamp(g, powerIcon(q.id, s, col, q.ready, dpr), cx, cy);
     g.lineCap = 'round';
     g.lineWidth = Math.max(1, 1.5 * u * (compactL ? 0.7 : 1));
-    if (inForm) { g.strokeStyle = rgba(GOLD, 0.85); g.beginPath(); g.arc(cx, cy, R, 0, Math.PI * 2); g.stroke(); }
-    else if (q.ready) { g.strokeStyle = rgba(lift(col, 0.4), 0.7); g.beginPath(); g.arc(cx, cy, R, 0, Math.PI * 2); g.stroke(); }
+    if (inForm) { g.strokeStyle = rgba(GOLD, 0.9); g.beginPath(); g.arc(cx, cy, R, 0, Math.PI * 2); g.stroke(); }
+    else if (q.ready) { g.strokeStyle = rgba(lift(col, 0.4), 0.8); g.beginPath(); g.arc(cx, cy, R, 0, Math.PI * 2); g.stroke(); }
     else {
       const k = clamp01(q.cost > 0 ? f / q.cost : 1);
-      g.strokeStyle = 'rgba(255,255,255,0.14)'; g.beginPath(); g.arc(cx, cy, R, 0, Math.PI * 2); g.stroke();
-      if (k > 0.01) { g.strokeStyle = rgba(lift(col, 0.3), 0.75); g.beginPath(); g.arc(cx, cy, R, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * k); g.stroke(); }
+      if (k > 0.01) { g.strokeStyle = rgba(lift(col, 0.3), 0.8); g.beginPath(); g.arc(cx, cy, R, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * k); g.stroke(); }
     }
     g.lineCap = 'butt';
-    if (q.key && P.key) stampLabel(g, label(q.key, P.key * u, 700, 0.06, q.ready ? '#f4f0fa' : 'rgba(236,230,244,0.5)', 0.5, Math.max(1.5, 2 * u), dpr), cx, cy + R + P.key * u * 1.15, 'center');
-    out.push({ x: cx - R * 2, y: cy - R * 2, w: R * 4, h: R * 4 + P.key * u * 2 });
+    if (q.key && P.key) {
+      const cap = keyCap(q.key, P.key * u, q.ready, dpr);
+      stamp(g, cap, cx, cy + R + P.key * u * 0.85);
+    }
+    out.push({ x: cx - R * 2, y: cy - R * 2, w: R * 4, h: R * 4 + P.key * u * 2.2 });
+  });
+}
+
+/** a power's setting: a disc of dark honey glass in a ring of gold leading (a sprite per size) */
+function cabochon(R: number, small: boolean, dpr: number) {
+  const pad = 3;
+  return sprite(`cab:${R.toFixed(2)}:${small}`, dpr, R * 2 + pad * 2, R * 2 + pad * 2, R + pad, R + pad, (g) => {
+    const c = R + pad;
+    const well = g.createRadialGradient(c, c - R * 0.4, 0, c, c, R);
+    well.addColorStop(0, 'rgba(60,45,22,0.9)'); well.addColorStop(1, 'rgba(16,11,5,0.88)');
+    g.beginPath(); g.arc(c, c, R, 0, Math.PI * 2);
+    g.fillStyle = well; g.fill();
+    leaded(g, c - R, R * 2, small ? 0.8 : 1.1);
+  });
+}
+
+/** a key's letter on a small cream keycap (ready) or a dim one, dark ink on it: the panel's keys read at 720p */
+function keyCap(text: string, size: number, ready: boolean, dpr: number) {
+  const tw = measure(text, size, 800, 0.02), h = size * 1.42, w = Math.max(h, tw + size * 0.95), pad = 2;
+  return sprite(`key:${text}:${size.toFixed(2)}:${ready}`, dpr, w + pad * 2, h + pad * 2, w / 2 + pad, h / 2 + pad, (g) => {
+    roundRect(g, pad, pad, w, h, h * 0.36);
+    g.fillStyle = ready ? rgba(PALETTE.cream, 0.95) : 'rgba(30,22,10,0.7)';
+    g.fill();
+    g.lineWidth = 1; g.strokeStyle = ready ? rgba(PALETTE.honey, 0.9) : rgba(PALETTE.parchment, 0.55); g.stroke();
+    g.font = `800 ${size.toFixed(2)}px ${FONT}`;
+    g.letterSpacing = `${(size * 0.02).toFixed(2)}px`;
+    g.textAlign = 'center'; g.textBaseline = 'middle';
+    g.fillStyle = ready ? '#2b1e0b' : rgba(PALETTE.parchment, 0.9);
+    g.fillText(text, pad + w / 2, pad + h / 2 + size * 0.06);
   });
 }

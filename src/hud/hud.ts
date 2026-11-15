@@ -17,7 +17,7 @@ import { PairChain } from './pair';
 import { LinkLine } from './link';
 import { drawBeat } from './beat';
 import { Pops, drawTags, warmPops } from './pops';
-import { makeCanvas, type Ctx, type Sprite } from './style';
+import { fontEpoch, loadFaces, makeCanvas, type Ctx, type Sprite } from './style';
 
 export interface HudStats {
   /** CPU ms a frame: the mean of the last ~120 frames, and the worst of them */
@@ -49,6 +49,8 @@ export class Hud {
   private link = new LinkLine();
   private pops = new Pops();
   private wasDuel = false;
+  /** the fonts' epoch the base was drawn in (style.ts fontEpoch) */
+  private fonts = 0;
   /** sprites to make ahead, one a frame (a new cast or size: its words, tags and countdown) */
   private warm: (() => void)[] = [];
   private warmFor = '';
@@ -93,6 +95,8 @@ export class Hud {
     this.gb = this.base.getContext('2d');
     this.gl = this.live.getContext('2d');
     this.show(false);
+    // (the skin's web fonts, asked for now: when they are in, every word is made again in them)
+    loadFaces();
   }
 
   private show(on: boolean) {
@@ -130,6 +134,7 @@ export class Hud {
     }
     this.fit();
     this.show(true);
+    if (fontEpoch !== this.fonts) { this.fonts = fontEpoch; for (const p of this.panels) p.invalidate(); this.baseDirty = true; this.warmFor = ''; }
     const L = this.L!, r = this.ratio, gb = this.gb!, gl = this.gl!;
     const duel = st.mode === 'duel';
 
