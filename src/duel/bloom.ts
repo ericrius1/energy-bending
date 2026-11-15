@@ -10,6 +10,11 @@
 //           rays of sun turning slowly out from it. It never reaches down onto the bodies (a fan, not a full circle)
 //   floor   a flower of light lying round the base's feet, petals in both colours opening as the flyer rises
 //   petals  falling from the crown as the flyer comes down, through the banner, swaying
+// Phase 6 (report 20, report 19's second issue: "the fused bloom is small and pastel"): the flower opens over the whole
+// stage, its petals 2.5 m long (the frame holds its heart; its petals run off the frame's top and sides), a crown of long
+// gold sepals and rays of sun fanning out behind it, the vines a hand's width, the floor's flower as wide as the pair;
+// its light falls on the world round it through the world's answer (answer.ts: a lamp at the flower's heart, the sun's
+// shafts from it, an aurora).
 // Then it all fades under the banner. Pure: positions and timing in, glows out; fx.ts calls it and keeps it off the
 // bodies (its glows are one range: `keepOff`, and the moments probe measures it: moments.ts `bloomCover`).
 import type { Glows, RGB } from '../play/glow';
@@ -27,19 +32,25 @@ export const BLOOM = {
    *  UP and at least MIN_UP metres, SCREEN_UP of the screen's height over the head and never above SCREEN_TOP of it
    *  (the HUD's panels); and how far behind that, away from the eye (m; below 0 toward it: the glow is depth-tested,
    *  and a piece of the arena standing behind the pair would hide a flower set back) */
-  HIGH: FINALE.TOP + 2.25,
-  UP: 2.2,
-  MIN_UP: 0.55,
-  SCREEN_UP: 0.17,
-  SCREEN_TOP: 0.2,
+  HIGH: FINALE.TOP + 2.6,
+  UP: 2.6,
+  MIN_UP: 0.9,
+  SCREEN_UP: 0.2,
+  SCREEN_TOP: 0.24,
   BACK: -0.3,
-  /** the camera frames a point this far over the flyer's head through a fused finale (index.ts), room for the flower */
-  FRAME_UP: 1.45,
+  /** the camera frames a point this far over the flyer's head through a fused finale (index.ts), room for the flower's
+   *  heart; once it opens, FRAME_TOP over its heart (fx.ts flowerTop): the petals run off the frame */
+  FRAME_UP: 1.7,
+  FRAME_TOP: 0.8,
   /** the vines' feet either side of the base (m) */
-  SPAN: 1.2,
-  /** the outer petals' length when open, and their half width (m) */
-  PETAL: 1.0,
-  PETAL_W: 0.2,
+  SPAN: 1.7,
+  /** the outer petals' length when open, and their half width (m); how many; the rays of sun behind them (how many, and
+   *  how long at the most, m) */
+  PETAL: 2.5,
+  PETAL_W: 0.46,
+  PETALS: 13,
+  RAYS: 26,
+  RAY: 4.8,
   /** after the duet, the bloom holds this long, then fades over FADE_S (s) */
   HOLD_S: 1.6,
   FADE_S: 1.8,
@@ -145,13 +156,13 @@ export function drawBloom(G: Glows, b: BloomIn): number {
       const N = 24, n = Math.max(1, Math.ceil(N * rise));
       let prev = bez(P, 0);
       for (let i = 1; i <= n; i++) {
-        const s = Math.min(rise, i / N), q = bez(P, s), w = 0.065 - 0.035 * s;
-        G.seg(prev, q, w * 1.6, col, 0.45 * fade, 'soft');
-        G.seg(prev, q, w * 0.5, core, 1.2 * fade, 'soft');
+        const s = Math.min(rise, i / N), q = bez(P, s), w = 0.12 - 0.05 * s;
+        G.seg(prev, q, w * 1.6, col, 0.5 * fade, 'soft');
+        G.seg(prev, q, w * 0.45, core, 1.3 * fade, 'soft');
         prev = q;
       }
       // the growing tip: a bud of light, while it grows
-      if (rise < 0.999) G.dot(prev, 0.06, GLINT, 1.6 * fade, 'spark');
+      if (rise < 0.999) G.dot(prev, 0.1, GLINT, 1.6 * fade, 'spark');
       // leaves unfurling along it, alternating, turned out from the stem
       for (let k = 0; k < 11; k++) {
         const s = 0.08 + k * 0.078, grow = smooth((rise - s) / 0.12);
@@ -164,16 +175,16 @@ export function drawBloom(G: Glows, b: BloomIn): number {
         // rotate the tangent within the plane spanned by up and right (screen plane): its right and up parts
         const tr = ux * right[0] + uz * right[2], tu = uy;
         const lr = tr * c - tu * sn, lu = tr * sn + tu * c;
-        const L = (0.22 + 0.07 * hash(k + side * 7)) * grow, tip = add(add(p, right, lr * L), up, lu * L);
-        G.petal(p, tip, 0.06 * grow, mixRGB(LEAF, col, 0.18), 0.9 * fade, true);
+        const L = (0.36 + 0.1 * hash(k + side * 7)) * grow, tip = add(add(p, right, lr * L), up, lu * L);
+        G.petal(p, tip, 0.1 * grow, mixRGB(LEAF, col, 0.18), 0.9 * fade, true);
         // (every third leaf a small blossom of five petals in the stem's colour, a bead of pollen at its heart)
         if (k % 3 === 1 && grow > 0.3) {
           const bo = smooth((grow - 0.3) / 0.7), bc = add(add(p, right, -lr * 0.09), up, -lu * 0.09);
           for (let j = 0; j < 5; j++) {
-            const ba = (j / 5) * Math.PI * 2 + b.t * 0.3 + k, br = 0.075 * bo;
-            G.petal(bc, add(add(bc, right, Math.cos(ba) * br), up, Math.sin(ba) * br), 0.03 * bo, col, 0.8 * fade, false);
+            const ba = (j / 5) * Math.PI * 2 + b.t * 0.3 + k, br = 0.13 * bo;
+            G.petal(bc, add(add(bc, right, Math.cos(ba) * br), up, Math.sin(ba) * br), 0.05 * bo, col, 0.85 * fade, false);
           }
-          G.dot(bc, 0.018, GOLD, 1.4 * fade * bo, 'spark');
+          G.dot(bc, 0.03, GOLD, 1.4 * fade * bo, 'spark');
         }
       }
       // a curl of tendril near the foot and one high on the stem: a small spiral (art nouveau's whiplash ends in one)
@@ -185,7 +196,7 @@ export function drawBloom(G: Glows, b: BloomIn): number {
         for (let j = 1; j <= 10; j++) {
           const a = (j / 10) * Math.PI * 2.2 * grow, r = r0 * (1 - 0.55 * (j / 10));
           const q = add(add(p, right, side * (r0 - Math.cos(a) * r)), up, Math.sin(a) * r);
-          G.seg(last, q, 0.008, core, 0.9 * fade, 'soft');
+          G.seg(last, q, 0.014, core, 0.9 * fade, 'soft');
           last = q;
         }
       }
@@ -195,11 +206,11 @@ export function drawBloom(G: Glows, b: BloomIn): number {
   // ---- the floor's flower: lying petals round the base's feet, opening as the flyer rises
   const fl = smooth(seg(f.u, 0.28, 0.62));
   if (fl > 0.01) {
-    const n = 14, foot: V3 = [B[0], B[1] + 0.03, B[2]];
+    const n = 18, foot: V3 = [B[0], B[1] + 0.03, B[2]];
     for (let i = 0; i < n; i++) {
       const a = (i / n) * Math.PI * 2 + 0.15 * Math.sin(b.t * 0.4), dx = Math.cos(a), dz = Math.sin(a);
-      const r0 = 0.45, r1 = r0 + (0.35 + 0.5 * fl) * (i % 2 ? 0.8 : 1);
-      G.petal([foot[0] + dx * r0, foot[1], foot[2] + dz * r0], [foot[0] + dx * r1, foot[1], foot[2] + dz * r1], 0.15 * fl, cols[i % 2], 0.42 * fl * fade, false, true);
+      const r0 = 0.55, r1 = r0 + (0.4 + 1.1 * fl) * (i % 2 ? 0.78 : 1);
+      G.petal([foot[0] + dx * r0, foot[1], foot[2] + dz * r0], [foot[0] + dx * r1, foot[1], foot[2] + dz * r1], 0.26 * fl, cols[i % 2], 0.36 * fl * fade, false, true);
     }
   }
 
@@ -214,62 +225,68 @@ export function drawBloom(G: Glows, b: BloomIn): number {
     const inPlane = (a: number, r: number): V3 => [C[0] + r * (Math.cos(a) * ax[0] + Math.sin(a) * ay[0]), C[1] + r * (Math.cos(a) * ax[1] + Math.sin(a) * ay[1]), C[2] + r * (Math.cos(a) * ax[2] + Math.sin(a) * ay[2])];
     const bud = 0.25 + 0.75 * open, breathe = 1 + 0.035 * Math.sin(b.t * 1.85);
     // the sun at its height: a warm disc behind the heart, and rays turning slowly out of it over the fan
-    G.dot(add(C, back, 0.05), (0.26 + 0.26 * open) * breathe, SUN, (0.1 + 0.1 * open) * fade, 'soft');
+    G.dot(add(C, back, 0.05), (0.24 + 0.26 * open) * breathe, SUN, (0.08 + 0.06 * open) * fade, 'soft');
     if (open > 0.02) {
-      const nr = 14;
+      const nr = BLOOM.RAYS;
       for (let i = 0; i < nr; i++) {
-        const a = -0.35 + (i / (nr - 1)) * (Math.PI + 0.7) + 0.06 * Math.sin(b.t * 0.5 + i), L = (1.1 + 0.6 * hash(i * 3.1)) * open;
-        G.seg(inPlane(a, 0.55 * open), inPlane(a, 0.55 * open + L), 0.012, SUN, 0.2 * fade * (0.6 + 0.4 * Math.sin(b.t * 2.2 + i * 1.9)), 'soft');
+        const a = -0.4 + (i / (nr - 1)) * (Math.PI + 0.8) + 0.05 * Math.sin(b.t * 0.5 + i), L = (0.45 + 0.55 * hash(i * 3.1)) * BLOOM.RAY * open;
+        const fl2 = 0.6 + 0.4 * Math.sin(b.t * 2.2 + i * 1.9), r0 = 0.9 * open;
+        G.seg(inPlane(a, r0), inPlane(a, r0 + L), 0.03, SUN, 0.05 * fade * fl2, 'soft');
+        G.seg(inPlane(a, r0), inPlane(a, r0 + L * 0.8), 0.01, GLINT, 0.15 * fade * fl2, 'soft');
       }
     }
     // behind the fan: long gold sepals between the petals, faint, the sun's own crown
-    for (let i = 0; i < 8; i++) {
-      const fan = -0.12 + ((i + 0.5) / 8) * (Math.PI + 0.24), a = Math.PI / 2 + (fan - Math.PI / 2) * open;
-      G.petal(inPlane(a, 0.12), inPlane(a, 0.12 + (0.3 + (BLOOM.PETAL * 1.08) * open) * breathe), 0.07, SUN, 0.32 * fade * bud, false);
+    for (let i = 0; i < BLOOM.PETALS; i++) {
+      const fan = -0.3 + ((i + 0.5) / BLOOM.PETALS) * (Math.PI + 0.6), a = Math.PI / 2 + (fan - Math.PI / 2) * open;
+      const s0 = 0.15 + 0.45 * open;
+      G.petal(inPlane(a, s0), inPlane(a, s0 + (0.3 + (BLOOM.PETAL * 1.0) * open) * breathe), 0.12, SUN, 0.12 * fade * bud, false);
     }
     // the outer fan: 9 petals from a little below level on each side to straight up, in the two colours
-    const n = 9;
+    const n = BLOOM.PETALS;
     for (let i = 0; i < n; i++) {
-      const fan = -0.32 + (i / (n - 1)) * (Math.PI + 0.64), budA = Math.PI / 2 + (i / (n - 1) - 0.5) * 0.5;
+      const fan = -0.42 + (i / (n - 1)) * (Math.PI + 0.84), budA = Math.PI / 2 + (i / (n - 1) - 0.5) * 0.5;
       const a = budA + (fan - budA) * open + 0.025 * Math.sin(b.t * 1.3 + i);
-      const L = (0.22 + (BLOOM.PETAL - 0.22) * open) * (i % 2 ? 0.86 : 1) * breathe;
-      // (the seat's colour, not washed toward white: added over a bright sky or water it whitens on its own)
-      const c0 = cols[i % 2], col: RGB = [c0[0] * 0.7, c0[1] * 0.7, c0[2] * 0.7];
-      G.petal(inPlane(a, 0.08), inPlane(a, 0.08 + L), BLOOM.PETAL_W * (0.6 + 0.4 * open), col, 0.85 * fade * bud, false);
+      const L = (0.3 + (BLOOM.PETAL - 0.3) * open) * (i % 2 ? 0.84 : 1) * breathe;
+      // (the seat's colour, its most saturated: added over a bright sky or water it whitens on its own, so the petal's
+      // body is the colour alone and the gold is only its rim and heart)
+      const c0 = cols[i % 2], col: RGB = [c0[0] * 0.95, c0[1] * 0.95, c0[2] * 0.95];
+      // (from a ring round the heart, not its middle: thirteen golden petal bases laid over each other were a white blot)
+      const r0 = 0.1 + 0.5 * open;
+      G.petal(inPlane(a, r0), inPlane(a, r0 + L), BLOOM.PETAL_W * (0.5 + 0.5 * open), col, 0.72 * fade * bud, false);
     }
     // the inner crown: gold petals between them, shorter
     for (let i = 0; i < 8; i++) {
       const fan = -0.12 + (i / 7) * (Math.PI + 0.24), a = Math.PI / 2 + (fan - Math.PI / 2) * open;
-      G.petal(inPlane(a, 0.05), inPlane(a, 0.07 + (0.12 + 0.26 * open) * breathe), 0.08, GOLD, 0.32 * fade * bud, false);
+      G.petal(inPlane(a, 0.05), inPlane(a, 0.07 + (0.2 + 0.45 * open) * breathe), 0.12, GOLD, 0.16 * fade * bud, false);
     }
     // the heart and its stamens: a glint of sun, a few beads on short stems over it
-    G.dot(C, 0.05 + 0.03 * open, GLINT, 1.2 * fade, 'spark');
-    for (let i = 0; i < 5; i++) {
-      const a = Math.PI / 2 + (i - 2) * 0.32, tip = inPlane(a, 0.16 * open + 0.03);
-      G.seg(C, tip, 0.006, CREAM, 0.9 * fade * open, 'soft');
-      G.dot(tip, 0.022, GOLD, 1.7 * fade * open, 'spark');
+    G.dot(C, 0.08 + 0.05 * open, GLINT, 1.3 * fade, 'spark');
+    for (let i = 0; i < 7; i++) {
+      const a = Math.PI / 2 + (i - 3) * 0.28, tip = inPlane(a, 0.3 * open + 0.04);
+      G.seg(C, tip, 0.01, CREAM, 0.9 * fade * open, 'soft');
+      G.dot(tip, 0.035, GOLD, 1.7 * fade * open, 'spark');
     }
     // pollen drifting up and out of the open flower, glinting
     if (open > 0.05) {
-      for (let i = 0; i < 18; i++) {
-        const v = (b.t * 0.22 + hash(i * 4.1)) % 1, a = 0.2 + hash(i * 2.3) * (Math.PI - 0.4), r = (0.3 + 1.3 * v) * open;
-        const p = add(inPlane(a, r), up, 0.25 * v);
-        G.dot(p, 0.018, i % 3 ? GOLD : cols[i % 2], 1.3 * fade * Math.sin(Math.PI * v) * open, 'spark');
+      for (let i = 0; i < 40; i++) {
+        const v = (b.t * 0.22 + hash(i * 4.1)) % 1, a = 0.1 + hash(i * 2.3) * (Math.PI - 0.2), r = (0.4 + 3.2 * v) * open;
+        const p = add(inPlane(a, r), up, 0.4 * v);
+        G.dot(p, 0.03, i % 3 ? GOLD : cols[i % 2], 1.4 * fade * Math.sin(Math.PI * v) * open, 'spark');
       }
     }
     // petals falling from the crown as the flyer comes down and through the banner, swaying as they sink
     const since = b.open - BLOOM.OPEN_S * 0.6;
     if (since > 0) {
-      for (let i = 0; i < 22; i++) {
+      for (let i = 0; i < 36; i++) {
         const born = hash(i * 5.3) * 2.6, age = since - born;
         if (age <= 0) continue;
         const life = 3.2, v = age / life;
         if (v >= 1) continue;
-        const a = -0.2 + hash(i * 1.7) * (Math.PI + 0.4), start = inPlane(a, 0.35 + 0.45 * hash(i * 2.9));
+        const a = -0.2 + hash(i * 1.7) * (Math.PI + 0.4), start = inPlane(a, 0.5 + 1.6 * hash(i * 2.9));
         const sw = Math.sin(age * 2.1 + i) * 0.22 * Math.min(1, age);
         const p: V3 = add(add(start, right, sw + Math.cos(a) * 0.25 * age), up, -0.42 * age - 0.04 * age * age);
-        const tw = age * 2.4 + i, dir: V3 = add(add([0, 0, 0], right, Math.cos(tw) * 0.07), up, Math.sin(tw) * 0.07);
-        G.petal(add(p, dir, -1), add(p, dir, 1), 0.035, mixRGB(cols[i % 2], CREAM, 0.3), 0.9 * fade * Math.sin(Math.PI * Math.min(1, v * 1.15)), false);
+        const tw = age * 2.4 + i, dir: V3 = add(add([0, 0, 0], right, Math.cos(tw) * 0.11), up, Math.sin(tw) * 0.11);
+        G.petal(add(p, dir, -1), add(p, dir, 1), 0.06, mixRGB(cols[i % 2], CREAM, 0.3), 0.9 * fade * Math.sin(Math.PI * Math.min(1, v * 1.15)), false);
       }
     }
   }

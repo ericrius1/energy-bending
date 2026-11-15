@@ -60,7 +60,9 @@ fn sway(s: f32, t: f32, seed: f32, kind: f32) -> vec2f {
   let u = c.x * 2.0 - 1.0;
   // (a banner ripples across too: its edges a little behind its middle as the air moves it)
   let ripple = select(0.0, sin(t * 2.1 + s * 7.0 + H.look.x * 4.0) * 0.05 * s * u, kind < 0.5);
-  let p = H.at.xyz - vec3f(0.0, s * H.n.z, 0.0) + across * u * H.n.w * 0.5 + nOut * (w.x + ripple) + across * w.y;
+  // (the world answering a moment lifts the banners out on the air and swings the chimes: worlds/answer.wgsl, report 20)
+  let lift = answerLift(3u, H.at.xyz) * s * H.n.z * select(0.65, 0.3, kind > 0.5);
+  let p = H.at.xyz - vec3f(0.0, s * H.n.z - lift * 0.45, 0.0) + across * u * H.n.w * 0.5 + nOut * (w.x + ripple + lift) + across * w.y * (1.0 + 2.0 * lift);
   // the sheet's normal: out of its face, tipped by the slope of its sway down it
   let w2 = sway(min(s + 0.05, 1.0), t, H.look.x, kind);
   let slope = (w2.x - w.x) / max(0.05 * H.n.z, 1e-3);
@@ -244,6 +246,8 @@ fn dye(k: f32) -> vec3f {
     let brass = vec3f(0.95, 0.68, 0.3) * (env * 0.7 + sunC * (pow(max(dot(R, Ls), 0.0), 40.0) * 3.0 + max(dot(nV, Ls), 0.0) * 0.3) + templeAmbient(nV, 1.0, i.wp, 1.0) * 0.25);
     col = mix(col, brass, g.brass);
     col = templeUnder(col, i.wp, vec3f(0.0));
+    // (the glass brightens as the answer's light passes: report 20)
+    col += deep * swirl * sunC * 1.4 * answerGlow(3u, i.wp) * (1.0 - g.lead);
     return vec4f(col, dot(i.wp - frame.camPos, frame.camFwd));
   }
   var albedo = vec3f(0.5);

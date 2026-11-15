@@ -143,6 +143,13 @@ export interface FireLights {
   pad2: number;
   lights: Partial<FireLight>[];
 }
+export interface Answer {
+  at: Vec4;
+  k: Vec4;
+  sun: Vec4;
+  col: Vec4;
+  more: Vec4;
+}
 export interface WorldLight {
   fire: FireLights;
   geode: Geode;
@@ -150,6 +157,7 @@ export interface WorldLight {
   pool: Pool;
   temple: Temple;
   sight: Sight;
+  answer: Answer;
 }
 export interface SightBody {
   lo: Vec4;
@@ -188,5 +196,5 @@ export interface GOut {
   info: Vec4;
 }
 
-declare const shader: Shader<{ Frame: Frame; Geode: Geode; Forest: Forest; Pool: Pool; Temple: Temple; FireLight: FireLight; FireLights: FireLights; WorldLight: WorldLight; SightBody: SightBody; SightPiece: SightPiece; Sight: Sight; KeyLight: KeyLight; Hang: Hang; GOut: GOut }, 'frame' | 'worldLight' | 'hangs' | 'poolWaves' | 'templeWaves' | 'samp_linear' | 'samp_repeat' | 'samp_nearest' | 'samp_shadow'>;
+declare const shader: Shader<{ Frame: Frame; Geode: Geode; Forest: Forest; Pool: Pool; Temple: Temple; FireLight: FireLight; FireLights: FireLights; Answer: Answer; WorldLight: WorldLight; SightBody: SightBody; SightPiece: SightPiece; Sight: Sight; KeyLight: KeyLight; Hang: Hang; GOut: GOut }, 'frame' | 'worldLight' | 'hangs' | 'poolWaves' | 'templeWaves' | 'samp_linear' | 'samp_repeat' | 'samp_nearest' | 'samp_shadow'>;
 export default shader;

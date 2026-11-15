@@ -121,7 +121,8 @@ fn h1(x: f32) -> f32 { return fract(sin(x * 12.9898) * 43758.5453); }
     let sway = vec2f(sin(t * 1.1 + seed * 5.0 + f32(fi) * 2.0), cos(t * 0.9 + seed * 3.0 + f32(fi))) * 0.02;
     let base = vec3f(B.at.y, 0.0, B.at.z);
     let head = base + vec3f(cos(ang) * reach + sway.x, H, sin(ang) * reach + sway.y);
-    let R = L * (0.16 + 0.1 * hs2);
+    // (the world answering a moment opens the flowers as its wave passes: worlds/answer.wgsl, report 20)
+    let R = L * (0.16 + 0.1 * hs2) * (1.0 + 0.9 * answerReach(2u, onPiece(S, head)));
     if (f32(fi) + 0.5 > B.size.y) {
       l = base - vec3f(0.0, 1.0, 0.0);
       o.uv = vec2f(0.0);
@@ -195,6 +196,8 @@ fn petalCol(k: f32) -> vec3f {
     let disc = smoothstep(0.3, 0.24, r);
     albedo = mix(petalCol(i.info.w) * (0.75 + 0.25 * smoothstep(0.2, 0.8, r)), vec3f(0.85, 0.5, 0.06), disc);
     through = 0.9 * (1.0 - disc);
+    // (and glow, opened, as the answer's light passes: report 20)
+    albedo *= 1.0 + 2.2 * answerGlow(2u, i.wp);
   }
   let kd = max(dot(N, K.xyz), 0.0);
   // (the low sun through a leaf or a petal from behind: the clump's rim lights gold)

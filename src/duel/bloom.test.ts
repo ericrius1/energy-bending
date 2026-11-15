@@ -41,7 +41,8 @@ test('the flower stands over the flyer\'s head on screen, below the HUD\'s top',
   const vp = viewProj(), head: V3 = [0, 2.9, 0], C = flowerAt([0, 0, 0], head, eye, vp);
   const h = onScreen(vp, head), c = onScreen(vp, C);
   assert(c[1] < h[1] - 0.05, `heart at ${c[1].toFixed(2)}, head at ${h[1].toFixed(2)}`);
-  assert(c[1] >= BLOOM.SCREEN_TOP - 0.01, `heart at ${c[1].toFixed(2)} of the screen`);
+  // (below the HUD's top, unless keeping MIN_UP over the head takes it higher: phase 6's flower is over the whole stage)
+  assert(c[1] >= BLOOM.SCREEN_TOP - 0.01 || C[1] - head[1] <= BLOOM.MIN_UP + 1e-6, `heart at ${c[1].toFixed(2)} of the screen`);
   assert(C[1] - head[1] >= BLOOM.MIN_UP - 1e-6 && C[1] - head[1] <= BLOOM.UP + 1e-6, `${(C[1] - head[1]).toFixed(2)} m over the head`);
 });
 

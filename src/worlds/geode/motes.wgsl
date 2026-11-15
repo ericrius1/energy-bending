@@ -26,7 +26,8 @@ struct MOut {
     let size = 0.022 + 0.012 * g.x;
     o.pos = frame.viewProj * vec4f(centre + (frame.camRight * c6.x + frame.camUp * c6.y) * size, 1.0);
     o.uv = c6;
-    o.bright = -(0.15 + 2.2 * blink);
+    // (brighter, and blinking together, while the world answers a moment: worlds/answer.wgsl, report 20)
+    o.bright = -(0.15 + 2.2 * blink + 2.0 * answerReach(0u, centre) * (0.5 + 0.5 * worldLight.answer.k.w));
     return o;
   }
   let h = rnd3(ii * 7u + 1u);

@@ -148,6 +148,8 @@ fn flameAt(k: u32) -> vec3f {
   let glow = l.w * worldLight.forest.lampCol.rgb * 0.62;
   var c = paper * glow * near * warm * fib * (1.0 - 0.55 * hoop) * (1.0 - 0.3 * seam);
   c += glow * vec3f(1.0, 0.82, 0.55) * hot * (1.0 - 0.6 * hoop) * fib;
+  // (the lanterns light, by day too, while the world answers a moment: worlds/answer.wgsl, report 20)
+  c += paper * vec3f(1.0, 0.72, 0.38) * (near + hot) * warm * fib * (1.0 - 0.55 * hoop) * 1.4 * answerGlow(1u, i.wp);
   // and from outside: paper in the daylight (thin: the sun glows through it from behind too); the hoops darker
   let ndl = dot(N, L);
   let sky = mix(vec3f(luma(woodsAmbient(N))), woodsAmbient(N), 0.4) * 3.0;
@@ -249,7 +251,7 @@ struct FOut {
   let ph = fract(t / period + h2.x);
   // (phase 5: a longer glow after each flash, and a faint one between, so at 720p a meadow of them reads at dusk)
   let flash = smoothstep(0.0, 0.035, ph) * (1.0 - smoothstep(0.05, 0.32, ph));
-  o.bright = worldLight.forest.horizon.w * (flash + 0.1);
+  o.bright = worldLight.forest.horizon.w * (flash + 0.1) * (1.0 + 2.5 * answerReach(1u, p));
   let c = array<vec2f, 6>(vec2f(-1.0, -1.0), vec2f(1.0, -1.0), vec2f(1.0, 1.0), vec2f(-1.0, -1.0), vec2f(1.0, 1.0), vec2f(-1.0, 1.0))[vi];
   o.uv = c;
   let size = 0.05 + 0.03 * h2.y;

@@ -465,7 +465,8 @@ fn carving(kind: f32, u: f32, v: f32, hw: f32, height: f32, seed: f32) -> f32 {
   let V = normalize(frame.camPos - wp);
   let Ld = worldLight.temple.moon.xyz;
   // (the sun through the stained glass over the court: pools of coloured light)
-  let moon = worldLight.temple.moonCol.rgb * worldLight.temple.moonCol.w * templeShadow(wp + N * 0.03) * templeCanopy(wp);
+  // (brighter while the world answers a moment, its wave passing: worlds/answer.wgsl, report 20)
+  let moon = worldLight.temple.moonCol.rgb * worldLight.temple.moonCol.w * templeShadow(wp + N * 0.03) * templeCanopy(wp) * (1.0 + 0.6 * answerGlow(3u, wp));
   let ao = (1.0 - 0.55 * max(groove, 0.0)) * mix(0.55, 1.0, smoothstep(0.0, 0.7, wp.y + 0.3));
   let diff = max(dot(N, Ld), 0.0);
   // the afterglow behind the audience, low: a warm light raking the fronts (it is what shows the carving)

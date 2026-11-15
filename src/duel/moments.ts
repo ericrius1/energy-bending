@@ -102,6 +102,28 @@ export function coverOf(b: Box, feet: readonly Foot[]): number {
   return hit / n;
 }
 
+/** how big a light is on screen (phase 6, report 20: the bloom's size): the box round its footprint, clipped to the
+ *  screen (shares of its width and height), and the share of the screen under it (a 64 × 36 grid) */
+export function sizeOf(feet: readonly Foot[], W: number, H: number): { w: number; h: number; area: number; top: number } {
+  if (!feet.length) return { w: 0, h: 0, area: 0, top: 1 };
+  let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+  const grow = (a: number, b: number, c: number, d: number) => { x0 = Math.min(x0, a); y0 = Math.min(y0, b); x1 = Math.max(x1, c); y1 = Math.max(y1, d); };
+  for (const f of feet) {
+    if (f.k === 'disc' || f.k === 'ring') grow(f.x - f.r, f.y - f.r, f.x + f.r, f.y + f.r);
+    else if (f.k === 'box') grow(f.b.x, f.b.y, f.b.x + f.b.w, f.b.y + f.b.h);
+    else for (let i = 0; i < f.xs.length; i++) grow(f.xs[i], f.ys[i], f.xs[i], f.ys[i]);
+  }
+  const cx = (v: number, m: number) => Math.max(0, Math.min(m, v));
+  x0 = cx(x0, W); x1 = cx(x1, W); y0 = cx(y0, H); y1 = cx(y1, H);
+  let hit = 0;
+  for (let j = 0; j < 36; j++) for (let i = 0; i < 64; i++) {
+    const x = ((i + 0.5) / 64) * W, y = ((j + 0.5) / 36) * H;
+    if (x < x0 || x > x1 || y < y0 || y > y1) continue;
+    for (const f of feet) if (under(x, y, f)) { hit++; break; }
+  }
+  return { w: (x1 - x0) / W, h: (y1 - y0) / H, area: hit / (64 * 36), top: y0 / H };
+}
+
 /** the HUD's words and rings as feet */
 export function hudFeet(c: HudCover, W: number, H: number): Foot[] {
   const kx = c.W ? W / c.W : 1, ky = c.H ? H / c.H : 1;
@@ -193,6 +215,27 @@ export function momentsHook(c: {
       const cores = [0, 1].map((k) => { const d = c.dancer(k); return d ? bodyBox(d.skeleton.world, CORE_JOINTS, c.project, W, H, 0.2, 0.06) : null; });
       const bodies = [0, 1].map((k) => { const d = c.dancer(k); return d ? bodyBox(d.skeleton.world, ALL_JOINTS, c.project, W, H) : null; });
       return { core: Math.max(...cores.map((b) => (b ? coverOf(b, feet) : 0))), body: Math.max(...bodies.map((b) => (b ? coverOf(b, feet) : 0))), glows: r[1] - r[0] };
+    },
+    /** the bloom's size on screen this frame (sizeOf: its box and the share of the screen it lights), or null */
+    bloomSize(W = 1280, H = 720) {
+      const r = c.bloom?.();
+      return r ? sizeOf(lightFeet(c.glows.data, [r], c.project, W, H), W, H) : null;
+    },
+    /** how much of each body a solid hides from the eye (phase 6, report 20: the lifted body behind a standing stone):
+     *  the share of its hips, chest and head whose sight line from the eye a solid crosses (stopping 0.4 m short, as
+     *  the camera's own: camera.ts DUEL_CAM.shortOf) */
+    hidden(space: { blocked(a: V3, b: V3): boolean } | null, eye: V3) {
+      return [0, 1].map((k) => {
+        const d = c.dancer(k);
+        if (!d || !space) return 0;
+        let n = 0;
+        for (const j of [0, 15, 19]) {
+          const o = j * 12, p: V3 = [d.skeleton.world[o], d.skeleton.world[o + 1], d.skeleton.world[o + 2]];
+          const dx = p[0] - eye[0], dy = p[1] - eye[1], dz = p[2] - eye[2], L = Math.hypot(dx, dy, dz) || 1, k2 = Math.max(0, L - 0.4) / L;
+          if (space.blocked(eye, [eye[0] + dx * k2, eye[1] + dy * k2, eye[2] + dz * k2])) n++;
+        }
+        return n / 3;
+      });
     },
     /** this frame (after it is drawn), dt its length (s) */
     sample(dt = 1 / 60) {

@@ -65,7 +65,8 @@ fn gdSway(s: f32, seed: f32) -> vec3f {
     let toEye = normalize(frame.camPos - top);
     let rx = normalize(cross(up, toEye) + vec3f(1e-4, 0.0, 0.0));
     let ry = cross(toEye, rx);
-    let r = W * 2.2;
+    // (the world answering a moment opens it wide as its wave passes: worlds/answer.wgsl, report 20)
+    let r = W * 2.2 * (1.0 + 0.9 * answerReach(0u, top));
     let wp = top + (rx * c.x + ry * c.y) * r;
     o.wp = wp;
     o.n = normalize(toEye + up * 0.6);
@@ -142,6 +143,7 @@ fn gdHeart(q: vec2f) -> f32 {
     let pc = array<vec3f, 4>(vec3f(0.98, 0.94, 0.84), vec3f(0.98, 0.5, 0.4), vec3f(1.0, 0.76, 0.28), vec3f(0.98, 0.72, 0.74))[k];
     albedo = mix(pc, pc * vec3f(1.0, 0.85, 0.7), smoothstep(0.2, 0.9, r));
     albedo = mix(albedo, vec3f(1.0, 0.75, 0.2), step(r, 0.22));
+    albedo *= 1.0 + 2.2 * answerGlow(0u, i.wp);
     vein = (1.0 - smoothstep(0.0, 0.06, abs(fract(a * n / 6.2831853 + 0.5) - 0.5))) * 0.25 * step(0.25, r);
     gloss = 0.05;
   } else if (kind < 0.5) {

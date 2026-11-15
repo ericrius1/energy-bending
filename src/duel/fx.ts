@@ -99,14 +99,17 @@ export function keepOff(G: Glows, ranges: readonly [number, number][], viewProj:
   for (const w of worlds) { const b = w ? screenBounds(w, viewProj, CORE_JOINTS, 0.24, 0.08) : null; if (b) boxes.push(b); }
   if (!boxes.length) return 0;
   const m = viewProj, D = G.data;
-  /** how deep a world point falls inside the cores on screen (0: outside, 1: well in) */
+  /** how deep a world point falls inside the cores on screen (0: outside, 1: well in); `wide`: the glow's half width
+   *  (m), which reaches that much further (the bloom's petals, phase 6) */
+  let wide = 0;
   const depth = (x: number, y: number, z: number) => {
     const cw = m[3] * x + m[7] * y + m[11] * z + m[15];
     if (!(cw > 1e-3)) return 0;
     const sx = ((m[0] * x + m[4] * y + m[8] * z + m[12]) / cw) * 0.5 + 0.5, sy = 0.5 - ((m[1] * x + m[5] * y + m[9] * z + m[13]) / cw) * 0.5;
+    const pad = wide > 0.08 ? (wide * 0.7 * Math.abs(m[5])) / cw * 0.5 : 0;
     let inside = 0;
     for (const b of boxes) {
-      const hw = (b[2] - b[0]) / 2, hh = (b[3] - b[1]) / 2, e = Math.min(hw - Math.abs(sx - (b[0] + b[2]) / 2), hh - Math.abs(sy - (b[1] + b[3]) / 2));
+      const hw = (b[2] - b[0]) / 2 + pad, hh = (b[3] - b[1]) / 2 + pad, e = Math.min(hw - Math.abs(sx - (b[0] + b[2]) / 2), hh - Math.abs(sy - (b[1] + b[3]) / 2));
       if (e > 0) inside = Math.max(inside, Math.min(1, e / (0.3 * Math.min(hw, hh))));
     }
     return inside;
@@ -114,9 +117,15 @@ export function keepOff(G: Glows, ranges: readonly [number, number][], viewProj:
   let n = 0;
   for (const [g0, g1] of ranges) for (let i = g0; i < g1; i++) {
     const o = i * GLOW_FLOATS, ax = D[o], ay = D[o + 1], az = D[o + 2], bx = D[o + 4], by = D[o + 5], bz = D[o + 6], r = D[o + 3];
+    wide = D[o + 11] >= 8 ? r : 0;
     // (a dot by its middle; a segment by its ends and middle; a ring or disc lying on the floor by points round it)
     let inside = depth((ax + bx) / 2, (ay + by) / 2, (az + bz) / 2);
-    if (ax !== bx || ay !== by || az !== bz) inside = Math.max(inside, depth(ax, ay, az), depth(bx, by, bz));
+    if (ax !== bx || ay !== by || az !== bz) {
+      inside = Math.max(inside, depth(ax, ay, az), depth(bx, by, bz));
+      // (a long one, the bloom's petals and rays (phase 6), along its length too)
+      const L = Math.hypot(bx - ax, by - ay, bz - az), n = Math.min(8, Math.floor(L / Math.max(0.25, r)));
+      for (let k = 1; k < n && inside < 1; k++) { const u = k / n; if (Math.abs(u - 0.5) > 1e-3) inside = Math.max(inside, depth(ax + (bx - ax) * u, ay + (by - ay) * u, az + (bz - az) * u)); }
+    }
     if (D[o + 11] >= 4 && D[o + 11] < 8) for (let k = 0; k < 8 && inside < 1; k++) { const t = (k / 8) * Math.PI * 2; inside = Math.max(inside, depth(ax + Math.cos(t) * r, ay, az + Math.sin(t) * r)); }
     if (inside > 0) { D[o + 7] *= 1 - k * inside * inside * (3 - 2 * inside); n++; }
   }
@@ -152,8 +161,11 @@ export class DuelFx {
   /** the top of the fused finale's flower once it opens (the duel's camera frames it: index.ts), or null */
   get flowerTop(): V3 | null {
     const f = this.ctx.finale?.();
-    return f?.fused && this.heart && this.openAt >= 0 && bloomFade(f) > 0.05 ? [this.heart[0], this.heart[1] + BLOOM.PETAL * 1.05, this.heart[2]] : null;
+    return f?.fused && this.heart && this.openAt >= 0 && bloomFade(f) > 0.05 ? [this.heart[0], this.heart[1] + BLOOM.FRAME_TOP, this.heart[2]] : null;
   }
+
+  /** the fused finale's flower's heart once it opens (the world's answer lights the world from it: answer.ts), or null */
+  get heartNow(): V3 | null { return this.openAt >= 0 && this.heart ? this.heart : null; }
 
   constructor(private ctx: DuelFxCtx) {}
 

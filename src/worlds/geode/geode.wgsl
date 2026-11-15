@@ -273,7 +273,8 @@ fn geodeGreatWindow(p: vec3f, soft: bool) -> vec4f {
   let sd = gwLancet(x, y, hw, H);
   let rimW = 0.11;
   if (sd > rimW + 0.06) { return vec4f(0.0); }
-  let sunK = worldLight.geode.sun.w;
+  // (the glass brightens while the world answers a moment: worlds/answer.wgsl, report 20)
+  let sunK = worldLight.geode.sun.w * (1.0 + 1.6 * answerOf(0u) * (0.7 + 0.3 * worldLight.answer.k.w));
   // its frame: a band of copper gone green round each lancet, catching the glow
   if (sd > 0.0) {
     let cu = mix(vec3f(0.3, 0.62, 0.48), vec3f(0.62, 0.42, 0.2), smoothstep(0.4, 0.8, vnoise(p * 3.0)));

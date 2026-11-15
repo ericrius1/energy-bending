@@ -261,6 +261,13 @@ export interface FireLights {
   pad2: number;
   lights: Partial<FireLight>[];
 }
+export interface Answer {
+  at: Vec4;
+  k: Vec4;
+  sun: Vec4;
+  col: Vec4;
+  more: Vec4;
+}
 export interface WorldLight {
   fire: FireLights;
   geode: Geode;
@@ -268,6 +275,7 @@ export interface WorldLight {
   pool: Pool;
   temple: Temple;
   sight: Sight;
+  answer: Answer;
 }
 export interface SightBody {
   lo: Vec4;
@@ -331,5 +339,5 @@ export interface VOut {
   seat: Vec4;
 }
 
-declare const shader: Shader<{ Frame: Frame; Joint: Joint; Seg: Seg; Particle: Particle; Home: Home; BodyStep: BodyStep; Sim: Sim; CullView: CullView; Kind: Kind; Minerals: Minerals; Look: Look; Spark: Spark; Geode: Geode; Forest: Forest; Pool: Pool; Temple: Temple; FireLight: FireLight; FireLights: FireLights; WorldLight: WorldLight; SightBody: SightBody; SightPiece: SightPiece; Sight: Sight; KeyLight: KeyLight; Seen: Seen; ViewSeen: ViewSeen; Heart: Heart; Hearts: Hearts; VOut: VOut }, 'frame' | 'worldLight' | 'sim' | 'look' | 'minerals' | 'seen' | 'hearts' | 'state' | 'verts' | 'list' | 'homes' | 'homes2Prev' | 'poolWaves' | 'templeWaves' | 'samp_linear' | 'samp_repeat' | 'samp_nearest' | 'samp_shadow'>;
+declare const shader: Shader<{ Frame: Frame; Joint: Joint; Seg: Seg; Particle: Particle; Home: Home; BodyStep: BodyStep; Sim: Sim; CullView: CullView; Kind: Kind; Minerals: Minerals; Look: Look; Spark: Spark; Geode: Geode; Forest: Forest; Pool: Pool; Temple: Temple; FireLight: FireLight; FireLights: FireLights; Answer: Answer; WorldLight: WorldLight; SightBody: SightBody; SightPiece: SightPiece; Sight: Sight; KeyLight: KeyLight; Seen: Seen; ViewSeen: ViewSeen; Heart: Heart; Hearts: Hearts; VOut: VOut }, 'frame' | 'worldLight' | 'sim' | 'look' | 'minerals' | 'seen' | 'hearts' | 'state' | 'verts' | 'list' | 'homes' | 'homes2Prev' | 'poolWaves' | 'templeWaves' | 'samp_linear' | 'samp_repeat' | 'samp_nearest' | 'samp_shadow'>;
 export default shader;
