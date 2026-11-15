@@ -81,7 +81,7 @@ fn geodePaths(q: vec2f) -> vec4f {
     let path = geodePaths(p.xz);
     band = mix(band, broad * 0.6 + 0.2, path.w * 0.7);
     // (honey and cream: the dark between the bands a warm brown, not black, since phase 4)
-    let slab = mix(L.floorCol.rgb * 0.22, L.floorBand.rgb, band * L.floorBand.w);
+    let slab = mix(L.floorCol.rgb * 0.32, L.floorBand.rgb, band * L.floorBand.w);
     // under the shaft the pool's light comes through the water, gathered into a net, and the light itself lands
     // there as a soft warm net of its own
     let u = causticU(p, L.shaft, L.shaftCol.w);

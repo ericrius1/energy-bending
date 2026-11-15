@@ -53,7 +53,7 @@ export const geodeParams = defineParams('geode', {
   caveTint: '#e0c48e',
   caveBright: 0.4,
   floorBand: '#dccdae',
-  floorBandAmt: 0.55,
+  floorBandAmt: 0.8,
   shaft: 0.045,
   shaftRadius: 1.15,
   shaftTop: 11.5,
