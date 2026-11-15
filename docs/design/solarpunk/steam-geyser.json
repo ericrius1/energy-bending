@@ -1,0 +1,10 @@
+{
+  "generator": "GPT Image via the Codex CLI image tool (ChatGPT login)",
+  "codexModel": "gpt-5.6-terra",
+  "prompt": "Concept art for a real-time 3D dance game, solarpunk redwood forest at dusk, seen from a game camera a few metres back and a little above. Two glowing dancers made of matter (one of warm rose-pink fire, one of fern-green flowing water) are lifted together inside a tall soft column of translucent morning mist. The mist is warm cream-white and carries light: golden sun shafts slant through it, tiny motes of sun and dew drift upward, and below the column a pool of warm sunlight lies on mossy ground with a faint cream ring. The dancers read clearly through the thin veil: the mist is thin over their bodies and thicker around them. At the forest floor teal bioluminescent moss and fungi glow and light the underside of the mist; fireflies; lanterns like seed pods hang from the giant trunks, leaf-printed bunting. Hopeful, calm, awe, art-nouveau botanical feeling. No white blobs, no explosions, painterly but readable.",
+  "inputs": {},
+  "codexThread": "01a1dd39-db51-79c0-b944-1b7172eab5c3",
+  "codexFile": "C:\\Users\\ericr\\.codex\\generated_images\\01a1dd39-db51-79c0-b944-1b7172eab5c3\\exec-9cb00634-999f-40bc-980f-48d850cf8315.png",
+  "seconds": 70.8,
+  "sha256": "7710ce8326b61b4a00e0b9bff278393d60dbd6e9bc43cef210f1e6264ae8e3b2"
+}

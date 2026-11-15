@@ -334,7 +334,7 @@ Regenerate with `node scripts/check-bindings.mjs --table` (one row per stage) af
 | matter/ice/mist_sim.wgsl | c | 6 | 5 | 3 | 0 | 0 1 3 |
 | matter/ice/shards.wgsl | v/f | 6 / 4 | 4 / 0 | 2 / 2 | 0 / 0 | 0 1 2 |
 | matter/plasma/arcs.wgsl | v/f | 3 / 3 | 1 / 0 | 0 / 0 | 0 / 0 | 0 1 |
-| matter/reactions/steam_comp.wgsl | v/f | 2 / 3 | 0 / 0 | 0 / 1 | 0 / 0 | 0 1 |
+| matter/reactions/steam_comp.wgsl | v/f | 2 / 3 | 0 / 0 | 0 / 2 | 0 / 0 | 0 1 |
 | matter/reactions/steam_draw.wgsl | v/f | 7 / 7 | 3 / 2 | 5 / 6 | 0 / 0 | 0 1 2 3 |
 | matter/reactions/steam_front.wgsl | v/f | 3 / 2 | 1 / 0 | 0 / 1 | 0 / 0 | 0 1 |
 | matter/reactions/steam_sim.wgsl | c | 6 | 3 | 3 | 0 | 0 1 3 |

@@ -1,0 +1,27 @@
+   "glow.trail": 0.01,
+   "air": 0.391,
+   "steam.low": 0.012,
+   "lens.down": 0.004,
+   "lens.gather": 0.016,
+   "lens": 0.012,
+   "scene.gate2": 0.024,
+   "air.gate2": 0.019,
+   "glow.gate2": 0.062
+  }
+ }
+]
+mean gpu 3.188
+air 0.426
+air.gate2 0.014
+glow 0.152
+glow.gate2 0.053
+glow.trail 0.009
+lens 0.017
+lens.down 0.005
+lens.gather 0.016
+scene 0.975
+scene.gate2 0.049
+steam.low 0.010
+steam.sim 0.015
+
+[exited with code 0]

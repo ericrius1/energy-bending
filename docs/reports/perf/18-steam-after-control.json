@@ -1,0 +1,133 @@
+{
+ "runs": [
+  {
+   "world": "redwoods",
+   "dress": "fire,water",
+   "seed": "3",
+   "styles": "flyer,lead",
+   "steams": 5,
+   "steam": {
+    "frames": 1165,
+    "covered": 0.01,
+    "coreOpaque": 0.02,
+    "coreP90": 0.046,
+    "coreVeil": 0.073,
+    "screen": 0.017,
+    "thick": 0.185
+   },
+   "geyser": {
+    "frames": 565,
+    "covered": 0.014,
+    "coreOpaque": 0.019,
+    "coreP90": 0.039,
+    "coreVeil": 0.073,
+    "screen": 0.016,
+    "thick": 0.177
+   },
+   "event": {
+    "frames": 149,
+    "covered": 0,
+    "coreOpaque": 0.018,
+    "coreP90": 0.033,
+    "coreVeil": 0.078,
+    "screen": 0.018,
+    "thick": 0.177
+   }
+  },
+  {
+   "world": "pool",
+   "dress": "fire,water",
+   "seed": "1",
+   "styles": "lead,flyer",
+   "steams": 2,
+   "steam": {
+    "frames": 1083,
+    "covered": 0.01,
+    "coreOpaque": 0.024,
+    "coreP90": 0.055,
+    "coreVeil": 0.073,
+    "screen": 0.029,
+    "thick": 0.195
+   },
+   "geyser": {
+    "frames": 238,
+    "covered": 0,
+    "coreOpaque": 0.019,
+    "coreP90": 0.045,
+    "coreVeil": 0.067,
+    "screen": 0.028,
+    "thick": 0.18
+   },
+   "event": {
+    "frames": 60,
+    "covered": 0,
+    "coreOpaque": 0.018,
+    "coreP90": 0.047,
+    "coreVeil": 0.068,
+    "screen": 0.026,
+    "thick": 0.176
+   }
+  },
+  {
+   "world": "temple",
+   "dress": "water,fire",
+   "seed": "3",
+   "styles": "lead,flyer",
+   "steams": 3,
+   "steam": {
+    "frames": 1122,
+    "covered": 0.013,
+    "coreOpaque": 0.034,
+    "coreP90": 0.062,
+    "coreVeil": 0.095,
+    "screen": 0.039,
+    "thick": 0.172
+   },
+   "geyser": {
+    "frames": 342,
+    "covered": 0.012,
+    "coreOpaque": 0.034,
+    "coreP90": 0.06,
+    "coreVeil": 0.099,
+    "screen": 0.049,
+    "thick": 0.166
+   },
+   "event": {
+    "frames": 89,
+    "covered": 0.022,
+    "coreOpaque": 0.037,
+    "coreP90": 0.064,
+    "coreVeil": 0.103,
+    "screen": 0.061,
+    "thick": 0.188
+   }
+  }
+ ],
+ "sum": {
+  "steam": {
+   "frames": 3370,
+   "covered": 0.011,
+   "coreOpaque": 0.026,
+   "coreVeil": 0.08,
+   "screen": 0.028,
+   "thick": 0.184
+  },
+  "geyser": {
+   "frames": 1145,
+   "covered": 0.01,
+   "coreOpaque": 0.023,
+   "coreVeil": 0.08,
+   "screen": 0.028,
+   "thick": 0.174
+  },
+  "event": {
+   "frames": 298,
+   "covered": 0.007,
+   "coreOpaque": 0.024,
+   "coreVeil": 0.083,
+   "screen": 0.032,
+   "thick": 0.18
+  }
+ },
+ "steams": 10
+}

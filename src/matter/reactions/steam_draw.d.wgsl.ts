@@ -230,6 +230,13 @@ export interface Steam {
   hAt: Vec4;
   hAxis: Vec4;
   hShape: Vec4;
+  keep: ArrayLike<number> | Vec4[];
+  keepR: Vec4;
+  keepK: Vec4;
+  look: Vec4;
+  column: Vec4;
+  columnB: Vec4;
+  columnCol: Vec4;
   near: ArrayLike<number> | Vec4[];
 }
 export interface SOut {
@@ -240,6 +247,8 @@ export interface SOut {
   seed: Vec2;
   dist: Vec2;
   warm: Vec4;
+  key: Vec3;
+  sun: Vec2;
 }
 
 declare const shader: Shader<{ Frame: Frame; FieldBox: FieldBox; FieldSample: FieldSample; Geode: Geode; Forest: Forest; Pool: Pool; Temple: Temple; FireLight: FireLight; FireLights: FireLights; WorldLight: WorldLight; SightBody: SightBody; SightPiece: SightPiece; Sight: Sight; KeyLight: KeyLight; Puff: Puff; Steam: Steam; SOut: SOut }, 'frame' | 'fieldBox' | 'worldLight' | 'steam' | 'puffs' | 'fieldA' | 'fieldB' | 'fieldC' | 'poolWaves' | 'templeWaves' | 'sceneTex' | 'samp_linear' | 'samp_repeat' | 'samp_nearest' | 'samp_shadow'>;

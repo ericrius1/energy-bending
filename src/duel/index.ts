@@ -43,6 +43,7 @@ import { BrainDriver } from '../ai/driver';
 import type { Brain, StageView } from '../ai/brain';
 import { DuelBrain, DUEL_STYLES, STYLE_ALIAS, type DuelSight, type DuelStyle } from '../ai/duel-brain';
 import { arenaFor, showArena, type Arena } from './arena';
+import { portalParams as gateParams } from '../portals/params';
 import { fallbackArena } from './fallback';
 import type { Solid } from '../worlds/solids';
 import { DuelMatch, duelPlane } from './match';
@@ -63,8 +64,11 @@ import { bloomFrame } from './bloom';
 import { DuelCamera, type CamBody, type CamSpace } from './camera';
 import { spaceFor } from './camspace';
 import { SEAT_CSS } from './seat';
+import { YouTell, ownSeats } from './you';
 import { camKind } from './weight';
 import { momentsHook } from './moments';
+import { steamHook } from './steam-probe';
+import { steamParams } from '../matter/reactions/params';
 import { DuelHud, screenOf, screenBounds, type HudSeat, type HudState, type HudWord } from './hud-state';
 import { duelSound, phraseSetMs } from './sound';
 import { trackFor } from '../audio/track';
@@ -88,12 +92,15 @@ class SeatGate implements IntentSource {
   /** what the contact reads this frame, and the powers */
   contact: ContactInput = noInput();
   power: PowerInput = noPower();
+  /** the device pressed something this frame (held or not: the "you" tell answers the first press, you.ts) */
+  pressed = false;
   private _mode: InputMode = 'locked';
   constructor(seat: number, private held: () => boolean, private split: (it: Intent) => ContactInput) { this.name = `duel.seat${seat}`; }
   get mode() { return this._mode; }
   set mode(m: InputMode) { this._mode = m; if (this.inner) this.inner.mode = m; }
   update(dt: number): Intent {
     const it = this.inner ? this.inner.update(dt) : makeIntent();
+    this.pressed = pressedOf(it);
     if (this.held()) { const o = makeIntent(); o.source = it.source; this.contact = noInput(); this.power = noPower(); return o; }
     const p1 = !!it.power1, p2 = !!it.power2, form = !!it.form;
     it.form = false; it.merge = false; it.interact = false;
@@ -104,6 +111,9 @@ class SeatGate implements IntentSource {
   }
 }
 
+/** an Intent with something pressed or pushed in it */
+const pressedOf = (it: Intent | null | undefined) => !!it && (Math.hypot(it.moveX, it.moveZ) > 0.3 || it.jump || it.punch || it.kick || it.spin || it.dodge || it.dash || !!it.power1 || !!it.power2);
+
 /** a brain's spec on the address or through bend.duel.setBrain */
 export interface BrainSpec { style?: DuelStyle; skill?: number; seed?: number }
 
@@ -111,33 +121,46 @@ const perSeat = (v: string | null, k: number) => { if (v == null) return null; c
 
 export async function startDuel(app: PlayApp, opts: { joined?: Joined } = {}) {
   const { kit, frame, show, rig, music, field, query: q } = app;
-  const world = () => app.worldOf(app.main.world);
-  const W = world();
+  // the duel's world: the one on screen as it begins, then whichever the pair dances into through a mirror (report
+  // 18-wayfinding: `moveTo` below; the main view follows once the camera's eye has come through the disc)
+  let W = app.worldOf(app.main.world);
+  const world = () => W;
   // ---------------------------------------------------------------- the arena (the arena work's, or the fallback)
-  const stage0: StagePlane = W.stages[0] ?? { id: 'duel.test', origin: [0, 0, 0], right: [1, 0, 0], halfWidth: 5, ground: 0, ledges: [{ id: 't.l', x0: -3.6, x1: -1.8, y: 1.3 }, { id: 't.r', x0: 1.8, x1: 3.6, y: 1.3 }, { id: 't.m', x0: -0.9, x1: 0.9, y: 2.6 }], spawns: [[-2, 0], [2, 0]] };
-  const arena: Arena = arenaFor(W.id) ?? fallbackArena(W, stage0);
-  // the arena shown (src/duel/arena.ts): the world draws its pieces, lists them in World.solids (the bodies' walls and
-  // floors, the camera, the near fade), opens its drops; the arena's camera range in place of the world's room
-  showArena(arenaFor(W.id) ? W.id : null);
-  const roomWas = Object.getOwnPropertyDescriptor(W, 'room');
-  if (arena.camera?.maxDist) { const room = arena.camera.maxDist; Object.defineProperty(W, 'room', { get: () => room, configurable: true }); }
-  // the world's solids, with the powers' temporary ones (ice steps, pillars, the frozen bar) laid in while they stand:
-  // World.solids is what the bodies, the camera, the near fade and the brains all read
   const powerSolids: Solid[] = [];
-  const solidsWas = Object.getOwnPropertyDescriptor(W, 'solids');
-  const baseSolids = (): readonly Solid[] => (solidsWas ? (solidsWas.get ? solidsWas.get.call(W) : solidsWas.value) : Object.getPrototypeOf(W) && Reflect.get(Object.getPrototypeOf(W), 'solids', W)) ?? [];
-  let solidsKey: [readonly Solid[] | null, number] = [null, -1], solidsAll: Solid[] = [];
   let powersVersion = () => 0;
-  Object.defineProperty(W, 'solids', {
-    configurable: true,
-    get: () => {
-      const base = baseSolids(), v = powersVersion();
-      if (solidsKey[0] !== base || solidsKey[1] !== v) { solidsKey = [base, v]; solidsAll = powerSolids.length ? [...base, ...powerSolids] : [...base]; }
-      return solidsAll;
-    },
-  });
+  let arena: Arena = null!, plane: StagePlane = null!;
+  /** give a world back as the duel found it (its room and solids) */
+  let release = () => {};
+  /** the duel takes a world: its arena (or a fallback from its stage) and the duel's copy of its plane */
+  const claim = (w: typeof W) => {
+    const stage0: StagePlane = w.stages[0] ?? { id: 'duel.test', origin: [0, 0, 0], right: [1, 0, 0], halfWidth: 5, ground: 0, ledges: [{ id: 't.l', x0: -3.6, x1: -1.8, y: 1.3 }, { id: 't.r', x0: 1.8, x1: 3.6, y: 1.3 }, { id: 't.m', x0: -0.9, x1: 0.9, y: 2.6 }], spawns: [[-2, 0], [2, 0]] };
+    arena = arenaFor(w.id) ?? fallbackArena(w, stage0);
+    plane = duelPlane(arena);
+    // the arena shown (src/duel/arena.ts): the world draws its pieces, lists them in World.solids (the bodies' walls and
+    // floors, the camera, the near fade), opens its drops; the arena's camera range in place of the world's room
+    showArena(arenaFor(w.id) ? w.id : null);
+    const roomWas = Object.getOwnPropertyDescriptor(w, 'room');
+    if (arena.camera?.maxDist) { const room = arena.camera.maxDist; Object.defineProperty(w, 'room', { get: () => room, configurable: true }); }
+    // the world's solids, with the powers' temporary ones (ice steps, pillars, the frozen bar) laid in while they stand:
+    // World.solids is what the bodies, the camera, the near fade and the brains all read
+    const solidsWas = Object.getOwnPropertyDescriptor(w, 'solids');
+    const baseSolids = (): readonly Solid[] => (solidsWas ? (solidsWas.get ? solidsWas.get.call(w) : solidsWas.value) : Object.getPrototypeOf(w) && Reflect.get(Object.getPrototypeOf(w), 'solids', w)) ?? [];
+    let solidsKey: [readonly Solid[] | null, number] = [null, -1], solidsAll: Solid[] = [];
+    Object.defineProperty(w, 'solids', {
+      configurable: true,
+      get: () => {
+        const base = baseSolids(), v = powersVersion();
+        if (solidsKey[0] !== base || solidsKey[1] !== v) { solidsKey = [base, v]; solidsAll = powerSolids.length ? [...base, ...powerSolids] : [...base]; }
+        return solidsAll;
+      },
+    });
+    release = () => {
+      if (solidsWas) Object.defineProperty(w, 'solids', solidsWas); else delete (w as { solids?: unknown }).solids;
+      if (roomWas) Object.defineProperty(w, 'room', roomWas); else delete (w as { room?: number }).room;
+    };
+  };
+  claim(W);
   const solids = (): readonly Solid[] => world().solids ?? [];
-  const plane = duelPlane(arena);
   const dress = (q.get('dress') ?? 'fire,water').split(',');
   show.dress = [dress[0] ?? 'fire', dress[1] ?? dress[0] ?? 'water'];
 
@@ -145,7 +168,7 @@ export async function startDuel(app: PlayApp, opts: { joined?: Joined } = {}) {
   const { playDemo } = await import('../dancer/play');
   const play = await playDemo({
     show, rig, frame, kit, canvas: app.canvas, world, motion: app.motion, travel: app.travel, coarse: app.coarse, wake: app.wake,
-    seen: (d) => app.gates.seen(app.main.world, [d]).joints[0] ?? null,
+    seen: (d) => app.gates.seen(app.gates.rigWorld, [d]).joints[0] ?? null,
     worldOf: (d) => app.worldOf(app.gates.worldOf(d)),
     stage: () => plane,
   });
@@ -170,7 +193,7 @@ export async function startDuel(app: PlayApp, opts: { joined?: Joined } = {}) {
   const powers = new DuelPowers(chars, match, { matter: [kindOf(0), kindOf(1)], sink: powerSolids, groundAt: (x, z) => world().groundAt(x, z), yKill: arena.space.yKill });
   powersVersion = () => powers.version;
   // the arena's gentle hazard (hazards.ts: the tide, the wind, the swell, the hum), after the powers; &hazards=0 off
-  const hazards = new DuelHazards(chars, match, arena, { on: q.get('hazards') !== '0' });
+  let hazards = new DuelHazards(chars, match, arena, { on: q.get('hazards') !== '0' });
   // the finale's duet (finale.ts): it holds both seats and moves the bodies for its length
   const finale = new Finale(chars);
   const sight = (): DuelSight => {
@@ -269,9 +292,22 @@ export async function startDuel(app: PlayApp, opts: { joined?: Joined } = {}) {
     sfx: (name, o) => sound.jogo(name, o), ear,
     rumble: (k, s, ms) => { const i = humanSeats.indexOf(k); if (i >= 0) hub.rumble(i, s, ms); },
     fadeOf: (s) => app.fade?.strengthOf(s) ?? 0, keepOff: (r) => { fx.keepOff(r); }, hush: () => { fx.quiet = 1; }, eye: () => [cam.position[0], cam.position[1], cam.position[2]],
+    quiet: () => fx.quiet, viewProj: () => cam.viewProj,
+    dusk: () => { const v = (world() as unknown as { woods?: { values: { night: number; horizon: number[] } } }).woods?.values; return v ? Math.max(v.night, v.horizon[3]) : 0; },
   }, (k) => powers.rules.seats[k].matter);
+  // (steam's veil thins over the bodies, more through a catch's frames: matter/reactions/steam.ts)
+  const steamKind = app.kinds.find((k) => k.id === 'steam') as { quiet?: number; column?: PowerFxDraw['column'] } | undefined;
   const hazardFx = new HazardFxDraw({ glows, eye: () => cam.position, ground: (x, z) => world().groundAt(x, z), field: field as unknown as ConstructorParameters<typeof HazardFxDraw>[0]['field'], ripple: (x, z, s, r) => { (world() as unknown as { ripple?: (x: number, z: number, s: number, r: number) => void }).ripple?.(x, z, s, r); } });
   const duelHud = new DuelHud();
+  // (online: this page's seat once the room has given it; `net` is made below, after an await the frames run through)
+  let netSeat: number | null = null, sentOf: ((k: number) => Intent | undefined) | null = null;
+  // which one is me (you.ts): the page's own seats told from the first second, outside the moments' keepOff
+  const you = new YouTell({
+    glows, head: (k) => { const d = dancer(k); if (!d) return null; const W0 = d.skeleton.world, o = JOINT.HeadEnd * JOINT_FLOATS; return [W0[o], W0[o + 1], W0[o + 2]]; },
+    root: (k) => [chars[k].root[0], chars[k].root[1], chars[k].root[2]], ground: (x, z) => world().groundAt(x, z), eye: () => [cam.position[0], cam.position[1], cam.position[2]],
+    pressed: (k) => (sentOf ? pressedOf(sentOf(k)) : gates[k].pressed),
+    away: (k) => (finale.holds(k) ? 1 : 0), device: (k) => gates[k].inner?.name ?? null,
+  }, () => ownSeats({ online, netSeat, human: humanSeats, bot: (k) => !!brains[k] && !(online && q.has('bot')), film: !!app.film }));
   /** the keys a seat's powers are on (its device's), for the HUD */
   const powerKeys = (k: number): [string, string, string] | null => {
     const n = gates[k].inner?.name ?? '';
@@ -292,7 +328,8 @@ export async function startDuel(app: PlayApp, opts: { joined?: Joined } = {}) {
     const dash = typeof c.dashReady === 'number' ? (c.dashReady as number) : typeof c.dashCharge === 'number' ? (c.dashCharge as number) : 1;
     const B = powers.hud(k), keys = powerKeys(k);
     const bend = { flow: B.flow, form: B.form, powers: B.powers.map((p, i) => ({ ...p, ...(keys ? { key: keys[i] } : {}) })) };
-    return { name: brains[k] ? `P${k + 1} · ${(brains[k] as DuelBrain).style ?? 'bot'}` : `P${k + 1}`, matter: elementOf(d), screen: head ? project([head[0], head[1] + 0.12, head[2]]) : null, bounds: d ? screenBounds(d.skeleton.world, cam.viewProj) : null, dash, holding: match.contact.holding(k), held: match.contact.held(k), bend };
+    const me = you.hud(k);
+    return { name: me ? `P${k + 1} · ${me.label === 'YOU' ? 'YOU' : me.sub ?? ''}` : brains[k] ? `P${k + 1} · ${(brains[k] as DuelBrain).style ?? 'bot'}` : `P${k + 1}`, ...(me ? { you: me } : {}), matter: elementOf(d), screen: head ? project([head[0], head[1] + 0.12, head[2]]) : null, bounds: d ? screenBounds(d.skeleton.world, cam.viewProj) : null, dash, holding: match.contact.holding(k), held: match.contact.held(k), bend };
   });
 
   // ---------------------------------------------------------------- starting
@@ -300,6 +337,8 @@ export async function startDuel(app: PlayApp, opts: { joined?: Joined } = {}) {
     if (started) return;
     started = true;
     app.wake();
+    // (the "mirrors" chip a while: M, the d-pad's left or a tap names where every mirror leads; online the gates are shut)
+    if (!online && !app.film && q.get('mirrors') !== '0') app.gates.names?.offer();
     if (!music.live && !app.film) music.start(show.program.key);
     match.restart(now);
   };
@@ -316,6 +355,7 @@ export async function startDuel(app: PlayApp, opts: { joined?: Joined } = {}) {
     powerSolids, music, begin: () => begin(),
     source: (k) => (brains[k] ? gates[k].inner : devices[0] ?? devices[1]),
   }) : null;
+  if (net) { netSeat = net.seat; sentOf = (k) => (ctl[k].source as unknown as { it?: Intent }).it; }
 
   // ---------------------------------------------------------------- each frame
   let frameEvents: DuelEvent[] = [];
@@ -365,21 +405,80 @@ export async function startDuel(app: PlayApp, opts: { joined?: Joined } = {}) {
   };
   rig.apexG = chars[0].phys.gravity;
   rig.headroom = 0.5;
+  /** seconds left of a crossing: the rig's own follow takes the eye through the mirror's disc behind the pair (the
+   *  portals draw the old world until it is through), then the free camera goes on from where the rig's eye is */
+  let transit = 0;
+  /** the disc the pair came out of (in the duel's new world), for the crossing's first frame */
+  let cameOut: { at: V3; n: V3 } | null = null;
   frame.tick('camera', (f: FrameCtx) => {
     const a = camBody(0), b = camBody(1);
     if (!a || !b) { rig.pose = null; return; }
+    if (transit > 0) {
+      // an eye that stood past the mirror's plane beside its disc (it isn't behind the disc the pair came out of, on the
+      // far side from them) would never come through it: the main view goes over at once under the mirror's light. So
+      // does one the rig hasn't brought through in time
+      const o = cameOut;
+      const side = (p: ArrayLike<number>) => (o ? (p[0] - o.at[0]) * o.n[0] + (p[1] - o.at[1]) * o.n[1] + (p[2] - o.at[2]) * o.n[2] : 0);
+      const pair: V3 = [(a.root[0] + b.root[0]) / 2, (a.root[1] + b.root[1]) / 2 + 1, (a.root[2] + b.root[2]) / 2];
+      transit = Math.max(0, transit - f.dt);
+      const stuck = (o && side(rig.eye) * side(pair) > 0) || transit <= 0;
+      if (stuck && app.main.world !== W.id && app.gates.rigWorld === W.id) { app.gates.arrive(); app.gates.flash(W.id); }
+      if (!stuck && transit > 0 && (rig.through || app.main.world !== W.id)) { rig.pose = null; return; }
+      transit = 0;
+      cameOut = null;
+      dcam.from(rig.eye, rig.look, rig.fov);
+    }
     // (the player turning the camera by hand: the right stick or the mouse, in the free view)
     if (rig.mode !== 'locked' && rig.lookIdle === 0) dcam.hold(rig.yaw);
     const [w, h] = kit.size.render;
     rig.pose = dcam.update(f.dt, {
       bodies: [a, b], aspect: w / Math.max(1, h), gravity: chars[0].phys.gravity, space: camSpace(), near: rig.sight.near,
-      center: arena.space.center, room: arena.camera?.maxDist ?? arena.space.radius + 6, maxDist: arena.camera?.maxDist, pad: rig.framePad, arena: arena.world,
+      center: arena.space.center, room: arena.camera?.maxDist ?? arena.space.radius + 6, maxDist: arena.camera?.maxDist, pad: rig.framePad, arena: arena.world, you: you.favour() ?? undefined,
     });
   }, 'duel: the free camera, side on to the pair with head room');
-  // the world's gates shut while the duel is on (a body flung through one left the arena, the camera with it; their
-  // discs sat at the edge of the shots), opened again when it stops
-  const shut = W.portals.map((p) => p.id);
-  for (const id of shut) app.gates.close(id);
+  // the gates and mirrors stay open: dancing (or flinging) one of the pair through takes the duel to that world, the
+  // other brought through with them (Portals.bring: held, by the same move, so the grip keeps its shape; free, just
+  // behind), the set going on. The arena, its hazard and the solids change with it; the powers' effects settle; the
+  // camera's eye follows through the disc; the music takes the new world's track from its next bar line (Music.retone,
+  // as the main view goes through). Online the room server plays the duel in one world: there the world's gates shut
+  // while the duel is on, as before (report 18-wayfinding: the crossing online is the next step)
+  // (a film keeps its world, as does &mirrors=0: their gates shut, as before)
+  const keep = online || app.film || q.get('mirrors') === '0';
+  const shut = keep ? [...app.gates.gates.values()].filter((g) => g.world === W.id).map((g) => g.def) : [];
+  for (const g of shut) app.gates.close(g.id);
+  // (the mirrors' cost while the duel plays: a mirror far off shows its still, and no gate is drawn live through another)
+  const gatesWas = { liveNear: gateParams.liveNear, depth: gateParams.depth };
+  if (!keep) Object.assign(gateParams, { liveNear: 10, depth: 1 });
+  const moveTo = (id: string, out: string) => {
+    if (id === W.id) return;
+    const g = app.gates.gates.get(out);
+    cameOut = g ? { at: [...g.at] as V3, n: [...g.n] as V3 } : null;
+    const was = W.id;
+    release();
+    hazards.rest();
+    hazardFx.clear();
+    powers.settle();
+    W = app.worldOf(id);
+    claim(W);
+    Object.assign(match as unknown as { arena: Arena; plane: StagePlane }, { arena, plane });
+    hazards = new DuelHazards(chars, match, arena, { on: q.get('hazards') !== '0' });
+    if (match.locked) { for (const c of ctl) c.setPlane(plane); rig.lock(plane); }
+    transit = 3;
+    rig.pose = null;
+    console.info(`duel: through the mirror from ${was} to ${W.id}`);
+  };
+  const offTravel = app.gates.on((e) => {
+    if (keep || e.who !== 'dancer' || e.pair) return;
+    const k = play.dancers.findIndex((d) => show.dancers.indexOf(d) === e.dancer);
+    if (k < 0) return;
+    const od = play.dancers[1 - k];
+    // (a body already through on its own: nothing to bring)
+    if (od && app.gates.worldOf(od) === e.from) {
+      const held = !!match.contact.link;
+      app.gates.bring(show.dancers, show.dancers.indexOf(od), e.gate, { front: e.front, rigid: held, hold: held ? 1.5 : 0 });
+    }
+    moveTo(e.to, e.partner);
+  });
 
   frame.tick('travel', (f: FrameCtx) => {
     glows.clear();
@@ -415,6 +514,9 @@ export async function startDuel(app: PlayApp, opts: { joined?: Joined } = {}) {
     fx.update(danceReal, ev, match.touches, match.contact, match.state);
     powerFx.update(f.danceDt, powers);
     hazardFx.update(f.danceDt, hazards);
+    if (steamKind) { steamKind.quiet = fx.quiet; steamKind.column = powerFx.hideSteam ? null : powerFx.column; }
+    for (const e of ev) { if (e.k === 'set') you.set(); else if (e.k === 'count') you.count(); }
+    you.update(f.dt);
     for (const e of powers.events) pendingPowers.push(e);
     for (const x of powers.fx) if (x.k === 'react') reactAt.set(x.kind, project(x.at));
     pendingHud.push(...ev); pendingTouches.push(...match.touches);
@@ -428,6 +530,7 @@ export async function startDuel(app: PlayApp, opts: { joined?: Joined } = {}) {
   /** a cast asked for by bend.duel.cast, for the next frame */
   const castNext: (PowerInput | null)[] = [null, null];
   const REACT_WORD = { geyser: 'STEAM!', melt: 'MELT!', freeze: 'FREEZE!' } as const;
+  const hidden = { cap: 0, frontGlow: 0 };
   const reactAt = new Map<string, [number, number]>();
   frame.tick('post', (f: FrameCtx) => {
     draw.upload();
@@ -455,9 +558,12 @@ export async function startDuel(app: PlayApp, opts: { joined?: Joined } = {}) {
   // the duel's sound (sound.ts): its moments, powers, tiers and movement on the music's beat, the track following the set
   const sound = duelSound({ frame, music, listener: kit.camera, film: app.film, world: () => app.main.world, duel: () => api, wake: () => { app.wake(); if (!music.live && !app.film) music.start(show.program.key); } });
   const api = {
-    match, arena, plane, finale, powers, hazards, sound,
+    match, finale, powers, sound,
+    get arena() { return arena; }, get plane() { return plane; }, get hazards() { return hazards; },
     /** online (&net): the room, this page's seat, the measurements (net.stats()), the client; null offline */
     net,
+    /** which one is me (you.ts): the page's own seats (`seats` overrides), the tell's opening and its answer */
+    you,
     /** the free camera (camera.ts): its choice, what it framed, how clear its eye stood */
     camera: dcam, camSpace,
     /** cast a seat's power now (slot 0 or 1; the stick as a world x, z), or the form: as its buttons would */
@@ -473,17 +579,27 @@ export async function startDuel(app: PlayApp, opts: { joined?: Joined } = {}) {
     hud: () => hudState,
     /** the moments probe (moments.ts): words on screen and the bodies covered, sampled after each frame is drawn */
     moments: momentsHook({ dancer, project, glows, lit: () => [...fx.lit, ...powerFx.lit], events: () => frameEvents, power: () => powers.fx, t: () => now / 1000, bloom: () => fx.bloom }),
+    /** the steam probe (steam-probe.ts): steam's and the geyser's veil over the bodies, from the pixels with and without */
+    steam: steamHook({
+      kit, dancer, project, geyser: () => powers.live.some((L) => L.kind === 'geyser' && !L.done), steamed: () => powers.fx.some((x) => x.k === 'react' && x.kind === 'geyser'),
+      hide: (on, part = 'all') => {
+        const P = steamParams as unknown as Record<string, number>, h = hidden;
+        if (part !== 'glow') { if (on) { h.cap = P.cap; h.frontGlow = P.frontGlow; P.cap = 0; P.frontGlow = 0; } else { P.cap = h.cap; P.frontGlow = h.frontGlow; } }
+        if (part !== 'matter') powerFx.hideSteam = on;
+      },
+    }),
     /** begin now (the human seats' devices not yet in), or from set 1 again */
     start: begin,
     restart: () => { finale.stop(); if (!started) begin(); else match.restart(now); },
     /** the duel's end: the arena off, the world's room back */
     stop: () => {
-      started = false; match.warp.reset(); showArena(null); field.fuse(null); powerFx.clear(); powers.clear(); hazardFx.clear();
-      if (solidsWas) Object.defineProperty(W, 'solids', solidsWas); else delete (W as { solids?: unknown }).solids;
+      started = false; match.warp.reset(); showArena(null); field.fuse(null); powerFx.clear(); powers.clear(); hazardFx.clear(); if (steamKind) { steamKind.column = null; steamKind.quiet = 0; }
+      release(); offTravel(); Object.assign(gateParams, gatesWas);
       rig.pose = null; rig.apexG = 0; rig.headroom = 0;
-      app.gates.open(...W.portals.filter((p) => shut.includes(p.id)).map((p) => ({ ...p, world: W.id })));
-      if (roomWas) Object.defineProperty(W, 'room', roomWas); else delete (W as { room?: number }).room;
+      if (shut.length) app.gates.open(...shut);
     },
+    /** the world the duel is in now (it moves with the pair through a mirror) */
+    get world() { return W.id; },
     /** a seat's brain: { style, skill, seed } for a virtual player, any Brain, or null for the seat's device */
     setBrain,
     brains,
@@ -512,6 +628,8 @@ export async function startDuel(app: PlayApp, opts: { joined?: Joined } = {}) {
   // the first duel's lesson (lesson.ts, once) and the controls card (help.ts: ?, F1, Start, the ? chip)
   const lesson = startLesson({ frame, duel: api, query: q, film: app.film, humanSeats, bot: (k) => !!brains[k], device: (k) => gates[k].inner?.name ?? null, root: (k) => chars[k].root, held: (k) => match.contact.held(k), joined: (k) => match.contact.held(k) || match.contact.holding(k) });
   if (!app.film) installHelp({ frame, device: () => gates[humanSeats[0] ?? 0].inner?.name ?? null, matters: () => powers.rules.seats.map((s) => s.matter), lesson, split: () => gates.some((g) => g.inner?.name === 'keyboard-right') });
+  // Esc (with no card or lesson open to close first): back to the front and its world picker, as the jogo's Esc does
+  if (!app.film) addEventListener('keydown', (e) => { if (e.key === 'Escape' && !e.defaultPrevented && started) location.assign(location.pathname); });
   Object.assign(api, { lesson });
   frame.tick('input', () => { const b = (window as unknown as { bend?: Record<string, unknown> }).bend; if (b && b.duel !== api) b.duel = api; }, 'duel: bend.duel');
   console.info(`duel: ${W.id} (${arenaFor(W.id) ? 'its arena' : 'a fallback arena from its stage'}), ${kinds.join(' v ')}`);

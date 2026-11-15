@@ -1,0 +1,82 @@
+[
+ {
+  "gpu": 2.346,
+  "passes": {
+   "steam.sim": 0.011,
+   "scene": 0.665,
+   "glow": 0.128,
+   "glow.trail": 0.009,
+   "air": 0.415,
+   "steam.low": 0.02,
+   "lens.down": 0.004,
+   "lens.gather": 0.016,
+   "lens": 0.018
+  }
+ },
+ {
+  "gpu": 2.994,
+  "passes": {
+   "steam.sim": 0.022,
+   "scene": 0.776,
+   "glow": 0.135,
+   "glow.trail": 0.01,
+   "air": 0.434,
+   "steam.low": 0.019,
+   "lens.down": 0.004,
+   "lens.gather": 0.016,
+   "lens": 0.025
+  }
+ },
+ {
+  "gpu": 2.674,
+  "passes": {
+   "steam.sim": 0.013,
+   "scene": 0.811,
+   "glow": 0.135,
+   "glow.trail": 0.009,
+   "air": 0.388,
+   "steam.low": 0.017,
+   "lens.down": 0.004,
+   "lens.gather": 0.016,
+   "lens": 0.019
+  }
+ },
+ {
+  "gpu": 2.533,
+  "passes": {
+   "steam.sim": 0.006,
+   "scene": 0.84,
+   "glow": 0.132,
+   "glow.trail": 0.009,
+   "air": 0.365,
+   "steam.low": 0.013,
+   "lens.down": 0.004,
+   "lens.gather": 0.016,
+   "lens": 0.018
+  }
+ },
+ {
+  "gpu": 2.442,
+  "passes": {
+   "steam.sim": 0.007,
+   "scene": 0.699,
+   "glow": 0.124,
+   "glow.trail": 0.009,
+   "air": 0.372,
+   "steam.low": 0.039,
+   "lens.down": 0.004,
+   "lens.gather": 0.016,
+   "lens": 0.017
+  }
+ }
+]
+mean gpu 2.598
+air 0.395
+glow 0.131
+glow.trail 0.009
+lens 0.019
+lens.down 0.004
+lens.gather 0.016
+scene 0.758
+steam.low 0.022
+steam.sim 0.012

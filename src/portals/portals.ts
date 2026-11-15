@@ -42,10 +42,12 @@ import { GateCamera, setPose } from './camera';
 import { Camera } from '@ericrius1/weft';
 import { Surfaces, type GateRow } from './surface';
 import { Carried } from './carried';
-import { Rigid, dot, type Q4, type V3 } from './rigid';
+import { Rigid, dot, sub, type Q4, type V3 } from './rigid';
 import { portalParams as P } from './params';
 import { budget } from '../engine/perf';
 import { solidsOf } from './solids';
+import { mirrorDefs } from './mirrors';
+import { GateNames, mirrorFlash } from './labels';
 
 /** something passed through a gate. The network sends this as its `travel` message (who, which gate, which face,
  *  when); `travel(e)` applies one that came from elsewhere */
@@ -65,6 +67,8 @@ export interface TravelEvent {
   front: boolean;
   /** dance time (s) */
   t: number;
+  /** brought through with a partner who crossed (Portals.bring), not crossed on its own */
+  pair?: boolean;
 }
 
 export interface PortalsCtx {
@@ -115,7 +119,10 @@ const CAMERA_RIM: V3 = [1.0, 0.92, 0.75];
  *  The cause (somewhere in the redwoods' air or scene at half size) is not traced: this evens it out until it is */
 const SLOT_GAIN: Record<string, number> = { redwoods: 0.93 };
 /** each world's hue for a gate with nothing live in it */
-const WORLD_HUE: Record<string, V3> = { geode: [0.55, 0.4, 1.0], redwoods: [0.55, 0.75, 0.4] };
+/** the light a gate's frame is lit by in each world (surface.wgsl fs_frame): the sun's colour and strength, the sky's.
+ *  Matched by eye to each world's stills at the duel's camera (report 18-wayfinding) */
+const FRAME_LITE: Record<string, number[]> = { geode: [1.0, 0.78, 0.5, 0.28], temple: [1.35, 1.15, 0.85, 0.36], redwoods: [1.2, 1.0, 0.7, 0.32], pool: [1.3, 1.15, 0.9, 0.36] };
+const WORLD_HUE: Record<string, V3> = { geode: [0.55, 0.4, 1.0], redwoods: [0.55, 0.75, 0.4], temple: [0.35, 0.85, 0.78], pool: [0.4, 0.75, 1.0] };
 
 export class Portals implements SceneLayer {
   readonly id = 'portals';
@@ -126,6 +133,8 @@ export class Portals implements SceneLayer {
   follow: number | null = null;
   /** the main view's exposure now (the post chain reads it through `exposureOf`) */
   exposure = 1;
+  /** the worlds' names over the gates on screen (labels.ts) */
+  names: GateNames | null = null;
 
   private kit: Kit;
   private slots: Slot[] = [];
@@ -134,6 +143,8 @@ export class Portals implements SceneLayer {
   private listeners: ((e: TravelEvent) => void)[] = [];
   private homes = new WeakMap<Dancer, string>();
   private roots = new WeakMap<Dancer, V3>();
+  /** dancers not carried by a crossing until a time (s): brought through behind a partner (bring) */
+  private exempt = new WeakMap<Dancer, number>();
   private camWas: { p: V3; world: string } | null = null;
   /** the camera's leftover turn after a gate that tilts the world (eased out), and the fly path's carry */
   private residual: Rigid | null = null;
@@ -180,6 +191,9 @@ export class Portals implements SceneLayer {
     sceneLayers.register(this);
     ctx.frame.tick('travel', (f) => this.travelPhase(f), 'gates: dancers through a door, carried to the other world');
     ctx.frame.tick('gates', (f) => this.gatesPhase(f), 'gates: the camera through a door, the views behind each live gate');
+    // the names of the worlds beyond the gates on screen (labels.ts)
+    const names = (this.names = new GateNames());
+    ctx.frame.tick('post', () => names.update(this.gates.values(), ctx.main.world, kit.camera, innerWidth, innerHeight), 'gates: the names of the worlds beyond them');
     // the rig keeps its eye in front of every disc between it and what it looks at (never behind a gate)
     ctx.rig.clearance = (a, b) => this.clear(a, b);
   }
@@ -212,6 +226,9 @@ export class Portals implements SceneLayer {
     this.declareFocus(post);
     // every world's own gates (a world lists its side of each pair; the partner world lists the other)
     for (const w of this.ctx.worlds) for (const def of w.portals) this.open({ ...def, world: w.id });
+    // and the mirrors between the other worlds (mirrors.ts): every world one walk from every other
+    const ids = new Set(this.ctx.worlds.map((w) => w.id)), ground = (id: string, x: number, z: number) => this.ctx.worlds.find((w) => w.id === id)?.groundAt(x, z) ?? 0;
+    this.open(...mirrorDefs(ground).filter((d) => ids.has(d.world) && ids.has(d.to.world)));
   }
 
   /** the depth of field through the gates: the main view's window (portals/focus.wgsl: how far what is seen through
@@ -320,6 +337,33 @@ export class Portals implements SceneLayer {
     return true;
   }
 
+  /** bring dancer k through gate `gate` because its partner just crossed it (the duel: a pair goes through a mirror
+   *  together, mirrors.ts). `front`: the face the partner went in at (it came out of the far gate's same face). Held
+   *  (`rigid`: two bodies joined by a grip) it goes by the gate's own move, so the two keep their places to each other
+   *  (it lands on the far gate's other side, still reaching through, and is not carried back for `hold` seconds while it
+   *  comes through the disc); free, by the same move and then out onto the side its partner came out of, within `near`
+   *  metres of the disc and its rim, as if it had come through just behind. Its matter, its momentum and the camera (if
+   *  it is the one the camera follows) go with it, as in any crossing; a `travel` event is told with `pair` set */
+  bring(dancers: readonly Dancer[], k: number, gate: string, o: { front: boolean; rigid?: boolean; hold?: number; near?: number }) {
+    const g = this.gates.get(gate), d = dancers[k];
+    if (!g || !g.partner || !d || k >= LIMITS.dancers || this.worldOf(d) !== g.world) return false;
+    const b = g.partner, G = g.through;
+    let M = G;
+    if (!o.rigid) {
+      const J = d.skeleton.world, p = G.pt([J[ROOT * JOINT_FLOATS], J[ROOT * JOINT_FLOATS + 1], J[ROOT * JOINT_FLOATS + 2]]);
+      const rel = sub(p, b.at), s = dot(rel, b.n), sg = o.front ? 1 : -1, near = o.near ?? 1.6;
+      const want = sg * Math.min(Math.max(Math.abs(s), 0.7), near);
+      const across = dot(rel, b.right), lim = b.radius * 0.7, dx = Math.max(-lim, Math.min(lim, across)) - across;
+      const T = Rigid.frame([1, 0, 0], [0, 1, 0], [0, 0, 1], [b.n[0] * (want - s) + b.right[0] * dx, b.n[1] * (want - s) + b.right[1] * dx, b.n[2] * (want - s) + b.right[2] * dx]);
+      M = T.mul(G);
+    }
+    if (o.hold) this.exempt.set(d, this.t + o.hold);
+    this.carryDancer(d, k, g, 0, 0, o.front, this.t, true, M, true);
+    this.rigAfter(g, k, dancers);
+    this.ctx.bodies.upload(dancers, this.t);
+    return true;
+  }
+
   /** every dancer as `world` sees it: its joints (carried through the gate it is nearest, for one in another world
    *  joined to this one by an open gate), and their middle. What the camera follows and frames: it passes `reach`
    *  (m), so a dancer in another world counts only while it is that near the gate (part way through, or just past) */
@@ -360,6 +404,8 @@ export class Portals implements SceneLayer {
       if (k >= LIMITS.dancers) return;
       const J = d.skeleton.world, now: V3 = [J[ROOT * JOINT_FLOATS], J[ROOT * JOINT_FLOATS + 1], J[ROOT * JOINT_FLOATS + 2]];
       const was = this.roots.get(d), w = this.worldOf(d);
+      // (a dancer brought through behind a partner, still on the gate's far side: no crossing back for a moment)
+      if ((this.exempt.get(d) ?? -1) > this.t) { this.roots.set(d, now); return; }
       const onFace = [...this.gates.values()].some((g) => g.world === w && g.onFace(now));
       if (!was || !onFace) this.roots.set(d, now);
       if (!was) return;
@@ -409,6 +455,23 @@ export class Portals implements SceneLayer {
   }
 
   /** the rig and the view agree again (the eye came through, or the rig was taken back) */
+  /** the main view goes now to the world the rig works in (a cut: for an eye that went past a gate's plane beside its
+   *  disc, which it would never come through; the duel covers it with the mirror's light, labels.ts flash). Returns
+   *  whether it moved */
+  arrive() {
+    const to = this.rigAt, main = this.ctx.main;
+    if (!to || to === main.world) { if (to) this.settle(); return false; }
+    for (const d of this.lastDancers) if (!this.homes.has(d)) this.homes.set(d, main.world);
+    main.world = to;
+    this.settle();
+    this.camWas = null;
+    this.ctx.entered?.(to);
+    return true;
+  }
+
+  /** the mirror's light over the screen (labels.ts mirrorFlash), in a world's colour */
+  flash(world: string) { mirrorFlash(world); }
+
   private settle() {
     this.offset = null;
     this.rigAt = null;
@@ -459,8 +522,8 @@ export class Portals implements SceneLayer {
     return best;
   }
 
-  private carryDancer(d: Dancer, k: number, g: Gate, u: number, v: number, front: boolean, t: number, tell: boolean) {
-    const G = g.through, b = g.partner!;
+  private carryDancer(d: Dancer, k: number, g: Gate, u: number, v: number, front: boolean, t: number, tell: boolean, move?: Rigid, pair?: boolean) {
+    const G = move ?? g.through, b = g.partner!;
     const M = G.mat4();
     if (!(d.controller instanceof Carried) && d.controller.carry) {
       // a controller that owns where its body is (body physics) moves itself, and goes on in this world's coordinates
@@ -487,7 +550,7 @@ export class Portals implements SceneLayer {
     const rim = SUITE_RIM[suite] ?? [0.9, 0.8, 1.0];
     for (const x of [g, b]) { x.rim = [...rim] as V3; x.flash = 1; }
     g.poke(u, v, this.t, 1.4);
-    if (tell) this.emit({ who: 'dancer', dancer: k, id: d.id, gate: g.id, partner: b.id, from: g.world, to: b.world, u, v, front, t });
+    if (tell) this.emit({ who: 'dancer', dancer: k, id: d.id, gate: g.id, partner: b.id, from: g.world, to: b.world, u, v, front, t, ...(pair ? { pair: true } : {}) });
   }
 
   // ---------------------------------------------------------------- the camera, the views ('gates' phase)
@@ -631,9 +694,11 @@ export class Portals implements SceneLayer {
         if (g.world !== world || g === skip || !g.partner || g.open <= 0.02) continue;
         const sc = screenOf(g, cam, w, h);
         if (!sc.on || sc.px < P.minPx) continue;
+        const far = P.liveNear > 0 && Math.hypot(g.at[0] - cam.position[0], g.at[1] - cam.position[1], g.at[2] - cam.position[2]) > P.liveNear;
         let score = sc.px;
         if (g === this.heading) score += 1e6 * (0.5 + (this.ctx.rig.approach?.w ?? 0));
         if (this.dancerThrough(g, cam.position, dancers)) score += 1e5;
+        if (far && score < 1e5) continue;
         c.push({ g, score });
       }
       c.sort((a, b) => b.score - a.score);
@@ -830,6 +895,7 @@ export class Portals implements SceneLayer {
           at: [...g.at, g.radius], right: [...g.right, g.open], up: [...g.up, g.seed], n: [...g.n, slot], rect: sc.rect,
           rim: [...g.rim, g.flash], look: [...hue, gain], info: [live, floor, P.glow, sideOf(g)],
           pokes: [0, 1, 2, 3].map((i) => { const p = g.pokes[i]; return p ? [p.u, p.v, this.t - p.t, p.s] : [0, 0, 0, 0]; }),
+          lite: FRAME_LITE[g.world] ?? FRAME_LITE.geode,
         });
       }
       // past LIMITS.gates in one view the farthest are left out (live ones first)

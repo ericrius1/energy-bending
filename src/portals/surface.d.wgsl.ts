@@ -41,6 +41,7 @@ export interface Gate {
   look: Vec4;
   info: Vec4;
   pokes: ArrayLike<number> | Vec4[];
+  lite: Vec4;
 }
 export interface GateView {
   g: Partial<Gate>[];
@@ -63,6 +64,14 @@ export interface GlowV {
   uv: Vec2;
   col: Vec3;
 }
+export interface FrameV {
+  pos: Vec4;
+  wp: Vec3;
+  nrm: Vec3;
+  uv: Vec2;
+  kind: number;
+  gate: number;
+}
 
-declare const shader: Shader<{ Frame: Frame; Gate: Gate; GateView: GateView; DiscV: DiscV; DiscOut: DiscOut; GlowV: GlowV }, 'frame' | 'gates' | 'slot0' | 'slot1' | 'slot2' | 'stills' | 'samp_linear' | 'samp_repeat' | 'samp_nearest' | 'samp_shadow'>;
+declare const shader: Shader<{ Frame: Frame; Gate: Gate; GateView: GateView; DiscV: DiscV; DiscOut: DiscOut; GlowV: GlowV; FrameV: FrameV }, 'frame' | 'gates' | 'slot0' | 'slot1' | 'slot2' | 'stills' | 'samp_linear' | 'samp_repeat' | 'samp_nearest' | 'samp_shadow'>;
 export default shader;

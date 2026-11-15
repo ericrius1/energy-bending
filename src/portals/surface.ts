@@ -10,15 +10,20 @@ import focusShader from './focus.wgsl';
 import type { ScenePhase } from '../engine/scene';
 import type { ViewCtx } from '../engine/views';
 import { LIMITS } from '../engine/limits';
+import { portalParams as P } from './params';
 
 /** one row of a view's table, as the CPU fills it */
 export interface GateRow {
   /** the order rows are drawn in (smallest first; past LIMITS.gates the rest are left out) */
   key?: number;
   at: number[]; right: number[]; up: number[]; n: number[]; rect: number[]; rim: number[]; look: number[]; info: number[]; pokes: number[][];
+  /** the frame's light in this world: the sun (rgb), the sky (w) */
+  lite: number[];
 }
 
 const RING_SEGS = 96;
+/** the frame's vertices per gate (surface.wgsl: 14 tubes of 40 × 6 quads, 7 panes of 5, 40 leaves) */
+const FRAME_V = 14 * 40 * 6 * 6 + 7 * 5 * 6 + 40 * 6;
 
 export class Surfaces {
   private tables = new Map<string, { u: UniformBuffer<GateView>; count: number; live: number }>();
@@ -57,6 +62,7 @@ export class Surfaces {
     };
     const on = () => view.on() && t.count > 0;
     if (phase === 'opaque') {
+      pass.draw(surfaceShader, { label: `gates.frame${id}`, vertex: 'vs_frame', fragment: 'fs_frame', bind, count: FRAME_V, instances: () => t.count, cull: 'none', enabled: () => on() && P.frame });
       pass.draw(surfaceShader, { label: `gates.disc${id}`, vertex: 'vs_disc', fragment: 'fs_disc', bind, count: 6, instances: () => t.count, cull: 'none', enabled: on });
     } else if (phase === 'glow') {
       const glow = { bind, blend: 'add' as const, depthWrite: false, cull: 'none' as const, enabled: on };

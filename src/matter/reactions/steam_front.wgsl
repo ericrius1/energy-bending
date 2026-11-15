@@ -44,7 +44,8 @@ const CORNERS = array<vec2f, 6>(vec2f(0.0, -1.0), vec2f(1.0, -1.0), vec2f(1.0, 1
   let flick = 0.55 + 0.45 * rnd(ii * 31u + steam.frameNo * 7u);
   var col = vec3f(0.0);
   if (sort == 1u) {
-    let hot = mix(mix(vec3f(1.0, 0.86, 0.66), vec3f(0.78, 0.9, 1.0), ice), vec3f(0.9, 0.78, 1.0), plasma);
+    // (fire and water's a line of sun gold where they meet, not white-hot: phase 5)
+    let hot = mix(mix(vec3f(1.0, 0.76, 0.46), vec3f(0.78, 0.9, 1.0), ice), vec3f(0.9, 0.78, 1.0), plasma);
     col = hot * steam.frontGlow * (1.0 + 0.8 * crack) * min(0.4 + q.info.z, 1.5) * flick * (1.0 - u * u);
   } else if (sort == 2u) {
     // a bead of meltwater, drawn out along its fall
@@ -96,6 +97,8 @@ const CORNERS = array<vec2f, 6>(vec2f(0.0, -1.0), vec2f(1.0, -1.0), vec2f(1.0, 1
   let ends = smoothstep(0.0, 0.2, i.uv.x) * smoothstep(1.0, 0.8, i.uv.x);
   let scene = textureLoad(sceneTex, vec2i(i.pos.xy), 0).a;
   let shown = smoothstep(-0.18, 0.02, scene - i.info.x);
-  let k = across * ends * shown;
+  // (thinned over the dancers' cores, as the veil is: a line of light where they meet, not a glare over them)
+  let kept = keptAt(i.pos.xy / vec2f(textureDimensions(sceneTex)), 1.0);
+  let k = across * ends * shown * (1.0 - 0.6 * steam.keepK.x * kept);
   return vec4f(i.col * k, 0.0);
 }
