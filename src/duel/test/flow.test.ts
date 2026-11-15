@@ -90,10 +90,10 @@ test('every arena keeps its ways out: clear floor round each exit', () => {
     assert(arena.exits?.length, `${id}: no exits`);
     for (const e of arena.exits!) {
       const bad = (world.solids ?? []).filter((s) => {
-        for (let a = 0; a < 12; a++) for (const r of [0, e.r * 0.5, e.r * 0.85]) {
-          const x = e.at[0] + Math.cos(a) * r, z = e.at[2] + Math.sin(a) * r;
-          if (topAt(s, x, z, 0) > 0.4 && bottomAt(s, x, z) < 2.6) return true;
-        }
+        const blocks = (x: number, z: number) => topAt(s, x, z, 0) > 0.4 && bottomAt(s, x, z) < 2.6;
+        for (let a = 0; a < 12; a++) for (const r of [0, e.r * 0.5, e.r]) if (blocks(e.at[0] + Math.cos(a) * r, e.at[2] + Math.sin(a) * r)) return true;
+        // (and a lane 3 m deep in front of it, toward the middle, a body and a half wide)
+        for (let d = 0; d <= 3; d += 0.25) for (const o of [-0.6, 0, 0.6]) if (blocks(e.at[0] - e.dir[0] * (e.r + d) - e.dir[1] * o, e.at[2] - e.dir[1] * (e.r + d) + e.dir[0] * o)) return true;
         return false;
       });
       assert(!bad.length, `${id} ${e.id}: ${bad.length} solid(s) in its clear zone (${bad.map((s) => (s.kind === "box" ? s.c : s.a).map((v) => v.toFixed(1)).join(" ")).join("; ")})`);

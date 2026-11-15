@@ -148,12 +148,11 @@ function build(): RedwoodsDuel {
     // the shared energy here (phase 5, report 18-flow): the flowing movement carries the two further apart; gains a little
     // larger and ebbs a little slower keep the fusion about as often as before (Node: 9 of 40 sets, 8 before)
     energy: { gain: 1.04, ebb: 0.94 },
-    // the ways out (phase 5: report 18-flow): the gate to the geode between the ring's trees on the camera's side, and
-    // two open gaps in the ring, behind on the right and on the right (bearings 298° and 349° from the middle)
+    // the ways out (phase 5: report 18-flow): the mirrors' sites (p5-wayfinding) in two gaps of the ring, in front on
+    // the right and behind on the right
     exits: [
-      { id: 'gate', at: [-10.03, 0, 5.23], dir: [-0.885, 0.466], r: 1.6 },
-      { id: 'back', at: [4.9, 0, -8.4], dir: [0.47, -0.88], r: 1.5 },
-      { id: 'right', at: [8.9, 0, -1.7], dir: [0.98, -0.19], r: 1.4 },
+      { id: 'front', at: [7.7, 0, 6.1], dir: [0.78, 0.62], r: 1.4 },
+      { id: 'back', at: [5.85, 0, -7.8], dir: [0.6, -0.8], r: 1.4 },
     ],
   };
   return { arena, pieces: packPieces(pieces), big: big.length, count: pieces.length, runs, stumps };

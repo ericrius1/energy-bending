@@ -97,22 +97,23 @@ function build(): TempleDuel {
     heights.forEach((h, i) => { drum([x, y, z], rad * (1 - 0.01 * y), h, { carve: 3, broken: i === heights.length - 1 ? 0.06 : 0 }); y += h; });
   };
   // (phase 5, the flow: report 18-flow. The same stones, moved off the court's floor to its rim, where each run of them
-  // is a way up: the court in front of the stage is open floor to dance across (and the duel camera's side clear), the
-  // gate to the geode at the front left has a clear lane to it, and the front right is kept open for another. The right
-  // rim is a stair: the stepped blocks, a fallen drum to hop on, a snapped stack, the tall stack, the broken column's
-  // architrave. The left rim the same from the steps by the gate; behind, the plinth, the cube, the low block and the
-  // stack toward the high lintel)
+  // is a way up: the court in front of the stage is open floor to dance across (and the duel camera's side clear), and
+  // the two mirrors' sites at the court's sides, in front of the tall columns, are open with a lane in to each. The
+  // right rim is a stair from the front to its mirror: the stepped blocks, a fallen drum to hop on, a snapped stack;
+  // past the mirror the tall stack beside the broken column. The left the same from the steps by the gate to its mirror,
+  // then the stub and the tall stack up to the column; behind, the plinth, the cube, the low block and the stack toward
+  // the high lintel)
   block([8.6, 0, 6.0], [1.8, 0.5, 1.3], { yaw: 0.6 });
   block([8.7, 0.5, 6.1], [1.1, 0.55, 0.9], { yaw: 0.6, broken: 0.04 });
   lying(10.2, 4.4, 0.5, 1.0, 0.25);
-  stack(9.5, 2.4, 0.55, [1.0, 0.9]);
-  stack(9.9, -0.1, 0.6, [1.5, 1.5]);
+  stack(9.9, 2.6, 0.55, [1.0, 0.9]);
+  stack(10.4, -3.0, 0.6, [1.5, 1.5]);
   block([6.0, 0, -7.6], [2.2, 0.9, 1.6], { yaw: 0.6, carve: 2 });
-  stack(-10.4, -2.0, 0.6, [1.4]);
+  stack(-10.4, -2.2, 0.6, [1.4]);
   lying(-9.0, -5.2, 0.5, 1.0, 1.0);
   block([-10.2, 0, 3.0], [1.7, 0.95, 1.0], { yaw: 1.3 });
   block([-10.25, 0.95, 3.0], [1.2, 0.5, 0.9], { yaw: 1.3, broken: 0.05 });
-  stack(-9.9, 0.4, 0.6, [1.3, 1.2, 1.1]);
+  stack(-10.6, -4.6, 0.6, [1.3, 1.2, 1.1]);
   block([-7.4, 0, -7.6], [3.0, 0.7, 1.0], { yaw: -0.65, broken: 0.05, carve: 1 });
   lying(-4.6, -8.7, 0.48, 0.96, 0.2);
   block([-2.4, 0, -7.6], [1.4, 1.4, 1.4], { carve: 2 });
@@ -143,10 +144,11 @@ function build(): TempleDuel {
     space: { center: [0, 0, -0.5], radius: 11, yKill: -2.2, yTop: 9.0 },
     // (phase 5: the set starts out in the open court in front of the stage, not under its lintels)
     spawns: [[-2.6, 0, 1.6], [2.6, 0, 1.6], [6.0, 0.9, -7.6], [-7.6, colTop + arch.thick, SZ], [7.6, colTop + arch.thick, SZ], [3.0, 3.0, -8.0], [-3.5, 0, 5.5]],
-    // the ways out (phase 5: report 18-flow): the gate to the geode at the front left, and the open front right
+    // the ways out (phase 5: report 18-flow): the two mirrors' sites (p5-wayfinding), at the court's sides in front of
+    // the tall columns, each with a lane three metres deep in front of it and a stair of stones leading to it
     exits: [
-      { id: 'gate', at: [-7.3, 0, 5.0], dir: [-0.8, 0.6], r: 1.5 },
-      { id: 'front', at: [5.6, 0, 7.6], dir: [0.56, 0.83], r: 1.8 },
+      { id: 'right', at: [8.5, 0, -0.5], dir: [1, 0], r: 1.4 },
+      { id: 'left', at: [-8.0, 0, 0.2], dir: [-1, 0], r: 1.4 },
     ],
     pieces: solidsOf(all), plane, drops,
     camera: { minDist: 9, maxDist: 22, lens: 30, low: -0.6 },

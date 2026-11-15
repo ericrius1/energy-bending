@@ -39,9 +39,13 @@ export interface PoolDuel {
 
 /** how deep the stones go into the water (their feet), and the water's surface */
 const FOOT = -1.6;
-/** the channels of open water out from the middle (bearings, atan2(z, x)): toward the gate to the geode, straight out
- *  behind, out to the front right; and how far either side of each line no stone stands (m) */
-const CHANNELS = [Math.atan2(4.5, -7.5), -Math.PI / 2, 0.7];
+/** the mirrors' sites (p5-wayfinding: a gate to another world each, at the field's edge), kept open water this far round
+ *  (m, to a stone's middle) */
+const MIRRORS: [number, number][] = [[7.5, 4.5], [0, -8.5]];
+const MIRROR_CLEAR = 2.4;
+/** the channels of open water out from the middle (bearings, atan2(z, x)): toward the gate to the geode and toward each
+ *  mirror; and how far either side of each line no stone stands (m) */
+const CHANNELS = [Math.atan2(4.5, -7.5), ...MIRRORS.map(([x, z]) => Math.atan2(z, x))];
 const CHANNEL_HALF = 1.5;
 
 function build(): PoolDuel {
@@ -91,7 +95,8 @@ function build(): PoolDuel {
     if (Math.abs(z) < 2.4 && Math.abs(x) < 10) continue;
     if (Math.hypot(x - gate[0], z - gate[1]) < 2.6) continue;
     // (phase 5, the flow: report 18-flow. Channels of open water run out from the middle, a stone's width and more,
-    // to glide along: to the gate, out behind and out to the front right, beside the one along the stage)
+    // to glide along: to the gate and to each mirror's site, beside the one along the stage; round each mirror open water)
+    if (MIRRORS.some(([mx, mz]) => Math.hypot(x - mx, z - mz) < MIRROR_CLEAR)) continue;
     if (CHANNELS.some((a) => { const along = x * Math.cos(a) + z * Math.sin(a); return along > 2 && Math.abs(-x * Math.sin(a) + z * Math.cos(a)) < CHANNEL_HALF; })) continue;
     places.push([x, z]);
   }
@@ -130,6 +135,7 @@ function build(): PoolDuel {
   for (const want of [Math.PI * 0.5, Math.PI * 1.5, Math.PI * 0.15, Math.PI * 1.15]) {
     let best: [number, number] | null = null, bd = Infinity;
     for (const [x, z] of places) {
+      if (spawns.some((s) => Math.hypot(s[0] - x, s[2] - z) < 3.5)) continue;
       const d = Math.abs(Math.atan2(Math.sin(Math.atan2(z, x) - want), Math.cos(Math.atan2(z, x) - want))) * 6 + Math.abs(Math.hypot(x, z) - 7.5);
       if (d < bd) { bd = d; best = [x, z]; }
     }
@@ -142,8 +148,8 @@ function build(): PoolDuel {
     spawns, pieces, plane,
     camera: { minDist: 8, maxDist: 24, lens: 26, low: -1.0 },
     drops: [],
-    // the ways out (phase 5: report 18-flow): each channel's end at the space's edge, the first the gate to the geode
-    exits: CHANNELS.map((a, k) => ({ id: ['gate', 'back', 'front'][k], at: k === 0 ? [-7.5, 0, 4.5] as V3 : [Math.cos(a) * 10.6, 0, Math.sin(a) * 10.6] as V3, dir: [Math.cos(a), Math.sin(a)] as [number, number], r: 1.5 })),
+    // the ways out (phase 5: report 18-flow): the mirrors' sites, each at the end of its channel
+    exits: MIRRORS.map(([x, z], k) => { const l = Math.hypot(x, z); return { id: ['right', 'back'][k], at: [x, 0, z] as V3, dir: [x / l, z / l] as [number, number], r: 1.4 }; }),
     // (the evening sun's gold, faint: the stones and rafts are dark and warm now, the bodies on them pale)
     rim: [0.34, 0.24, 0.11],
     // the hazard: a swell across the pool on each phrase, from a different side in turn (hazards.ts)

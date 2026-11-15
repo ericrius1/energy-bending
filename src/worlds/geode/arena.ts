@@ -183,9 +183,9 @@ function build(): GeodeDuel {
     // (phase 5, report 18-flow: the flowing movement carries the two further apart, and 0.98 and 1.025 fused 1 set of 40
     // in Node, 9 before: now 1.05 and 0.93)
     energy: { gain: 1.05, ebb: 0.93 },
-    // the ways out (phase 5: report 18-flow): the hub's three gates, each with a clear lane to it (the front beam moved
-    // off the redwoods gate's path)
-    exits: Object.entries(HUB_GATES).map(([id, [x, z]]) => { const dx = x, dz = z + 1.2, l = Math.hypot(dx, dz); return { id, at: [x, 0, z] as V3, dir: [dx / l, dz / l] as [number, number], r: 1.5 }; }),
+    // the ways out (phase 5: report 18-flow): the hub's three gates (r: inside each one's crown of crystals), each with a
+    // clear lane to it from the middle (the front beam moved off the redwoods gate's path)
+    exits: Object.entries(HUB_GATES).map(([id, [x, z]]) => { const dx = x, dz = z, l = Math.hypot(dx, dz); return { id, at: [x, 0, z] as V3, dir: [dx / l, dz / l] as [number, number], r: 1.2 }; }),
   };
   // (the gates stand clear: none within 2 m of the plane between the ends, nor of a piece)
   for (const [w, [x, z]] of Object.entries(HUB_GATES)) {
