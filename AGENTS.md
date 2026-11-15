@@ -165,8 +165,10 @@ binding: the numbers ride in the world light uniform as `WorldLight.sight` (a me
 fragment pays one uniform branch), and grass, ferns and flowers don't call it. **In the duel** (the arena shown) it
 also dissolves a piece standing in the near part of the frame (`worlds/fade-frame.ts`, pure: a ray grid through the
 lens, a share of the frame or a near corner, hysteresis, eased; never what a body stands on, hangs from or is about to
-land on; boxes side by side are one piece), patch by patch, its edges kept as a faint line only near the pair (none on
-a piece the pair is nowhere near, none where the piece is pale already: report 16): up to 16 pieces in `Sight.piece`,
+land on; boxes side by side are one piece), patch by patch, only a floor's top edges kept as a faint line, near the pair
+(none on anything not a square box's flat top, nor in an arena whose boxes stand in for round things, nor on a piece
+the pair is nowhere near or pale already; the arena's rim light on a dissolved piece fades with it, `NearFade.holes`:
+reports 16, 18): up to 16 pieces in `Sight.piece`,
 and `return vec4f(sightLit(col), …)` in each solid shader brightens what is left with the arena's rim light (or drops
 it, pale). Call `sightDrop` in uniform control flow (it takes the facet from the derivatives). The gems' pillar dims with it
 (`PlayApp.fade.strengthOf`). Params `fade` (`frame`, `outline`, `lines`) and `fadeFrame`; `bend.fade.seen` says what the CPU
