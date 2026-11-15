@@ -106,7 +106,7 @@ const gems = kinds.find((k) => k.id === 'gems') as GemPasses | undefined;
 
 // ---------------------------------------------------------------- the scene, per view, and the post chain
 // the duel arena's rim light and debug lines (a scene layer: src/duel)
-installArenaLayer(kit, frame, { locked: () => rig.locked, solids: (id) => worldOf(id).solids ?? [] }, query);
+installArenaLayer(kit, frame, { locked: () => rig.locked, solids: (id) => worldOf(id).solids ?? [], holes: () => fade.holes }, query);
 // (the HUD over the stage, src/hud: laid into a film's frames by the post chain, into a still by bend.grab)
 const hud = installHud({ kit, frame, stage: canvas, query, film: FILM, dancers: () => show.dancers });
 for (const v of drawn) { declareScene(v, worlds, kinds); frame.add('scene', v.scene, `view ${v.id}`); }

@@ -110,10 +110,12 @@ fn toWorld(b: Blade, q: vec3f) -> vec3f {
   let along = clamp(i.local.z / max(i.look.x, 1e-3), 0.0, 1.0);
   // the fibres: fine streaks along the blade, a few cloudier bands
   // (fine across the blade, long along it: streaks down its faces, a speckle on its ends)
-  let fib = 0.35 + 0.3 * vnoise(vec3f(i.local.x * 22.0, i.local.y * 22.0, i.local.z * 0.35 + seed * 20.0)) + 0.35 * vnoise(vec3f(i.local.x * 7.0, i.local.y * 7.0, i.local.z * 0.15 + seed * 9.0));
+  // (phase 5: finer and fainter than they were, so a blade reads as milky crystal and not as planks of wood grain)
+  let fib = 0.7 + 0.15 * vnoise(vec3f(i.local.x * 30.0, i.local.y * 30.0, i.local.z * 0.5 + seed * 20.0)) + 0.15 * vnoise(vec3f(i.local.x * 9.0, i.local.y * 9.0, i.local.z * 0.2 + seed * 9.0));
   let cloud = vnoise(vec3f(i.local.x * 3.0, i.local.y * 3.0, i.local.z * 0.8 + seed * 7.0));
-  // its stone: selenite's milky honey, or a crystal in its gate's colour (or the wall's vein where it grew)
-  var body = mix(vec3f(0.7, 0.64, 0.56), vec3f(0.95, 0.87, 0.76), fib) * (0.55 + 0.6 * cloud) * (0.6 + 0.8 * fib);
+  // its stone: selenite's milky white going honey where it is deep, or a crystal in its gate's colour (or the wall's
+  // vein where it grew)
+  var body = mix(vec3f(0.97, 0.94, 0.88), vec3f(0.98, 0.82, 0.58), smoothstep(0.35, 0.9, cloud) * 0.6) * fib;
   var glowCol = mix(L.cave.rgb, vec3f(1.0, 0.8, 0.55), 0.35);
   if (i.look.z > -0.5) {
     var tc = geodeGateTint(i.look.z);
@@ -135,7 +137,9 @@ fn toWorld(b: Blade, q: vec3f) -> vec3f {
   // where it leaves the wall (or the floor) it's in the shade; further out it's in the light
   let out = smoothstep(0.0, 1.8, i.local.z);
   // little lit on its faces (it's clear stone, not paint): most of what shows is what it reflects and what glows in it
-  var col = body * (key.col * diff * 0.07 + geodeAmbient(N, 0.6 + 0.4 * out) * 0.06) * (0.35 + 0.65 * out) * (0.6 + 0.8 * faceH);
+  // (the room's light on it nearly white: a milky stone lit warm reads as brown, report 17's planks)
+  let amb = geodeAmbient(N, 0.6 + 0.4 * out);
+  var col = body * (key.col * diff * 0.09 + mix(vec3f(luma(amb)), amb, 0.4) * 0.2) * (0.5 + 0.5 * out) * (0.8 + 0.4 * faceH);
   // the dancers' fire on the stone (worlds/light.wgsl worldFire)
   col += body * worldFire(i.wp, N) * 0.5;
   // the satin sheen across the fibres (anisotropic: brightest where the half-way vector is across them)
@@ -144,14 +148,36 @@ fn toWorld(b: Blade, q: vec3f) -> vec3f {
   col += key.col * pow(sqrt(max(1.0 - th * th, 0.0)), 90.0) * 0.25 * (0.5 + 0.5 * fib) * out;
   // what its faces mirror: the studio, and the wall's veins round it
   col += (studio(R) * 0.3 + geodeWallSoft(i.wp, R) * 2.0) * fres * (0.5 + 0.8 * faceH);
-  // the glow inside it, brightest where it's seen edge on (a long way through it), along its fibres toward the tip,
-  // gathering in its long edges and its tip; a coloured crystal glows more, and breathes
+  // the glow inside it, brightest where it's seen edge on (a long way through it), along its fibres toward the tip and
+  // in its tip; a coloured crystal glows more, and breathes. (Its long edges no longer glow as lines of their own: a
+  // block drawn with light along every edge was a gold-edged box, report 17; the bevels catch the light instead)
   let through = 0.25 + 0.75 * pow(1.0 - cosV, 2.0);
   let breathe = 0.8 + 0.2 * sin(frame.time * 0.5 + seed * 40.0);
   let inner = L.cave.w * (0.35 + 0.65 * cloud) * (0.25 + 0.75 * along) * through * 0.8 + i.look.w * 0.22 * breathe * (0.3 + 0.7 * through);
-  col += glowCol * mix(body, vec3f(1.0), 0.3) * inner * 0.7;
-  col += glowCol * edge * (0.15 + 0.6 * along) * (L.cave.w * 0.6 + i.look.w * 0.35) * breathe;
+  col += glowCol * mix(body, vec3f(1.0), 0.3) * inner * 0.6;
+  col += glowCol * edge * (0.15 + 0.6 * along) * i.look.w * 0.35 * breathe;
   col += glowCol * smoothstep(0.82, 1.0, along) * (0.25 + i.look.w * 0.4) * L.cave.w;
+  // the sun through the wells (phase 5): selenite is a satin crystal that answers it, a soft wrapped light on the faces
+  // turned to it, the light coming through the stone on the faces turned away (milky, warm), and a long satin streak
+  // across the fibres where the sun's half-way vector lies across them
+  let sunL = -geodeSunDir();
+  let sunC = GEO_SUN * L.sun.w;
+  let wrapS = max(dot(N, sunL) * 0.6 + 0.4, 0.0);
+  col += body * sunC * wrapS * 0.11 * (0.4 + 0.6 * out);
+  col += mix(body, vec3f(1.0, 0.8, 0.5), 0.5) * sunC * max(-dot(N, sunL), 0.0) * through * 0.05;
+  let Hs = normalize(sunL + V);
+  let ths = dot(T, Hs);
+  col += sunC * pow(sqrt(max(1.0 - ths * ths, 0.0)), 140.0) * 0.18 * (0.6 + 0.4 * fib) * out * (0.3 + 0.7 * max(dot(N, Hs), 0.0));
+  // and the bevel along each long edge a narrow highlight of the room's light (a shape, not a line drawn on it)
+  col += (studio(R) * 0.25 + sunC * 0.04) * edge * fres * 0.8;
+  // brass: a collar where it leaves the floor, the wall or its druse, set by the greenhouse's makers
+  if (i.look.z < -0.5 && i.size.x > 0.25) {
+    let collar = smoothstep(0.08, 0.1, i.local.z) * smoothstep(0.3, 0.28, i.local.z);
+    let ridge = 1.0 - smoothstep(0.0, 0.012, abs(i.local.z - 0.19));
+    let brass = vec3f(0.95, 0.7, 0.34);
+    let mirror = (studio(R) * 0.45 + geodeWallSoft(i.wp, R) * 2.5 + sunC * pow(max(dot(R, sunL), 0.0), 30.0) * 0.6) * brass;
+    col = mix(col, mirror * (0.6 + 0.4 * fres) + brass * (key.col * diff * 0.05 + sunC * wrapS * 0.05) + brass * ridge * 0.06 * L.sun.w, collar);
+  }
   // a glint where a face turns the softbox to the eye
   col += vec3f(1.0, 0.97, 0.92) * pow(max(dot(R, Ld), 0.0), 120.0) * key.glint * 0.8 * step(0.5, faceH);
   // the greenhouse (selenite only, and blades big enough to hold soil): moss over what faces up, flowers in it; vines
@@ -172,17 +198,8 @@ fn toWorld(b: Blade, q: vec3f) -> vec3f {
     let petal = select(select(vec3f(1.0, 0.94, 0.82), vec3f(1.0, 0.5, 0.42), fh.y > 0.55), vec3f(1.0, 0.78, 0.3), fh.y > 0.85);
     moss = mix(moss, petal * (lightUp * 3.0 + 0.02), bloom * smoothstep(0.7, 0.95, up));
     col = mix(col, moss, mossy);
-    // vines: strands along the top edge, each its own length, wavering as they hang
-    let u = mix(i.local.z + i.local.x * 1.7, i.local.x + i.local.y * 1.7, sp) / 0.16;
-    let vh = fract(sin(floor(u) * 91.7 + seed * 37.0) * 43758.5453);
-    let hangs = 0.12 + 0.9 * fract(vh * 7.31);
-    let wig = 0.5 + 0.18 * sin(below * 6.0 + vh * 30.0);
-    // (a strand of leaves: its stem's line, the leaves either side in a broken chain)
-    let leaves = smoothstep(0.35, 0.65, vnoise(vec3f(u * 1.3, below * 13.0, seed * 5.0)));
-    let vine = step(0.72, vh) * smoothstep(0.16 + 0.22 * leaves, 0.06 + 0.12 * leaves, abs(fract(u) - wig)) * smoothstep(hangs, hangs - 0.15, below) * step(0.01, below)
-      * (1.0 - up) * L.green;
-    let leaf = 0.5 + 0.7 * leaves;
-    col = mix(col, GEO_LEAF * lightUp * 1.1 * leaf, vine * (0.55 + 0.45 * leaves));
+    // (the vines painted down the faces are gone since phase 5: the trailing plants are leaves of their own now,
+    // geode/garden.wgsl, and painted they read as green streaks on a box)
   }
   return vec4f(sightLit(col), dot(i.wp - frame.camPos, frame.camFwd));
 }

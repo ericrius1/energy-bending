@@ -196,7 +196,7 @@ fn profile(s: f32, len: f32, r0: f32, sh: vec4f, a: f32) -> f32 {
   o.seed = L.ends.w;
   o.limb = 1.0;
   o.stageP = 1.0;
-  let cut = select(0.0, 1.0, cap > 0.5 && part != 0.0);
+  let cut = select(0.0, select(1.0, 3.0, cap > 3.5), cap > 0.5 && part != 0.0);
   o.end = vec2f(select(cut, 2.0, L.kind.x > 0.5 && part != 0.0), endU);
   o.pos = frame.viewProj * vec4f(wp, 1.0);
   return o;
@@ -224,7 +224,8 @@ fn bark(i: VOut) -> vec4f {
   // how quickly the place across it changes per pixel, for its rings. Both here, where every pixel runs them)
   let gn = normalize(cross(dpdx(i.wp), dpdy(i.wp)));
   let fwU = fwidth(i.end.y);
-  let face = i.end.x > 0.5 && i.end.x < 1.5;
+  let face = i.end.x > 0.5 && (i.end.x < 1.5 || i.end.x > 2.5);
+  let finished = i.end.x > 2.5;
   var N0 = normalize(i.n);
   if (face) { let n0 = normalize(i.n); N0 = normalize(select(-gn, gn, dot(gn, V) > 0.0) * 0.45 + n0 * sign(dot(n0, V))); }
   let T = normalize(i.around - N0 * dot(i.around, N0));
@@ -265,7 +266,18 @@ fn bark(i: VOut) -> vec4f {
   // brown rot, and down the hollow dark, darker the deeper (the light doesn't get in). A cut end (a bough): the same
   // wood, plainly. A root plate's face: torn earth and roots
   var hollowDark = 1.0;
-  if (i.end.x > 0.5) {
+  // a finished top (a duel's stump, phase 5): sanded honey wood, its rings soft under the oil, a band of brass round its
+  // rim; varnished, so it mirrors the last light (below)
+  var brassBand = 0.0;
+  if (finished) {
+    let u = max(i.end.y, 0.0);
+    let K = 22.0;
+    let ring = 0.5 + 0.5 * sin(u * K * 6.2831853 + vnoise(i.wp * 2.0) * 2.0);
+    let resolve = smoothstep(0.45, 0.12, fwU * K);
+    albedo = mix(vec3f(0.62, 0.36, 0.15), vec3f(0.78, 0.5, 0.24), mix(0.5, ring, resolve * 0.7)) * (0.9 + 0.15 * vnoise(i.wp * 11.0));
+    albedo = mix(albedo, vec3f(0.5, 0.26, 0.1), smoothstep(0.25, 0.0, u) * 0.5);
+    brassBand = smoothstep(0.9, 0.915, u) * smoothstep(0.995, 0.98, u);
+  } else if (i.end.x > 0.5) {
     let u = i.end.y;
     if (i.end.x < 1.5) {
       if (u < 0.0) {
@@ -303,6 +315,24 @@ fn bark(i: VOut) -> vec4f {
   let back = pow(max(dot(-V, L), 0.0), 3.0) * pow(1.0 - max(dot(N0, V), 0.0), 2.0);
   col += lit * back * albedo * 1.6;
   col *= hollowDark;
+  // the finished top's oil and its brass: the low sun and the sky in them
+  if (finished) {
+    let R = reflect(-V, N0);
+    let fres = 0.04 + 0.96 * pow(1.0 - max(dot(N0, V), 0.0), 5.0);
+    let env = woodsEnv(R, i.wp);
+    let sunSpec = lit * pow(max(dot(R, L), 0.0), 90.0) * 0.6;
+    let brass = vec3f(0.95, 0.68, 0.32);
+    col = mix(col + (env * 0.8 + sunSpec) * fres, brass * (env * 1.4 + sunSpec * 2.0 + lit * diff * 0.12 + lampLight(i.wp, N0, 0.0) * 0.3), brassBand);
+  }
+  // after dusk the moss glows: tiny points of teal-green in its cushions (more low down and on the stage's wood), and
+  // where the trunks meet the ground a few fungi breathing (the woods' bioluminescence, report 18)
+  let dusk = worldLight.forest.horizon.w;
+  if (dusk > 0.01 && !finished) {
+    let pts = smoothstep(0.82, 0.95, vnoise(i.wp * 31.0)) * mossy;
+    let lowGlow = smoothstep(2.2, 0.0, y) * (1.0 - i.limb * (1.0 - i.stageP));
+    let breathe = 0.6 + 0.4 * sin(worldLight.forest.clock.x * 0.7 + i.seed * 40.0 + i.wp.x * 1.3);
+    col += vec3f(0.25, 1.0, 0.6) * pts * (0.25 + lowGlow) * dusk * breathe * 0.35;
+  }
   // high up, the trunk goes into the dark of the canopy
   col *= mix(1.0, 0.18, smoothstep(worldLight.forest.keyCol.w * 0.45, worldLight.forest.keyCol.w * 0.9, y));
   return vec4f(col, dot(i.wp - frame.camPos, frame.camFwd));

@@ -25,6 +25,8 @@ export interface RedwoodsDuel {
   /** the boughs' level runs (from, to: their top's line) and their radius, and their lifting tips: what the garden hangs
    *  its pennants and chimes from (garden.ts) */
   runs: { a: V3; b: V3; r: number; tip: V3 }[];
+  /** its stumps (where each stands, its radius and top): the glowing fungi gather round their feet (arbour.ts) */
+  stumps: { at: V3; r: number; top: number }[];
 }
 
 /** the drops' depth */
@@ -37,6 +39,7 @@ function build(): RedwoodsDuel {
   /** a point given in the plane's coordinates (along, up, toward the camera) in the world */
   const P = (s: number, y: number, w = 0): V3 => [right[0] * s + toward[0] * w, y, right[2] * s + toward[2] * w];
   const big: Piece[] = [], small: Piece[] = [], groups: PieceGroup[] = [], runs: RedwoodsDuel['runs'] = [];
+  const stumps: RedwoodsDuel['stumps'] = [];
   let seed = 0.611;
   const next = () => (seed = (seed * 9.31 + 0.37) % 1);
   const tilesFor = (r: number) => Math.max(1, Math.round((6.2831853 * r) / 1.7));
@@ -63,10 +66,12 @@ function build(): RedwoodsDuel {
     runs.push({ a: at(d0, y), b: at(d1, y), r, tip: at(d1 + 0.8, y - r + 0.1 - r * 0.6) });
     groups.push({ id, solids });
   };
-  /** a stump cut flat at `top` (the drum's flat end: a broken one shows the heartwood) */
+  /** a stump cut flat at `top`: since phase 5 its top is finished (trunks.wgsl's end 4: sanded honey wood, oiled, in a
+   *  band of brass), a floor someone made; it was a broken end with a hollow, drawn bulging past the flat top it is */
   const stump = (id: string, at: V3, r: number, top: number) => {
+    stumps.push({ at, r, top });
     big.push({ a: [at[0], -0.3, at[2]], ra: r * 1.25, b: [at[0], 0.4, at[2]], rb: r, capA: 1, capB: 0, kind: 0, seed: next(), tiles: tilesFor(r), chain: next() });
-    big.push({ a: [at[0], 0.4, at[2]], ra: r, b: [at[0], top, at[2]], rb: r * 0.97, capA: 0, capB: 2, kind: 0, seed: next(), tiles: tilesFor(r), chain: next() });
+    big.push({ a: [at[0], 0.4, at[2]], ra: r, b: [at[0], top, at[2]], rb: r * 0.97, capA: 0, capB: 4, kind: 0, seed: next(), tiles: tilesFor(r), chain: next() });
     groups.push({ id, solids: [drumSolid([at[0], 0, at[2]], top, r)] });
   };
 
@@ -135,13 +140,13 @@ function build(): RedwoodsDuel {
     spawns: [P(-0.2, 0, 2.6), P(3.6, 0, 2.2), P(-5.0, 1.1, 0), P(5.2, 2.2, -3.8), P(-4.0, 1.2, 4.2), P(1.0, 0, -5.5), P(2.0, 1.5, 0)],
     pieces: groups.flatMap((g) => g.solids), plane, drops,
     camera: { minDist: 6, maxDist: 9.5, lens: 40, low: -0.6 },
-    // (the lanterns' warm light, a little green from the leaves)
-    rim: [1.0, 0.82, 0.45],
+    // (the lanterns' warm light, a little green from the leaves; softer since phase 5: a sheen on the tops, not gold sticks)
+    rim: [0.6, 0.5, 0.28],
     // the hazard: the wind through the clearing, a gust on seven phrases of ten, mostly along the stage one way or the
     // other, now and then slanting across it (hazards.ts)
     hazard: windHazard({ dirs: [0, Math.PI, 0.8, Math.PI + 0.8, Math.PI - 0.5, -0.5].map((a) => a + Math.atan2(right[2], right[0])), often: 7 }),
   };
-  return { arena, pieces: packPieces(pieces), big: big.length, count: pieces.length, runs };
+  return { arena, pieces: packPieces(pieces), big: big.length, count: pieces.length, runs, stumps };
 }
 
 let made: RedwoodsDuel | null = null;

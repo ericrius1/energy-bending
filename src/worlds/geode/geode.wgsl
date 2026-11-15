@@ -218,6 +218,162 @@ fn geodeWindows(p: vec3f) -> vec4f {
   return vec4f(c, a);
 }
 
+// ---------------------------------------------------------------- the great window (phase 5, report 18)
+// The light wells brought down to the floor: behind the stage (the side the duel's eye mostly looks toward, -z) the
+// wall opens in a row of seven tall lancets of leaded glass, the middle one tallest, an art-nouveau stem rising up each
+// with leaves in pairs and a flower opening in its arch (a sun disc in the middle one), on pale glass going from warm
+// gold low down to sky teal at the top, in gold came over dark lead, framed in copper gone green, honey stone between.
+// The sun behind it (the wells' sun) lights it from outside, so it glows; it throws its colours onto the agate in front
+// of it, the polish mirrors it, and the stone near it warms. Drawn in the backdrop: no geometry, nothing solid.
+
+/** the window's middle (bearing, rad: -z is -π/2), its bays' width along the wall (m), how many, the sill's height */
+const GW_MID: f32 = -1.745;
+const GW_BAY: f32 = 3.5;
+const GW_N: f32 = 7.0;
+const GW_SILL: f32 = 0.3;
+
+/** a point of the wall as the window sees it: x across the bay (m, 0 its middle), y up, which bay (0 … GW_N - 1, or
+ *  outside), and how far along the whole row (m) */
+fn gwPlace(p: vec3f) -> vec4f {
+  var a = atan2(p.z, p.x) - GW_MID;
+  a = a - 6.2831853 * round(a / 6.2831853);
+  let s = a * length(p.xz);
+  let k = floor(s / GW_BAY + GW_N * 0.5);
+  return vec4f(s - (k - (GW_N - 1.0) * 0.5) * GW_BAY, p.y, k, s);
+}
+
+/** a lancet's outline at (x, y), half width hw, its top at H: signed distance in (m; < 0 inside), a pointed arch over
+ *  straight sides from the sill */
+fn gwLancet(x: f32, y: f32, hw: f32, H: f32) -> f32 {
+  let R = hw * 1.6;
+  let ys = H - hw * 1.483;
+  var d = max(abs(x) - hw, GW_SILL - y);
+  if (y > ys) { d = max(length(vec2f(abs(x) + R - hw, y - ys)) - R, GW_SILL - y); }
+  return d;
+}
+
+/** a leaf's shape at q (its own frame: along it from its stem, across it), length l: signed distance (m) */
+fn gwLeaf(q: vec2f, l: f32) -> f32 {
+  let t = clamp(q.x / l, 0.0, 1.0);
+  let w = l * 0.32 * sin(3.14159 * pow(t, 0.8));
+  return max(abs(q.y) - w, max(-q.x, q.x - l));
+}
+
+/** the great window at p on the wall: its glass's light (rgb) and how much of the wall it is (a: the glass and its
+ *  frame); soft: only the panes' colours, no leading (what the polish mirrors, what lands on the floor) */
+fn geodeGreatWindow(p: vec3f, soft: bool) -> vec4f {
+  let g = gwPlace(p);
+  let k = g.z;
+  if (k < 0.0 || k > GW_N - 1.0 || p.y > 8.0) { return vec4f(0.0); }
+  let mid = abs(k - (GW_N - 1.0) * 0.5);
+  let hw = GW_BAY * 0.5 - 0.42;
+  let H = 6.9 - 0.62 * mid;
+  let x = g.x;
+  let y = g.y;
+  let sd = gwLancet(x, y, hw, H);
+  let rimW = 0.11;
+  if (sd > rimW + 0.06) { return vec4f(0.0); }
+  let sunK = worldLight.geode.sun.w;
+  // its frame: a band of copper gone green round each lancet, catching the glow
+  if (sd > 0.0) {
+    let cu = mix(vec3f(0.3, 0.62, 0.48), vec3f(0.62, 0.42, 0.2), smoothstep(0.4, 0.8, vnoise(p * 3.0)));
+    return vec4f(cu * (0.05 + 0.12 * smoothstep(rimW, 0.0, sd)) * sunK, smoothstep(rimW + 0.06, rimW, sd));
+  }
+  let up = clamp((y - GW_SILL) / (H - GW_SILL), 0.0, 1.0);
+  // the pale ground: gold low down, cream, to sky teal at the top; a band of teal glass inside the frame
+  var glass = mix(mix(vec3f(1.0, 0.78, 0.42), vec3f(1.0, 0.93, 0.78), smoothstep(0.0, 0.45, up)), vec3f(0.55, 0.86, 0.88), smoothstep(0.55, 1.0, up));
+  var lead = 0.0;
+  let border = smoothstep(-0.16, -0.14, sd);
+  glass = mix(glass, vec3f(0.32, 0.72, 0.66), border);
+  // (soft: the panes' colours as a blur would show them: the ground, a green band of leaves, the flower's warm arch)
+  if (soft) {
+    let ysS = H - hw * 1.483;
+    let leafy = smoothstep(hw * 0.9, 0.0, abs(x)) * smoothstep(GW_SILL + 0.4, GW_SILL + 1.0, y) * smoothstep(ysS + 0.2, ysS - 0.4, y) * 0.55;
+    let bloom = smoothstep(hw * 0.95, hw * 0.3, length(vec2f(x, y - ysS - hw * 0.45)));
+    var sg = mix(glass, vec3f(0.42, 0.74, 0.28), leafy);
+    sg = mix(sg, select(vec3f(1.0, 0.52, 0.32), vec3f(1.0, 0.78, 0.3), mid < 0.5), bloom);
+    return vec4f(sg * sg * 0.85 * sunK, 1.0);
+  }
+  lead = max(lead, 1.0 - smoothstep(0.012, 0.024, abs(sd + 0.15)));
+  // the stem rising up the middle, swaying (a whiplash), and its leaves in pairs
+  let ys = H - hw * 1.483;
+  let sway = 0.16 * sin(y * 1.3 + k * 1.7) * smoothstep(GW_SILL, GW_SILL + 1.0, y);
+  let stem = abs(x - sway) - 0.045 * (1.0 - 0.5 * up);
+  var green = step(stem, 0.0) * step(y, ys + 0.2);
+  for (var j = 0; j < 3; j++) {
+    let ly = GW_SILL + 0.7 + f32(j) * (ys - GW_SILL - 0.4) / 3.0;
+    let side = select(-1.0, 1.0, (j + i32(k)) % 2 == 0);
+    let o = vec2f(x - sway, y - ly);
+    let ang = 0.55 + 0.1 * f32(j);
+    let q = vec2f(dot(o, vec2f(side * cos(ang), sin(ang))), dot(o, vec2f(-sin(ang), side * cos(ang))));
+    let q2 = vec2f(dot(o, vec2f(-side * cos(ang + 0.25), sin(ang + 0.25))), dot(o, vec2f(-sin(ang + 0.25), -side * cos(ang + 0.25))));
+    let l = hw * (0.85 - 0.12 * f32(j));
+    let d1 = gwLeaf(q, l);
+    let d2 = gwLeaf(q2, l * 0.75);
+    let dl = min(d1, d2);
+    green = max(green, step(dl, 0.0));
+    lead = max(lead, 1.0 - smoothstep(0.01, 0.022, abs(dl)));
+    // (each leaf's midrib)
+    lead = max(lead, (1.0 - smoothstep(0.006, 0.014, abs(q.y))) * step(d1, 0.0) * 0.6);
+  }
+  let leafCol = mix(vec3f(0.36, 0.7, 0.24), vec3f(0.62, 0.86, 0.3), smoothstep(0.3, 0.7, vnoise(p * 2.2)));
+  glass = mix(glass, leafCol, green);
+  lead = max(lead, (1.0 - smoothstep(0.01, 0.022, abs(stem))) * step(y, ys + 0.2));
+  // the flower in the arch (the sun's disc in the middle lancet): petals round a gold heart
+  let fc = vec2f(sway * 0.3, ys + hw * 0.45);
+  let fo = vec2f(x, y) - fc;
+  let fr = length(fo);
+  let fa = atan2(fo.y, fo.x);
+  let isSun = mid < 0.5;
+  let np = select(6.0, 16.0, isSun);
+  let petalR = hw * select(0.82, 0.95, isSun) * (0.62 + 0.38 * pow(abs(cos(fa * np * 0.5)), select(0.7, 2.5, isSun)));
+  let heart = hw * 0.26;
+  let inPetal = step(fr, petalR) * step(heart, fr);
+  let petalCol = select(mix(vec3f(1.0, 0.45, 0.3), vec3f(1.0, 0.62, 0.32), smoothstep(heart, petalR, fr)), mix(vec3f(1.0, 0.72, 0.22), vec3f(1.0, 0.86, 0.45), smoothstep(heart, petalR, fr)), isSun);
+  glass = mix(glass, petalCol, inPetal);
+  glass = mix(glass, vec3f(1.0, 0.8, 0.3), step(fr, heart));
+  lead = max(lead, (1.0 - smoothstep(0.012, 0.024, abs(fr - petalR))) * step(fr, hw * 1.2));
+  lead = max(lead, 1.0 - smoothstep(0.012, 0.024, abs(fr - heart)));
+  // (between the petals)
+  let pa = fract(fa * np / 6.2831853 + 0.5) - 0.5;
+  lead = max(lead, (1.0 - smoothstep(0.01, 0.02, abs(pa) * fr * 6.2831853 / np)) * inPetal);
+  // the ground's panes: a few bars across, two up
+  let bar = 1.0 - smoothstep(0.01, 0.02, abs(fract((y - GW_SILL) / 0.62) - 0.5) * 0.62 - 0.29);
+  let bar2 = 1.0 - smoothstep(0.01, 0.02, abs(abs(x) - hw * 0.62));
+  let ground = (1.0 - green) * (1.0 - inPetal) * step(heart, fr) * (1.0 - border);
+  lead = max(lead, max(bar, bar2) * ground);
+  // cathedral glass: each pane a little mottled, brighter where the sun stands behind it (low and middling)
+  let mottle = 0.85 + 0.25 * vnoise(p * 6.0) + 0.1 * vnoise(p * 19.0);
+  let behind = 0.75 + 0.25 * smoothstep(0.0, 0.5, up) * smoothstep(1.0, 0.6, up);
+  // (sunlit glass is pale: the colours a tint in the light, not paint)
+  glass = mix(glass, vec3f(1.0, 0.95, 0.84), 0.3);
+  var c = glass * glass * mottle * behind * 1.25 * sunK;
+  // the leading: dark lead with a thin gold came along its middle
+  let came = lead * (1.0 - smoothstep(0.0, 0.5, abs(lead - 0.8) * 2.0));
+  c = mix(c, vec3f(0.012, 0.01, 0.008), lead * 0.9);
+  c += vec3f(1.0, 0.75, 0.38) * came * 0.18 * sunK;
+  return vec4f(c, 1.0);
+}
+
+/** the great window's light at floor point p (what comes in through it along the sun, in its panes' colours: a soft
+ *  stained-glass pool on the agate in front of it) */
+fn geodeWindowFloor(p: vec3f) -> vec3f {
+  let S = geodeSunDir();
+  let R = worldLight.geode.wall.x;
+  // back along the sun to the wall (a cylinder there, low down: the vault hardly leans in so low)
+  let o = p.xz;
+  let v = -S.xz;
+  let a = dot(v, v);
+  let b = dot(o, v);
+  let c = dot(o, o) - R * R;
+  let t = (-b + sqrt(max(b * b - a * c, 0.0))) / max(a, 1e-4);
+  let w = p - S * t;
+  if (w.y < GW_SILL || w.y > 7.5) { return vec3f(0.0); }
+  let g = geodeGreatWindow(w, true);
+  // (it spreads and softens with the way it has come)
+  return g.rgb * g.a * exp(-t * 0.12);
+}
+
 /** the wall at p, seen along d: faces of crystal (a cellular pattern round the hollow, its cells the faces), each a
  *  little different in how it's turned, glowing from within (a few strongly), seams dark between them; glints where a
  *  face turns the softbox or the shaft's light to the eye; brighter low, where the floor's light reaches, darker up in
@@ -292,6 +448,12 @@ fn geodeWall(p: vec3f, d: vec3f) -> vec3f {
   // the light wells round the vault
   let win = geodeWindows(p);
   c = mix(c, win.rgb, win.a);
+  // the great window behind the stage, and the stone round it warmed by its glow
+  let gw = geodeGreatWindow(p, false);
+  let gp = gwPlace(p);
+  let nearGW = exp(-pow(max(abs(gp.w) - GW_BAY * GW_N * 0.5, 0.0) / 1.5, 2.0)) * smoothstep(9.0, 3.0, p.y);
+  c += vein * GEO_SUN * 0.03 * L.sun.w * nearGW * seam;
+  c = mix(c, gw.rgb, gw.a);
   c += L.shaftCol.rgb * smoothstep(3.6, 2.2, length(p.xz)) * (1.0 - o) * smoothstep(0.4, 0.9, p.y / (R * L.wall.y)) * 0.02 * seam;
   return c;
 }
@@ -301,14 +463,17 @@ fn geodeWallSoft(p: vec3f, r: vec3f) -> vec3f {
   let L = worldLight.geode;
   let q = p + r * geodeWallT(p, r);
   let low = 1.0 - smoothstep(0.0, L.wall.x * L.wall.y * 0.7, q.y);
-  return geodeVein(q) * (0.004 + 0.012 * low) * L.wall.z;
+  // (and the great window's glass, its panes' colours without the leading)
+  let gw = geodeGreatWindow(q, true);
+  return mix(geodeVein(q) * (0.004 + 0.012 * low) * L.wall.z, gw.rgb * 0.8, gw.a);
 }
 
 /** the soft light of the room on a surface facing N (sky above, the lit floor below), dimmed in crevices */
 fn geodeAmbient(N: vec3f, ao: f32) -> vec3f {
   // (a warm sky now, the greenhouse's, and a little of the sun's bounce)
   let sky = mix(worldLight.geode.bgTop.rgb, vec3f(0.66, 0.63, 0.52), 0.35) + GEO_SUN * 0.02 * worldLight.geode.sun.w;
-  let ground = worldLight.geode.floorCol.rgb * 0.35 + worldLight.geode.bgBottom.rgb;
+  // (the floor's bounce: its cream glaze since phase 5, where it was the agate's brown)
+  let ground = vec3f(0.62, 0.56, 0.46) * 0.3 + worldLight.geode.bgBottom.rgb;
   return mix(ground, sky, N.y * 0.5 + 0.5) * (0.25 + 0.75 * ao) * 1.6;
 }
 
