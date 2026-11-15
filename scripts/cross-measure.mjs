@@ -7,7 +7,7 @@
 //     largest step of the clock's tempo from one frame to the next in the 4 s after, and its swing from the old tempo);
 //   - the camera after it: for 3 s from the frame the main view is in the new world, the frames in which the mirror the
 //     pair came out of fills more than a tenth of the frame (rays through the lens meeting its disc and frame within
-//     8 m: "looking at the mirror"), and those in which the eye also stands within 3 m of its middle (`inRing`: the
+//     8 m and at least 0.3 m off: "looking at the mirror"), and those in which the eye also stands within 3 m of its middle (`inRing`: the
 //     eye inside its frame looking at its disc, report 19's arrival) or within 2 m at all (`near`);
 //   - the set's catches, aerials and whether it fused (duel-page.mjs's numbers).
 //   node scripts/cross-measure.mjs --url http://localhost:<port>/energybending/ [--world geode,redwoods,temple,pool]
@@ -66,7 +66,8 @@ async function playSet(q) {
         const dn = d[0] * n[0] + d[1] * n[1] + d[2] * n[2];
         if (Math.abs(dn) < 1e-6) continue;
         const s = ((g.at[0] - p[0]) * n[0] + (g.at[1] - p[1]) * n[1] + (g.at[2] - p[2]) * n[2]) / dn;
-        if (s <= 0 || s > 8) continue;
+        // (the disc in front of the eye, not the glass it is passing through this frame)
+        if (s * Math.hypot(...d) < 0.3 || s > 8) continue;
         const L = Math.hypot(...d), q = [p[0] + d[0] * s - g.at[0], p[1] + d[1] * s - g.at[1], p[2] + d[2] * s - g.at[2]];
         if (Math.hypot(...q) < R && s * L < 8) hit++;
       }
@@ -105,7 +106,7 @@ async function playSet(q) {
         const c = watch, g = c.gate ? G.gates.get(c.gate) : null;
         if (c.arrive == null && G.rigWorld === c.to && !G.offset) c.arrive = t;
         if (c.arrive != null && g) {
-          if (t - c.arrive < 3) { const L = look(g); if (L.share > 0.1) c.looking++; if (L.dist < 2) c.near++; if (L.share > 0.1 && L.dist < 3) c.inRing++; }
+          if (t - c.arrive < 3) { const L = look(g); if (L.share > 0.1) c.looking++; if (L.dist < 2) c.near++; if (L.share > 0.1 && L.dist < 3) { c.inRing++; if (!c.ringAt) { const p = cam.position, f = cam.forward, r = [p[0] - g.at[0], p[1] - g.at[1], p[2] - g.at[2]]; const z = r[0] * g.n[0] + r[1] * g.n[1] + r[2] * g.n[2]; c.ringAt = { dt: +(t - c.arrive).toFixed(2), z: +z.toFixed(2), lat: +Math.hypot(r[0] - g.n[0] * z, r[1] - g.n[1] * z, r[2] - g.n[2] * z).toFixed(2), fwdN: +(f[0] * g.n[0] + f[1] * g.n[1] + f[2] * g.n[2]).toFixed(2), share: +L.share.toFixed(2), how: c.X.how ?? null, pair: D.match.chars.map((ch) => +(((ch.root[0] - g.at[0]) * g.n[0] + (ch.root[2] - g.at[2]) * g.n[2])).toFixed(2)) }; } } }
           else watch = null;
         }
         if (t - c.t > 8) watch = null;
@@ -115,8 +116,8 @@ async function playSet(q) {
     }
     const st = D.state.stats;
     for (const c of cross) {
-      c.how = c.X.how ?? null; c.meant = c.X.meant ?? null; delete c.X;
-      const tr = tracks.find((x) => x.at >= c.t - 0.02 && x.at < c.t + 8);
+      c.how = c.X.how ?? null; c.meant = c.X.meant ?? null; c.why = c.X.why ?? null; delete c.X;
+      const tr = tracks.find((x) => x.type === 'track' && x.at >= c.t - 0.02 && x.at < c.t + 8);
       c.music = tr ? +(tr.t - c.t).toFixed(3) : null;
       c.musicType = tr?.type ?? null;
     }

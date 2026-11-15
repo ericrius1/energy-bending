@@ -422,7 +422,7 @@ export async function startDuel(app: PlayApp, opts: { joined?: Joined } = {}) {
    *  behind the pair, or cut under the mirror's `flash`, the rare fallback: a locked camera, or a way through that
    *  didn't come through), whether the pair meant it (a voyage, crossing.ts), the disc they came out of, and the
    *  music's time */
-  const crossings: { d: number; from: string; to: string; how?: 'through' | 'flash' | 'late'; meant: boolean; out: string; t: number }[] = [];
+  const crossings: { d: number; from: string; to: string; how?: 'through' | 'flash' | 'late' | 'stayed'; meant: boolean; out: string; t: number; why?: string }[] = [];
   /** the disc the pair came out of, for a few seconds after (`t`): a body brought through held lands behind it, still
    *  reaching through (Portals.bring), and is kept from crossing while it is still there. With a fixed 1.5 s, a body
    *  not yet out in front was carried back, and its partner after it: a pair went back and forth a second and a half
@@ -459,7 +459,15 @@ export async function startDuel(app: PlayApp, opts: { joined?: Joined } = {}) {
       const g = app.gates.gates.get(wayOwed.out), rec = wayOwed.rec;
       wayOwed = null;
       ahead = 0; aheadOn = null;
-      if (g && rig.mode !== 'locked' && app.main.world !== W.id) {
+      // (back through before the view had gone over: the view never left; it stays)
+      if (app.main.world === W.id) { rec.how = 'stayed'; if (wayRec && !wayRec.how) wayRec.how = 'stayed'; way = null; wayRec = null; }
+      // (on through a second mirror before the view had come through the first: the view goes over at once, under the
+      // mirror's light, the rare fallback)
+      else if (way && app.main.world !== rec.from) {
+        if (wayRec && !wayRec.how) { wayRec.how = 'flash'; wayRec.why = 'crossed again'; }
+        way = null; wayRec = null;
+      }
+      if (rec.how) { /* stayed */ } else if (g && rig.mode !== 'locked' && app.main.world !== W.id && app.main.world === rec.from) {
         const d: Disc = { id: g.id, at: [...g.at] as V3, n: [...g.n] as V3, right: [...g.right] as V3, up: [...g.up] as V3, r: g.radius };
         const side = (mid[0] - g.at[0]) * g.n[0] + (mid[1] - g.at[1]) * g.n[1] + (mid[2] - g.at[2]) * g.n[2] >= 0 ? 1 : -1;
         way = new ThroughCam(d, side, rig.eye, rig.look);
@@ -469,7 +477,7 @@ export async function startDuel(app: PlayApp, opts: { joined?: Joined } = {}) {
         dcam.reset();
       } else if (app.main.world !== W.id && app.gates.rigWorld === W.id) {
         app.gates.arrive(); app.gates.flash(W.id);
-        if (!rec.how) rec.how = 'flash';
+        if (!rec.how) { rec.how = 'flash'; rec.why = !g ? 'no gate' : rig.mode === 'locked' ? 'locked' : 'crossed again'; }
         crossCam.flashes++;
       }
     }
@@ -484,14 +492,15 @@ export async function startDuel(app: PlayApp, opts: { joined?: Joined } = {}) {
       if (X && !X.how && app.main.world === W.id) X.how = 'through';
       // the rare fallback: the way didn't bring the eye through (a lock, or it ran out): a cut under the mirror's light
       const over = app.main.world === W.id;
-      if (!over && (way.done || way.t > 4.5 || rig.mode === 'locked') && app.gates.rigWorld === W.id) {
+      if (!over && (way.done || way.t > 6 || rig.mode === 'locked') && app.gates.rigWorld === W.id) {
         app.gates.arrive(); app.gates.flash(W.id);
-        if (X && !X.how) X.how = way.done ? 'flash' : 'late';
+        if (X && !X.how) { X.how = way.done ? 'flash' : 'late'; X.why = rig.mode === 'locked' ? 'locked' : way.done ? (way.through ? 'eye through, view not' : 'eye never through') : 'timeout'; }
         crossCam.flashes++;
         way = null; wayRec = null;
       } else {
         pose = { ...pose, eye: P.eye, look: P.look };
-        if (way.done) { way = null; wayRec = null; }
+        // (a way whose end was held in front of the disc: the duel camera goes on from where it left the eye)
+        if (way.done) { if (way.clamped) dcam.from(P.eye, P.look, pose.fov); way = null; wayRec = null; }
       }
     } else if (discs) {
       // nearing a disc (on their way at it within a second and a half, or a voyage's mirror a few metres off): the eye

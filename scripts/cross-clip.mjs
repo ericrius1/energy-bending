@@ -1,8 +1,7 @@
 // A low-resolution test clip of a mirror crossing in the duel (phase 6, report 20-crossing), from the duel's own camera
 // with the HUD and the mirrors' plaques (bend.grab), stepped at 60 fps on the frames' clock (as cross-measure.mjs).
-// Pass 1 plays the set until its `--nth` crossing (1: the first) and notes when; pass 2 plays it again from the start
-// (it is deterministic) and grabs every frame from `--before` s before that crossing to `--after` s after it, then
-// ffmpeg makes an mp4 (no sound: the page's music is a schedule, not audio, headless). Stills of chosen moments too.
+// It grabs every frame, keeps the last `--before` s, and goes on `--after` s past the set's `--nth` crossing (1: the
+// first); then ffmpeg makes an mp4 (no sound: the page's music is a schedule, not audio, headless). Stills of chosen moments too.
 //   node scripts/cross-clip.mjs --url http://localhost:<port>/energybending/ --q "duel&world=geode&...&seed=2"
 //     [--nth 1] [--before 2] [--after 5] [--size 640x360] [--out dir] [--name clip] [--stills 0.5,1.5,3]
 import { mkdirSync, writeFileSync, rmSync } from 'node:fs';
@@ -39,39 +38,35 @@ async function open() {
   });
 }
 
-// pass 1: when is the crossing (frames from the restart)
+// one pass (a page reloaded doesn't always dance the same: shaders compiling on the first frames shift it), every frame
+// grabbed, the last `before` seconds kept, until `after` s past the `nth` crossing
 await open();
-const at = await page.evaluate(async (nth) => {
-  const B = window.bend, D = B.duel;
-  for (let i = 0; i < 6600; i++) {
-    await B.step(1);
-    if (D.crossings.length >= nth) return { frame: i, cross: D.crossings[nth - 1] };
-    if (D.state.phase === 'done') return null;
-  }
-  return null;
-}, nth);
-if (!at) { console.log('no crossing'); await browser.close(); process.exit(1); }
-console.log(`crossing ${nth} at frame ${at.frame}: ${JSON.stringify(at.cross)}`);
-
-// pass 2: again, grabbing from `before` s ahead of it
-await open();
-const f0 = Math.max(0, at.frame - Math.round(before * 60)), f1 = at.frame + Math.round(after * 60);
-await page.evaluate(async (n) => { await window.bend.step(n); }, f0);
 const dir = join(out, `${name}-frames`);
 rmSync(dir, { recursive: true, force: true });
 mkdirSync(dir, { recursive: true });
+const keep = Math.round(before * 60), ring = [];
+let at = null, left = Math.round(after * 60), i = 0;
 const log = [];
-for (let f = f0, i = 0; f <= f1; f++, i++) {
-  const r = await page.evaluate(async () => {
-    const B = window.bend, url = await B.grab('image/jpeg', 0.88);
-    const G = B.gates, c = B.kit.camera;
-    return { url, world: G.rigWorld, view: B.duel.world, offset: !!G.offset, eye: [...c.position].map((v) => +v.toFixed(2)), how: B.duel.crossings.at(-1)?.how ?? null };
-  });
-  const t = (f - at.frame) / 60;
-  writeFileSync(join(dir, `f${String(i).padStart(4, '0')}.jpg`), Buffer.from(r.url.split(',')[1], 'base64'));
-  for (const s of stills) if (Math.abs(t - s) < 1 / 120) writeFileSync(join(out, `${name}-${s >= 0 ? '+' : ''}${s.toFixed(2)}s.jpg`), Buffer.from(r.url.split(',')[1], 'base64'));
-  log.push({ t: +t.toFixed(3), offset: r.offset, eye: r.eye, how: r.how });
+for (let f = 0; f < 6600 && left > 0; f++) {
+  const r = await page.evaluate(async (nth) => {
+    const B = window.bend, url = await B.grab('image/jpeg', 0.88), D = B.duel, G = B.gates, c = B.kit.camera;
+    const X = D.crossings[nth - 1], g = X ? G.gates.get(X.out) : null, p = c.position, z = g ? +((p[0] - g.at[0]) * g.n[0] + (p[1] - g.at[1]) * g.n[1] + (p[2] - g.at[2]) * g.n[2]).toFixed(2) : null, fz = g ? +(c.forward[0] * g.n[0] + c.forward[1] * g.n[1] + c.forward[2] * g.n[2]).toFixed(2) : null;
+    return { z, fz, url, n: D.crossings.length >= nth ? D.crossings[nth - 1] : null, done: D.state.phase === 'done', offset: !!G.offset, eye: [...c.position].map((v) => +v.toFixed(2)), how: D.crossings.at(-1)?.how ?? null, cam: { ...D.crossCam } };
+  }, nth);
+  ring.push({ f, ...r });
+  if (!at && r.n) { at = { frame: f, cross: r.n }; console.log(`crossing ${nth} at frame ${f}: ${JSON.stringify(r.n)}`); }
+  if (at) left--;
+  else if (ring.length > keep) ring.shift();
+  if (r.done && !at) break;
 }
+if (!at) { console.log('no crossing'); await browser.close(); process.exit(1); }
+for (const r of ring) {
+  const t = (r.f - at.frame) / 60, buf = Buffer.from(r.url.split(',')[1], 'base64');
+  writeFileSync(join(dir, `f${String(i++).padStart(4, '0')}.jpg`), buf);
+  for (const s of stills) if (Math.abs(t - s) < 1 / 120) writeFileSync(join(out, `${name}-${s >= 0 ? '+' : ''}${s.toFixed(2)}s.jpg`), buf);
+  log.push({ t: +t.toFixed(3), offset: r.offset, z: r.z, fz: r.fz, eye: r.eye, how: r.how, cam: r.cam });
+}
+const f0 = ring[0].f, f1 = ring[ring.length - 1].f;
 writeFileSync(join(out, `${name}.json`), JSON.stringify({ q, at, log }, null, 1));
 const mp4 = join(out, `${name}.mp4`);
 const ff = spawnSync('ffmpeg', ['-y', '-v', 'error', '-framerate', '60', '-i', join(dir, 'f%04d.jpg'), '-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-crf', '26', '-preset', 'veryfast', mp4]);

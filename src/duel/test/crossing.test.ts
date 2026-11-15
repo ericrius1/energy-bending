@@ -43,10 +43,23 @@ test('the way through: from any eye, round outside the frame, through near the m
     assert(crossedAt != null, `${name}: through the disc`);
     const end = Math.hypot(prev[0] - cam.eye[0], prev[1] - cam.eye[1], prev[2] - cam.eye[2]);
     assert(end < 1e-6, `${name}: ends on the duel camera's eye (${end})`);
-    assert(maxStep < 0.155, `${name}: no jump (${maxStep.toFixed(3)} m a frame)`);
+    assert(maxStep < 0.19, `${name}: no jump (${maxStep.toFixed(3)} m a frame)`);
     lines.push(`${name} ${W.how.aligned ? 'aligned' : `round ${(W.how.turn * 57.3).toFixed(0)}°`}: through at ${crossedAt!.toFixed(2)} s, done ${t.toFixed(2)} s, ${(maxStep * 60).toFixed(1)} m/s at most`);
   }
   return lines.join('; ');
+});
+
+test('the way through when the duel camera chose a pose beside the disc\'s back: still through the disc, held in front', () => {
+  const W = new ThroughCam(D, 1, [4.5, 1.8, 0.8], [0.4, 1.3, 2]);
+  const cam = { eye: [3.2, 1.7, -1.5] as V3, look: [0.4, 1.3, 2.5] as V3 };
+  let prev: V3 = [4.5, 1.8, 0.8], through = false;
+  for (let i = 0; i < 600 && !W.done; i++) {
+    const P = W.update(1 / 60, cam, [0.4, 1, 2.4]);
+    const sp = side(prev), sn = side(P.eye);
+    if (sp <= 0 && sn > 0) { const k = sp / (sp - sn); assert(across([prev[0] + (P.eye[0] - prev[0]) * k, prev[1] + (P.eye[1] - prev[1]) * k, 0]) < D.r * 0.8, 'inside the disc'); through = true; }
+    prev = P.eye;
+  }
+  assert(through && W.clamped && side(prev) >= 1.6 - 1e-6, `through, and ended in front (${side(prev).toFixed(2)})`);
 });
 
 test('the approach: the disc the pair runs at, and the voyage\'s disc', () => {

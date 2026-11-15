@@ -234,7 +234,7 @@ export class ThroughCam {
     this.S = [0, Math.max(-0.35, Math.min(0.45, lk[1] * 0.5 + 0.15)), -Math.max(1.5, Math.min(aligned ? 3.2 : 2.6, aligned ? -z0 : this.rho0 * 0.6))];
     // (the swing's length by how far round it goes and how far in: about 8 m/s at the fastest)
     const arc = Math.hypot(((this.rho0 - this.S[2]) / 2) * (aligned ? 0 : turn), this.rho0 + this.S[2], this.y0 - this.S[1]);
-    this.T1 = Math.max(aligned ? 0.25 : 0.55 + 0.6 * Math.min(1, turn / Math.PI), arc / 4.5);
+    this.T1 = Math.max(aligned ? 0.25 : 0.5 + 0.5 * Math.min(1, turn / Math.PI), arc / 5.5);
   }
 
   private local(p: ArrayLike<number>): V3 { const r: V3 = [p[0] - this.disc.at[0], p[1] - this.disc.at[1], p[2] - this.disc.at[2]]; return [dot(r, this.X), dot(r, this.Y), dot(r, this.Z)]; }
@@ -258,19 +258,29 @@ export class ThroughCam {
       return { eye: this.world(l), look: this.eased(lerp3(discLook, pair, 0.35 * u)) };
     }
     // 2. through the disc and round onto the duel camera's pose (its length set once, by how far there is to go: about
-    // 8 m/s at the fastest)
-    const E = this.local(cam.eye);
+    // 8 m/s at the fastest). A cubic Bézier whose two inner points lie on the disc's axis, one in its plane: the curve
+    // crosses the plane within a few centimetres of the middle wherever it ends. Its end is the duel camera's eye, kept
+    // out in front of the disc (`clamped`: a pose the duel camera chose behind the disc or beside its back would take
+    // the curve back across the plane outside the disc; the camera then goes on from where the way ends, `from`)
+    const Er = this.local(cam.eye), E: V3 = [Er[0], Er[1], Math.max(1.6, Er[2])];
+    this.clamped = Er[2] < 1.6 - 1e-6;
     if (this.T2 < 0) this.T2 = Math.max(1.3, Math.min(2.6, 0.5 + (Math.hypot(E[0] - S[0], E[1] - S[1], E[2] - S[2]) + 1.2) / 5));
     const u = smoother((this.t - this.T1) / this.T2);
-    // the control point out of the disc's face on its axis: the curve crosses the plane near the middle
-    const K: V3 = [0, S[1], Math.max(1.1, -0.7 * S[2])];
-    const a = (1 - u) * (1 - u), b = 2 * u * (1 - u), c = u * u;
-    const l: V3 = [a * S[0] + b * K[0] + c * E[0], a * S[1] + b * K[1] + c * E[1], a * S[2] + b * K[2] + c * E[2]];
+    const P1: V3 = [0, S[1], 0], P2: V3 = [0, S[1], Math.max(1.4, -0.8 * S[2])];
+    const a = (1 - u) ** 3, b = 3 * u * (1 - u) ** 2, c = 3 * u * u * (1 - u), d = u ** 3;
+    const l: V3 = [0, 0, 0];
+    for (let i = 0; i < 3; i++) l[i] = a * S[i] + b * P1[i] + c * P2[i] + d * E[i];
     if (!this.through && l[2] > 0) this.through = true;
-    const look = lerp3(lerp3(discLook, pair, 0.35), cam.look, smooth(u * 1.4));
+    // (the look point runs on ahead of the eye along the axis, never behind it: an eye past a fixed point in front of the
+    // disc turned round and looked back at the disc it had just come through)
+    const ahead = this.world([0, S[1] * 0.4, Math.max(0.8, l[2] + 2.5)]);
+    const look = lerp3(lerp3(ahead, pair, 0.35), cam.look, smooth(u * 1.4));
     if (u >= 1) this.done = true;
     return { eye: this.world(l), look: this.eased(look) };
   }
+
+  /** the way's end was held out in front of the disc (the duel camera goes on from the way's last pose, not its own) */
+  clamped = false;
 
   /** the look point eased from where the eye looked as the way began */
   private eased(p: V3): V3 { return lerp3(this.look0, p, smooth(this.t / 0.4)); }
