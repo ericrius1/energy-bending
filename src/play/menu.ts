@@ -4,9 +4,10 @@
 //
 //   the front     which game: the dance (the jogo) or the duel (the dance battle, src/duel); how to play it (together
 //                 on one screen, with a partner, online; the dance also solo), where (the geode hub by default: its
-//                 gates are the level select), what each dancer wears (the presets, as swatches that move), the side
-//                 view or 3D, the controls card (?), and go. Choosing writes the choice into the page's address
-//                 (?jogo=same|partner|online&world=…&dress=…&free; ?duel&world=…&dress=…&p1=human&p2=bot|human[&lock];
+//                 gates are the level select), what each dancer wears (the presets, as swatches that move), 3D (the
+//                 default: free to walk to the mirrors) or the side view (kept per game), the controls card (?), and
+//                 go. Choosing writes the choice into the page's address
+//                 (?jogo=same|partner|online&world=…&dress=…[&lock]; ?duel&world=…&dress=…&p1=human&p2=bot|human[&lock];
 //                 ?duel&net=ROOM&…), so a game is always a link; the hub's front (worlds/geode/front.ts) begins it in
 //                 the page where it can
 //   online        the dance: make a room (its code and a link to share) or join one by code; or watch (a free dancer, a
@@ -108,7 +109,7 @@ export function hrefOf(c: Choice, base = location.pathname, keep: URLSearchParam
     q.set('jogo', c.mode);
     q.set('world', c.world);
     q.set('dress', c.dress.join(','));
-    if (!c.lock) q.set('free', '');
+    if (c.lock) q.set('lock', '');
     if (c.mode === 'online') { if (c.room) q.set('room', c.room); if (c.create) q.set('create', ''); if (c.watch) q.set('watch', ''); }
   }
   return `${base}?${bare(q)}`;
@@ -149,6 +150,13 @@ export type FrontChoice = { kind: 'game'; value: Game } | { kind: 'mode'; value:
 const GAME_KEY = 'energybending.front.game';
 const keptGame = (): Game => { try { return localStorage.getItem(GAME_KEY) === 'duel' ? 'duel' : 'dance'; } catch { return 'dance'; } };
 const keepGame = (g: Game) => { try { localStorage.setItem(GAME_KEY, g); } catch { /* no storage */ } };
+/** the view each game was last played in, by the "side" button (true: the side view). A new key (report 20-roam): the
+ *  dance used to start in the side view, and nothing kept from then may keep it there; both games open in 3D */
+const VIEW_KEY = 'energybending.front.side.v2';
+export const keptSide = (): Record<Game, boolean> => {
+  try { const v = JSON.parse(localStorage.getItem(VIEW_KEY) ?? 'null'); return { dance: v?.dance === true, duel: v?.duel === true }; } catch { return { dance: false, duel: false }; }
+};
+const keepSide = (v: Record<Game, boolean>) => { try { localStorage.setItem(VIEW_KEY, JSON.stringify(v)); } catch { /* no storage */ } };
 
 /** the front of the game: returns its root (removed when a choice is made). It starts from the bodies last chosen
  *  (dancer/show.ts lastDress: what the show's dancers already wear) and the game last chosen */
@@ -156,8 +164,11 @@ export function showFront(query: URLSearchParams, open: (href: string) => void =
   // (a world the game doesn't have, like the retired forge's ?world=forge, opens on the hub)
   const asked = query.get('world'), world = WORLDS.some(([w]) => w === asked) ? asked! : 'geode';
   const game = keptGame();
-  // the side view is each game's own default: the dance's side view (&free for 3D), the duel's 3D (&lock for the side)
-  const lockOf: Record<Game, boolean> = { dance: !query.has('free'), duel: query.has('lock') };
+  // both games open in 3D, free to roam to the mirrors (report 20-roam); the side view is the "side" button's (kept
+  // per game) or the address's &lock (&free in the address always opens 3D)
+  const kept = keptSide();
+  const sideOf = (g: Game) => (query.has('free') ? false : query.has('lock') ? true : kept[g]);
+  const lockOf: Record<Game, boolean> = { dance: sideOf('dance'), duel: sideOf('duel') };
   const modeOf: Record<Game, Mode> = { dance: 'same', duel: 'partner' };
   const c: Choice = { game, mode: modeOf[game], world, dress: lastDress(), lock: lockOf[game] };
   const root = el('div', 'jg jg-front');
@@ -240,7 +251,10 @@ export function showFront(query: URLSearchParams, open: (href: string) => void =
   friend.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.stopPropagation(); net.querySelector<HTMLButtonElement>('.jg-join')!.click(); } });
   const foot = el('div', 'jg-row jg-foot');
   const helpBtn = button('jg-help', GLYPHS.help, 'how to play', () => { void import('../duel/help').then((m) => m.toggleHelp(m.guessDev(), c.game === 'duel' ? c.dress : [])); });
-  const lockBtn = button('jg-lock', GLYPHS.lock, 'side', () => { c.lock = !c.lock; paint(); onChoose?.({ kind: 'lock', value: c.lock }); });
+  const lockBtn = button('jg-lock', GLYPHS.free, '3D', () => {
+    c.lock = !c.lock; kept[c.game ?? 'dance'] = c.lock; keepSide(kept);
+    paint(); onChoose?.({ kind: 'lock', value: c.lock });
+  });
   const goBtn = button('jg-go', sunGlyph(), '', go);
   goBtn.setAttribute('aria-label', 'play');
   foot.append(helpBtn, lockBtn, goBtn);
@@ -266,7 +280,11 @@ export function showFront(query: URLSearchParams, open: (href: string) => void =
     goBtn.hidden = !duel && c.mode === 'online';
     goBtn.setAttribute('aria-label', duel ? (c.mode === 'online' ? 'open the room' : 'play the duel') : 'play the dance');
     lockBtn.classList.toggle('on', c.lock);
-    lockBtn.innerHTML = (c.lock ? GLYPHS.lock : GLYPHS.free) + `<span>${c.lock ? 'side' : '3d'}</span>`;
+    // (what the view is now, and what pressing it does: 3D roams to the mirrors; the side view is the 2D stage)
+    lockBtn.innerHTML = (c.lock ? GLYPHS.lock : GLYPHS.free) + `<span>${c.lock ? 'side view' : '3D'}</span>`;
+    const what = c.lock ? 'the side view, a 2D stage: press for 3D, free to walk to the mirrors' : '3D, free to walk to the mirrors: press for the side view';
+    lockBtn.setAttribute('aria-label', `view: ${what}`);
+    lockBtn.title = `view: ${what}`;
   }
   paint();
   document.body.append(root);
