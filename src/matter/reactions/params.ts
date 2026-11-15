@@ -23,9 +23,9 @@ export const steamParams = defineParams('steam', {
   lifeMax: 1.1,
   /** its size when born and when it fades (m, the blob's radius) */
   sizeBirth: 0.04,
-  sizeEnd: 0.22,
+  sizeEnd: 0.3,
   /** a wisp's optical depth at its middle (the composite turns the sum into coverage under `cap`) */
-  density: 0.3,
+  density: 0.26,
   /** its own soft light */
   glow: 0.12,
   /** how much the field's heat below a wisp lights its underside orange */
@@ -40,12 +40,25 @@ export const steamParams = defineParams('steam', {
    *  bright it burns (HDR: it blooms) */
   frontRate: 1,
   frontLife: 0.12,
-  frontGlow: 2.0,
+  frontGlow: 1.2,
   /** flame on ice throws a jet of vapour (m/s); plasma on ice: how fast its cold vapour sinks before it rises (× rise) */
   jet: 1.6,
   sink: 0.9,
   /** drips and sparks: births a second at a contact making steam at strength 1 */
   sparkRate: 40,
+  /** how much of the veil is taken off a dancer's core on screen (hips to head: steam_comp.wgsl), at rest and through
+   *  a catch's frames (the duel's DuelFx.quiet): steam stays a veil the bodies read through, never a blot on them */
+  keepOff: 0.8,
+  keepOffCatch: 0.92,
+  /** the look: how strongly the sun's shafts light the mist (0 … 1), its forward scattering (g: brighter looking
+   *  toward the light), how much the dusk's glow lights it from below (moss, fireflies, lanterns), how warm its white */
+  shafts: 0.8,
+  scatter: 0.55,
+  dusk: 1,
+  warm: 0.8,
+  /** a geyser's column of mist (the duel's: steam_comp.wgsl columnMist): how much of it shows, how dense it is */
+  column: 1,
+  columnDensity: 1.6,
   /** the wisps' target, as a fraction of the render size, and the composite's blur (in its texels) */
   lowRes: 0.5,
   blur: 1.2,
@@ -57,4 +70,7 @@ export const steamParams = defineParams('steam', {
   glow: { min: 0, max: 1, label: 'steam glow' },
   frontGlow: { min: 0, max: 10, label: 'front glow' },
   pool: { min: 1000, max: LIMITS.steam, step: 1000, label: 'steam particles (reload)' },
+  keepOff: { min: 0, max: 1, label: 'steam off the bodies' },
+  shafts: { min: 0, max: 2, label: 'steam sun shafts' },
+  dusk: { min: 0, max: 2, label: 'steam dusk glow' },
 });

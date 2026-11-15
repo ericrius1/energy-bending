@@ -1,0 +1,439 @@
+{
+ "runs": [
+  {
+   "world": "redwoods",
+   "dress": "fire,water",
+   "seed": "3",
+   "styles": "flyer,lead",
+   "steams": 2,
+   "steam": {
+    "frames": 966,
+    "covered": 0.027,
+    "coreOpaque": 0.027,
+    "coreP90": 0.061,
+    "coreVeil": 0.083,
+    "screen": 0.04,
+    "thick": 0.228
+   },
+   "geyser": {
+    "frames": 214,
+    "covered": 0.033,
+    "coreOpaque": 0.019,
+    "coreP90": 0.048,
+    "coreVeil": 0.088,
+    "screen": 0.105,
+    "thick": 0.336
+   },
+   "event": {
+    "frames": 59,
+    "covered": 0.068,
+    "coreOpaque": 0.034,
+    "coreP90": 0.075,
+    "coreVeil": 0.138,
+    "screen": 0.125,
+    "thick": 0.361
+   }
+  },
+  {
+   "world": "redwoods",
+   "dress": "fire,water",
+   "seed": "1",
+   "styles": "lead,flyer",
+   "steams": 0,
+   "steam": {
+    "frames": 860,
+    "covered": 0.044,
+    "coreOpaque": 0.034,
+    "coreP90": 0.054,
+    "coreVeil": 0.086,
+    "screen": 0.02,
+    "thick": 0.194
+   },
+   "geyser": {
+    "frames": 0,
+    "covered": 0,
+    "coreOpaque": 0,
+    "coreP90": 0,
+    "coreVeil": 0,
+    "screen": 0,
+    "thick": 0
+   },
+   "event": {
+    "frames": 0,
+    "covered": 0,
+    "coreOpaque": 0,
+    "coreP90": 0,
+    "coreVeil": 0,
+    "screen": 0,
+    "thick": 0
+   }
+  },
+  {
+   "world": "redwoods",
+   "dress": "water,fire",
+   "seed": "2",
+   "styles": "lead,flyer",
+   "steams": 0,
+   "steam": {
+    "frames": 897,
+    "covered": 0.05,
+    "coreOpaque": 0.041,
+    "coreP90": 0.087,
+    "coreVeil": 0.102,
+    "screen": 0.028,
+    "thick": 0.223
+   },
+   "geyser": {
+    "frames": 104,
+    "covered": 0.106,
+    "coreOpaque": 0.058,
+    "coreP90": 0.136,
+    "coreVeil": 0.118,
+    "screen": 0.099,
+    "thick": 0.351
+   },
+   "event": {
+    "frames": 0,
+    "covered": 0,
+    "coreOpaque": 0,
+    "coreP90": 0,
+    "coreVeil": 0,
+    "screen": 0,
+    "thick": 0
+   }
+  },
+  {
+   "world": "redwoods",
+   "dress": "fire,water",
+   "seed": "5",
+   "styles": "base,flyer",
+   "steams": 1,
+   "steam": {
+    "frames": 924,
+    "covered": 0.026,
+    "coreOpaque": 0.022,
+    "coreP90": 0.047,
+    "coreVeil": 0.076,
+    "screen": 0.025,
+    "thick": 0.214
+   },
+   "geyser": {
+    "frames": 109,
+    "covered": 0.046,
+    "coreOpaque": 0.026,
+    "coreP90": 0.051,
+    "coreVeil": 0.088,
+    "screen": 0.064,
+    "thick": 0.376
+   },
+   "event": {
+    "frames": 30,
+    "covered": 0.033,
+    "coreOpaque": 0.016,
+    "coreP90": 0.036,
+    "coreVeil": 0.113,
+    "screen": 0.108,
+    "thick": 0.408
+   }
+  },
+  {
+   "world": "pool",
+   "dress": "fire,water",
+   "seed": "1",
+   "styles": "lead,flyer",
+   "steams": 1,
+   "steam": {
+    "frames": 1020,
+    "covered": 0.041,
+    "coreOpaque": 0.032,
+    "coreP90": 0.069,
+    "coreVeil": 0.086,
+    "screen": 0.038,
+    "thick": 0.212
+   },
+   "geyser": {
+    "frames": 111,
+    "covered": 0.09,
+    "coreOpaque": 0.061,
+    "coreP90": 0.143,
+    "coreVeil": 0.113,
+    "screen": 0.08,
+    "thick": 0.288
+   },
+   "event": {
+    "frames": 29,
+    "covered": 0.069,
+    "coreOpaque": 0.06,
+    "coreP90": 0.111,
+    "coreVeil": 0.13,
+    "screen": 0.05,
+    "thick": 0.354
+   }
+  },
+  {
+   "world": "pool",
+   "dress": "water,fire",
+   "seed": "2",
+   "styles": "lead,flyer",
+   "steams": 0,
+   "steam": {
+    "frames": 963,
+    "covered": 0.029,
+    "coreOpaque": 0.034,
+    "coreP90": 0.069,
+    "coreVeil": 0.09,
+    "screen": 0.03,
+    "thick": 0.19
+   },
+   "geyser": {
+    "frames": 0,
+    "covered": 0,
+    "coreOpaque": 0,
+    "coreP90": 0,
+    "coreVeil": 0,
+    "screen": 0,
+    "thick": 0
+   },
+   "event": {
+    "frames": 0,
+    "covered": 0,
+    "coreOpaque": 0,
+    "coreP90": 0,
+    "coreVeil": 0,
+    "screen": 0,
+    "thick": 0
+   }
+  },
+  {
+   "world": "pool",
+   "dress": "fire,water",
+   "seed": "4",
+   "styles": "lead,flyer",
+   "steams": 2,
+   "steam": {
+    "frames": 1077,
+    "covered": 0.05,
+    "coreOpaque": 0.036,
+    "coreP90": 0.073,
+    "coreVeil": 0.092,
+    "screen": 0.033,
+    "thick": 0.206
+   },
+   "geyser": {
+    "frames": 224,
+    "covered": 0.17,
+    "coreOpaque": 0.088,
+    "coreP90": 0.267,
+    "coreVeil": 0.161,
+    "screen": 0.063,
+    "thick": 0.235
+   },
+   "event": {
+    "frames": 58,
+    "covered": 0.31,
+    "coreOpaque": 0.165,
+    "coreP90": 0.54,
+    "coreVeil": 0.256,
+    "screen": 0.091,
+    "thick": 0.253
+   }
+  },
+  {
+   "world": "temple",
+   "dress": "fire,water",
+   "seed": "1",
+   "styles": "lead,flyer",
+   "steams": 1,
+   "steam": {
+    "frames": 1001,
+    "covered": 0.022,
+    "coreOpaque": 0.028,
+    "coreP90": 0.054,
+    "coreVeil": 0.088,
+    "screen": 0.04,
+    "thick": 0.18
+   },
+   "geyser": {
+    "frames": 104,
+    "covered": 0.067,
+    "coreOpaque": 0.043,
+    "coreP90": 0.074,
+    "coreVeil": 0.109,
+    "screen": 0.058,
+    "thick": 0.229
+   },
+   "event": {
+    "frames": 29,
+    "covered": 0.138,
+    "coreOpaque": 0.058,
+    "coreP90": 0.16,
+    "coreVeil": 0.137,
+    "screen": 0.08,
+    "thick": 0.297
+   }
+  },
+  {
+   "world": "temple",
+   "dress": "water,fire",
+   "seed": "3",
+   "styles": "lead,flyer",
+   "steams": 2,
+   "steam": {
+    "frames": 1057,
+    "covered": 0.049,
+    "coreOpaque": 0.048,
+    "coreP90": 0.078,
+    "coreVeil": 0.113,
+    "screen": 0.05,
+    "thick": 0.191
+   },
+   "geyser": {
+    "frames": 224,
+    "covered": 0.183,
+    "coreOpaque": 0.107,
+    "coreP90": 0.359,
+    "coreVeil": 0.186,
+    "screen": 0.107,
+    "thick": 0.243
+   },
+   "event": {
+    "frames": 59,
+    "covered": 0.169,
+    "coreOpaque": 0.111,
+    "coreP90": 0.328,
+    "coreVeil": 0.181,
+    "screen": 0.093,
+    "thick": 0.294
+   }
+  },
+  {
+   "world": "temple",
+   "dress": "fire,water",
+   "seed": "6",
+   "styles": "lead,flyer",
+   "steams": 1,
+   "steam": {
+    "frames": 1006,
+    "covered": 0.01,
+    "coreOpaque": 0.026,
+    "coreP90": 0.057,
+    "coreVeil": 0.09,
+    "screen": 0.047,
+    "thick": 0.182
+   },
+   "geyser": {
+    "frames": 120,
+    "covered": 0.008,
+    "coreOpaque": 0.022,
+    "coreP90": 0.045,
+    "coreVeil": 0.101,
+    "screen": 0.107,
+    "thick": 0.225
+   },
+   "event": {
+    "frames": 30,
+    "covered": 0,
+    "coreOpaque": 0.029,
+    "coreP90": 0.065,
+    "coreVeil": 0.141,
+    "screen": 0.134,
+    "thick": 0.25
+   }
+  },
+  {
+   "world": "geode",
+   "dress": "fire,water",
+   "seed": "3",
+   "styles": "flyer,lead",
+   "steams": 0,
+   "steam": {
+    "frames": 949,
+    "covered": 0.035,
+    "coreOpaque": 0.023,
+    "coreP90": 0.056,
+    "coreVeil": 0.074,
+    "screen": 0.027,
+    "thick": 0.201
+   },
+   "geyser": {
+    "frames": 121,
+    "covered": 0.066,
+    "coreOpaque": 0.031,
+    "coreP90": 0.096,
+    "coreVeil": 0.085,
+    "screen": 0.078,
+    "thick": 0.259
+   },
+   "event": {
+    "frames": 30,
+    "covered": 0.267,
+    "coreOpaque": 0.098,
+    "coreP90": 0.247,
+    "coreVeil": 0.195,
+    "screen": 0.199,
+    "thick": 0.326
+   }
+  },
+  {
+   "world": "geode",
+   "dress": "water,fire",
+   "seed": "4",
+   "styles": "lead,flyer",
+   "steams": 1,
+   "steam": {
+    "frames": 904,
+    "covered": 0.022,
+    "coreOpaque": 0.022,
+    "coreP90": 0.042,
+    "coreVeil": 0.082,
+    "screen": 0.034,
+    "thick": 0.224
+   },
+   "geyser": {
+    "frames": 222,
+    "covered": 0.032,
+    "coreOpaque": 0.027,
+    "coreP90": 0.048,
+    "coreVeil": 0.097,
+    "screen": 0.088,
+    "thick": 0.312
+   },
+   "event": {
+    "frames": 60,
+    "covered": 0.033,
+    "coreOpaque": 0.031,
+    "coreP90": 0.074,
+    "coreVeil": 0.151,
+    "screen": 0.079,
+    "thick": 0.35
+   }
+  }
+ ],
+ "sum": {
+  "steam": {
+   "frames": 11624,
+   "covered": 0.034,
+   "coreOpaque": 0.031,
+   "coreVeil": 0.089,
+   "screen": 0.035,
+   "thick": 0.203
+  },
+  "geyser": {
+   "frames": 1553,
+   "covered": 0.087,
+   "coreOpaque": 0.052,
+   "coreVeil": 0.12,
+   "screen": 0.087,
+   "thick": 0.283
+  },
+  "event": {
+   "frames": 384,
+   "covered": 0.127,
+   "coreOpaque": 0.072,
+   "coreVeil": 0.167,
+   "screen": 0.104,
+   "thick": 0.32
+  }
+ },
+ "steams": 11
+}

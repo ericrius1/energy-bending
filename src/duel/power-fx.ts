@@ -17,8 +17,10 @@
 //   pillar   a column of crystals of light grown from the floor, a crown of points on its top, a bloom at the launch
 //   prism    a facet of light hanging in the air, a ring of gems turning slowly through the colours; it flashes when
 //            it turns a body
-//   geyser   a column of steam: heat and wet laid up it in the field (steam's wisps boil off it) round a rising
-//            vortex, white light spiralling up it
+//   geyser   a column of mist in the sun's shafts: heat and wet laid up it in the field (steam's wisps boil off it, the
+//            veil itself) round a rising vortex, and the light it carries: warm shafts rising through it, motes and
+//            dew spiralling up, a pool of sunlight on the floor (phase 5: it was white balls and white rings, blots on
+//            the bodies); dimmed through a catch's frames, and nothing of it nearer the lens than the pair
 //   puddle   a disc of water on the floor, rings opening on it
 //   the form the body's matter at its form (fire toward plasma, water toward ice: Dancer.form), rings rising up it
 // The moments (phase 4): a catch at range leaves a glint of sun and a ring of leaves of both colours (fx.ts leafRing);
@@ -28,7 +30,7 @@
 // Sounds from the music engine's few (formOn, near, clash, dodge, echo, unison, parry); a CPU list of glows (play/glow),
 // at most a handful of field deposits a frame.
 import type { Dancer } from '../dancer/dancer';
-import type { Glows, RGB } from '../play/glow';
+import { GLOW_FLOATS, type Glows, type RGB } from '../play/glow';
 import { COLOURS, mixRGB } from '../play/feel';
 import type { Element } from '../play/jogo';
 import type { DuelPowers, Live, PowerFx } from './powers';
@@ -63,11 +65,21 @@ export interface PowerFxCtx {
   hush?: () => void;
   /** where the eye is (a catch's ring of leaves faces it) */
   eye?: () => V3 | null;
+  /** 0 by day … 1 at night (the redwoods' dusk: night, or the fireflies out): the geyser's light is the woods' glow
+   *  then (moss teal, fireflies), not the sun's */
+  dusk?: () => number;
+  /** the camera's view-projection (steam's light is kept clear of the bodies on screen: keepClear) */
+  viewProj?: () => ArrayLike<number>;
+  /** 0 … 1: a catch's frames (fx.ts DuelFx.quiet): the geyser's light dims through them */
+  quiet?: () => number;
 }
 
 const WARM: RGB = [1.7, 0.78, 0.26], EMBER: RGB = [1.9, 0.62, 0.14], GOLDEN: RGB = [1.8, 1.25, 0.55];
 const WATER: RGB = [0.3, 0.82, 1.6], FOAM: RGB = [1.15, 1.4, 1.65], FROST: RGB = [1.25, 1.55, 1.9];
-const STEAM: RGB = [1.35, 1.4, 1.45];
+/** the geyser's light (phase 5): the sun's shafts through its mist, motes of sun and dew, the pool of light at its foot */
+const SHAFT: RGB = [1.3, 1.02, 0.6], MOTE: RGB = [1.55, 1.2, 0.68], DEW: RGB = [0.7, 1.25, 1.15], SUNPOOL: RGB = [1.1, 0.82, 0.45], CREAM: RGB = [1.3, 1.12, 0.8];
+/** after dusk: the mist lit by the moss and fungi's teal, fireflies for motes, a pool of the moss's glow */
+const MOSS: RGB = [0.35, 1.15, 0.85], FIREFLY: RGB = [1.25, 1.35, 0.45], MOSSPOOL: RGB = [0.2, 0.8, 0.6];
 const GEMS: RGB[] = [[1.5, 0.6, 1.4], [0.7, 0.85, 1.7], [1.6, 0.95, 1.2], [0.85, 1.4, 1.5], [1.25, 0.75, 1.8]];
 const smooth = (x: number) => { x = Math.max(0, Math.min(1, x)); return x * x * (3 - 2 * x); };
 const fade = (L: Live, t: number, inS = 0.12, outS = 0.35) => { const a = t - L.born; return smooth(a / inS) * smooth((L.life - a) / outS); };
@@ -81,16 +93,26 @@ const hue = (h: number, I = 1.6): RGB => {
 export class PowerFxDraw {
   private t = 0;
   /** one-off moments (blooms, flashes) and how long each lasts */
-  private moments: { t: number; life: number; draw(u: number, age: number): void }[] = [];
+  private moments: { t: number; life: number; steam?: boolean; draw(u: number, age: number): void }[] = [];
+  /** a moment made while this is on is steam's (the STEAM! bloom): the steam probe can hide it */
+  private steamTag = false;
   /** set ice laid for an effect (its pieces), by the effect's id */
   private ice = new Map<number, number[]>();
   /** the form's look on each body: eased toward 1 while in it */
   private formShown = [0, 0];
   private formWas = [0, 0];
+  /** when each wave that made a geyser did (it fades into the geyser), by its id */
+  private reactedAt = new Map<number, number>();
   private deposits = 0;
   private vortices = new Set<string>();
   /** this frame's moments' and reactions' light, as ranges of the glow list [from, to) (the moments probe) */
   readonly lit: [number, number][] = [];
+  /** this frame's steam light (the geyser's column, rings and spray, the STEAM! bloom), as ranges of the glow list */
+  readonly steamLit: [number, number][] = [];
+  /** the geyser's column of mist this frame (steam's composite draws it: matter/reactions/steam.ts), null when none */
+  column: { at: V3; r: number; h: number; amount: number; dusk: number } | null = null;
+  /** the steam probe (steam-probe.ts): the steam light drawn dark, to see the frame without it */
+  hideSteam = false;
 
   constructor(private ctx: PowerFxCtx, private matter: (seat: number) => Matter) {}
 
@@ -105,7 +127,7 @@ export class PowerFxDraw {
     this.deposits++;
     this.ctx.field.deposit(d);
   }
-  private moment(life: number, draw: (u: number, age: number) => void) { this.moments.push({ t: this.t, life, draw }); }
+  private moment(life: number, draw: (u: number, age: number) => void) { this.moments.push({ t: this.t, life, steam: this.steamTag, draw }); }
   private chest(k: number, P: DuelPowers): V3 { const c = P.chars[k]; return [c.root[0], c.root[1] + 1.1, c.root[2]]; }
 
   /** everything the powers left (a new set, the duel's end) */
@@ -115,6 +137,7 @@ export class PowerFxDraw {
     for (const id of this.vortices) this.ctx.field?.vortex(id, null);
     this.vortices.clear();
     this.moments.length = 0;
+    this.reactedAt.clear();
   }
 
   /** each frame, after the powers' step */
@@ -123,6 +146,8 @@ export class PowerFxDraw {
     this.deposits = 0;
     const G = this.ctx.glows;
     this.lit.length = 0;
+    this.steamLit.length = 0;
+    this.column = null;
     for (const e of P.fx) this.moment0(e, P);
     // the effects as they stand (the powers' own clock: each Live's born is on it)
     const now = P.clock;
@@ -135,10 +160,12 @@ export class PowerFxDraw {
       const g0 = G.count;
       this.draw(L, a, now, P, G, vort);
       if ((L.kind === 'geyser' || L.kind === 'puddle') && G.count > g0) this.lit.push([g0, G.count]);
+      if (L.kind === 'geyser' && G.count > g0) this.steamLit.push([g0, G.count]);
     }
     // set ice whose effect has gone (melted, or out of its life): taken away (its own melt has already shown)
     for (const [id, ids] of this.ice) if (!seen.has(id)) { for (const x of ids) this.ctx.setIce?.remove(x); this.ice.delete(id); }
     for (const id of this.vortices) if (!vort.has(id)) this.ctx.field?.vortex(id, null);
+    for (const id of this.reactedAt.keys()) if (!seen.has(id)) this.reactedAt.delete(id);
     this.vortices = vort;
     // the power form: the body's matter at its form, rings rising up it
     for (let k = 0; k < 2; k++) {
@@ -155,10 +182,20 @@ export class PowerFxDraw {
       }
     }
     const g0 = G.count;
-    this.moments = this.moments.filter((m) => { const age = this.t - m.t, u = age / m.life; if (u >= 1) return false; m.draw(u, age); return true; });
+    this.moments = this.moments.filter((m) => {
+      const age = this.t - m.t, u = age / m.life;
+      if (u >= 1) return false;
+      const s0 = G.count;
+      m.draw(u, age);
+      if (m.steam && G.count > s0) this.steamLit.push([s0, G.count]);
+      return true;
+    });
     if (G.count > g0) this.lit.push([g0, G.count]);
-    // (the reactions' own light, the geyser's column and the moments' blooms, kept off the bodies: phase 4)
+    // (steam's light kept clear of the bodies by its own reach on screen, nearly all of it: phase 5; then, with the rest
+    // of the reactions' own light, the geyser's column and the moments' blooms, kept off the bodies: phase 4)
+    this.keepClear(this.steamLit, 0.85 + 0.12 * (this.ctx.quiet?.() ?? 0), this.pairNear(P));
     this.ctx.keepOff?.(this.lit);
+    if (this.hideSteam) for (const [a, b] of this.steamLit) for (let i = a; i < b; i++) G.data[i * GLOW_FLOATS + 7] = 0;
   }
 
   /** a moment the powers made this frame: blooms, flashes, sounds */
@@ -231,7 +268,10 @@ export class PowerFxDraw {
         this.ctx.hush?.();
         if (e.kind === 'geyser') {
           this.sfx('unison', p, { element: 'water' });
-          this.bloom(p, mixRGB(STEAM, SUNLIT_RGB.cream, 0.4), [0.75, 1.3, 1.2], 1.3, 1.1);
+          // (a bloom of sun and sky teal opening on the floor, at 0.6: it was steam's white)
+          this.steamTag = true;
+          this.bloom(p, mixRGB(MOTE, SUNLIT_RGB.cream, 0.4), [0.75, 1.3, 1.2], 1.3, 1.1, 0.6);
+          this.steamTag = false;
           this.ctx.ripple?.(p[0], p[2], 1.2, 1.4);
         } else if (e.kind === 'melt') {
           this.sfx('near', p, { element: 'water' });
@@ -263,26 +303,84 @@ export class PowerFxDraw {
   }
 
   /** a bloom on the floor: petals opening from the middle and curling up, a soft heart, motes drifting up */
-  private bloom(at: V3, a: RGB, b: RGB, life: number, size: number) {
+  private bloom(at: V3, a: RGB, b: RGB, life: number, size: number, I = 1) {
     const G = this.ctx.glows, foot: V3 = [at[0], at[1] + 0.04, at[2]], seed = at[0] * 3.1 + at[2] * 1.7;
     this.moment(life, (u, age) => {
       const open = smooth(u / 0.35) * size;
-      G.flat(foot, 0.15 + 1.0 * open, mixRGB(a, b, u), 1.3 * (1 - u) * (1 - u), 'ring');
-      G.flat(foot, 0.5 * open, a, 0.7 * (1 - u), 'soft');
+      G.flat(foot, 0.15 + 1.0 * open, mixRGB(a, b, u), 1.3 * I * (1 - u) * (1 - u), 'ring');
+      G.flat(foot, 0.5 * open, a, 0.7 * I * (1 - u), 'soft');
       for (let j = 0; j < 7; j++) {
         // a petal: out from the middle and up its curve, in the warm colour, its tip lighter
         const ang = seed + j * 0.8976, r = 0.25 + 0.75 * open, lift = 0.35 * open * open;
         const p0: V3 = [foot[0] + Math.cos(ang) * r * 0.45, foot[1] + lift * 0.3, foot[2] + Math.sin(ang) * r * 0.45];
         const p1: V3 = [foot[0] + Math.cos(ang) * r, foot[1] + lift, foot[2] + Math.sin(ang) * r];
-        G.seg(p0, p1, 0.05 * size * (1 - 0.5 * u), mixRGB(a, b, 0.3 + 0.5 * u), 1.0 * (1 - u), 'soft');
-        G.dot(p1, 0.03, mixRGB(b, [1.6, 1.5, 1.3], 0.4), 1.4 * (1 - u), 'spark');
+        G.seg(p0, p1, 0.05 * size * (1 - 0.5 * u), mixRGB(a, b, 0.3 + 0.5 * u), 1.0 * I * (1 - u), 'soft');
+        G.dot(p1, 0.03, mixRGB(b, [1.6, 1.5, 1.3], 0.4), 1.4 * I * (1 - u), 'spark');
       }
       for (let j = 0; j < 10; j++) {
         // motes: drifting up and swaying, fading
         const h = hash(j + seed), up = age * (1.2 + 1.6 * h), sway = Math.sin(age * 4 + j) * 0.12;
-        G.dot([foot[0] + Math.cos(j * 2.4) * (0.2 + 0.5 * h) + sway, foot[1] + up, foot[2] + Math.sin(j * 2.4) * (0.2 + 0.5 * h)], 0.022 + 0.015 * h, b, 1.3 * (1 - u), 'spark');
+        G.dot([foot[0] + Math.cos(j * 2.4) * (0.2 + 0.5 * h) + sway, foot[1] + up, foot[2] + Math.sin(j * 2.4) * (0.2 + 0.5 * h)], 0.022 + 0.015 * h, b, 1.3 * I * (1 - u), 'spark');
       }
     });
+  }
+
+  /** how much of the light at a point is shown by its distance from the eye: none nearer the lens than the pair (their
+   *  nearer body's distance less 1.3 m), all from 0.3 m nearer than them back (phase 5: the geyser's puffs against the
+   *  lens) */
+  private pairNear(P: DuelPowers): (p: ArrayLike<number>) => number {
+    const e = this.ctx.eye?.();
+    if (!e) return () => 1;
+    let d = Infinity;
+    for (const c of P.chars) d = Math.min(d, Math.hypot(c.root[0] - e[0], c.root[1] + 1 - e[1], c.root[2] - e[2]));
+    return (p) => smooth((Math.hypot(p[0] - e[0], p[1] - e[1], p[2] - e[2]) - (d - 1.3)) / 1.0);
+  }
+
+  /** steam's light kept clear of the bodies (phase 5): each glow in `ranges` that reaches a dancer's core on screen (a
+   *  capsule from its hips to its head, 0.3 m about the spine), by its own radius as well as its middle, is dimmed by up
+   *  to `k`, smoothly from a little outside. keepOff (fx.ts) tests only a glow's middle against a box, which let a wide
+   *  soft glow or a long shaft whose middle stood beside a body lay itself over it. And none of it nearer the lens than
+   *  the pair (`near`) */
+  private keepClear(ranges: readonly [number, number][], k: number, near: (p: ArrayLike<number>) => number) {
+    const m = this.ctx.viewProj?.();
+    if (!m || !ranges.length) return;
+    const asp = Math.abs(m[5] / (m[0] || 1)), P1 = Math.abs(m[5]);
+    // a point on screen: x scaled by the aspect (so distances are in the screen's height), y, and its depth
+    const scr = (x: number, y: number, z: number): [number, number, number] | null => {
+      const w = m[3] * x + m[7] * y + m[11] * z + m[15];
+      if (!(w > 0.05)) return null;
+      return [((m[0] * x + m[4] * y + m[8] * z + m[12]) / w) * 0.5 * asp, ((m[1] * x + m[5] * y + m[9] * z + m[13]) / w) * 0.5, w];
+    };
+    const caps: [number, number, number, number, number][] = [];
+    for (const s of [0, 1]) {
+      const W = this.ctx.dancer(s)?.skeleton.world;
+      if (!W) continue;
+      const a = scr(W[0], W[1], W[2]), b = scr(W[19 * 12], W[19 * 12 + 1], W[19 * 12 + 2]);
+      if (a && b) caps.push([a[0], a[1], b[0], b[1], (0.3 * P1 * 0.5) / Math.min(a[2], b[2])]);
+    }
+    if (!caps.length) return;
+    const D = this.ctx.glows.data;
+    const reach = (p: [number, number, number], r: number) => {
+      let best = 0;
+      for (const c of caps) {
+        const ex = c[2] - c[0], ey = c[3] - c[1], h = Math.max(0, Math.min(1, ((p[0] - c[0]) * ex + (p[1] - c[1]) * ey) / Math.max(ex * ex + ey * ey, 1e-9)));
+        const d = Math.hypot(p[0] - c[0] - ex * h, p[1] - c[1] - ey * h) - r;
+        best = Math.max(best, 1 - smooth((d - c[4] * 0.6) / (c[4] * 1.2)));
+      }
+      return best;
+    };
+    for (const [g0, g1] of ranges) for (let i = g0; i < g1; i++) {
+      const o = i * GLOW_FLOATS, a = scr(D[o], D[o + 1], D[o + 2]);
+      // (none nearer the lens than the pair: the STEAM! bloom at a reaction under the eye was a white blot)
+      D[o + 7] *= near([(D[o] + D[o + 4]) / 2, (D[o + 1] + D[o + 5]) / 2, (D[o + 2] + D[o + 6]) / 2]);
+      if (!a) continue;
+      const b = scr(D[o + 4], D[o + 5], D[o + 6]) ?? a, mid = scr((D[o] + D[o + 4]) / 2, (D[o + 1] + D[o + 5]) / 2, (D[o + 2] + D[o + 6]) / 2) ?? a;
+      // (its radius on screen; a ring or a pool on the floor by points round it, and only partly: it lies under them)
+      const flat = D[o + 11] >= 4, r = flat ? 0 : ((D[o + 3] * P1 * 0.5) / mid[2]) * 0.7;
+      let c = Math.max(reach(a, r), reach(b, r), reach(mid, r));
+      if (flat) for (let j = 0; j < 8 && c < 1; j++) { const t = (j / 8) * Math.PI * 2, q = scr(D[o] + Math.cos(t) * D[o + 3], D[o + 1], D[o + 2] + Math.sin(t) * D[o + 3]); if (q) c = Math.max(c, reach(q, 0)); }
+      if (c > 0) D[o + 7] *= 1 - k * c * (flat ? 0.6 : 1);
+    }
   }
 
   /** set ice for an effect, once */
@@ -363,6 +461,14 @@ export class PowerFxDraw {
         break;
       }
       case 'wave': {
+        // (a wave that made a geyser goes up into it: its crest and spray gone over a third of a second, where they
+        // were the white spray over the pair and against the lens: phase 5)
+        if (L.reacted) {
+          const r0 = this.reactedAt.get(L.id) ?? this.t;
+          this.reactedAt.set(L.id, r0);
+          a *= Math.max(0, 1 - (this.t - r0) / 0.35);
+          if (a <= 0.003) break;
+        }
         const c = L.tip!, dir = L.dir, side: V3 = [-dir[1], 0, dir[0]], k = L.big ? 1.25 : 1, W = 2.3 * k, H = 1.25 * k;
         const n = 11;
         for (let i = 0; i < n; i++) {
@@ -480,15 +586,50 @@ export class PowerFxDraw {
         const id = `duel.geyser.${L.id % 2}`;
         vort.add(id);
         this.ctx.field?.vortex(id, { at: [b[0], b[1] + H / 2, b[2]], axis: [0, 1, 0], strength: 2.5 * a, radius: R * 0.8, inflow: 0.6, lift: 6 * a, height: H / 2 });
-        // heat and wet laid up the column: steam's wisps boil off it
-        for (let j = 0; j < 2; j++) { const y = b[1] + 0.3 + hash(t * 13 + j) * H * 0.6; this.deposit({ p: [b[0], y, b[2]], r: R * 0.7, heat: 0.8 * a, wet: 0.9 * a, wind: [0, 5, 0] }); }
-        for (let j = 0; j < 26; j++) {
-          // white light spiralling up it
-          const u = (t * 0.45 + j / 26) % 1, ang = j * 2.4 + t * 2.5, r = R * (0.25 + 0.5 * hash(j));
-          G.dot([b[0] + Math.cos(ang) * r, b[1] + u * H, b[2] + Math.sin(ang) * r], 0.1 + 0.25 * u, mixRGB(FOAM, STEAM, u), 0.5 * a * (1 - u * 0.8), 'soft');
+        // heat and wet laid up the column: steam's wisps boil off it (the mist itself: steam_draw.wgsl lights it)
+        for (let j = 0; j < 3; j++) { const y = b[1] + 0.3 + hash(t * 13 + j) * H * 0.6; this.deposit({ p: [b[0], y, b[2]], r: R * 0.8, heat: 1.1 * a, wet: 1.2 * a, wind: [0, 4, 0] }); }
+        // the light it carries, dimmed through a catch's frames and gone nearer the lens than the pair (phase 5: 26 soft
+        // white balls up to 0.35 m and two white rings, the cotton balls over the pair)
+        const hushed = a * (1 - 0.75 * (this.ctx.quiet?.() ?? 0)), near = this.pairNear(P), dusk = Math.min(1, this.ctx.dusk?.() ?? 0);
+        // (the column of mist itself: steam's composite, thinned over the bodies, none of it nearer the lens than them)
+        const amt = a * (1 - 0.6 * (this.ctx.quiet?.() ?? 0));
+        if (!this.column || amt > this.column.amount) this.column = { at: [b[0], b[1], b[2]], r: R * 0.95, h: H, amount: amt, dusk };
+        const shaftC = mixRGB(SHAFT, MOSS, dusk), creamC = mixRGB(CREAM, MOSS, dusk * 0.8), moteC = mixRGB(MOTE, FIREFLY, dusk), poolC = mixRGB(SUNPOOL, MOSSPOOL, dusk);
+        // shafts of sun rising through the mist, leaning a little, breathing; each in pieces (so a piece in front of a
+        // body is the one kept off it)
+        for (let j = 0; j < 6; j++) {
+          const ang = j * 1.047 + t * 0.12 + hash(j) * 0.6, r0 = R * (0.15 + 0.45 * hash(j + 3)), lean = (hash(j + 9) - 0.5) * 0.5;
+          const breathe = 0.5 + 0.5 * Math.sin(t * 1.1 + j * 1.9), x0 = b[0] + Math.cos(ang) * r0, z0 = b[2] + Math.sin(ang) * r0;
+          for (let k = 0; k < 4; k++) {
+            const v0 = k / 4, v1 = (k + 1) / 4, pA: V3 = [x0 + lean * v0 * Math.cos(ang), b[1] + 0.15 + v0 * H, z0 + lean * v0 * Math.sin(ang)], pB: V3 = [x0 + lean * v1 * Math.cos(ang), b[1] + 0.15 + v1 * H, z0 + lean * v1 * Math.sin(ang)];
+            G.seg(pA, pB, 0.07 + 0.05 * hash(j + 5), shaftC, 0.16 * (1 - 0.7 * dusk) * hushed * breathe * (1 - 0.55 * v0) * Math.min(near(pA), near(pB)), 'soft');
+          }
         }
-        G.flat([b[0], b[1] + 0.04, b[2]], R, FOAM, 0.6 * a, 'ring');
-        G.flat([b[0], b[1] + 0.04, b[2]], R * (0.5 + 0.5 * ((t * 1.5) % 1)), FOAM, 0.6 * a * (1 - ((t * 1.5) % 1)), 'ring');
+        // the mist's veil round the column: strands of sunlit vapour standing at its rim, swaying, faint at their foot
+        // and their top (the near side goes with the lens's fade: a curtain behind and beside the pair, never over them)
+        for (let j = 0; j < 16; j++) {
+          const ang = j * 0.3927 + hash(j + 21) * 0.3 + t * 0.05, rr = R * (0.8 + 0.25 * hash(j + 23)), top = H * (0.55 + 0.4 * hash(j + 25));
+          const sway = 0.5 + 0.5 * Math.sin(t * 0.8 + j * 2.3), col = mixRGB(creamC, shaftC, hash(j + 27));
+          let prev: V3 | null = null;
+          for (let k = 0; k <= 5; k++) {
+            const v = k / 5, wob = 0.12 * Math.sin(t * 1.3 + v * 4 + j), a2 = ang + wob * 0.2;
+            const q: V3 = [b[0] + Math.cos(a2) * (rr + wob), b[1] + 0.05 + v * top, b[2] + Math.sin(a2) * (rr + wob)];
+            // (wide and faint, in patches drifting up it: mist, never a tube of light)
+            const patch = 0.45 + 0.55 * Math.max(0, Math.sin(v * 6.5 + j * 1.7 - t * 1.4));
+            if (prev) G.seg(prev, q, 0.3 + 0.14 * hash(j + 29), col, 0.055 * hushed * (0.6 + 0.4 * sway) * patch * Math.sin(Math.PI * (v - 0.1)) * Math.min(near(prev), near(q)), 'soft');
+            prev = q;
+          }
+        }
+        // motes of sun and dew spiralling up it
+        for (let j = 0; j < 30; j++) {
+          const u = (t * 0.4 + j / 30) % 1, ang = j * 2.4 + t * 2.2, r = R * (0.2 + 0.55 * hash(j));
+          const p: V3 = [b[0] + Math.cos(ang) * r, b[1] + 0.1 + u * H, b[2] + Math.sin(ang) * r];
+          G.dot(p, 0.02 + 0.016 * hash(j + 5), j % 4 === 0 ? DEW : moteC, 1.2 * hushed * Math.sin(Math.PI * u) * near(p), 'spark');
+        }
+        // a pool of sunlight on the floor at its foot, and one slow cream ring opening in it
+        const foot: V3 = [b[0], b[1] + 0.04, b[2]], v = (t * 0.7) % 1;
+        G.flat(foot, R * 0.9, poolC, 0.16 * hushed * near(foot), 'soft');
+        G.flat(foot, R * (0.45 + 0.55 * v), creamC, 0.3 * hushed * (1 - v) * near(foot), 'ring');
         break;
       }
       case 'puddle': {

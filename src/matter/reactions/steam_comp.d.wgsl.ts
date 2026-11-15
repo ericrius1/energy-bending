@@ -79,8 +79,15 @@ export interface Steam {
   hAt: Vec4;
   hAxis: Vec4;
   hShape: Vec4;
+  keep: ArrayLike<number> | Vec4[];
+  keepR: Vec4;
+  keepK: Vec4;
+  look: Vec4;
+  column: Vec4;
+  columnB: Vec4;
+  columnCol: Vec4;
   near: ArrayLike<number> | Vec4[];
 }
 
-declare const shader: Shader<{ Frame: Frame; FullscreenOut: FullscreenOut; Puff: Puff; Steam: Steam }, 'frame' | 'steam' | 'steamLow' | 'samp_linear' | 'samp_repeat' | 'samp_nearest' | 'samp_shadow'>;
+declare const shader: Shader<{ Frame: Frame; FullscreenOut: FullscreenOut; Puff: Puff; Steam: Steam }, 'frame' | 'steam' | 'steamLow' | 'sceneTex' | 'samp_linear' | 'samp_repeat' | 'samp_nearest' | 'samp_shadow'>;
 export default shader;
