@@ -219,15 +219,16 @@ struct VOut {
   var col = albedo * (kcol * kd + amb + worldFire(i.wp, N));
   col += albedo * kcol * poolCaustics(i.wp, -i.wp.y) * (0.4 + 0.6 * max(N.y, 0.0));
   // the glaze: a clear coat over its colour (the sky and the sun in it)
+  let env = poolEnv(R, i.wp);
   if (glaze > 0.0) {
-    col = mix(col, poolGlaze(col, N, V, i.wp, 0.85), glaze);
+    col = mix(col, poolGlaze(col, N, V, env, 0.85), glaze);
   } else {
     // a little wet sheen near the water, more on the stone
     let wetSheen = wet * select(0.4, 0.2, look == 3u);
-    col += poolEnv(R, i.wp) * fres * (0.12 + wetSheen);
+    col += env * fres * (0.12 + wetSheen);
   }
   // the brass: the sky and the sun mirrored in warm metal
-  col = mix(col, poolBrass(N, V, i.wp, amb, kd), metal);
+  col = mix(col, poolBrass(N, V, env, amb, kd), metal);
   // the sun behind the stage round every silhouette
   let rimL = pow(1.0 - cosV, 4.0) * max(dot(-V, worldLight.pool.glowDir.xyz) * 0.5 + 0.5, 0.0);
   col += worldLight.pool.glow.rgb * worldLight.pool.glow.w * rimL * 0.25;

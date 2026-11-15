@@ -2,13 +2,15 @@
 // to swim in (phase 3, hazards.ts: a body that misses a stone lands in the water with a ripple, floats with its head and
 // shoulders out, swims slower than it runs, and kicks up onto a stone; nobody falls out of the Pool), and on each phrase a
 // swell rolls across it that the floes ride and the low stones rock on. The space is a field of things rising out of
-// the water, drawn by stones.wgsl (phase 4: terracotta under moss with brass inlay, and the floes as woven rafts carpeted
-// in moss and flowers; the water garden round them is garden.ts): stepping
+// the water, drawn by stones.wgsl (phase 5, report 18: the low stones glazed planters with brass rims and planting round
+// their rims, the blocks and standing stones terracotta and brass, the floes woven rafts; the water garden round them is
+// garden.ts, the pavilion, arches and fountains at the rim edge.ts): stepping
 // stones and floes a stride apart, blocks a jump high, standing stones taller than a jump to kick
 // off and climb, and through the middle, along the stage plane, a row of them laid as a stage: a big flat stone at each
 // end with a standing stone on it, a floe either side of the middle, and in the middle a stone with an arch on it (two
 // pillars, a lintel, a capstone balanced on top). Every piece is a rounded box whose solid is the box, so its top is
-// exactly where a body stands and its sides are its walls.
+// exactly where a body stands and its sides are its walls (the low ones drawn with their corners rounded off as pads, up
+// to 17 cm inside the box's corners: nothing about the solids changed).
 import { mulberry32 } from 'math/random';
 import { stagePlane } from '../stage';
 import { boxOn, type Solid } from '../solids';

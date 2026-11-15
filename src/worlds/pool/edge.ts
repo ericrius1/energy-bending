@@ -118,7 +118,7 @@ export class PoolEdge {
       d('leaves', 'vs_leaf', 6);
       d('sails', 'vs_sail', 36 * 3);
     } else if (s.phase === 'glow') {
-      const per = this.coarse ? 60 : 120;
+      const per = this.coarse ? 80 : 160;
       s.pass.draw(edgeShader, { label: 'pool.edge.jets', vertex: 'vs_jet', fragment: 'fs_jet', bind: { items: this.bufs.jets }, count: 6, instances: this.counts.jets * per, constants: { PER: per }, blend: 'add', depthWrite: false, cull: 'none', enabled: () => on() && this.counts.jets > 0 });
     }
   }

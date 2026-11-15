@@ -13,6 +13,9 @@
 // the dry upper stone, a white line of salt at the high tide's mark, weed below the low water, and wet stone dark and
 // glossy under the water and drying as the tide falls (temple.wgsl templeWet). Lit by the moon behind (the pillars'
 // shadows; a cool rim), the afterglow in front (a low warm light that rakes the carving), the dusk and the dancers.
+// (Report 18: the craft answers the sun: the carved bands and panels white glaze with the sky and the canopy's glass in
+// them and a hard small highlight, the capitals and bases brass rubbed bright, brass collars at a tall shaft's joints;
+// the vines on the shafts are their stems only, the leaves and flowers are cards, garden.wgsl vs_vine.)
 #include "weft/frame"
 #include "../light"
 

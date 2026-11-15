@@ -3,7 +3,8 @@
 // gold on the horizon, the sun low behind the stage, and round the horizon a far shore of gardens: trees, and glass-and-
 // brass pavilions whose domes catch the sun. Its light is case 2 of worlds/light.wgsl (pool.wgsl). What it draws: the
 // sky and the open water (the backdrop) and, in the duel, the arena's stones and rafts and the garden on the water
-// round them (garden.ts). The water's surface is laid over the scene in the air pass (pool.wgsl poolScene): what stands
+// round them (garden.ts; the planting on the pieces' rims, beds.wgsl) and the built garden at the rim, at the bodies'
+// height (edge.ts: the pavilion, sails, trellis arches, fountains; report 18). The water's surface is laid over the scene in the air pass (pool.wgsl poolScene): what stands
 // in the water fades into its teal with depth, the sky and the dancers are mirrored, bent by a live ripple field
 // (water/ripples.ts) that the dancers' feet and hands stir by themselves and that the game can push with
 // `ripple(x, z, strength, radius)`, the sun glitters on the ripples, foam gathers where a body or a stone breaks the

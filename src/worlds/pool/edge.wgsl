@@ -261,10 +261,11 @@ fn edgePetal(k: f32) -> vec3f {
     let F = 0.08 + 0.92 * pow(1.0 - max(dot(N, V), 0.0), 4.0);
     let inside = mix(vec3f(0.06, 0.13, 0.05), vec3f(0.35, 0.3, 0.12), vnoise(i.wp * 2.3)) * (sun * 0.25 + amb * 0.6);
     let glint = pow(max(dot(R, K.xyz), 0.0), 300.0) * 12.0;
-    col = inside * (1.0 - F) + (poolEnv(R, i.wp) + sun * glint) * F;
+    let env = poolEnv(R, i.wp);
+    col = inside * (1.0 - F) + (env + sun * glint) * F;
     // (the sun behind the dome, seen through its glass: a gold glow round the far panes)
     col += sun * vec3f(1.0, 0.75, 0.4) * pow(max(dot(-V, K.xyz), 0.0), 6.0) * 0.35 * (1.0 - F);
-    col = mix(col, poolBrass(N, V, i.wp, amb, kd), rib);
+    col = mix(col, poolBrass(N, V, env, amb, kd), rib);
   } else if (m > 3.5 && m < 4.5) {
     // a basin's water: clear, rippled by the jet falling in, the sky in it
     let t = worldLight.pool.march.z;
@@ -274,11 +275,11 @@ fn edgePetal(k: f32) -> vec3f {
     let F = 0.05 + 0.95 * pow(1.0 - max(dot(wn, V), 0.0), 5.0);
     col = mix(worldLight.pool.deep.rgb * 1.6 + vec3f(0.05, 0.2, 0.18) * sun * 0.2, poolEnv(R, i.wp), F) + sun * pow(max(dot(R, K.xyz), 0.0), 400.0) * 6.0 + rr * 0.0;
   } else if (m > 0.5 && m < 1.5) {
-    col = poolBrass(N, V, i.wp, amb, kd);
+    col = poolBrass(N, V, poolEnv(reflect(-V, N), i.wp), amb, kd);
   } else {
     let albedo = edgeAlbedo(m, i.info, i.uv, i.wp);
     col = albedo * (sun * kd + amb + worldFire(i.wp, N));
-    if (m < 0.5 || (m > 2.5 && m < 3.5) || (m > 4.5 && m < 5.5)) { col = poolGlaze(col, N, V, i.wp, 0.85); }
+    if (m < 0.5 || (m > 2.5 && m < 3.5) || (m > 4.5 && m < 5.5)) { col = poolGlaze(col, N, V, poolEnv(reflect(-V, N), i.wp), 0.85); }
   }
   // the sun behind round every silhouette
   let rimL = pow(1.0 - max(dot(N, V), 0.0), 4.0) * max(dot(-V, worldLight.pool.glowDir.xyz) * 0.5 + 0.5, 0.0);
@@ -308,7 +309,8 @@ struct JOut {
   let spread = vec2f(cos(a), sin(a)) * select(0.05 + 0.06 * h.x, 0.62 / life, arc);
   let p = vec3f(J.x, J.y, J.z) + vec3f(spread.x * age, vy * age - 0.5 * g * age * age, spread.y * age);
   let c = array<vec2f, 6>(vec2f(-1.0, -1.0), vec2f(1.0, -1.0), vec2f(1.0, 1.0), vec2f(-1.0, -1.0), vec2f(1.0, 1.0), vec2f(-1.0, 1.0))[vi];
-  let size = 0.014 + 0.014 * h.x;
+  // (larger than the temple's: the rim stands 10 to 15 m from the duel's eye)
+  let size = 0.028 + 0.024 * h.x;
   let vel = vec3f(spread.x, vy - g * age, spread.y);
   let sv = normalize(vel - frame.camFwd * dot(vel, frame.camFwd) + vec3f(0.0, 1e-4, 0.0));
   let sx = normalize(cross(sv, frame.camFwd));
@@ -318,7 +320,7 @@ struct JOut {
   let V = normalize(frame.camPos - p);
   let glint = pow(max(dot(-V, worldLight.pool.key.xyz), 0.0), 6.0);
   // (gone below the bowl's water; dim past the near fade's reach, faded as the decorations are)
-  o.bright = (sun * (0.1 + 0.6 * glint) + poolAmbient(vec3f(0.0, 1.0, 0.0), 1.0) * 0.2) * smoothstep(0.0, 0.04, age) * select(1.0, 0.0, p.y < J.y - 0.75) * (1.0 - decorFade(p));
+  o.bright = (sun * (0.16 + 0.9 * glint) + poolAmbient(vec3f(0.0, 1.0, 0.0), 1.0) * 0.3) * smoothstep(0.0, 0.04, age) * select(1.0, 0.0, p.y < J.y - 0.75) * (1.0 - decorFade(p));
   return o;
 }
 

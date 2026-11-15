@@ -3,7 +3,8 @@
 // all of it moving in the sea air (garden.wgsl draws them; fountains.wgsl the fountains' jets). Hung from the stones
 // as they stand (layout.ts and the duel's arena.ts describe the same stones), never in the way: nothing here is solid,
 // the banners hang behind the stage or at the court's sides, the strands over the pair's lintels are short (a body
-// passes under them), and the arena's shapes and collision are the stones', untouched.
+// passes under them), and the arena's shapes and collision are the stones', untouched. Report 18 adds the vines' leaves
+// and flowers round the columns, and the stained-glass screens at the court's edge (the temple's landmark).
 import { mulberry32 } from 'math/random';
 import type { Stone } from './layout';
 import { STAGE_Z } from './layout';

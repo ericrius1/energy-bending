@@ -75,7 +75,7 @@ fn templeSky(d: vec3f, stars: f32) -> vec3f {
 
 /** the stained solar glass over the court as the eye (or a mirror) sees it in direction d: above about 13° the sky is
  *  the canopy's glass, an art-nouveau fan of petals round the zenith in gold, teal, coral, leaf and cream between
- *  leaded cames and brass ribs, lit through by the sun (brightest round its disc, which shows through the glass as a
+ *  leaded cames, a brass ring at its rim, lit through by the sun (brightest round its disc, which shows through the glass as a
  *  glow). Report 18: the canopy is never in the duel's frame, but its colour is now in the water and on the wet and
  *  glazed stone, which are. Its light on the court is templeCanopy's */
 fn templeVault(d: vec3f) -> vec4f {
