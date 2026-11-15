@@ -64,6 +64,8 @@ import { spaceFor } from './camspace';
 import { SEAT_CSS } from './seat';
 import { camKind } from './weight';
 import { momentsHook } from './moments';
+import { steamHook } from './steam-probe';
+import { steamParams } from '../matter/reactions/params';
 import { DuelHud, screenOf, screenBounds, type HudSeat, type HudState, type HudWord } from './hud-state';
 import { duelSound, phraseSetMs } from './sound';
 import { trackFor } from '../audio/track';
@@ -425,6 +427,7 @@ export async function startDuel(app: PlayApp, opts: { joined?: Joined } = {}) {
   /** a cast asked for by bend.duel.cast, for the next frame */
   const castNext: (PowerInput | null)[] = [null, null];
   const REACT_WORD = { geyser: 'STEAM!', melt: 'MELT!', freeze: 'FREEZE!' } as const;
+  const hidden = { cap: 0, frontGlow: 0 };
   const reactAt = new Map<string, [number, number]>();
   frame.tick('post', (f: FrameCtx) => {
     draw.upload();
@@ -470,6 +473,15 @@ export async function startDuel(app: PlayApp, opts: { joined?: Joined } = {}) {
     hud: () => hudState,
     /** the moments probe (moments.ts): words on screen and the bodies covered, sampled after each frame is drawn */
     moments: momentsHook({ dancer, project, glows, lit: () => [...fx.lit, ...powerFx.lit], events: () => frameEvents, power: () => powers.fx, t: () => now / 1000 }),
+    /** the steam probe (steam-probe.ts): steam's and the geyser's veil over the bodies, from the pixels with and without */
+    steam: steamHook({
+      kit, dancer, project, geyser: () => powers.live.some((L) => L.kind === 'geyser' && !L.done), steamed: () => powers.fx.some((x) => x.k === 'react' && x.kind === 'geyser'),
+      hide: (on, part = 'all') => {
+        const P = steamParams as unknown as Record<string, number>, h = hidden;
+        if (part !== 'glow') { if (on) { h.cap = P.cap; h.frontGlow = P.frontGlow; P.cap = 0; P.frontGlow = 0; } else { P.cap = h.cap; P.frontGlow = h.frontGlow; } }
+        if (part !== 'matter') powerFx.hideSteam = on;
+      },
+    }),
     /** begin now (the human seats' devices not yet in), or from set 1 again */
     start: begin,
     restart: () => { finale.stop(); if (!started) begin(); else match.restart(now); },

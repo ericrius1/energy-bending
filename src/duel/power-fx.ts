@@ -28,7 +28,7 @@
 // Sounds from the music engine's few (formOn, near, clash, dodge, echo, unison, parry); a CPU list of glows (play/glow),
 // at most a handful of field deposits a frame.
 import type { Dancer } from '../dancer/dancer';
-import type { Glows, RGB } from '../play/glow';
+import { GLOW_FLOATS, type Glows, type RGB } from '../play/glow';
 import { COLOURS, mixRGB } from '../play/feel';
 import type { Element } from '../play/jogo';
 import type { DuelPowers, Live, PowerFx } from './powers';
@@ -81,7 +81,9 @@ const hue = (h: number, I = 1.6): RGB => {
 export class PowerFxDraw {
   private t = 0;
   /** one-off moments (blooms, flashes) and how long each lasts */
-  private moments: { t: number; life: number; draw(u: number, age: number): void }[] = [];
+  private moments: { t: number; life: number; steam?: boolean; draw(u: number, age: number): void }[] = [];
+  /** a moment made while this is on is steam's (the STEAM! bloom): the steam probe can hide it */
+  private steamTag = false;
   /** set ice laid for an effect (its pieces), by the effect's id */
   private ice = new Map<number, number[]>();
   /** the form's look on each body: eased toward 1 while in it */
@@ -91,6 +93,10 @@ export class PowerFxDraw {
   private vortices = new Set<string>();
   /** this frame's moments' and reactions' light, as ranges of the glow list [from, to) (the moments probe) */
   readonly lit: [number, number][] = [];
+  /** this frame's steam light (the geyser's column, rings and spray, the STEAM! bloom), as ranges of the glow list */
+  readonly steamLit: [number, number][] = [];
+  /** the steam probe (steam-probe.ts): the steam light drawn dark, to see the frame without it */
+  hideSteam = false;
 
   constructor(private ctx: PowerFxCtx, private matter: (seat: number) => Matter) {}
 
@@ -105,7 +111,7 @@ export class PowerFxDraw {
     this.deposits++;
     this.ctx.field.deposit(d);
   }
-  private moment(life: number, draw: (u: number, age: number) => void) { this.moments.push({ t: this.t, life, draw }); }
+  private moment(life: number, draw: (u: number, age: number) => void) { this.moments.push({ t: this.t, life, steam: this.steamTag, draw }); }
   private chest(k: number, P: DuelPowers): V3 { const c = P.chars[k]; return [c.root[0], c.root[1] + 1.1, c.root[2]]; }
 
   /** everything the powers left (a new set, the duel's end) */
@@ -123,6 +129,7 @@ export class PowerFxDraw {
     this.deposits = 0;
     const G = this.ctx.glows;
     this.lit.length = 0;
+    this.steamLit.length = 0;
     for (const e of P.fx) this.moment0(e, P);
     // the effects as they stand (the powers' own clock: each Live's born is on it)
     const now = P.clock;
@@ -135,6 +142,7 @@ export class PowerFxDraw {
       const g0 = G.count;
       this.draw(L, a, now, P, G, vort);
       if ((L.kind === 'geyser' || L.kind === 'puddle') && G.count > g0) this.lit.push([g0, G.count]);
+      if (L.kind === 'geyser' && G.count > g0) this.steamLit.push([g0, G.count]);
     }
     // set ice whose effect has gone (melted, or out of its life): taken away (its own melt has already shown)
     for (const [id, ids] of this.ice) if (!seen.has(id)) { for (const x of ids) this.ctx.setIce?.remove(x); this.ice.delete(id); }
@@ -155,10 +163,18 @@ export class PowerFxDraw {
       }
     }
     const g0 = G.count;
-    this.moments = this.moments.filter((m) => { const age = this.t - m.t, u = age / m.life; if (u >= 1) return false; m.draw(u, age); return true; });
+    this.moments = this.moments.filter((m) => {
+      const age = this.t - m.t, u = age / m.life;
+      if (u >= 1) return false;
+      const s0 = G.count;
+      m.draw(u, age);
+      if (m.steam && G.count > s0) this.steamLit.push([s0, G.count]);
+      return true;
+    });
     if (G.count > g0) this.lit.push([g0, G.count]);
     // (the reactions' own light, the geyser's column and the moments' blooms, kept off the bodies: phase 4)
     this.ctx.keepOff?.(this.lit);
+    if (this.hideSteam) for (const [a, b] of this.steamLit) for (let i = a; i < b; i++) G.data[i * GLOW_FLOATS + 7] = 0;
   }
 
   /** a moment the powers made this frame: blooms, flashes, sounds */
@@ -231,7 +247,9 @@ export class PowerFxDraw {
         this.ctx.hush?.();
         if (e.kind === 'geyser') {
           this.sfx('unison', p, { element: 'water' });
+          this.steamTag = true;
           this.bloom(p, mixRGB(STEAM, SUNLIT_RGB.cream, 0.4), [0.75, 1.3, 1.2], 1.3, 1.1);
+          this.steamTag = false;
           this.ctx.ripple?.(p[0], p[2], 1.2, 1.4);
         } else if (e.kind === 'melt') {
           this.sfx('near', p, { element: 'water' });
