@@ -82,7 +82,7 @@ for (const id of worlds) {
           for (const e of events) if (e.k === 'merge') cam.impulse({ at: match.contact.link?.at ?? B[0].head, kind: 'merge', k: 1 });
         }
         const t0 = performance.now();
-        const pose = cam.update(1 / 60, { bodies: B, aspect: ASPECT, gravity: 40, space, near: 0.6, center: arena.space.center, room: arena.camera?.maxDist ?? arena.space.radius + 6, maxDist: arena.camera?.maxDist });
+        const pose = cam.update(1 / 60, { bodies: B, aspect: ASPECT, gravity: 40, space, near: 0.6, center: arena.space.center, room: arena.camera?.maxDist ?? arena.space.radius + 6, maxDist: arena.camera?.maxDist, arena: arena.world });
         T.ms += performance.now() - t0;
         const J = judge(pose, seen.length ? seen : B, space, ASPECT);
         // the near fade's frame test on this pose (the page's: worlds/fade.ts), and the near frame judged with it

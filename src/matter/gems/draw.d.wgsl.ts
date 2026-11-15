@@ -216,9 +216,14 @@ export interface Pool {
   waves: Vec4;
   deep: Vec4;
   march: Vec4;
-  moon: Vec4;
-  moonCol: Vec4;
+  sun: Vec4;
+  sunCol: Vec4;
   mist: Vec4;
+  shore: Vec4;
+  absorb: Vec4;
+  look: Vec4;
+  swell: Vec4;
+  swellAt: Vec4;
 }
 export interface Temple {
   zenith: Vec4;

@@ -1,9 +1,10 @@
-// The Pool's duel arena (src/duel/arena.ts), from one description: in the duel the black water is deep, and it is a floor
+// The Pool's duel arena (src/duel/arena.ts), from one description: in the duel the water is deep, and it is a floor
 // to swim in (phase 3, hazards.ts: a body that misses a stone lands in the water with a ripple, floats with its head and
 // shoulders out, swims slower than it runs, and kicks up onto a stone; nobody falls out of the Pool), and on each phrase a
 // swell rolls across it that the floes ride and the low stones rock on. The space is a field of things rising out of
-// the water, drawn by stones.wgsl: stepping
-// stones of dark wet stone and ice floes a stride apart, blocks a jump high, standing stones taller than a jump to kick
+// the water, drawn by stones.wgsl (phase 4: terracotta under moss with brass inlay, and the floes as woven rafts carpeted
+// in moss and flowers; the water garden round them is garden.ts): stepping
+// stones and floes a stride apart, blocks a jump high, standing stones taller than a jump to kick
 // off and climb, and through the middle, along the stage plane, a row of them laid as a stage: a big flat stone at each
 // end with a standing stone on it, a floe either side of the middle, and in the middle a stone with an arch on it (two
 // pillars, a lintel, a capstone balanced on top). Every piece is a rounded box whose solid is the box, so its top is
@@ -121,8 +122,8 @@ function build(): PoolDuel {
     spawns, pieces, plane,
     camera: { minDist: 8, maxDist: 24, lens: 26, low: -1.0 },
     drops: [],
-    // (the moon's cold light)
-    rim: [0.6, 0.78, 1.0],
+    // (the evening sun's gold, faint: the stones and rafts are dark and warm now, the bodies on them pale)
+    rim: [0.34, 0.24, 0.11],
     // the hazard: a swell across the pool on each phrase, from a different side in turn (hazards.ts)
     hazard: swellHazard({ amp: 0.32, width: 2.1, reach: 13, dirs: [0.3, 2.4, 4.4, 1.3, 3.5, 5.5], movers }),
     // the shared energy here (shared/duel.ts DuelTune): the water keeps the two within reach and the swell throws them
