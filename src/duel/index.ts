@@ -64,7 +64,7 @@ import { spaceFor } from './camspace';
 import { SEAT_CSS } from './seat';
 import { camKind } from './weight';
 import { momentsHook } from './moments';
-import { DuelHud, screenOf, type HudSeat, type HudState, type HudWord } from './hud-state';
+import { DuelHud, screenOf, screenBounds, type HudSeat, type HudState, type HudWord } from './hud-state';
 import { duelSound, phraseSetMs } from './sound';
 import { trackFor } from '../audio/track';
 // (the HUD is the page's one, reached through bend.hud, and screenOf is hud-state.ts's copy of src/hud's: any value
@@ -258,7 +258,7 @@ export async function startDuel(app: PlayApp, opts: { joined?: Joined } = {}) {
     sfx: (name, o) => sound.jogo(name, o), ear,
     rumble: (k, s, ms) => { const i = humanSeats.indexOf(k); if (i >= 0) hub.rumble(i, s, ms); },
     field: field as unknown as DuelFxCtx['field'], burst: app.hand?.burst ?? null, finale: () => finale.look(),
-    eye: () => [cam.position[0], cam.position[1], cam.position[2]], form: (k) => powers.hud(k).form,
+    eye: () => [cam.position[0], cam.position[1], cam.position[2]], form: (k) => powers.hud(k).form, viewProj: () => cam.viewProj,
   });
   const water = app.kinds.find((k) => k.id === 'water' || k.id === 'ice') as WaterPasses | undefined;
   const plasma = app.kinds.find((k) => k.id === 'plasma') as PlasmaPasses | undefined;
@@ -267,7 +267,7 @@ export async function startDuel(app: PlayApp, opts: { joined?: Joined } = {}) {
     ripple: (x, z, s, r) => { (world() as unknown as { ripple?: (x: number, z: number, s: number, r: number) => void }).ripple?.(x, z, s, r); },
     sfx: (name, o) => sound.jogo(name, o), ear,
     rumble: (k, s, ms) => { const i = humanSeats.indexOf(k); if (i >= 0) hub.rumble(i, s, ms); },
-    fadeOf: (s) => app.fade?.strengthOf(s) ?? 0,
+    fadeOf: (s) => app.fade?.strengthOf(s) ?? 0, keepOff: (r) => { fx.keepOff(r); }, hush: () => { fx.quiet = 1; }, eye: () => [cam.position[0], cam.position[1], cam.position[2]],
   }, (k) => powers.rules.seats[k].matter);
   const hazardFx = new HazardFxDraw({ glows, eye: () => cam.position, ground: (x, z) => world().groundAt(x, z), field: field as unknown as ConstructorParameters<typeof HazardFxDraw>[0]['field'], ripple: (x, z, s, r) => { (world() as unknown as { ripple?: (x: number, z: number, s: number, r: number) => void }).ripple?.(x, z, s, r); } });
   const duelHud = new DuelHud();
@@ -291,7 +291,7 @@ export async function startDuel(app: PlayApp, opts: { joined?: Joined } = {}) {
     const dash = typeof c.dashReady === 'number' ? (c.dashReady as number) : typeof c.dashCharge === 'number' ? (c.dashCharge as number) : 1;
     const B = powers.hud(k), keys = powerKeys(k);
     const bend = { flow: B.flow, form: B.form, powers: B.powers.map((p, i) => ({ ...p, ...(keys ? { key: keys[i] } : {}) })) };
-    return { name: brains[k] ? `P${k + 1} · ${(brains[k] as DuelBrain).style ?? 'bot'}` : `P${k + 1}`, matter: elementOf(d), screen: head ? project([head[0], head[1] + 0.12, head[2]]) : null, dash, holding: match.contact.holding(k), held: match.contact.held(k), bend };
+    return { name: brains[k] ? `P${k + 1} · ${(brains[k] as DuelBrain).style ?? 'bot'}` : `P${k + 1}`, matter: elementOf(d), screen: head ? project([head[0], head[1] + 0.12, head[2]]) : null, bounds: d ? screenBounds(d.skeleton.world, cam.viewProj) : null, dash, holding: match.contact.holding(k), held: match.contact.held(k), bend };
   });
 
   // ---------------------------------------------------------------- starting
@@ -406,8 +406,8 @@ export async function startDuel(app: PlayApp, opts: { joined?: Joined } = {}) {
     // the moments of weight (juice events) into the frame's events; the camera eases toward each
     const juice = match.juice(now, [], powers.fx, powers.live, top ? { base: finale.base, flyer: finale.flyer, at: finale.topAt() } : null);
     ev.push(...juice);
-    const impulse = (dcam as unknown as { impulse?: (e: { at: V3; kind: ReturnType<typeof camKind>; k: number }) => void }).impulse;
-    for (const j of juice) if (j.at) impulse?.call(dcam, { at: j.at, kind: camKind(j.what), k: j.w });
+    const impulse = (dcam as unknown as { impulse?: (e: { at: V3; kind: ReturnType<typeof camKind>; k: number; hold?: number }) => void }).impulse;
+    for (const j of juice) if (j.at) impulse?.call(dcam, { at: j.at, kind: camKind(j.what), k: j.w, hold: j.hold / 60 });
     frameEvents = ev;
     fx.update(danceReal, ev, match.touches, match.contact, match.state);
     powerFx.update(f.danceDt, powers);

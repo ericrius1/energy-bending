@@ -21,6 +21,10 @@
 //            vortex, white light spiralling up it
 //   puddle   a disc of water on the floor, rings opening on it
 //   the form the body's matter at its form (fire toward plasma, water toward ice: Dancer.form), rings rising up it
+// The moments (phase 4): a catch at range leaves a glint of sun and a ring of leaves of both colours (fx.ts leafRing);
+// steam's bloom opens smaller, in cream and a mist of sky teal; a freeze is a frost flower, six crystal petals. The
+// reactions' own light (the moments here, the geyser's column, the puddle) is kept off the bodies on screen, nearly all
+// of it through a catch's frames (fx.ts keepOff, through `ctx.keepOff`; a catch at range or a reaction `hush`es).
 // Sounds from the music engine's few (formOn, near, clash, dodge, echo, unison, parry); a CPU list of glows (play/glow),
 // at most a handful of field deposits a frame.
 import type { Dancer } from '../dancer/dancer';
@@ -30,6 +34,7 @@ import type { Element } from '../play/jogo';
 import type { DuelPowers, Live, PowerFx } from './powers';
 import { formLook, type Matter } from '../../shared/powers.ts';
 import type { Solid } from '../worlds/solids';
+import { leafRing, SUNLIT_RGB } from './fx';
 
 type V3 = [number, number, number];
 
@@ -52,6 +57,12 @@ export interface PowerFxCtx {
   rumble?: (seat: number, strength: number, ms: number) => void;
   /** how strongly the near fade dissolves a solid now (worlds/fade.ts): a pillar standing in the near frame dims */
   fadeOf?: (s: Solid | null | undefined) => number;
+  /** the reactions' and the moments' light kept off the bodies (fx.ts DuelFx.keepOff: more in a catch's frames) */
+  keepOff?: (ranges: readonly [number, number][]) => void;
+  /** a catch's frames begin (a catch at range, a reaction): the light keeps off the bodies all the more (fx.ts quiet) */
+  hush?: () => void;
+  /** where the eye is (a catch's ring of leaves faces it) */
+  eye?: () => V3 | null;
 }
 
 const WARM: RGB = [1.7, 0.78, 0.26], EMBER: RGB = [1.9, 0.62, 0.14], GOLDEN: RGB = [1.8, 1.25, 0.55];
@@ -146,6 +157,8 @@ export class PowerFxDraw {
     const g0 = G.count;
     this.moments = this.moments.filter((m) => { const age = this.t - m.t, u = age / m.life; if (u >= 1) return false; m.draw(u, age); return true; });
     if (G.count > g0) this.lit.push([g0, G.count]);
+    // (the reactions' own light, the geyser's column and the moments' blooms, kept off the bodies: phase 4)
+    this.ctx.keepOff?.(this.lit);
   }
 
   /** a moment the powers made this frame: blooms, flashes, sounds */
@@ -179,11 +192,14 @@ export class PowerFxDraw {
       }
       case 'catch': {
         const ca = this.col(e.seat), cb = this.col(e.other), p = e.at;
+        this.ctx.hush?.();
         this.sfx('clash', p, { element: this.el(e.seat), vel: 0.85 });
         for (const k of [e.seat, e.other]) this.ctx.rumble?.(k, 0.5, 120);
-        this.moment(0.7, (u) => {
-          G.dot(p, 0.16 * (1 - u), [1.6, 1.5, 1.4], 2.6 * Math.pow(1 - u, 3), 'spark');
-          G.dot(p, 0.2 + u * 0.9, mixRGB(ca, cb, 0.5), 1.2 * (1 - u) * (1 - u), 'ring');
+        // (a catch at range: a glint of sun and a ring of leaves of both colours, as a catch's, wider)
+        const cols: RGB[] = [mixRGB(ca, SUNLIT_RGB.cream, 0.25), SUNLIT_RGB.leaf, mixRGB(cb, SUNLIT_RGB.cream, 0.25), SUNLIT_RGB.pollen];
+        this.moment(0.8, (u) => {
+          G.dot(p, 0.08 * (1 - u), SUNLIT_RGB.glint, 2.4 * Math.pow(1 - u, 3), 'spark');
+          leafRing(G, p, this.ctx.eye?.() ?? null, 0.35 + 1.0 * smooth(Math.min(1, u * 1.5)), 12, cols, 1.1 * (1 - u) * (1 - u), 0.3 * u * u, u);
         });
         break;
       }
@@ -212,9 +228,10 @@ export class PowerFxDraw {
       }
       case 'react': {
         const p = e.at;
+        this.ctx.hush?.();
         if (e.kind === 'geyser') {
           this.sfx('unison', p, { element: 'water' });
-          this.bloom(p, STEAM, FOAM, 1.4, 1.5);
+          this.bloom(p, mixRGB(STEAM, SUNLIT_RGB.cream, 0.4), [0.75, 1.3, 1.2], 1.3, 1.1);
           this.ctx.ripple?.(p[0], p[2], 1.2, 1.4);
         } else if (e.kind === 'melt') {
           this.sfx('near', p, { element: 'water' });
@@ -224,7 +241,14 @@ export class PowerFxDraw {
           this.ctx.ripple?.(p[0], p[2], 0.8, 1.0);
         } else {
           this.sfx('parry', p, { element: 'ice', perfect: true });
-          this.moment(0.7, (u) => { G.dot(p, 0.15 + u * 0.8, FROST, 1.4 * (1 - u), 'gem'); G.dot(p, 0.3 + u * 1.2, FROST, (1 - u), 'ring'); });
+          // (a frost flower: six crystal petals opening in the light, a gem at its heart)
+          this.moment(0.8, (u) => {
+            G.dot(p, 0.08 + u * 0.12, FROST, 1.3 * (1 - u), 'gem');
+            for (let j = 0; j < 6; j++) {
+              const a = j * 1.0472 + u * 0.4, r0 = 0.25 + 0.5 * smooth(u * 1.5), r1 = r0 + 0.22 * (1 - 0.4 * u);
+              G.seg([p[0] + Math.cos(a) * r0, p[1] + Math.sin(a) * r0 * 0.6, p[2] + Math.sin(a) * r0 * 0.4], [p[0] + Math.cos(a) * r1, p[1] + Math.sin(a) * r1 * 0.6, p[2] + Math.sin(a) * r1 * 0.4], 0.025, mixRGB(FROST, SUNLIT_RGB.cream, 0.2), 1.1 * (1 - u), 'gem');
+            }
+          });
         }
         break;
       }

@@ -58,11 +58,17 @@ for (const R of runs) {
     }
     if (r.phase === 'finale' || r.phase === 'done' || r.t >= until) break;
   }
-  const res = await page.evaluate(() => window.bend.duel.moments.result());
+  const res = await page.evaluate(() => {
+    // (and the weight as the page played it: the held moments a minute of play and their frames, the warp's time)
+    const B = window.bend.duel, r = B.moments.result(), H = B.match.history, W = B.match.warp;
+    const holds = H.filter((h) => h.e.k === 'juice' && h.e.hold > 0).map((h) => h.e.hold), play = Math.max(1, B.match.clock(B.now()).time / 60000);
+    r.weight = { holdsPerMin: +(holds.length / play).toFixed(1), frames: +(holds.reduce((a, b) => a + b, 0) / Math.max(1, holds.length)).toFixed(1), slowsPerMin: +(H.filter((h) => h.e.k === 'juice' && h.e.slow != null).length / play).toFixed(1), lostS: +W.lost.toFixed(2), skipped: W.skipped ?? 0, playMin: +play.toFixed(2) };
+    return r;
+  });
   const line = { ...R, ...res };
   all.push(line);
   const P = res.peak, C = res.catch, A = res.all;
-  console.log(`${R.world} ${R.dress} seed ${R.seed}: ${res.moments} peaks, most words at once ${res.mostAtPeak} (mean of each peak's most ${res.mostMean}); peak frames ${P.frames}: words ${P.wordsMean} mean, ${P.wordsP90} p90, a body covered ${(P.covered * 100).toFixed(0)}% (by a word ${(P.byWord * 100).toFixed(0)}%, by light ${(P.byLight * 100).toFixed(0)}%); catches: covered ${(C.covered * 100).toFixed(0)}%; all play: words ${A.wordsMean}, covered ${(A.covered * 100).toFixed(0)}% (${((Date.now() - t0) / 1000).toFixed(0)} s)`);
+  console.log(`${R.world} ${R.dress} seed ${R.seed}: ${res.moments} peaks, most words at once ${res.mostAtPeak} (mean of each peak's most ${res.mostMean}); peak frames ${P.frames}: words ${P.wordsMean} mean, ${P.wordsP90} p90, a body covered ${(P.covered * 100).toFixed(0)}% (by a word ${(P.byWord * 100).toFixed(0)}%, by light ${(P.byLight * 100).toFixed(0)}%); catches: covered ${(C.covered * 100).toFixed(0)}%; all play: words ${A.wordsMean}, covered ${(A.covered * 100).toFixed(0)}%; holds ${res.weight.holdsPerMin} a minute of ${res.weight.frames} frames, slowed beats ${res.weight.slowsPerMin} a minute (${((Date.now() - t0) / 1000).toFixed(0)} s)`);
   await page.close();
 }
 await browser.close();
@@ -73,6 +79,9 @@ const sum = Object.fromEntries(keys.map((k) => {
   const n = all.reduce((a, r) => a + r[k].frames, 0) || 1, w = (f) => all.reduce((a, r) => a + r[k][f] * r[k].frames, 0) / n;
   return [k, { frames: n, wordsMean: +w('wordsMean').toFixed(2), wordsMax: Math.max(...all.map((r) => r[k].wordsMax)), covered: +w('covered').toFixed(3), coreMean: +w('coreMean').toFixed(3), byWord: +w('byWord').toFixed(3), byLight: +w('byLight').toFixed(3), coverMean: +w('coverMean').toFixed(3) }];
 }));
+const wmin = all.reduce((a, r) => a + r.weight.playMin, 0), wh = all.reduce((a, r) => a + r.weight.holdsPerMin * r.weight.playMin, 0);
+const wf = all.reduce((a, r) => a + r.weight.frames * r.weight.holdsPerMin * r.weight.playMin, 0) / Math.max(1, wh);
+console.log(`weight in the page: ${(wh / Math.max(1e-9, wmin)).toFixed(1)} holds a minute of play, ${wf.toFixed(1)} frames each`);
 const moments = all.reduce((a, r) => a + r.moments, 0), mostMean = all.reduce((a, r) => a + r.mostMean * r.moments, 0) / Math.max(1, moments);
 const hist = {};
 for (const r of all) for (const m of r.list) hist[m.most] = (hist[m.most] ?? 0) + 1;

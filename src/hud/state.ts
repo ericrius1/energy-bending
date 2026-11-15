@@ -46,6 +46,8 @@ export interface HudPlayer {
   reforming: number;
   /** the player's head on screen (0 … 1), for its tag */
   screen?: [number, number];
+  /** the body's bounds on screen (0 … 1: x0, y0, x1, y1), which the pops keep clear (phase 4) */
+  bounds?: [number, number, number, number];
   /** the duel's powers (phase 2): the flow 0 … 1 (the fuel; full is the power form), the power form's time left
    *  0 … 1, and the two powers: their id and name, whether each can be cast now, its cost of the flow, its key */
   flow?: number;
@@ -103,6 +105,9 @@ export interface HudPair {
   /** on the frame it ends: banked (cashed, each seat's share) or dropped (a fall) */
   ended?: 'cashed' | 'dropped';
   cashed?: [number, number];
+  /** the last word folded into the chain at a moment (the moment showed a bigger one), and its age (s): echoed small
+   *  under the chip (phase 4) */
+  echo?: { text: string; age: number };
 }
 
 export interface HudSet {

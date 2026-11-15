@@ -1,18 +1,22 @@
 // Words that pop for a named move, and the small tag over each player's head so a body is never lost in its own
-// matter. The words keep off the bodies and off each other (phase 2's fix 5): each dancer has a lane beside its body,
-// on the side away from the other (kept while the two are close, so a swing turning them round each other leaves the
-// lanes where they are), the newest word at the lane's foot about the shoulders and the older above it, at most
-// LANE_MAX at once (the oldest goes as another comes); the words that are nobody's (MERGE) stand above the pair. A
-// pop with the same `id` as one on screen is that one, updated in place (SWING ×2, ×3: a bump, not a new word), and
-// the same word coming again while it shows in its lane counts up on it (the older stream, one SWING a swing). The
-// finale and the banner are the centre's (centre.ts): every word goes as the finale starts, and none is drawn over
-// the centre's word. Each kind moves its own way, a little, in its lane:
-//   CATCH      snaps in: from large and faint to its size in a tenth of a second, a ring closing on it like a hand
+// matter. The duel sends one word at a moment, the biggest (src/duel/hud-state.ts, phase 4). The words keep off the
+// bodies and off each other (phase 2's fix 5; phase 4: off the bodies' bounds on screen, `players[].bounds`, and the
+// tags over them): each dancer has a lane beside its body's edge, on the side away from the other (kept while the two
+// are close, so a swing turning them round each other leaves the lanes where they are), the newest word at the lane's
+// foot about the shoulders and the older above it, at most LANE_MAX at once (the oldest goes as another comes); the
+// words that are nobody's (MERGE, a pair tier, a reaction) stand above the pair. A word whose place would fall on a
+// body goes above the pair, beside it or under it, whichever clear place is nearest. A pop with the same `id` as one
+// on screen is that one, updated in place (SWING ×2, ×3: a bump, not a new word), and the same word coming again while
+// it shows in its lane counts up on it. The finale and the banner are the centre's (centre.ts): every word goes as the
+// finale starts, and none is drawn over the centre's word. Each kind moves its own way, a little, in its lane, in the
+// moments' sunlit look (phase 4's solarpunk pass: SUNLIT, plain values a theme can take over):
+//   CATCH      snaps in: from large and faint to its size in a tenth of a second, a wreath of leaves closing on it
 //   SWING      hangs from a point above it and swings, a pendulum dying away
 //   FLING ×n   leans off along the flight (the game's `dir`, else the faster body's motion on screen), a ghost trailing
-//   PERFECT    gold, springs in with a ring of light opening
+//   PERFECT    sun gold, springs in with a glint of sun at its corner
 //   COMBO ×n   punches in, bigger the longer the combo, a shiver
-//   MERGE      two halves in the two dancers' colours slide together and become one word with a flash
+//   MERGE      two halves in the two dancers' colours slide together (each its own half, clipped: never a doubled
+//              word) and become one word with a bloom of warm light
 //   DUET ×n    a pair tier (the two's chain): as MERGE, bigger, glowing in the tier's colour
 //   info       a plain note
 // Each word is a sprite made once per text, kind and colour (its glow and halo baked in) and stamped with its motion.
@@ -22,6 +26,19 @@ import type { Layout, Box } from './layout';
 import { LINK_KINDS } from './state';
 import { linkIcon } from './icons';
 import { FONT, GOLD, GOLD_HI, INK, glow, lift, measure, rgba, sprite, stamp, clamp01, easeOutBack, easeOut, type Ctx } from './style';
+
+/** the moments' sunlit palette (phase 4's first solarpunk pass: sun gold, leaf green, cream, a touch of coral; plain
+ *  values the HUD's theme can take over) */
+export const SUNLIT = { sun: '#ffd27a', sunHi: '#fff1c8', leaf: '#a9d77e', moss: '#6fae6a', cream: '#fff6e2', coral: '#ff9f80', sky: '#8fdcd0' };
+
+/** a leaf: a pointed oval of light at x, y, its length l, turned to `ang`, its fill */
+export function leaf(g: Ctx, x: number, y: number, l: number, ang: number, fill: string) {
+  g.save();
+  g.translate(x, y); g.rotate(ang);
+  g.beginPath(); g.moveTo(-l / 2, 0); g.quadraticCurveTo(0, -l * 0.32, l / 2, 0); g.quadraticCurveTo(0, l * 0.32, -l / 2, 0); g.closePath();
+  g.fillStyle = fill; g.fill();
+  g.restore();
+}
 
 const LIFE: Record<PopKind, number> = { catch: 0.95, swing: 1.05, fling: 1.0, perfect: 1.0, combo: 1.2, merge: 1.4, info: 1.6, power: 1.0, react: 1.4, pair: 1.6 };
 export const popLife = (k: PopKind) => LIFE[k] ?? 1.1;
@@ -34,7 +51,7 @@ function lookOf(p: HudPop, st: HudState): Look {
     case 'catch': return { size: 20, weight: '800', top: '#ffffff', bottom: lift(col, 0.45), glow: col, track: 0.14 };
     case 'swing': return { size: 18, weight: '700', top: '#ffffff', bottom: lift(col, 0.5), glow: col, track: 0.2 };
     case 'fling': return { size: 22, weight: 'italic 800', top: '#ffffff', bottom: lift(col, 0.35), glow: col, track: 0.08 };
-    case 'perfect': return { size: 17, weight: '700', top: '#fff6dc', bottom: '#ffbf4a', glow: GOLD, track: 0.16 };
+    case 'perfect': return { size: 17, weight: '700', top: SUNLIT.cream, bottom: '#ffbf4a', glow: SUNLIT.sun, track: 0.16 };
     case 'combo': {
       const n = Number(/(\d+)/.exec(p.text)?.[1] ?? 0);
       return { size: 18 + Math.min(10, n) * 1.1, weight: '800', top: '#ffffff', bottom: GOLD, glow: GOLD, track: 0.1 };
@@ -51,7 +68,7 @@ function lookOf(p: HudPop, st: HudState): Look {
     }
     // (the powers: a cast in the caster's colour, light; a reaction white over cyan, bigger)
     case 'power': return { size: 15, weight: '700', top: '#ffffff', bottom: lift(col, 0.55), glow: col, track: 0.18 };
-    case 'react': return { size: 21, weight: '800', top: '#ffffff', bottom: '#9fe8ff', glow: '#bff4ff', track: 0.14 };
+    case 'react': return { size: 21, weight: '800', top: SUNLIT.cream, bottom: SUNLIT.sky, glow: '#c6f2e6', track: 0.14 };
     default: return { size: 13, weight: '600', top: INK, bottom: INK, glow: null, track: 0.1 };
   }
 }
@@ -229,33 +246,62 @@ export class Pops {
       const p = st.players.find((q) => q.seat === s)?.screen;
       return p ? [Math.max(-0.1, Math.min(1.1, p[0])) * L.W, Math.max(-0.1, Math.min(1.1, p[1])) * L.H] : null;
     });
-    const near = 170 * u, gap = 54 * u, row = 27 * u;
+    const near = 170 * u, gap = 16 * u, row = 27 * u;
     const both = head[0] && head[1];
     if (both) {
       const dx = head[0]![0] - head[1]![0];
       if (Math.abs(dx) > near * 0.75) { this.side[0] = Math.sign(dx); this.side[1] = -this.side[0]; }
       else if (this.side[0] === this.side[1]) { this.side[0] = dx >= 0 ? 1 : -1; this.side[1] = -this.side[0]; }
     }
+    // the bodies on screen (px): their bounds (the game's, phase 4), else a box round the head; the pops keep clear
+    const body: (Box | null)[] = [0, 1].map((s) => {
+      const p = st.players.find((q) => q.seat === s), b = p?.bounds, h = head[s];
+      // (and the tag over the head: a word does not sit on it either)
+      const tagH = 34 * u;
+      if (b && b[2] > -0.2 && b[0] < 1.2 && b[3] > -0.2 && b[1] < 1.2) return { x: b[0] * L.W, y: b[1] * L.H - tagH, w: (b[2] - b[0]) * L.W, h: (b[3] - b[1]) * L.H + tagH };
+      return h ? { x: h[0] - 26 * u, y: h[1] - 10 * u - tagH, w: 52 * u, h: 150 * u + tagH } : null;
+    });
+    const bodies = body.filter((b): b is Box => !!b);
+    const union = (bs: Box[]): Box | null => {
+      if (!bs.length) return null;
+      const x0 = Math.min(...bs.map((b) => b.x)), y0 = Math.min(...bs.map((b) => b.y)), x1 = Math.max(...bs.map((b) => b.x + b.w)), y1 = Math.max(...bs.map((b) => b.y + b.h));
+      return { x: x0, y: y0, w: x1 - x0, h: y1 - y0 };
+    };
     const close = !!both && Math.abs(head[0]![0] - head[1]![0]) < near;
     const yMin = L.top + 8 * u, yMax = L.H - L.margin - 14 * u;
     const lanes: { x: number; y: number; side: number; up: number }[] = [0, 1].map((s) => {
       const h = head[s] ?? head[1 - s] ?? [L.W / 2, L.H * 0.45];
       let side = this.side[s];
-      const xs = close ? [head[0]![0], head[1]![0]] : [h[0]];
-      let edge = side < 0 ? Math.min(...xs) - gap : Math.max(...xs) + gap;
+      // (beside its own body, or both when they are close: the edge of the bodies, not of the heads)
+      const B = union(close ? bodies : body[s] ? [body[s]!] : bodies) ?? { x: h[0], y: h[1], w: 0, h: 0 };
+      const edgeOf = (sd: number) => (sd < 0 ? B.x - gap : B.x + B.w + gap);
+      let edge = edgeOf(side);
       // (no room on its side of the screen: the other side)
-      if ((side < 0 && edge < L.margin + 90 * u) || (side > 0 && edge > L.W - L.margin - 90 * u)) {
-        side = -side; edge = side < 0 ? Math.min(...xs) - gap : Math.max(...xs) + gap;
-      }
-      const y = Math.max(yMin + row * (LANE_MAX - 1), Math.min(yMax, (close ? Math.max(head[0]![1], head[1]![1]) : h[1]) + 30 * u));
+      if ((side < 0 && edge < L.margin + 90 * u) || (side > 0 && edge > L.W - L.margin - 90 * u)) { side = -side; edge = edgeOf(side); }
+      // (the newest about the shoulders: a fifth of the way down the body)
+      const y = Math.max(yMin + row * (LANE_MAX - 1), Math.min(yMax, B.h > 0 ? B.y + B.h * 0.2 + row * 0.5 : h[1] + 30 * u));
       return { x: edge, y, side, up: 0 };
     });
     // (both lanes on one side: the second stands over the first)
     if (lanes[0].side === lanes[1].side && Math.abs(lanes[0].x - lanes[1].x) < 160 * u) lanes[1].up = row * LANE_MAX;
-    const hs = head.filter((h): h is [number, number] => !!h);
+    const hs = head.filter((h): h is [number, number] => !!h), U = union(bodies);
     const mid = {
-      x: hs.length ? hs.reduce((a, h) => a + h[0], 0) / hs.length : L.W / 2,
-      y: Math.max(yMin + row * (LANE_MAX - 1), Math.min(yMax, (hs.length ? Math.min(...hs.map((h) => h[1])) : L.H * 0.4) - 46 * u)),
+      x: U ? U.x + U.w / 2 : hs.length ? hs.reduce((a, h) => a + h[0], 0) / hs.length : L.W / 2,
+      y: Math.max(yMin + row * (LANE_MAX - 1), Math.min(yMax, U ? U.y - 16 * u : (hs.length ? Math.min(...hs.map((h) => h[1])) : L.H * 0.4) - 46 * u)),
+    };
+    const hits = (x: number, y: number, w: number, h: number, bs: readonly Box[], pad: number) => bs.some((b) => x - w / 2 - pad < b.x + b.w && x + w / 2 + pad > b.x && y - h / 2 - pad < b.y + b.h && y + h / 2 + pad > b.y);
+    /** a word's place kept off both bodies: where it is if clear, else above them, beside them or under them, the
+     *  nearest clear place on screen (none clear: where it was) */
+    const clear = (x: number, y: number, w: number, h: number): [number, number] => {
+      const pad = 6 * u;
+      if (!U || !hits(x, y, w, h, bodies, pad)) return [x, y];
+      const inX = (v: number) => Math.max(L.margin + w / 2, Math.min(L.W - L.margin - w / 2, v)), inY = (v: number) => Math.max(yMin, Math.min(yMax, v));
+      const c: [number, number][] = [
+        [inX(x), inY(U.y - h / 2 - pad - 2)], [inX(U.x - w / 2 - pad - 2), inY(y)], [inX(U.x + U.w + w / 2 + pad + 2), inY(y)], [inX(x), inY(U.y + U.h + h / 2 + pad + 2)],
+      ].filter(([cx, cy]) => !hits(cx, cy, w, h, bodies, pad)) as [number, number][];
+      if (!c.length) return [x, y];
+      c.sort((a, b) => Math.hypot(a[0] - x, a[1] - y) - Math.hypot(b[0] - x, b[1] - y));
+      return c[0];
     };
     const placed: Box[] = [];
     if (avoid) placed.push(avoid);
@@ -276,6 +322,8 @@ export class Pops {
         else { const Ln = lanes[lane]; x = Ln.x + Ln.side * tw / 2; y = Ln.y - Ln.up - s * row; }
         x = Math.max(L.margin + tw / 2, Math.min(L.W - L.margin - tw / 2, x));
         y = Math.max(yMin, Math.min(yMax, y));
+        // (off the bodies: a word never stands on the pair's silhouette)
+        [x, y] = clear(x, y, tw * 1.1, h);
         // (off the words already placed and the centre's: moved up past them, or down when there is no room above)
         for (let i = 0; i < 6; i++) {
           const hit = placed.find((b) => Math.abs(b.x + b.w / 2 - x) < b.w / 2 + tw / 2 + 6 * u && Math.abs(b.y + b.h / 2 - y) < b.h / 2 + h / 2);
@@ -283,9 +331,10 @@ export class Pops {
           const upY = hit.y - h / 2 - 2 * u, downY = hit.y + hit.h + h / 2 + 2 * u;
           y = upY >= yMin ? upY : downY;
         }
+        if (hits(x, y, tw, h, bodies, 2 * u)) [x, y] = clear(x, y, tw * 1.1, h);
         // eased into its slot (a new word starts there; an older one slides up as another comes under it)
         if (e.y == null || e.x == null) { e.y = y; e.x = x; }
-        else { e.y += (y - e.y) * ease; e.x += (x - e.x) * ease; }
+        else { e.y += (y - e.y) * ease; e.x += (x - e.x) * ease; if (hits(e.x, e.y, tw, h, bodies, 0)) { e.x = x; e.y = y; } }
         placed.push({ x: x - tw / 2, y: y - h / 2, w: tw, h });
         const a = this.one(g, e, spr, e.x, e.y, u, dpr, lane < 0 ? 1 : lanes[lane].side, st, out);
         if (a > 0.3) { this.shown.total++; if (lane >= 0) this.shown.seats[lane]++; else this.shown.centre++; this.cover.push({ x: e.x - tw / 2, y: e.y - h / 2, w: tw, h }); }
@@ -310,11 +359,14 @@ export class Pops {
         const s = clamp01(age / 0.11);
         sc = s < 1 ? 1.6 - 0.68 * easeOut(s) : 0.92 + 0.08 * easeOut(clamp01((age - 0.11) / 0.12));
         a = clamp01(age / 0.07) * fadeLife * fadeGone;
-        const r = clamp01(age / 0.16);
+        // a wreath of leaves closing on it (in its dancer's colour, sunlit), turning a little as they come
+        const r = clamp01(age / 0.22);
         if (r < 1) {
-          g.lineWidth = Math.max(1, 2.2 * u * (1 - r));
-          g.strokeStyle = rgba(lift(col, 0.5), 0.8 * (1 - r) * fadeGone);
-          g.beginPath(); g.arc(x, y, spr.h * (0.8 - 0.45 * easeOut(r)), 0, Math.PI * 2); g.stroke();
+          const R = spr.h * (0.85 - 0.4 * easeOut(r)), n = 7, spin = 0.6 * easeOut(r), la = 0.85 * (1 - r) * fadeGone;
+          for (let i = 0; i < n; i++) {
+            const t = (i / n) * Math.PI * 2 + spin, lx = x + Math.cos(t) * R * 1.35, ly = y + Math.sin(t) * R * 0.62;
+            leaf(g, lx, ly, 7 * u * (1.2 - 0.4 * r), t + Math.PI / 2, rgba(i % 2 ? lift(col, 0.45) : SUNLIT.leaf, la));
+          }
         }
         break;
       }
@@ -339,11 +391,15 @@ export class Pops {
       }
       case 'perfect': {
         sc = 0.65 + 0.35 * easeOutBack(clamp01(age / 0.16));
-        const r = clamp01(age / 0.4);
+        // a glint of sun on it: a four-pointed star at its corner, opening and turning, gone in a breath
+        const r = clamp01(age / 0.45);
         if (r < 1) {
-          g.lineWidth = Math.max(1, 1.4 * u * (1 - r));
-          g.strokeStyle = rgba(GOLD_HI, 0.7 * (1 - r) * fadeGone);
-          g.beginPath(); g.ellipse(x, y, spr.w * 0.16 + 22 * u * easeOut(r), spr.h * 0.18 + 7 * u * easeOut(r), 0, 0, Math.PI * 2); g.stroke();
+          const gx = x + spr.w * 0.2, gy = y - spr.h * 0.16, R = (5 + 13 * Math.sin(Math.PI * r)) * u, a0 = 0.9 * (1 - r) * fadeGone, rot0 = 0.4 * r;
+          g.save(); g.translate(gx, gy); g.rotate(rot0);
+          g.fillStyle = rgba(GOLD_HI, a0);
+          for (let k = 0; k < 4; k++) { g.rotate(Math.PI / 2); g.beginPath(); g.moveTo(0, -R); g.lineTo(R * 0.13, 0); g.lineTo(0, R * 0.13); g.lineTo(-R * 0.13, 0); g.closePath(); g.fill(); }
+          g.restore();
+          stamp(g, glow(SUNLIT.sun, 6 * u, dpr, 0.7), gx, gy, 1, a0 * 0.8);
         }
         break;
       }
@@ -355,14 +411,20 @@ export class Pops {
       }
       case 'merge': case 'pair': {
         // two halves sliding together, then one with a flash
+        // (each half of the word from its own side, clipped to it: the halves meet, never a doubled word)
         const c = clamp01(age / 0.32), off = 30 * u * (1 - easeOut(c));
         if (c < 1) {
-          drawWord(g, spr, x - off, y, 1, 1, 0, a * 0.55);
-          drawWord(g, spr, x + off, y, 1, 1, 0, a * 0.55);
+          for (const sd of [-1, 1]) {
+            g.save();
+            g.beginPath(); g.rect(sd < 0 ? x - off - spr.w : x + off, y - spr.h, spr.w, spr.h * 2); g.clip();
+            drawWord(g, spr, x + sd * off, y, 1, 1, 0, a * (0.55 + 0.45 * c));
+            g.restore();
+          }
           a = 0;
         } else {
-          const f = clamp01((age - 0.32) / 0.35);
-          if (f < 1) stamp(g, glow('#ffffff', spr.h * 0.7, dpr, 0.6), x, y, 1 + 0.4 * f, 0.6 * (1 - f) * fadeGone);
+          // then one, and a bloom of warm sunlight behind it
+          const f = clamp01((age - 0.32) / 0.4);
+          if (f < 1) stamp(g, glow(SUNLIT.sunHi, spr.h * 0.7, dpr, 0.6), x, y, 1 + 0.5 * f, 0.55 * (1 - f) * fadeGone);
           sc = 1.06 - 0.06 * easeOut(f);
         }
         break;

@@ -1,0 +1,10 @@
+{
+  "generator": "GPT Image via the Codex CLI image tool (ChatGPT login)",
+  "codexModel": "gpt-5.6-terra",
+  "prompt": "Concept art for a real-time dance game moment, solarpunk: two glowing dancers made of light particles (one rose-tinted fire, one fern-green water) catch hands mid-air in a sunlit garden court of white ceramic and honey wood with vines and flowers; at the point of contact a small sun-glint star, and a loose ring of tiny leaves and pollen motes opening outward around them, kept clear of their bodies; dappled golden sunlight through leaves; one single elegant word 'DUET' floats above the pair in cream and gold art-nouveau lettering; calm, hopeful, warm palette of sun gold, leaf green, sky teal, cream, a touch of coral; no explosions, no damage",
+  "inputs": {},
+  "codexThread": "01a1dc7e-8ec5-70d0-a374-d23b0630c5ce",
+  "codexFile": "C:\\Users\\ericr\\.codex\\generated_images\\01a1dc7e-8ec5-70d0-a374-d23b0630c5ce\\exec-c2809f88-03cd-4d5e-ae94-87ad2ed363cc.png",
+  "seconds": 63.6,
+  "sha256": "a5828e768730ee09b670b2bbb109827f40d4acbbc28710713486b50dd09026d2"
+}

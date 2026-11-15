@@ -206,14 +206,17 @@ duels with the server authoritative.
 Read through the owner's tone (no damage, no KO: juice is weight and breath, never violence; a shake is a soft settle
 or sway, not a jolt), report 13's issues 1 and 3 became these (report 14):
 
-- **The weight of contact** (`src/duel/weight.ts`). Hit-stop adapted to contact: on a catch both bodies' time all but
-  stops (`WEIGHT.HOLD_SCALE`, 0.06: a breath, not a frozen page) for 3 frames on the ground, 4 out of the air, 6 at
-  range (a whip's or an arc's catch) or at a geyser's top, then eases back over `EASE_S`; 3 frames for a fling's
-  release, 6 for the finale's lift at its top. A time scale for the bodies and the sim: the page multiplies the
+- **The weight of contact** (`src/duel/weight.ts`). Hit-stop adapted to contact. Phase 4 (report 16-moments) made it
+  fewer, longer and scaled by the moment: nothing on a ground catch or a fling's release; 5 frames out of the air; 10
+  at range (a whip's or an arc's catch), 11 at a geyser's top, 12 for the finale's lift at its top. The bodies' time
+  lands over two frames (0.45, then `HOLD_SCALE` 0.05), breathes up to `HOLD_BREATH` (0.16) through the hold, and eases
+  back to full over `EASE_S` + `EASE_PER` × the hold with a smootherstep (no step in speed: the swing eases out of
+  it); a hold within `GAP_S` (1.5 s) of the last one's end is let go unless it is longer. A time scale for the bodies and the sim: the page multiplies the
   frame's dance time (`f.danceDt`: the bodies, the matter, the field, the powers, the rules' clock) by
   `match.warp.step(f.dt)` at the start of its input phase; the music, the HUD and the camera keep the page's own time,
   and the contact's ring and the link's beads (fx.ts) run on the unscaled dance time, so they keep moving through a
-  hold. The camera eases toward each moment (`DuelCamera.impulse?.({ at, kind, k })`, called when the camera has it).
+  hold. The camera eases toward each moment (`DuelCamera.impulse({ at, kind, k, hold })`): a held moment's ease rises
+  over the hold and half its ease back and settles after, so the camera arrives as the bodies let go.
   The sets' clock is the bodies', so a 60 s set takes about 64 s of the page's time (the Node harness: `warp: true`).
 - **Pair combos** (shared/duel.ts). Every contact link either dancer makes (a catch, an air catch, a swing, a fling,
   the flown one's landing, a lift, a vault, a counter, a power's catch) also goes on one chain shared by both, the pair
@@ -221,8 +224,18 @@ or sway, not a jolt), report 13's issues 1 and 3 became these (report 14):
   own chip under the set's orb (a dot of each dancer's colour, the tier's word in its colour). It ends 2 s after its
   last link with the two apart, or when both have stood on the ground 0.9 s, or with a fall (dropped) or the set; each
   dancer banks its share (the worth of the links it made) × the pair's multiplier × `PAIR_BANK`. A pair tier is the
-  loudest moment: a flash of the two's colours in from the screen's sides, a ring of the tier's colour from the orb, and
-  a beat of slow motion (the bodies at 0.4 for one beat; the HUD's pops run on the page's time, so none hang). A solo
+  loudest moment: dappled sunlight (phase 4: a warm light from above, spots of sun in each dancer's colour on its side,
+  leaves of the tier's colour turning out from the orb, none of it on the bodies) and a beat of slow motion (the bodies
+  at 0.36 for one beat, eased in over its first 30 % and out over its last 55 %; the HUD's pops run on the page's time,
+  so none hang).
+- **One word at a moment** (phase 4, report 16-moments; report 15's issue 2: four or five words, rings and the
+  reaction's light landed on the contact in one frame and buried the bodies). The pops show one word, the biggest
+  (`RANK` in src/duel/hud-state.ts: MERGE, a pair tier, a reaction or a dancer's tier, the power form, a power's name,
+  a banked combo, a catch's kind, a fall, PERFECT, SWING); while it has its moment (0.55 s, 1 s for a big one) a
+  smaller word folds into the chips (the pair chip echoes it small, `pair.echo`) and a bigger one takes its place.
+  The HUD keeps every word off the bodies' bounds on screen and the tags over them (`players[].bounds`). The moments'
+  own light (the contact's glint and ring of leaves, a merge's bloom, a reaction's, the geyser's column) is dimmed
+  where it falls on a body's core on screen, nearly all of it through a catch's frames (fx.ts `keepOff`). A solo
   chain stops adding after `SOLO_RUN` (4) of a dancer's own moves in a row (a dash, a wall jump or run, a flip, a kick,
   an aú): past it they keep the combo going but add nothing until a contact link comes, so the tiers come from contact.
 - **The finale** settles the powers' effects as FINALE fires (`DuelPowers.settle`: each ends and fades), and a set that
