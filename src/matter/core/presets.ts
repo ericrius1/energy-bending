@@ -70,3 +70,23 @@ export function dressFromQuery(search = typeof location !== 'undefined' ? locati
   const q = new URLSearchParams(search).get('dress');
   return q ? q.split(',').map((s) => s.trim()).filter(Boolean) : [];
 }
+
+// Two dancers must read apart at a glance (the owner, 15 Nov 2026: "never both be ice or water"): bodies of one family
+// of colour (water and ice both pale blue, plasma and gems both violet, fire and its gem-hearted kin warm) are never
+// chosen together on the front. A second body of the first's family turns to the first's contrast.
+const FAMILY: Record<string, string> = {
+  water: 'blue', ice: 'blue', tide: 'blue', gemwater: 'blue', gemice: 'blue',
+  fire: 'warm', ember: 'warm', geodeheart: 'warm',
+  plasma: 'violet', gems: 'violet', mosaic: 'violet', single: 'violet', monolith: 'violet',
+};
+const familyOf = (name: string) => FAMILY[name] ?? name;
+/** the body that reads best against `name`: water against the warm ones, fire against the rest */
+export const contrastOf = (name: string) => (familyOf(name) === 'warm' ? 'water' : 'fire');
+/** do two bodies read as one family of colour (or are they the same body)? */
+export const sameFamily = (a: string, b: string) => familyOf(a) === familyOf(b);
+/** a pair of bodies that reads apart: the second turned to the first's contrast when the two are of one family */
+export function distinctDress(d: readonly string[]): [string, string] {
+  const a = d[0] || 'fire';
+  const b = d[1] && !sameFamily(a, d[1]) ? d[1] : contrastOf(a);
+  return [a, b];
+}
