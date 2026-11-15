@@ -87,6 +87,8 @@ export const CLIENT = {
   AHEAD_MS: 2500,
   /** the shown world going back within this long (ms) counts as a flip-flop (the server holds 1.5 s between crossings) */
   FLIP_MS: 1000,
+  /** a seat's shown world goes straight back only once the prediction has stood there this long (ms) */
+  BACK_HOLD_MS: 250,
   /** this page's prediction holds its body back this much longer after a crossing than the server does (s): the tick an
    *  input will be stepped on is known only to a tick or two, and a crossing right at the end of the hold, predicted a
    *  tick early, was put back a moment later (a flip-flop); a tick late, the server's word brings it along instead */
@@ -191,6 +193,7 @@ export class DuelClient {
   lost = false;
   lostWhy = "";
   private aheadSince = -1;
+  private pendingBack: { to: string; since: number } | null = null;
   /** the predictions put back, what they were (for the measures) */
   readonly putBacks: Record<string, unknown>[] = [];
   /** the worst error near a crossing, and what it was */
@@ -729,10 +732,16 @@ export class DuelClient {
       // playback, a little behind, is seen through the disc a moment; switching with the follow went back and forth)
       const fromServer = this.seat == null || !this.pred;
       const want = fromServer ? this.worldAt(now - this.delay) : this.predWorld;
-      // (a prediction going straight back to the world just left, within FLIP_MS: shown only once the server's world
-      // says so, or the moment passes. A crossing judged right at the end of its hold can come and go in the
-      // prediction as the ack's tick moves by one; meanwhile the body is seen through the disc)
-      const back = !fromServer && this.shownAt?.from === want && this.o.link.now() - this.shownAt.t < CLIENT.FLIP_MS && this.world !== want;
+      // (a prediction going straight back to the world just left, within FLIP_MS: shown only once it has stood for
+      // BACK_HOLD_MS. A crossing judged near the end of its hold can come and go in the prediction for a frame or two
+      // as a correction's replay moves it by a tick; meanwhile the body is seen through the disc)
+      const t = this.o.link.now();
+      let back = false;
+      if (want === this.shownWorld) this.pendingBack = null;
+      else if (!fromServer && this.shownAt?.from === want && t - this.shownAt.t < CLIENT.FLIP_MS) {
+        if (this.pendingBack?.to !== want) this.pendingBack = { to: want, since: t };
+        back = t - this.pendingBack.since < CLIENT.BACK_HOLD_MS;
+      }
       if (want !== this.shownWorld && !back) this.showIn(want, fromServer || this.predWorld === this.world ? (this.shownAt?.from === want ? 'corrected' : 'server') : 'predicted');
     }
     for (let k = 0; k < 2; k++) {
