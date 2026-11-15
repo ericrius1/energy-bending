@@ -183,6 +183,7 @@ export class Pops {
     if (quiet && this.phase !== ph) for (const e of this.entries) if (e.gone < 0) e.gone = this.t;
     this.phase = ph;
     for (const e of this.entries) e.seen = false;
+    let fresh = false;
     if (!quiet) {
       const live = (st.pops as Pop2[]).filter((p) => p.age >= 0 && p.age < popLife(p.kind)).sort((a, b) => b.age - a.age);
       for (const p of live) {
@@ -209,6 +210,7 @@ export class Pops {
         // a new word: the lane's oldest goes if it would hold more than LANE_MAX
         const inLane = this.entries.filter((q) => q.lane === lane && q.gone < 0).sort((a, b) => a.order - b.order);
         while (inLane.length >= LANE_MAX) inLane.shift()!.gone = this.t;
+        fresh = true;
         this.entries.push({
           ids: new Set([key]), lane, kind: p.kind, seat: p.seat, text: p.text, src: p.text, count: 1, age: p.age, born,
           bump: -1, gone: -1, seen: true, order: ++this.order, y: null, x: null, at: p.at, ...(p.dir ? { dir: p.dir } : {}),
@@ -220,6 +222,8 @@ export class Pops {
       if (e.gone < 0 && !e.seen) e.gone = this.t;
       if (e.gone >= 0 || !e.seen) e.age += dt;
     }
+    // (a new word in: any word going is all but gone already, so the two never stand together: one word at a moment)
+    if (fresh) for (const e of this.entries) if (e.gone >= 0) e.gone = Math.max(0, Math.min(e.gone, this.t - GONE * 0.7));
     this.entries = this.entries.filter((e) => (e.gone < 0 || this.t - e.gone < GONE || e.seen) && e.age < popLife(e.kind) + GONE);
   }
 
