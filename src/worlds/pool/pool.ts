@@ -26,6 +26,7 @@ import { arenaShown } from '../../duel/arena';
 import { swellAt, swellNow } from '../../duel/hazards';
 import { poolDuel, poolGround, poolStonesNow } from './arena';
 import { PoolGarden } from './garden';
+import { PoolEdge } from './edge';
 
 type V4 = [number, number, number, number];
 
@@ -121,6 +122,8 @@ export class Pool implements World {
   private duelBuf: ReturnType<WorldCtx['kit']['storage']>;
   private stonesNow = poolDuel().data.slice();
   private garden: PoolGarden;
+  /** what stands round the duel's water at the bodies' height: the pavilion, arches, fountains, sails (edge.ts) */
+  private edge: PoolEdge;
   readonly room = 40;
   readonly maxDist = 16;
   private u: LightSlot<PoolU>;
@@ -141,7 +144,8 @@ export class Pool implements World {
     });
     this.shared = { poolWaves: this.waves.tex };
     this.duelBuf = kit.storage({ label: 'pool.duel', data: poolDuel().data, usage: ['storage'] });
-    this.garden = new PoolGarden(kit, coarse);
+    this.garden = new PoolGarden(kit, coarse, this.duelBuf);
+    this.edge = new PoolEdge(kit, coarse);
     this.live.march[0] = coarse ? 12 : 22;
     // the pure stage: a flat floor 11.5 m wide, nothing on it
     this.stages = [stagePlane({ id: 'pool', origin: [0, 0, 0], right: [1, 0, 0], halfWidth: 5.75, ground: 0, ledges: [], spawns: [[-2.45, 0], [2.45, 0]], lens: 18 })];
@@ -211,8 +215,12 @@ export class Pool implements World {
     else if (s.phase === 'opaque') {
       // the duel arena's stones and rafts (arena.ts), and the garden round them on the water, only while it is shown
       const duel = () => s.on() && arenaShown(this.id);
-      s.pass.draw(stoneShader, { label: 'pool.duel', bind: { stones: this.duelBuf }, count: 6 * 6 * 6 * 6, instances: poolDuel().count, cull: 'none', enabled: duel });
+      // (eight quads a face each way: the low pieces' rounded corners need them)
+      s.pass.draw(stoneShader, { label: 'pool.duel', bind: { stones: this.duelBuf }, count: 6 * 8 * 8 * 6, instances: poolDuel().count, constants: { N: 8 }, cull: 'none', enabled: duel });
       this.garden.declare(s, duel);
+      this.edge.declare(s, duel);
+    } else if (s.phase === 'glow') {
+      this.edge.declare(s, () => s.on() && arenaShown(this.id));
     }
   }
 

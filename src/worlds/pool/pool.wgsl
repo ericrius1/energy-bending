@@ -286,3 +286,25 @@ fn poolScene(src: texture_2d<f32>, px: vec2i, d: vec3f) -> vec4f {
   }
   return vec4f(c, s.a);
 }
+
+/** a glaze's colour as the eye sees it: its own colour lit, the sky and the sun mirrored in it (a clear coat: a fresnel
+ *  sheen over the whole, the sun a small hard highlight that says glass), `gloss` how much */
+fn poolGlaze(base: vec3f, N: vec3f, V: vec3f, wp: vec3f, gloss: f32) -> vec3f {
+  let R = reflect(-V, N);
+  let K = worldLight.pool.key;
+  let cosV = max(dot(N, V), 0.0);
+  let F = (0.05 + 0.95 * pow(1.0 - cosV, 5.0)) * gloss;
+  let sun = worldLight.pool.keyCol.rgb * K.w;
+  let hi = pow(max(dot(R, K.xyz), 0.0), 220.0) * 6.0 + pow(max(dot(R, K.xyz), 0.0), 24.0) * 0.25;
+  return base * (1.0 - F) + (poolEnv(R, wp) * 0.9 + sun * hi) * F + sun * hi * 0.06 * gloss;
+}
+
+/** brass in the low sun: the sky and the water mirrored warm, a bright streak where it turns the sun to the eye */
+fn poolBrass(N: vec3f, V: vec3f, wp: vec3f, amb: vec3f, kd: f32) -> vec3f {
+  let R = reflect(-V, N);
+  let K = worldLight.pool.key;
+  let sun = worldLight.pool.keyCol.rgb * K.w;
+  let brass = vec3f(0.95, 0.66, 0.28);
+  let sp = pow(max(dot(R, K.xyz), 0.0), 60.0) * 5.0 + pow(max(dot(R, K.xyz), 0.0), 8.0) * 0.35;
+  return brass * (poolEnv(R, wp) * 0.75 + sun * (sp + kd * 0.2) + amb * 0.15);
+}

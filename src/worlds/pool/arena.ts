@@ -18,8 +18,13 @@ import { swellHazard, waterFloor, type Mover } from '../../duel/hazards';
 type V3 = [number, number, number];
 
 /** a piece: the middle of its foot, its size (width along its turn's x, height, depth), its turn, ice or stone, how
- *  round its edges */
-interface Rock { at: V3; size: V3; yaw: number; ice: boolean; round: number; seed: number }
+ *  round its edges, how round its corners seen from above (drawn only: the solid stays the box), and what it is to the
+ *  eye (ROCK_LOOK) */
+interface Rock { at: V3; size: V3; yaw: number; ice: boolean; round: number; seed: number; plan: number; look: number }
+
+/** what a piece is drawn as (stones.wgsl, phase 5): a low stone a glazed ceramic planter with a brass rim, a block a jump
+ *  high terracotta with a band of glazed tile, a standing stone terracotta and brass, a raft woven fibre bound in brass */
+export const ROCK_LOOK = { planter: 0, block: 1, standing: 2, raft: 3 } as const;
 
 export const ROCK_FLOATS = 12;
 
@@ -41,7 +46,12 @@ function build(): PoolDuel {
   const still = new Set(['endL', 'middle', 'endR', 'menhirL', 'menhirR', 'pillarL', 'pillarR', 'lintel', 'cap']);
   /** a piece from its foot to `top` (on the plane: x from s0 to s1, depth d) */
   const rock = (id: string, x: number, z: number, w: number, d: number, y0: number, top: number, yaw = 0, ice = false, round = 0.12) => {
-    rocks.push({ at: [x, y0, z], size: [w, top - y0, d], yaw, ice, round, seed: r() });
+    // (the low pieces seen from above as round pads, not square tiles: their corners rounded off in the drawing by up to
+    // 0.4 m, which leaves the box's corner 0.17 m out along its diagonal, where nobody stands; report 18)
+    const look = ice ? ROCK_LOOK.raft : top < 0.5 ? ROCK_LOOK.planter : top < 2.5 && y0 <= FOOT ? ROCK_LOOK.block : ROCK_LOOK.standing;
+    const small = Math.min(w, d) / 2;
+    const plan = look === ROCK_LOOK.raft || look === ROCK_LOOK.planter ? Math.min(0.4, small * 0.6) : look === ROCK_LOOK.block ? Math.min(0.24, small * 0.4) : round;
+    rocks.push({ at: [x, y0, z], size: [w, top - y0, d], yaw, ice, round, seed: r(), plan: Math.max(plan, round), look });
     const s = boxOn([x, y0, z], [w, top - y0, d], yaw);
     // (the floes ride the swell; the low stepping stones rock on it a little; the tall ones stand)
     if (!still.has(id) && (ice || top < 0.5) && s.kind === 'box') movers.push({ solid: s, rest: [s.c[0], s.c[1], s.c[2]], k: ice ? 1 : 0.4, index: rocks.length - 1 });
@@ -133,7 +143,7 @@ function build(): PoolDuel {
     energy: { gain: 0.93, ebb: 1.15 },
   };
   const data = new Float32Array(rocks.length * ROCK_FLOATS);
-  rocks.forEach((k, i) => data.set([...k.at, k.yaw, ...k.size, k.ice ? 1 : 0, k.seed, k.round, 0, 0], i * ROCK_FLOATS));
+  rocks.forEach((k, i) => data.set([...k.at, k.yaw, ...k.size, k.ice ? 1 : 0, k.seed, k.round, k.plan, k.look], i * ROCK_FLOATS));
   return { arena, data, count: rocks.length };
 }
 
