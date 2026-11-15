@@ -46,6 +46,10 @@ export interface HudPlayer {
   reforming: number;
   /** the player's head on screen (0 … 1), for its tag */
   screen?: [number, number];
+  /** the player's own seat (report 18-you, src/duel/you.ts): its tag's word (YOU, or P1 with two at one screen), a
+   *  word under it in the opening (the seat's colour's name, or the device: W A S D, ARROWS, PAD), the opening 0 … 1
+   *  and the first press's answer 0 … 1. None: not this page's player (a bot, the other page's, a film) */
+  you?: { label: string; sub?: string; intro: number; pulse: number };
   /** the body's bounds on screen (0 … 1: x0, y0, x1, y1), which the pops keep clear (phase 4) */
   bounds?: [number, number, number, number];
   /** the duel's powers (phase 2): the flow 0 … 1 (the fuel; full is the power form), the power form's time left

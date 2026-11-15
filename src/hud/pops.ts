@@ -561,6 +561,41 @@ function tag(p: HudPlayer, u: number, dpr: number) {
   });
 }
 
+/** the player's own tag (report 18-you): its word (YOU, or P1 with two at one screen) larger, on a dark pill rimmed in
+ *  the seat's colour, over a pointer of the colour; it reads over the brightest sky and through any effect */
+function youTag(p: HudPlayer, u: number, dpr: number) {
+  const text = p.you?.label ?? 'YOU', fs = 13 * u, tw = measure(text, fs, 800, 0.14), w = tw + 18 * u, ph = 19 * u, h = ph + 11 * u;
+  return sprite(`you:${p.seat}:${p.color}:${text}:${u.toFixed(3)}`, dpr, w + 4 * u, h + 2 * u, (w + 4 * u) / 2, h, (s) => {
+    const cx = (w + 4 * u) / 2, x0 = 2 * u, y0 = 1 * u, r = ph / 2;
+    s.beginPath();
+    s.moveTo(x0 + r, y0); s.lineTo(x0 + w - r, y0); s.arc(x0 + w - r, y0 + r, r, -Math.PI / 2, Math.PI / 2); s.lineTo(x0 + r, y0 + ph); s.arc(x0 + r, y0 + r, r, Math.PI / 2, Math.PI * 1.5); s.closePath();
+    s.fillStyle = 'rgba(14,10,6,0.62)'; s.fill();
+    s.lineWidth = Math.max(1.2, 1.6 * u); s.strokeStyle = lift(p.color, 0.2); s.stroke();
+    s.font = `800 ${fs}px ${FONT}`;
+    s.letterSpacing = `${(fs * 0.14).toFixed(2)}px`;
+    s.textAlign = 'center'; s.textBaseline = 'middle';
+    s.fillStyle = lift(p.color, 0.55); s.fillText(text, cx + fs * 0.07, y0 + r + 0.5 * u);
+    // the pointer
+    const by = h;
+    s.beginPath(); s.moveTo(cx - 5.5 * u, y0 + ph + 1.5 * u); s.lineTo(cx + 5.5 * u, y0 + ph + 1.5 * u); s.lineTo(cx, by); s.closePath();
+    s.lineWidth = Math.max(1.5, 2 * u); s.strokeStyle = 'rgba(6,4,12,0.5)'; s.stroke();
+    s.fillStyle = lift(p.color, 0.3); s.fill();
+  });
+}
+
+/** the word under the player's own tag in the opening: the seat's colour's name, or the device */
+function youSub(p: HudPlayer, text: string, u: number, dpr: number) {
+  const fs = 9.5 * u, w = measure(text, fs, 700, 0.18) + 10 * u, h = 14 * u;
+  return sprite(`yousub:${p.seat}:${p.color}:${text}:${u.toFixed(3)}`, dpr, w, h, w / 2, 0, (s) => {
+    s.font = `700 ${fs}px ${FONT}`;
+    s.letterSpacing = `${(fs * 0.18).toFixed(2)}px`;
+    s.textAlign = 'center'; s.textBaseline = 'middle';
+    s.lineJoin = 'round'; s.lineWidth = Math.max(2, 3 * u); s.strokeStyle = 'rgba(6,4,12,0.65)';
+    s.strokeText(text, w / 2 + fs * 0.09, h / 2);
+    s.fillStyle = INK; s.fillText(text, w / 2 + fs * 0.09, h / 2);
+  });
+}
+
 /** each player's tag: over its head, or held at the screen's edge pointing to it (out of frame, or behind the
  *  camera in the free view). The tag also keeps the beat where the eyes are: a thin ring closes on it once a beat and
  *  it lights gold through the perfect window, so a player can time a move without looking down at the beat ring */
@@ -568,20 +603,30 @@ export function drawTags(g: Ctx, st: HudState, L: Layout, dpr: number, out: Box[
   const u = L.u * (L.compact ? 0.9 : 1);
   const b = st.beat, spb = 60 / Math.max(30, b.bpm || 120), ph = ((b.phase % 1) + 1) % 1;
   const inWindow = (1 - ph) * spb <= b.window || ph * spb <= b.window;
+  const anyYou = st.players.some((q) => q.you);
   for (const p of st.players) {
     if (!p.screen) continue;
-    const spr = tag(p, u, dpr);
-    const lift0 = 16 * u;
+    const Y = p.you, spr = Y ? youTag(p, u, dpr) : tag(p, u, dpr);
+    // (the player's own: larger in the opening, a pop at the first press; the other's a little quieter beside it)
+    const big = Y ? 1 + 0.55 * easeOut(Y.intro) + 0.35 * Math.sin(Math.PI * Math.min(1, (1 - Y.pulse) * 1.4)) * (Y.pulse > 0 ? 1 : 0) : 1;
+    // (the own tag stands over the world's marker, the petal over the head: you.ts)
+    const lift0 = (Y ? 50 + 26 * Y.intro : 16) * u;
     const px = p.screen[0] * L.W, py = p.screen[1] * L.H - lift0;
     // (the panels hold the top: a tag under them is held below them)
     const top = L.panels[0].y + L.panels[0].h + 4 * u + spr.h;
     const m = L.margin + 22 * u;
     const x = Math.max(m, Math.min(L.W - m, px)), y = Math.max(top, Math.min(L.H - m, py));
-    const a = p.reforming > 0 ? 0.45 : 1;
+    const a = (p.reforming > 0 ? 0.45 : 1) * (anyYou && !Y ? 0.62 : 1);
     const held = Math.abs(x - px) > 1 || Math.abs(y - py) > 1;
     // the label's middle (the beat ring's centre)
-    const cx = x, cy = y - 13 * u;
-    stamp(g, spr, x, y, 1, a);
+    const cx = x, cy = y - (Y ? 18 : 13) * u * big;
+    if (Y && (Y.intro > 0.01 || Y.pulse > 0.01)) {
+      // (a soft sunlit glow behind it in the opening, the seat's colour at the answer)
+      stamp(g, glow(GOLD_HI, 40 * u, dpr, 0.5), cx, cy, big, 0.55 * Y.intro);
+      if (Y.pulse > 0.01) stamp(g, glow(lift(p.color, 0.2), 34 * u, dpr, 0.6), cx, cy, big * (1 + 0.6 * (1 - Y.pulse)), 0.8 * Y.pulse);
+      if (Y.sub && Y.intro > 0.01) { const sub = youSub(p, Y.sub, u, dpr); stamp(g, sub, cx, cy - 13 * u * big - sub.h, 1, a * Y.intro); }
+    }
+    stamp(g, spr, x, y, big, a);
     if (held) {
       // an arrow beside the label, toward the player
       const ang = Math.atan2(py - cy, px - cx), r = 6.5 * u, d = 25 * u;
@@ -593,7 +638,7 @@ export function drawTags(g: Ctx, st: HudState, L: Layout, dpr: number, out: Box[
       g.restore();
     }
     // the beat, at the tag
-    const R0 = 11 * u, rr = R0 + R0 * 1.3 * (1 - ph), ca = Math.min(1, ph / 0.3);
+    const R0 = (Y ? 22 : 11) * u, rr = R0 + R0 * 1.3 * (1 - ph), ca = Math.min(1, ph / 0.3);
     if (inWindow) {
       g.lineWidth = Math.max(1.2, 1.6 * u);
       g.strokeStyle = rgba(GOLD, 0.85 * a);
@@ -603,7 +648,7 @@ export function drawTags(g: Ctx, st: HudState, L: Layout, dpr: number, out: Box[
       g.strokeStyle = rgba(lift(p.color, 0.5), 0.5 * ca * a);
       g.beginPath(); g.arc(cx, cy, rr, 0, Math.PI * 2); g.stroke();
     }
-    const half = Math.max(spr.w / 2, spr.h, R0 * 2.3, 34 * u) + 4;
+    const half = Math.max(spr.w / 2, spr.h, R0 * 2.3, 34 * u) * (Y ? big * 1.6 : 1) + 4;
     out.push({ x: cx - half, y: cy - half, w: half * 2, h: half * 2 });
   }
 }

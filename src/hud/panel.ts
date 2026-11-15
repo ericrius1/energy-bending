@@ -68,6 +68,25 @@ function cartouche(g: Ctx, M: Metrics, W: number, H: number, x: (v: number) => n
   g.closePath();
 }
 
+/** the player's own panel lit (report 18-you): its pane's outline in the seat's colour, a thin line all through play,
+ *  wide and glowing in the set's opening and at the first press's answer */
+function youRim(g: Ctx, p: HudPlayer, box: Box, M: Metrics, u: number, flip: boolean, out: Box[]) {
+  const Y = p.you!, k = Math.max(Y.intro, Y.pulse);
+  const x = (v: number) => (flip ? box.x + box.w - v * u : box.x + v * u), y = (v: number) => box.y + v * u;
+  g.save();
+  cartouche(g, M, box.w / u, box.h / u, x, y);
+  g.lineJoin = 'round';
+  if (k > 0.01) {
+    g.shadowColor = rgba(p.color, 0.9 * k); g.shadowBlur = 16 * u * k;
+    g.lineWidth = (1.6 + 2.4 * k) * u; g.strokeStyle = rgba(lift(p.color, 0.25), 0.55 + 0.45 * k); g.stroke();
+    g.shadowBlur = 0;
+  }
+  g.lineWidth = Math.max(1, 1.5 * u); g.strokeStyle = rgba(lift(p.color, 0.35), 0.8); g.stroke();
+  g.restore();
+  const m = 24 * u;
+  out.push({ x: box.x - m, y: box.y - m, w: box.w + 2 * m, h: box.h + 2 * m });
+}
+
 /** seconds: a new link popping in; a cashed combo gathering into the style; a dropped one sinking; the "+n" rising */
 const POP_IN = 0.28, CASH = 0.62, DROP = 0.7, PLUS = 1.3;
 
@@ -346,6 +365,7 @@ export class PlayerPanel {
     const spb = 60 / Math.max(30, st.beat.bpm || 120), ph = ((st.beat.phase % 1) + 1) % 1;
     const beatK = Math.exp(-ph * spb * 6);
     drawPowers(g, p, box, L.compact, u, dpr, this.seat, t, out);
+    if (p.you) youRim(g, p, box, M, u, flip, out);
 
     // ---- the link: a ring round the emblem in the partner's colour, turning, and the chip
     const h = this.holdShown;
