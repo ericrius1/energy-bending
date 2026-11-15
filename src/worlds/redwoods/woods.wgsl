@@ -45,6 +45,38 @@ fn groundAt(p: vec3f, uv: vec2f, dx: vec2f, dy: vec2f) -> vec3f {
   return albedo * (key + woodsAmbient(up) * ao + lampLight(p, up, 0.0));
 }
 
+/** the wood going on past the last drawn trunks (phase 6, report 20): three tiers of trunks as silhouettes against the
+ *  warm glow of the low sky between them, each further tier paler in the mist, so the view out is layered depth rather
+ *  than a flat wall of fog; the glow warmest toward the sun's bearing (it lingers there after the sun is down) */
+fn woodsDeep(d: vec3f, far: vec3f) -> vec3f {
+  let F = worldLight.forest;
+  let az = atan2(d.z, d.x);
+  let sunAz = normalize(F.sunDisc.xz + vec2f(1e-4, 0.0));
+  let toward = max(dot(normalize(d.xz + vec2f(1e-4, 0.0)), sunAz), 0.0);
+  let low = smoothstep(0.32, 0.0, d.y);
+  // the glow behind the trunks: the low sky's colour, warmed toward the sun, brightest just over the ground
+  let dusk = clamp(F.horizon.w * 1.3, 0.0, 1.0);
+  let warm = vec3f(1.0, 0.62, 0.32) * (0.35 + 0.65 * pow(toward, 3.0)) * (0.25 + 0.75 * dusk) * (1.0 - F.night * 0.8);
+  var c = mix(far, F.horizon.rgb * 0.9 + warm * 0.55, 0.55 * low);
+  // the tiers, far to near: each a row of trunks round the view, the nearer ones wider, darker and less misted
+  for (var k = 0; k < 3; k++) {
+    let kf = f32(k);
+    let dens = 120.0 - kf * 35.0;
+    let x = az / 6.2831853 * dens + kf * 17.3;
+    let cell = floor(x);
+    let h = hash2i(vec2i(i32(cell), 40 + k));
+    let w = 0.12 + 0.18 * hash2i(vec2i(i32(cell), 50 + k));
+    let off = (hash2i(vec2i(i32(cell), 60 + k)) - 0.5) * 0.5;
+    let trunk = step(0.3, h) * smoothstep(w, w * 0.65, abs(fract(x) - 0.5 - off));
+    let mistK = 0.78 - 0.24 * kf;
+    let bark = F.shade.rgb * vec3f(0.2, 0.12, 0.09) + warm * 0.04 * (1.0 - kf * 0.3);
+    // (each tier's trunks lit faintly on the glow's side)
+    let col = mix(bark, c, mistK);
+    c = mix(c, col, trunk);
+  }
+  return c;
+}
+
 @fragment fn fs(i: FullscreenOut) -> @location(0) vec4f {
   let d = viewRay(i.uv);
   let cam = frame.camPos;
@@ -88,9 +120,9 @@ fn groundAt(p: vec3f, uv: vec2f, dx: vec2f, dy: vec2f) -> vec3f {
     let leaves = (worldLight.forest.shade.rgb * 0.05 + worldLight.forest.keyCol.rgb * worldLight.forest.key.w * (0.0015 + 0.025 * through + 0.008 * fleck)) * vec3f(0.5, 0.8, 0.35);
     c = mix(sky, leaves, dens);
     depth = mix(400.0, min(t, 400.0), step(0.5, dens)) * dot(d, frame.camFwd);
-    // low down, the wood goes on: trunk after trunk into the mist
+    // low down, the wood goes on: trunk after trunk into the mist, tier on tier against the glow (phase 6)
     let level = smoothstep(0.42, 0.08, d.y);
-    c = mix(c, far, level);
+    c = mix(c, woodsDeep(d, far), level);
     depth = mix(depth, 140.0 * dot(d, frame.camFwd), level);
   }
   return vec4f(c, max(depth, 0.05));

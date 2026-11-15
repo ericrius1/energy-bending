@@ -170,8 +170,9 @@ function build(): GeodeDuel {
     spawns: [[-1.2, 0, 0.6], [3.0, 0, 2.4], [6.6, 2.4, -3.0], [-7.0, 3.6, 0], [-3.4, 3.6, -6.9], [0, 3.1, -1.6]],
     pieces, plane, drops,
     camera: { minDist: 6, maxDist: 10.5, lens: 40, low: -0.6 },
-    // (the selenite's honey light; softer since phase 5, a sheen along the tops rather than a gold line round every block)
-    rim: [0.6, 0.47, 0.3],
+    // no rim light (phase 6, report 20): a gold line round every block and drop was a game's debug over the greenhouse;
+    // the drops read by their brass-and-moss lips, the selenite's tops by their own sheen
+    rim: [0, 0, 0],
     // the hazard: the crystals' hum, each phrase at the open spot nearest the pair as its warning begins (hazards.ts
     // chooseHum: phase 4; it took four spots in turn before, two of them behind the stage where the pair seldom is)
     hazard: humHazard({ spots: HUM_SPOTS, r: 1.25, h: 4.2 }),

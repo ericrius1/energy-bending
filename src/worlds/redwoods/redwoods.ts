@@ -21,6 +21,9 @@ import lanternShader from './lanterns.wgsl';
 import pollenShader from './pollen.wgsl';
 import gardenShader from './garden.wgsl';
 import arbourShader from './arbour.wgsl';
+import canopyShader from './canopy.wgsl';
+import { layoutCanopy, layoutRoots, type Canopy } from './canopy';
+import { MIRROR_SITES } from '../../portals/mirrors';
 import { layoutArbour, type Arbour } from './arbour';
 import { layoutGarden } from './garden';
 import { gustNow } from '../../duel/hazards';
@@ -32,7 +35,7 @@ import { Woods } from './day';
 import { fillTexture } from './textures';
 import { defineParams } from '../../engine/params';
 import { layoutStage, liftLanterns, packPieces, solidsOfStage, type RedwoodsStage } from './stage';
-import { solidsOfWoods } from './layout';
+import { solidsOfWoods, RING } from './layout';
 import { arenaShown, dropsUniform, inDrop, onArena } from '../../duel/arena';
 import { redwoodsDuel } from './arena';
 import { clearOf, type Solid } from '../solids';
@@ -104,9 +107,14 @@ export class Redwoods implements World {
   /** the arbour round the ring, its pods and the fungi (arbour.ts, phase 5) */
   private arbour: Arbour;
   private arbourBufs: { arches: ReturnType<Kit['storage']>; pods: ReturnType<Kit['storage']> } | null = null;
+  /** the wood's living architecture (canopy.ts, phase 6): decks, houses, bridges, stairs and their lanterns */
+  private canopy: Canopy;
+  private roots: Float32Array;
+  private rootsBuf: ReturnType<Kit['storage']> | null = null;
+  private canopyBufs: { turns: ReturnType<Kit['storage']>; spans: ReturnType<Kit['storage']> } | null = null;
   private tex: { bark: Texture; barkH: Texture; ground: Texture };
   private loading: Promise<void> | null = null;
-  private q: { grass: number; blades: number; flowers: number; spires: number; ferns: number; fronds: number; trunks: number; steps: number; flies: number };
+  private q: { grass: number; blades: number; flowers: number; spires: number; ferns: number; fronds: number; trunks: number; steps: number; flies: number; deepFlies: number };
 
   constructor(private ctx: WorldCtx) {
     const { kit, coarse, film } = ctx;
@@ -114,8 +122,8 @@ export class Redwoods implements World {
     // and fronds, the trunks the light is tested against, the steps through the air, fireflies (a film tests more
     // trunks and marches the air finer)
     this.q = coarse
-      ? { grass: 120, blades: 6, flowers: 84, spires: 26, ferns: 24, fronds: 10, trunks: 9, steps: 10, flies: 140 }
-      : { grass: 210, blades: 10, flowers: 150, spires: 44, ferns: 34, fronds: 14, trunks: film ? 24 : 13, steps: film ? 26 : 15, flies: 320 };
+      ? { grass: 120, blades: 6, flowers: 84, spires: 26, ferns: 24, fronds: 10, trunks: 9, steps: 10, flies: 140, deepFlies: 260 }
+      : { grass: 210, blades: 10, flowers: 150, spires: 44, ferns: 34, fronds: 14, trunks: film ? 24 : 13, steps: film ? 26 : 15, flies: 320, deepFlies: 900 };
     this.woods = new Woods(this.q.trunks);
     this.woods.values.march[0] = this.q.steps;
     // the stage: the log and the boughs, and the plane they're ledges on (the camera stands on the clearing's side)
@@ -155,6 +163,13 @@ export class Redwoods implements World {
       return Math.hypot(x - lg[0] - bx * h, z - lg[1] - bz * h) > pl[0] + 0.2 && Math.hypot(x - pl[1], z - pl[2]) > pl[3] * 0.6;
     };
     this.arbour = layoutArbour(this.woods.layout.trunks, 9, redwoodsDuel().stumps, (x, z) => !inDrop(da.plane, da.drops!, x, z) && offLog(x, z), coarse);
+    const Lw = this.woods.layout;
+    this.canopy = layoutCanopy(Lw.logs, Lw.near + Lw.far, RING, () => true, coarse);
+    // the ring's roots over the ground at the meadow's edge (canopy.ts, phase 6): outside the duel's space, off the
+    // mirrors and the gate
+    const sp = redwoodsDuel().arena.space;
+    const avoid: [number, number, number][] = [[gate[0], gate[2], 3.2], ...MIRROR_SITES.filter((m) => m.world === this.id).map((m): [number, number, number] => [m.x, m.z, 3.2])];
+    this.roots = packPieces(layoutRoots(Lw.trunks, 9, [sp.center[0], sp.center[2]], sp.radius, avoid, coarse));
     this.forest = lightSlot(kit, 'forest');
     this.forest.set(this.woods.values);
     this.shared = {};
@@ -252,6 +267,12 @@ export class Redwoods implements World {
         label: 'redwoods.duel.boughs', vertex: 'vs_stage', fragment: 'fs_stage', bind: { stage: dbuf, barkTex: this.tex.bark, barkH: this.tex.barkH }, count: 20 * (2 + 2 * 2 - 1) * 6,
         instances: duel.count - duel.big, constants: { SIDES: 20, RINGS: 2, CAPR: 2, SFIRST: duel.big }, cull: 'none', enabled: shown,
       });
+      // the ring's roots over the ground (phase 6), in the boughs' detail
+      const rbuf = (this.rootsBuf ??= this.ctx.kit.storage({ label: 'redwoods.roots', data: this.roots, usage: ['storage'] }));
+      pass.draw(trunkShader, {
+        label: 'redwoods.roots', vertex: 'vs_stage', fragment: 'fs_stage', bind: { stage: rbuf, barkTex: this.tex.bark, barkH: this.tex.barkH }, count: 20 * (2 + 2 * 2 - 1) * 6,
+        instances: this.roots.length / 16, constants: { SIDES: 20, RINGS: 2, CAPR: 2, SFIRST: 0 }, cull: 'none', enabled: on,
+      });
       // what grows on them: ferns and shelf fungus down the log's flanks, ferns along the boughs
       pass.draw(fernShader, {
         label: 'redwoods.epiphytes.log', vertex: 'vs_epi', bind: { stage: this.pieces() }, count: 60, instances: 2 * (q.ferns > 30 ? 18 : 10),
@@ -291,6 +312,10 @@ export class Redwoods implements World {
       pass.draw(arbourShader, { label: 'redwoods.arbour.vine', vertex: 'vs_leaf', fragment: 'fs_leaf', bind: ab, count: 56 * 6, instances: A.archCount, cull: 'none', enabled: on });
       pass.draw(arbourShader, { label: 'redwoods.pods', vertex: 'vs_pod', fragment: 'fs_pod', bind: ab, count: 10 * 8 * 6 + 6, instances: A.always, constants: { FIRST: 0 }, cull: 'none', enabled: on });
       pass.draw(arbourShader, { label: 'redwoods.fungi.duel', vertex: 'vs_pod', fragment: 'fs_pod', bind: ab, count: 10 * 8 * 6 + 6, instances: A.duel, constants: { FIRST: A.always }, cull: 'none', enabled: () => on() && arenaShown(this.id) });
+      // the wood's living architecture (canopy.wgsl): decks, rails, houses and lanterns, then the bridges and stairs
+      const C = this.canopy, cb = this.canopyBinds();
+      pass.draw(canopyShader, { label: 'redwoods.canopy', vertex: 'vs_turn', fragment: 'fs_turn', bind: cb, count: 28 * 7 * 6, instances: C.turnCount, constants: { FIRST: 0 }, cull: 'none', enabled: on });
+      pass.draw(canopyShader, { label: 'redwoods.canopy.spans', vertex: 'vs_span', fragment: 'fs_span', bind: cb, count: 3 * 40 * 6, instances: C.spanCount, cull: 'none', enabled: on });
     } else {
       pass.draw(pollenShader, { label: 'redwoods.pollen', count: 6, instances: () => (this.ctx.coarse ? 700 : 1400), blend: 'add', depthWrite: false, cull: 'none', enabled: on });
       pass.draw(pollenShader, { label: 'redwoods.kicks', vertex: 'vs_kick', count: 6, instances: 4 * 40, constants: { KICK: 40 }, blend: 'add', depthWrite: false, cull: 'none', enabled: on });
@@ -301,12 +326,14 @@ export class Redwoods implements World {
       });
       // fireflies, from dusk (forest.horizon.w: the sun under 10°) into the night
       pass.draw(lanternShader, {
-        label: 'redwoods.fireflies', vertex: 'vs_fly', fragment: 'fs_fly', count: 6, instances: () => Math.round(q.flies * redwoodsParams.fireflies),
+        label: 'redwoods.fireflies', vertex: 'vs_fly', fragment: 'fs_fly', count: 6, instances: () => Math.round((q.flies + q.deepFlies) * redwoodsParams.fireflies), constants: { NEAR: q.flies },
         blend: 'add', depthWrite: false, cull: 'none', enabled: () => on() && this.woods.values.horizon[3] > 0.01,
       });
       // the arbour's pods and the fungi: their halos
       const A = this.arbour, ab = this.arbourBinds();
       pass.draw(arbourShader, { label: 'redwoods.pods.halos', vertex: 'vs_halo', fragment: 'fs_halo', bind: ab, count: 6, instances: A.always, constants: { FIRST: 0 }, blend: 'add', depthWrite: false, cull: 'none', enabled: on });
+      const C = this.canopy, cb = this.canopyBinds();
+      pass.draw(canopyShader, { label: 'redwoods.canopy.halos', vertex: 'vs_halo', fragment: 'fs_halo', bind: cb, count: 6, instances: C.lanterns, constants: { FIRST: C.firstLantern }, blend: 'add', depthWrite: false, cull: 'none', enabled: () => on() && this.woods.values.horizon[3] + this.woods.values.night > 0.01 });
       pass.draw(arbourShader, { label: 'redwoods.fungi.halos', vertex: 'vs_halo', fragment: 'fs_halo', bind: ab, count: 6, instances: A.duel, constants: { FIRST: A.always }, blend: 'add', depthWrite: false, cull: 'none', enabled: () => on() && arenaShown(this.id) && this.woods.values.horizon[3] > 0.01 });
 
     }
@@ -317,6 +344,13 @@ export class Redwoods implements World {
     return (this.arbourBufs ??= {
       arches: this.ctx.kit.storage({ label: 'redwoods.arbour', data: A.arches, usage: ['storage'] }),
       pods: this.ctx.kit.storage({ label: 'redwoods.pods', data: A.pods, usage: ['storage'] }),
+    });
+  }
+  private canopyBinds() {
+    const C = this.canopy;
+    return (this.canopyBufs ??= {
+      turns: this.ctx.kit.storage({ label: 'redwoods.canopy', data: C.turns, usage: ['storage'] }),
+      spans: this.ctx.kit.storage({ label: 'redwoods.canopy.spans', data: C.spans, usage: ['storage'] }),
     });
   }
   private logsBuf: ReturnType<Kit['storage']> | null = null;

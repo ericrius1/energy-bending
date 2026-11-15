@@ -225,7 +225,7 @@ export class GemPasses implements MatterPasses {
       const count = Math.min(Number(fx.count ?? 0), MAXN + LIMITS.fixtures - base);
       if (count <= 0) continue;
       const kinds = ((fx.specimens as string[]) ?? []).map((id) => this.ids.indexOf(id)).filter((k) => k >= 0);
-      const dome = buildDome(count, Number(fx.radius ?? 8.5), kinds, this.K, Number(fx.seed ?? 4242));
+      const dome = buildDome(count, Number(fx.radius ?? 8.5), kinds, this.K, Number(fx.seed ?? 4242), Number(fx.top ?? 1));
       init.set(dome.state, base * 12);
       for (let i = 0; i < count; i++) looks.set(dome.looks.subarray(i * 4, i * 4 + 4), (base - MAXN + i) * 8 + 4);
       this.fixtures.push({ world: w.id, base, count, kinds: dome.kinds, enabled: (fx.enabled as () => boolean) ?? (() => true) });

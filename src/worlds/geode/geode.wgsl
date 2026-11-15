@@ -374,6 +374,184 @@ fn geodeWindowFloor(p: vec3f) -> vec3f {
   return g.rgb * g.a * exp(-t * 0.12);
 }
 
+// ---------------------------------------------------------------- the greenhouse cathedral (phase 6, report 20)
+// The hollow opened to the sky: above a bank of crystal at its foot (the gem fixture, kept low since phase 6), the wall
+// rises as two planted tiers (a brass rail over ferns and flowers, then an arcade of cream stone with deep green planting
+// behind it and wisteria hanging from its arches), and over them a soaring vault of glass on brass ribs: 32 ribs drawn
+// in from the tiers toward the oculus, purlins every 1.6 m, each bay's panes under an ogee arch of lead, a ring of
+// stained-glass flowers at its foot; the sky through it, warm at the horizon and teal overhead with soft cloud and the
+// sun, the crowns of trees outside against its lowest panes; vines climbing the ribs, wisteria and trailing green hung
+// from the purlins. All in the backdrop: nothing solid, no geometry.
+
+/** where the crystal bank gives way to the tiers, and where the glass vault begins (m) */
+const GH_TIER: f32 = 3.2;
+const GH_GLASS: f32 = 7.6;
+const GH_RIBS: f32 = 32.0;
+const GH_PURLIN: f32 = 1.6;
+
+/** the sky outside the glass along d: warm low, teal high, a soft cloud, the sun (the wells' sun) */
+fn geodeSky(d: vec3f) -> vec3f {
+  let S = -geodeSunDir();
+  let up = clamp(d.y, 0.0, 1.0);
+  var sky = mix(vec3f(1.0, 0.86, 0.62), vec3f(0.36, 0.66, 0.84), smoothstep(0.04, 0.75, up));
+  let sd = max(dot(d, S), 0.0);
+  sky += vec3f(1.0, 0.82, 0.5) * (pow(sd, 6.0) * 0.5 + pow(sd, 400.0) * 8.0);
+  let q = d.xz / max(d.y + 0.3, 0.12);
+  let cl = smoothstep(0.5, 0.85, vnoise(vec3f(q * 1.1, frame.time * 0.004)) * 0.65 + vnoise(vec3f(q * 2.9, 3.0)) * 0.35);
+  sky = mix(sky, vec3f(1.0, 0.96, 0.88) * (0.9 + 0.7 * pow(sd, 3.0)), cl * 0.6);
+  return sky;
+}
+
+/** a heart leaf's coverage at q (x across, y 0 … 1 along from its stem), for painted vines */
+fn ghLeaf(q: vec2f) -> f32 {
+  let t = q.y;
+  let w = 0.5 * sin(3.14159 * pow(clamp(t, 0.0, 1.0), 0.62));
+  return step(0.0, t) * step(t, 1.0) * step(abs(q.x), w);
+}
+
+/** the tiers and the vault at p on the wall, seen along d: colour (rgb) and how much of the wall it is (a: 0 below the
+ *  tiers, where the crystal shows) */
+fn geodeGreenhouse(p: vec3f, d: vec3f) -> vec4f {
+  let L = worldLight.geode;
+  if (p.y < GH_TIER - 1.8) { return vec4f(0.0); }
+  let R = L.wall.x;
+  let crown = R * L.wall.y;
+  let sunK = L.sun.w;
+  let az = atan2(p.z, p.x);
+  let rxz = max(length(p.xz), 0.5);
+  // the inside of the greenhouse lit by its own glass: a soft warm skylight
+  let lit = (0.1 + 0.22 * sunK) * vec3f(1.0, 0.94, 0.82);
+  let a = smoothstep(GH_TIER - 0.3, GH_TIER, p.y);
+  // ------------------------------------------------ the tiers
+  if (p.y < GH_GLASS) {
+    let s = az * rxz;
+    // deep planting behind everything, seen through the arcade 2.5 m back (the view carried on to there, so it moves
+    // against the arches as the eye does: a room of green behind them, not paint on the wall): dark leaves, sunlit
+    // where the glass above lights them, deeper in shadow under the ledge
+    let nOut = vec3f(p.x, 0.0, p.z) / rxz;
+    let q = p + d * (2.5 / max(dot(d, nOut), 0.3));
+    let sq = atan2(q.z, q.x) * length(q.xz);
+    let n1 = vnoise(vec3f(sq * 1.6, q.y * 2.2, 1.0));
+    let n2 = vnoise(vec3f(sq * 5.0, q.y * 6.0, 4.0));
+    let fleck = smoothstep(0.66, 0.9, vnoise(vec3f(sq * 7.0, q.y * 7.0, 6.0)));
+    let shaft = smoothstep(0.5, 0.95, sin((sq - q.y * 0.55) * 1.7) * 0.5 + 0.5) * 0.6;
+    let inner = mix(0.25, 1.0, smoothstep(4.2, 7.2, q.y));
+    var c = (mix(vec3f(0.012, 0.03, 0.01), vec3f(0.07, 0.15, 0.04), (0.5 + 0.5 * n2) * (0.4 + 0.6 * n1)) + vec3f(0.3, 0.32, 0.08) * fleck * (0.25 + shaft) * inner) * inner * (0.5 + 0.7 * sunK);
+    // (the sun's haze in the room behind, catching light high up)
+    c += GEO_SUN * 0.03 * sunK * shaft * smoothstep(4.6, 7.2, q.y);
+    // the arcade above the rail: cream stone piers and pointed arches every 2.4 m, the planting seen deep through them
+    let bay = 2.4;
+    let bx = (fract(s / bay) - 0.5) * bay;
+    let ay = p.y - 4.6;
+    let hw = 0.92;
+    let ys = 6.55 - hw * 1.3;
+    var arch = max(abs(bx) - hw, -ay);
+    if (p.y > ys) { arch = max(length(vec2f(abs(bx) + hw * 0.7, p.y - ys)) - hw * 1.7, -ay); }
+    let stone = vec3f(0.93, 0.86, 0.72) * (0.85 + 0.15 * vnoise(p * 3.0));
+    let pier = smoothstep(-0.02, 0.03, arch) * step(4.45, p.y);
+    // (honey sandstone, a little darker where the arch turns in: its depth)
+    c = mix(c, stone * lit * (0.75 + 0.35 * smoothstep(0.0, 0.25, arch)) * (0.85 + 0.15 * smoothstep(4.4, 7.4, p.y)), pier);
+    // a fine brass bead round each arch
+    c += vec3f(0.95, 0.7, 0.36) * (1.0 - smoothstep(0.0, 0.035, abs(arch))) * step(4.45, p.y) * 0.25 * sunK;
+    // wisteria hanging inside each arch from its crown, lavender and cream, swaying a little
+    let sw = sin(frame.time * 0.4 + s * 0.7) * 0.03;
+    let strand = fract((bx + sw * (ys + 0.6 - p.y)) / 0.13 + 0.5);
+    let hang = ys + 0.4 - (0.35 + 0.75 * vnoise(vec3f(floor((bx + sw * (ys + 0.6 - p.y)) / 0.13 + 0.5), floor(s / bay), 7.0)));
+    // (each raceme a cone of florets, narrowing to its tip)
+    let cone = 0.32 * clamp((p.y - hang) / 0.6, 0.15, 1.0);
+    let floret = 0.6 + 0.4 * step(0.4, vnoise(vec3f(s * 40.0, p.y * 40.0, 3.0)));
+    let wis = step(hang, p.y) * step(p.y, ys + 0.6) * smoothstep(cone, cone * 0.6, abs(strand - 0.5)) * floret * step(arch, 0.0) * smoothstep(hw, hw * 0.6, abs(bx));
+    let wcol = mix(vec3f(0.62, 0.5, 0.92), vec3f(0.96, 0.92, 0.98), step(0.7, vnoise(vec3f(s * 0.3, 2.0, 2.0)))) * (0.7 + 0.3 * n2);
+    c = mix(c, wcol * lit * 1.3, wis * 0.9);
+    // the cornice between the tiers and the glass, the ledge under the arcade: cream, a band of copper gone green
+    let corn = smoothstep(0.02, 0.0, abs(p.y - 7.4) - 0.2);
+    let ledge = smoothstep(0.02, 0.0, abs(p.y - 4.4) - 0.14);
+    c = mix(c, stone * lit * 1.0, max(corn, ledge));
+    c = mix(c, vec3f(0.3, 0.62, 0.5) * lit * 0.9, smoothstep(0.02, 0.0, abs(p.y - 7.25) - 0.04));
+    // the lower tier: ferns and flowers along its ledge behind a brass rail on balusters
+    let rail = smoothstep(0.03, 0.0, abs(p.y - 4.15) - 0.03);
+    let bal = smoothstep(0.02, 0.0, abs(fract(s / 0.22) - 0.5) * 0.22 - 0.018) * step(3.55, p.y) * step(p.y, 4.15);
+    let fern = smoothstep(0.55, 0.75, vnoise(vec3f(s * 4.0, p.y * 3.0, 9.0)) + smoothstep(4.0, 3.4, p.y) * 0.4) * step(p.y, 4.35);
+    c = mix(c, vec3f(0.05, 0.12, 0.03) * (0.4 + 0.6 * sunK) * (0.5 + 0.6 * n2), fern * 0.85);
+    let fl = hash2i(vec2i(i32(floor(s / 0.18)), i32(floor(p.y / 0.18))));
+    let fc = vec2f(fract(s / 0.18), fract(p.y / 0.18)) - 0.5;
+    let bloom = step(0.9, fl) * smoothstep(0.32, 0.22, length(fc)) * step(p.y, 4.4) * step(3.3, p.y);
+    let bcol = select(select(vec3f(1.0, 0.55, 0.42), vec3f(1.0, 0.8, 0.3), fl > 0.96), vec3f(0.98, 0.95, 0.88), fl > 0.98);
+    c = mix(c, bcol * lit * 1.4, bloom);
+    c = mix(c, vec3f(0.95, 0.7, 0.36) * (0.06 + 0.16 * sunK), max(rail, bal * 0.9));
+    // vines trailing from the ledge down over the crystal bank
+    let vs = s / 0.35;
+    let vh = hash2i(vec2i(i32(floor(vs)), 3));
+    let vine = step(0.55, vh) * smoothstep(0.12, 0.04, abs(fract(vs) - 0.5 - 0.15 * sin(p.y * 3.0 + vh * 20.0))) * step(3.4 - 1.6 * vh, p.y);
+    c = mix(c, vec3f(0.09, 0.2, 0.05) * (0.4 + 0.6 * sunK), vine * step(p.y, 3.6));
+    // (below the tier only the vines show, over the crystal wall)
+    return vec4f(c, select(vine, a, p.y > GH_TIER));
+  }
+  // ------------------------------------------------ the glass vault
+  let v = clamp((p.y - GH_GLASS) / (crown - GH_GLASS), 0.0, 1.0);
+  // ribs: 32 at the foot, every other one stopping half way up (as they draw together toward the oculus)
+  let rs = (az / 6.2831853 + 0.5) * GH_RIBS;
+  let bayW = 6.2831853 * rxz / GH_RIBS;
+  let fr = fract(rs);
+  let dr = (0.5 - abs(fr - 0.5)) * bayW;
+  let odd = (i32(floor(rs + 0.5)) & 1) == 1;
+  let ribW = 0.06 + 0.06 * (1.0 - v);
+  var rib = 1.0 - smoothstep(ribW, ribW + 0.025, dr);
+  if (odd && v > 0.55) { rib *= smoothstep(0.62, 0.55, v); }
+  // purlins: rings of brass every GH_PURLIN up the vault
+  let py = (p.y - GH_GLASS) / GH_PURLIN;
+  let dp = (0.5 - abs(fract(py) - 0.5)) * GH_PURLIN;
+  let purlin = 1.0 - smoothstep(0.035, 0.06, dp);
+  // the panes' leading: in each bay an ogee arch under each purlin, a bar down its middle, two more beside it
+  let bx = (fr - 0.5) * bayW;
+  let by = fract(py) * GH_PURLIN;
+  let u = clamp(abs(bx) / (bayW * 0.5), 0.0, 1.0);
+  let ogee = GH_PURLIN * (0.62 + 0.3 * (1.0 - u * u) - 0.08 * sin(u * 3.14159));
+  var lead = 1.0 - smoothstep(0.012, 0.03, abs(by - ogee));
+  lead = max(lead, (1.0 - smoothstep(0.01, 0.025, abs(bx))) * step(by, ogee));
+  lead = max(lead, (1.0 - smoothstep(0.01, 0.025, abs(abs(bx) - bayW * 0.27))) * step(by, ogee * 0.8));
+  // the glass: the sky through it, faintly green, each pane a little different
+  let pane = hash2i(vec2i(i32(floor(rs * 3.0)), i32(floor(py * 2.0))));
+  var glass = geodeSky(d) * vec3f(0.86, 0.94, 0.9) * (0.88 + 0.12 * pane) * (0.55 + 0.45 * sunK);
+  // the crowns of the trees outside against the lowest panes, lit gold on top
+  let tl = 0.16 + 0.14 * vnoise(vec3f(az * 6.0, 1.0, 5.0)) + 0.05 * vnoise(vec3f(az * 23.0, 3.0, 5.0));
+  let trees = smoothstep(0.012, -0.012, d.y - tl);
+  let tcol = mix(vec3f(0.08, 0.16, 0.06), vec3f(0.42, 0.52, 0.16), smoothstep(-0.06, 0.0, d.y - tl) * 0.7 + 0.3 * vnoise(vec3f(az * 40.0, d.y * 40.0, 1.0)));
+  glass = mix(glass, tcol * (0.4 + 0.6 * sunK), trees);
+  // a ring of stained-glass flowers in the lowest course (coral or gold on teal), one to a bay
+  let f0 = vec2f(bx, by - GH_PURLIN * 0.45);
+  let low = step(py, 1.0);
+  let fa = atan2(f0.y, f0.x);
+  let fRad = length(f0);
+  let petal = bayW * 0.17 * (0.62 + 0.38 * pow(abs(cos(fa * 3.0)), 0.8));
+  let inF = step(fRad, petal) * low * f32((i32(floor(rs)) & 1) == 0);
+  let fcol = select(vec3f(1.0, 0.5, 0.34), vec3f(1.0, 0.76, 0.3), (i32(floor(rs)) % 3) == 0);
+  glass = mix(glass, mix(vec3f(0.3, 0.7, 0.66), glass, 0.35) * 0.85, low * step(by, ogee) * 0.6 * (1.0 - inF));
+  glass = mix(glass, mix(fcol * fcol, vec3f(1.0, 0.8, 0.3), step(fRad, bayW * 0.045)) * (0.6 + 0.3 * sunK), inF);
+  lead = max(lead, inF * (1.0 - smoothstep(0.012, 0.03, abs(fRad - petal + 0.02))));
+  // vines climbing the ribs from the tiers, thinning as they go up
+  let climb = smoothstep(0.55, 0.0, v) * step(0.35, hash2i(vec2i(i32(floor(rs + 0.5)), 11)));
+  let leafOn = climb * step(dr, 0.26) * step(0.45, vnoise(vec3f(rs * 3.0, p.y * 3.5, 2.0)));
+  let vleaf = leafOn * ghLeaf(vec2f(abs(dr - 0.06) / 0.2 - 0.5, fract(p.y / 0.3 + rs * 0.37)));
+  // wisteria and trailing green hung from the purlins here and there
+  let hangK = hash2i(vec2i(i32(floor(rs)), i32(floor(py))));
+  let drip = fract(bx / 0.09 + 0.5);
+  let hl = GH_PURLIN * (0.3 + 0.45 * vnoise(vec3f(floor(bx / 0.09), floor(rs), floor(py))));
+  let hcone = 0.36 * clamp((by - (GH_PURLIN - hl)) / (hl * 0.7), 0.2, 1.0);
+  let hangOn = step(0.66, hangK) * step(py, 4.0) * step(GH_PURLIN - hl, by) * smoothstep(hcone, hcone * 0.55, abs(drip - 0.5)) * step(abs(bx), bayW * 0.36);
+  let hcol = select(vec3f(0.16, 0.36, 0.1) * (0.6 + 0.4 * vnoise(p * 9.0)), mix(vec3f(0.64, 0.52, 0.94), vec3f(0.97, 0.94, 0.99), step(0.85, hangK)), hangK > 0.78);
+  // brass, lit by the sky round it (a little dark against the bright glass), a gold line where the sun catches it
+  let brass = vec3f(0.95, 0.7, 0.36);
+  let metal = brass * (0.05 + 0.22 * sunK) + brass * (1.0 - smoothstep(0.0, 0.5, dr / max(ribW, 1e-3))) * 0.25 * sunK;
+  var c = glass;
+  c = mix(c, vec3f(0.03, 0.025, 0.018), lead * 0.85);
+  c = mix(c, vec3f(0.95, 0.72, 0.4) * 0.2 * sunK, lead * 0.25);
+  c = mix(c, metal, max(rib, purlin));
+  c = mix(c, vec3f(0.2, 0.4, 0.11) * (0.25 + 0.5 * sunK), vleaf);
+  c = mix(c, hcol * lit * 1.3, hangOn);
+  return vec4f(c, 1.0);
+}
+
 /** the wall at p, seen along d: faces of crystal (a cellular pattern round the hollow, its cells the faces), each a
  *  little different in how it's turned, glowing from within (a few strongly), seams dark between them; glints where a
  *  face turns the softbox or the shaft's light to the eye; brighter low, where the floor's light reaches, darker up in
@@ -448,6 +626,10 @@ fn geodeWall(p: vec3f, d: vec3f) -> vec3f {
   // the light wells round the vault
   let win = geodeWindows(p);
   c = mix(c, win.rgb, win.a);
+  // the greenhouse over the crystal (phase 6): the tiers and the glass vault, the wells set in its glass again
+  let gh = geodeGreenhouse(p, d);
+  c = mix(c, gh.rgb, gh.a);
+  c = mix(c, win.rgb, win.a * step(GH_GLASS, p.y));
   // the great window behind the stage, and the stone round it warmed by its glow
   let gw = geodeGreatWindow(p, false);
   let gp = gwPlace(p);
@@ -572,6 +754,7 @@ fn geodeAir(s: vec4f, px: vec2i, d: vec3f) -> vec3f {
     c += GEO_SUN * worldLight.geode.sun.w * 0.11 * path * inside * ends * shown * motes;
   }
   // the haze, lit faintly by the wall's glow low down (so the far side of the hollow sinks into a dusk, not black)
-  let hz = worldLight.geode.hazeCol.rgb * (1.0 + 1.5 * smoothstep(0.3, -0.2, d.y));
+  // (and, since the vault is glass (phase 6), the sunlit air under it: warmer and brighter looking up)
+  let hz = worldLight.geode.hazeCol.rgb * (1.0 + 1.5 * smoothstep(0.3, -0.2, d.y)) + GEO_SUN * 0.05 * worldLight.geode.sun.w * smoothstep(-0.1, 0.7, d.y);
   return mix(hz, c, exp(-tMax * worldLight.geode.hazeCol.w));
 }
