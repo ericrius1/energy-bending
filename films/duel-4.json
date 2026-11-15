@@ -1,0 +1,68 @@
+{
+  "name": "duel-4",
+  "title": "The duel's phase 4 film (the first solarpunk pass): a highlight reel of the contact dance, two virtual players seen as players see them (the duel's own camera, the new HUD on screen, the power keys of a split keyboard under each panel's icons), on the redwoods' track (Embers in the Redwoods) from bar 60's second beat, after two beats of the front (scripts/front-cap.mjs, joined in report 17's final.mjs: the film tool can't film the DOM). The count-in in the sunlit temple, DANCE on bar 61 and an air catch over the cream court; still in the track's hush, the temple at high tide, water's whip catching fire at range over the clear water (a longer hold); the geode's hum rising where the pair is and lifting both into a catch; on bar 65's bright swell the redwoods at dusk, STEAM and the geyser carrying the pair up into the bunting, a catch held at its top; the Pool's golden-hour water garden, a whip's catch at range and MURMURATION's dappled light; a frost flower in the geode's greenhouse; a merge's petals among the redwoods; then the Pool's fused lift on bar 72 (skill 0.85, the reeds out of the lens), and the banner. Every shot plays its set from the first frame (seeded brains, the music's clock anchored to the duel's start) and cuts into it a whole number of beats in, on the track's beats; the sound is the track with each shot's recorded score under it at the game's balance.",
+  "audio": { "track": "redwoods", "from": 60.25 },
+  "size": "1280x720",
+  "fps": 60,
+  "fadeIn": 0.3,
+  "fadeOut": 1.4,
+  "defaults": { "mode": "duel", "from": "start", "hud": true, "query": { "keys": "left,right" } },
+  "shots": [
+    {
+      "id": "temple-open",
+      "note": "the sunlit temple at low tide: 3, 2, 1 over the cream court, DANCE on bar 61; fire catches ice, flings it and catches it out of the air (the vines over the lintels, the banners in the gate)",
+      "world": "temple",
+      "cast": [{ "dress": "ice", "style": "flyer", "skill": 0.85 }, { "dress": "fire", "style": "lead", "skill": 0.85 }],
+      "seed": 3, "preroll": 0, "beats": 7
+    },
+    {
+      "id": "temple-tide-whip",
+      "note": "the temple at high tide (1.2 m and rising): water (fern) throws its whip across the clear water and catches fire (rose) at range, the 10-frame hold, then they swing afloat; CURRENT x39",
+      "world": "temple",
+      "cast": [{ "dress": "fire", "style": "lead", "skill": 0.85 }, { "dress": "water", "style": "flyer", "skill": 0.85 }],
+      "seed": 1, "preroll": 12.207, "beats": 6
+    },
+    {
+      "id": "geode-hum",
+      "note": "the geode's greenhouse grotto: the hum's column of honey rings rises where the pair is and lifts both, and they meet in the air inside it (AIR CATCH)",
+      "world": "geode",
+      "cast": [{ "dress": "fire", "style": "flyer", "skill": 0.85 }, { "dress": "water", "style": "lead", "skill": 0.85 }],
+      "seed": 3, "preroll": 16.453, "beats": 6
+    },
+    {
+      "id": "redwoods-geyser",
+      "note": "bar 65's bright swell: the redwoods at dusk, fire's ribbon meets water's wave, STEAM!, the geyser carries both up into the bunting and the sun's shafts and fire catches water at its top (the 11-frame hold)",
+      "world": "redwoods",
+      "cast": [{ "dress": "fire", "style": "flyer", "skill": 0.85 }, { "dress": "water", "style": "lead", "skill": 0.85 }],
+      "seed": 3, "preroll": 32.375, "beats": 7, "hour": 18.9
+    },
+    {
+      "id": "pool-whip-murmuration",
+      "note": "the Pool's golden-hour water garden: water (fern) whips fire (rose) in from a raft at range (held), they swing over the lily pads and the chain reaches MURMURATION x55: the tier's dappled light",
+      "world": "pool",
+      "cast": [{ "dress": "fire", "style": "lead", "skill": 0.85 }, { "dress": "water", "style": "flyer", "skill": 0.85 }],
+      "seed": 1, "preroll": 20.698, "beats": 9
+    },
+    {
+      "id": "geode-frost",
+      "note": "bar 69: in the geode, ice (fern) sets a step and water's whip (rose) meets it: FREEZE!, a frost flower blooming round the pair",
+      "world": "geode",
+      "cast": [{ "dress": "water", "style": "flyer", "skill": 0.85 }, { "dress": "ice", "style": "lead", "skill": 0.85 }],
+      "seed": 4, "preroll": 23.883, "beats": 5
+    },
+    {
+      "id": "redwoods-merge",
+      "note": "the redwoods at dusk: plasma (rose) and gems (fern) catch and MERGE, the petals of both colours opening round the pair, then gems' prism and an air catch",
+      "world": "redwoods",
+      "cast": [{ "dress": "plasma", "style": "flyer", "skill": 0.85 }, { "dress": "gems", "style": "lead", "skill": 0.85 }],
+      "seed": 1, "preroll": 34.497, "beats": 6, "hour": 18.9
+    },
+    {
+      "id": "pool-finale",
+      "note": "the Pool's last seconds: FINALE on bar 72, water (rose) and ice (fern) fused, the lift into the low sun among the lily pads, and the banner",
+      "world": "pool",
+      "cast": [{ "dress": "water", "style": "flyer", "skill": 0.85 }, { "dress": "ice", "style": "lead", "skill": 0.85 }],
+      "seed": 4, "preroll": 65.811, "beats": 11
+    }
+  ]
+}
