@@ -10,7 +10,8 @@
 //                    (&bpm=N plays a local room at another tempo: a film's timeline sets it; &hold=S starts its room
 //                    S seconds late, the dancers asleep until then)
 //                    (&partner=… with a script: the partner brain plays dancer 2, the script dancer 1; &seed=N its seed)
-//   &world=pool &dress=fire,water &free (the 3D view; the side view is the default)
+//   &world=pool &dress=fire,water &lock (the side view; open 3D is the default, report 20-roam: &free is kept, a no-op;
+//                    a script keeps the side view unless &free)
 //   nothing          the front of the game over the show (menu.ts); ?play stays the solo free dance. The front can
 //                    begin a jogo or a duel in the same page: bend.front.begin(mode | 'duel', query, joined?)
 //                    (geode/front.ts calls it; for the duel the page's address is already the duel's)
@@ -58,6 +59,7 @@ import { ScriptRunner, type JogoScript } from './script';
 import { jogoParams } from './params';
 import { Lobby, Waiting, showFront, escapeToFront, hrefOf } from './menu';
 import { roomServer } from '../net/where';
+import { roam } from './roam';
 
 type V3 = [number, number, number];
 
@@ -143,6 +145,8 @@ export async function startJogo(app: PlayApp, mode: string, opts: { joined?: Joi
   const scripted = mode === 'script';
   const online = mode === 'online';
   const script = scripted ? scriptNamed(q.get('script') ?? 'pool-fire-water') : null;
+  /** the side view: asked for (&lock), else open 3D; a script's is the side view unless &free or its own lock is false */
+  const side = scripted ? !q.has('free') && script?.lock !== false : q.has('lock') && !q.has('free');
   const world = () => app.worldOf(app.main.world);
   // a script plays in its own world unless the address names one
   if (script?.world && !q.has('world') && script.world !== app.main.world) await app.setWorld?.(script.world);
@@ -339,12 +343,13 @@ export async function startJogo(app: PlayApp, mode: string, opts: { joined?: Joi
         seatDancer[s] = d;
       }
     }
-    waiting = new Waiting(room.session.room ?? '', `${location.origin}${hrefOf({ mode: 'online', world: world().id, dress: [dress[0] ?? 'fire', dress[1] ?? 'water'], lock: !q.has('free'), room: room.session.room ?? '' }, location.pathname, q)}`);
+    waiting = new Waiting(room.session.room ?? '', `${location.origin}${hrefOf({ mode: 'online', world: world().id, dress: [dress[0] ?? 'fire', dress[1] ?? 'water'], lock: side, room: room.session.room ?? '' }, location.pathname, q)}`);
     app.wake();
   }
 
-  // ---------------------------------------------------------------- the lock: the side view unless &free
-  if (!q.has('free') && script?.lock !== false) rig.lock(world().stages[0] ?? null);
+  // ---------------------------------------------------------------- the lock: open 3D unless &lock (report 20-roam);
+  // a script keeps its own (the side view unless &free or its lock is false: the films)
+  if (side) rig.lock(world().stages[0] ?? null);
 
   // ---------------------------------------------------------------- starting: a lobby on one screen, at once scripted
   let lobby: Lobby | null = null;
@@ -452,6 +457,12 @@ export async function startJogo(app: PlayApp, mode: string, opts: { joined?: Joi
       if (c && o) { const r = bodies[1 - s].root(); c.character.lookAt = r; c.lookAtHead = o.skeleton.pos[JOINT.Head]; }
     }
     if (waiting) waiting.visible = !st || st.phase === 'waiting';
+    // online, the other seat through a mirror: its poses come in the far world's coordinates, named with that world; it
+    // is drawn there (seen through the mirror until this page's own dancer follows), not in this page's world
+    if (online) for (let s = 0; s < 2; s++) {
+      const d = seatDancer[s], w = (d?.controller as { info?: { ok: boolean; world?: string } } | undefined)?.info;
+      if (d && d !== play.dancers[0] && w?.ok && w.world && app.worldOf(w.world)?.id === w.world && gates.worldOf(d) !== w.world) gates.place(d, w.world);
+    }
   }, 'jogo: the room\'s clock, the beat, the tension, the script');
 
   frame.tick('travel', (f) => {
@@ -499,6 +510,9 @@ export async function startJogo(app: PlayApp, mode: string, opts: { joined?: Joi
     else if (!online) room.send(seatDancer.indexOf(d), { t: 'travel', world: e.to, portal: e.partner });
   });
 
+  // the pair roams: through a mirror or a gate together, the main view after them, the way said (roam.ts)
+  const roaming = roam({ gates, rig, main: app.main, frame, all: () => show.dancers, seats: seatDancer, local: (s) => !online || s === room.session.seat, started: () => started });
+
   frame.tick('camera', (f) => {
     if (!started) return;
     fusion.camera(f.dt);
@@ -507,7 +521,8 @@ export async function startJogo(app: PlayApp, mode: string, opts: { joined?: Joi
     // online: this page's dancer to the room (20 Hz on the wire), with its state for the others' exchanges
     if (online) {
       const c = play.controllers[0].character;
-      room.session.sendPose(play.dancers[0].skeleton, { world: world().id, flags: c.flags, move: c.move ? [String(c.move.serial), c.move.startTime] : null });
+      // (the world this page's dancer is in, not the main view's: the view comes through a mirror a moment later)
+      room.session.sendPose(play.dancers[0].skeleton, { world: gates.worldOf(play.dancers[0]), flags: c.flags, move: c.move ? [String(c.move.serial), c.move.startTime] : null });
     }
   }, 'jogo: the fusion stands back; online, the pose out');
 
@@ -532,7 +547,8 @@ export async function startJogo(app: PlayApp, mode: string, opts: { joined?: Joi
     stats: () => ({
       phase: room.state?.phase, tension: room.state?.tension, streak: room.state?.streak, flow: room.state?.flow, form: room.state?.form,
       axe: room.state?.axe, fusion: fusion.stats(), feel: feel.stats(), pieces: pieces.stats(), glows: glows.count, travelling,
-      seats: [0, 1].map((s) => ({ el: bodies[s].element(), root: bodies[s].root().map((v) => +v.toFixed(2)) })),
+      seats: [0, 1].map((s) => ({ el: bodies[s].element(), root: bodies[s].root().map((v) => +v.toFixed(2)), world: seatDancer[s] ? gates.worldOf(seatDancer[s]!) : null })),
+      crossings: roaming.log, world: app.main.world, side: rig.mode === 'locked',
       script: runner ? { fired: (runner as ScriptRunner).fired, done: (runner as ScriptRunner).done } : null,
     }),
     start,

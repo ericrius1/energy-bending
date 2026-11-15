@@ -177,7 +177,8 @@ async function install() {
     const q = duel
       ? new URLSearchParams({ duel: '', world, dress: show.dress.slice(0, 2).join(','), p1: 'human', p2: p.mode === 'same' ? 'human' : 'bot' })
       : new URLSearchParams({ jogo: p.mode, world, dress: show.dress.slice(0, 2).join(',') });
-    if (duel ? lock : !lock) q.set(duel ? 'lock' : 'free', '');
+    // (both games are 3D unless the side view was chosen: report 20-roam)
+    if (lock) q.set('lock', '');
     const href = `${location.pathname}?${q.toString().replace(/=(?=&|$)/g, '')}`;
     // another world than the one on screen: a short veil, so the new game's first frames aren't the old stage's
     const here = typeof bend.world === 'function' ? await bend.world() : world;

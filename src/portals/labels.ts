@@ -98,7 +98,7 @@ export class GateNames {
     this.padWas = pad;
     const showing = now < this.revealUntil;
     this.placed.length = 0; this.size = [w, h];
-    this.chip?.classList.toggle('on', this.on && (now < this.chipUntil || showing) && !document.body.classList.contains('front'));
+    this.chip?.classList.toggle('on', this.on && (now < this.chipUntil || showing) && !(document.body.classList.contains('front') && !document.body.classList.contains('playing')));
     const seen = new Set<string>();
     if (this.on) for (const g of gates) {
       if (g.world !== world || !g.partner || g.open < 0.4) continue;
