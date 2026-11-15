@@ -8,7 +8,7 @@
 import { mulberry32 } from 'math/random';
 import type { Ledge, Wall } from '../../engine/camera';
 import { stagePlane } from '../stage';
-import { arenas, floorWithDrops, mergeWalls, sides, type Arena, type Drop } from '../../duel/arena';
+import { arenas, mirrorExits, floorWithDrops, mergeWalls, sides, type Arena, type Drop } from '../../duel/arena';
 import { layoutTemple, solidsOf, STAGE_Z, STONE_FLOATS, type Stone } from './layout';
 import { tideHazard } from '../../duel/hazards';
 
@@ -146,10 +146,7 @@ function build(): TempleDuel {
     spawns: [[-2.6, 0, 1.6], [2.6, 0, 1.6], [6.0, 0.9, -7.6], [-7.6, colTop + arch.thick, SZ], [7.6, colTop + arch.thick, SZ], [3.0, 3.0, -8.0], [-3.5, 0, 5.5]],
     // the ways out (phase 5: report 18-flow): the two mirrors' sites (p5-wayfinding), at the court's sides in front of
     // the tall columns, each with a lane three metres deep in front of it and a stair of stones leading to it
-    exits: [
-      { id: 'right', at: [8.5, 0, -0.5], dir: [1, 0], r: 1.4 },
-      { id: 'left', at: [-8.0, 0, 0.2], dir: [-1, 0], r: 1.4 },
-    ],
+    exits: mirrorExits('temple', { at: [-7.3, 0, 5.0], dir: [-0.8, 0.6], r: 1.0 }),
     pieces: solidsOf(all), plane, drops,
     camera: { minDist: 9, maxDist: 22, lens: 30, low: -0.6 },
     // (the afterglow's warmth: the moon already silvers every top)

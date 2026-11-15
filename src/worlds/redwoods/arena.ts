@@ -9,7 +9,7 @@
 import type { Ledge, Wall } from '../../engine/camera';
 import { stagePlane } from '../stage';
 import type { Solid } from '../solids';
-import { arenas, drumSolid, floorWithDrops, mergeWalls, slicePlane, type Arena, type Drop, type PieceGroup } from '../../duel/arena';
+import { arenas, mirrorExits, drumSolid, floorWithDrops, mergeWalls, slicePlane, type Arena, type Drop, type PieceGroup } from '../../duel/arena';
 import { layoutWoods } from './layout';
 import { layoutStage, packPieces, type Piece } from './stage';
 import { windHazard } from '../../duel/hazards';
@@ -150,10 +150,7 @@ function build(): RedwoodsDuel {
     energy: { gain: 1.04, ebb: 0.94 },
     // the ways out (phase 5: report 18-flow): the mirrors' sites (p5-wayfinding) in two gaps of the ring, in front on
     // the right and behind on the right
-    exits: [
-      { id: 'front', at: [7.7, 0, 6.1], dir: [0.78, 0.62], r: 1.4 },
-      { id: 'back', at: [5.85, 0, -7.8], dir: [0.6, -0.8], r: 1.4 },
-    ],
+    exits: mirrorExits('redwoods', { at: [-10.03, 0, 5.23], dir: [-0.885, 0.466], r: 1.4 }),
   };
   return { arena, pieces: packPieces(pieces), big: big.length, count: pieces.length, runs, stumps };
 }

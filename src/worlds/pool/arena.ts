@@ -14,7 +14,8 @@
 import { mulberry32 } from 'math/random';
 import { stagePlane } from '../stage';
 import { boxOn, type Solid } from '../solids';
-import { arenas, mergeWalls, slicePlane, topAt, type Arena, type PieceGroup } from '../../duel/arena';
+import { arenas, mirrorExits, mergeWalls, slicePlane, topAt, type Arena, type PieceGroup } from '../../duel/arena';
+import { MIRROR_SITES } from '../../portals/mirrors';
 import { swellHazard, waterFloor, type Mover } from '../../duel/hazards';
 
 type V3 = [number, number, number];
@@ -41,7 +42,7 @@ export interface PoolDuel {
 const FOOT = -1.6;
 /** the mirrors' sites (p5-wayfinding: a gate to another world each, at the field's edge), kept open water this far round
  *  (m, to a stone's middle) */
-const MIRRORS: [number, number][] = [[7.5, 4.5], [0, -8.5]];
+const MIRRORS: [number, number][] = MIRROR_SITES.filter((s) => s.world === 'pool').map((s) => [s.x, s.z]);
 const MIRROR_CLEAR = 2.4;
 /** the channels of open water out from the middle (bearings, atan2(z, x)): toward the gate to the geode and toward each
  *  mirror; and how far either side of each line no stone stands (m) */
@@ -149,7 +150,7 @@ function build(): PoolDuel {
     camera: { minDist: 8, maxDist: 24, lens: 26, low: -1.0 },
     drops: [],
     // the ways out (phase 5: report 18-flow): the mirrors' sites, each at the end of its channel
-    exits: MIRRORS.map(([x, z], k) => { const l = Math.hypot(x, z); return { id: ['right', 'back'][k], at: [x, 0, z] as V3, dir: [x / l, z / l] as [number, number], r: 1.4 }; }),
+    exits: mirrorExits('pool', { at: [-7.5, 0, 4.5], dir: [-0.83, 0.55], r: 1.4 }),
     // (the evening sun's gold, faint: the stones and rafts are dark and warm now, the bodies on them pale)
     rim: [0.34, 0.24, 0.11],
     // the hazard: a swell across the pool on each phrase, from a different side in turn (hazards.ts)

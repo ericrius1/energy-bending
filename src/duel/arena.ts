@@ -23,6 +23,7 @@
 import type { Ledge, StagePlane, Wall } from '../engine/camera';
 import { box, cylinder, type Solid } from '../worlds/solids';
 import type { Hazard } from './hazards';
+import { MIRROR_SITES } from '../portals/mirrors';
 
 export type { Wall };
 type V3 = [number, number, number];
@@ -64,6 +65,18 @@ export interface Arena {
 }
 
 const byWorld = new Map<string, Arena>();
+
+/** an arena's ways out (Arena.exits): its world's gate to the hub, if given (its floor's middle and the way it opens
+ *  out), and the mirrors standing at its edge (portals/mirrors.ts MIRROR_SITES, p5-wayfinding), each kept clear `r` round
+ *  with a lane in from the middle (src/duel/test/flow.test.ts checks them) */
+export function mirrorExits(world: string, gate?: { at: V3; dir: [number, number]; r?: number }): NonNullable<Arena['exits']> {
+  const out: NonNullable<Arena['exits']> = gate ? [{ id: 'geode', at: gate.at, dir: gate.dir, r: gate.r ?? 1.4 }] : [];
+  for (const s of MIRROR_SITES) if (s.world === world) {
+    const l = Math.hypot(s.face[0], s.face[1]) || 1;
+    out.push({ id: s.to, at: [s.x, 0, s.z], dir: [-s.face[0] / l, -s.face[1] / l], r: 1.4 });
+  }
+  return out;
+}
 
 /** the arenas, one per world (each world's index.ts registers its own) */
 export const arenas = {
