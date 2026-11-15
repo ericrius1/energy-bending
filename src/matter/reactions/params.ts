@@ -48,7 +48,7 @@ export const steamParams = defineParams('steam', {
   sparkRate: 40,
   /** how much of the veil is taken off a dancer's core on screen (hips to head: steam_comp.wgsl), at rest and through
    *  a catch's frames (the duel's DuelFx.quiet): steam stays a veil the bodies read through, never a blot on them */
-  keepOff: 0.7,
+  keepOff: 0.8,
   keepOffCatch: 0.92,
   /** the look: how strongly the sun's shafts light the mist (0 … 1), its forward scattering (g: brighter looking
    *  toward the light), how much the dusk's glow lights it from below (moss, fireflies, lanterns), how warm its white */

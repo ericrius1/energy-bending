@@ -37,27 +37,6 @@ fn helixOnScreen(uv: vec2f) -> f32 {
   return (1.0 - smoothstep(0.7, 1.2, x)) * (1.0 - smoothstep(0.0, 0.5, ey));
 }
 
-/** 1 on a dancer's core on screen (a capsule from its hips to its head), falling to 0 a little past it (`wide`: × how
- *  far) */
-fn keptAt(uv: vec2f, wide: f32) -> f32 {
-  let n = u32(steam.keepK.w);
-  let asp = vec2f(steam.keepK.z, 1.0);
-  var k = 0.0;
-  for (var j = 0u; j < min(n, 4u); j++) {
-    let c = steam.keep[j];
-    let r = steam.keepR[j];
-    if (r <= 0.0) { continue; }
-    let a = c.xy * asp;
-    let b = c.zw * asp;
-    let p = uv * asp;
-    let ab = b - a;
-    let h = clamp(dot(p - a, ab) / max(dot(ab, ab), 1e-8), 0.0, 1.0);
-    let d = length(p - a - ab * h);
-    k = max(k, 1.0 - smoothstep(r * 0.7 * wide, r * 1.9 * wide, d));
-  }
-  return k;
-}
-
 /** the geyser's column of mist (Steam.column): the eye's ray through a soft upright cylinder over the geyser, from
  *  the near cut (no nearer the lens than the pair) to what the scene shows there, its density in strands of vapour
  *  rising in patches, thicker toward its rim (a curtain round the pair, the art bible's mist in the sun's shafts),

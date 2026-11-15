@@ -97,6 +97,8 @@ const CORNERS = array<vec2f, 6>(vec2f(0.0, -1.0), vec2f(1.0, -1.0), vec2f(1.0, 1
   let ends = smoothstep(0.0, 0.2, i.uv.x) * smoothstep(1.0, 0.8, i.uv.x);
   let scene = textureLoad(sceneTex, vec2i(i.pos.xy), 0).a;
   let shown = smoothstep(-0.18, 0.02, scene - i.info.x);
-  let k = across * ends * shown;
+  // (thinned over the dancers' cores, as the veil is: a line of light where they meet, not a glare over them)
+  let kept = keptAt(i.pos.xy / vec2f(textureDimensions(sceneTex)), 1.0);
+  let k = across * ends * shown * (1.0 - 0.6 * steam.keepK.x * kept);
   return vec4f(i.col * k, 0.0);
 }

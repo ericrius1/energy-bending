@@ -17,7 +17,7 @@ Each reaction is a matter kind with no homes on a body, registered from `index.t
   the key is scattered forward (brighter looking toward the light) and crossed by the sun's shafts (bands radiating
   from where the key stands on screen); after dusk in the redwoods the moss, the fireflies and the lanterns light it
   from below. **Off the bodies:** each dancer's core on screen (a capsule from its hips to its head) takes `keepOff`
-  0.7 of the veil off (0.92 through a catch's frames: the duel sets `SteamPasses.quiet`), and no wisp stands nearer
+  0.8 of the veil off (0.92 through a catch's frames: the duel sets `SteamPasses.quiet`), and no wisp stands nearer
   the lens than the nearest dancer (less 0.4 m). The fronts are a line of sun gold, not white-hot. **A geyser's
   column** (`SteamPasses.column`, set by the duel from power-fx.ts): drawn in the composite as the eye's ray through a
   soft upright cylinder of mist (strands round its axis, patches rising, thicker toward its rim), warm by day and lit
