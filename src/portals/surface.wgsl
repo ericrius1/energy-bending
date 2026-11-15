@@ -11,6 +11,10 @@
 //   halo   (glow) the soft light round it, coloured by the far world (a blur of the live view) and the rim.
 //   pool   (glow) that light on the floor under a gate standing on it.
 //   motes  (glow) specks of light drawn in toward the disc from both sides, spiralling as they come.
+//   frame  (opaque) the mirror's frame (report 18-wayfinding): an art-nouveau ring of brass gone green in its
+//          hollows, a crown of stained glass over it in the far world's colours between brass spokes, whiplash
+//          tendrils down its sides, two curled feet to the floor, and vines with leaves climbing it. Real geometry,
+//          lit by the world's sun and sky (`lite`); it grows in with the gate's opening.
 // A gate with no live view this frame shows the last one it had, blurred, or else its still: the far world seen
 // square on through it when it last had a spare slot (portals.ts refreshStill), soft and dim, laid on the disc by the
 // disc's own coordinates (it has no parallax: it is a memory of the other side, not a window). A shimmer in the far
@@ -32,6 +36,7 @@ struct Gate {
                   // under it; glow; the side the
                   // eye was last strictly on (+1 front, -1 back: an eye on the plane looks through toward the other)
   pokes: array<vec4f, 4>,   // where (u, v), age (s), strength
+  lite: vec4f,    // the frame's light in this world: the sun's colour and strength (rgb), the sky's (w)
 }
 /** a view's gates; `clip` is its own near plane when it looks through a gate (a disc behind that is not drawn) */
 struct GateView { g: array<Gate, MAX_GATES>, clip: vec4f, count: u32, motes: u32, time: f32, face: f32 }
@@ -391,4 +396,211 @@ fn farLight(G: Gate) -> vec3f {
 @fragment fn fs_motes(i: GlowV) -> @location(0) vec4f {
   let r2 = dot(i.uv, i.uv);
   return vec4f(i.col * exp(-r2 * 4.0), 0.0);
+}
+
+// ---------------------------------------------------------------- the frame: brass, stained glass, vines
+// Laid out by vertex index, per gate (instance): FRAME_CURVES tubes of FRAME_SEGS × FRAME_SIDES quads, then the glass
+// panes, then the leaves. Gate-local coordinates (x right, y up, z out of the front) in radii; the floor's height is
+// info.y.
+const FRAME_CURVES: u32 = 14u;
+const FRAME_SEGS: u32 = 40u;
+const FRAME_SIDES: u32 = 6u;
+const FRAME_TUBE_V: u32 = FRAME_CURVES * FRAME_SEGS * FRAME_SIDES * 6u;
+const FRAME_PANES: u32 = 7u;
+const FRAME_PANE_SUB: u32 = 5u;
+const FRAME_GLASS_V: u32 = FRAME_PANES * FRAME_PANE_SUB * 6u;
+const FRAME_LEAVES: u32 = 40u;
+const ARCH_A0: f32 = 0.2618;   // 15°
+const ARCH_A1: f32 = 2.8798;   // 165°
+const RING_R: f32 = 1.07;
+const ARCH_R: f32 = 1.52;
+
+fn bez(a: vec2f, b: vec2f, c: vec2f, t: f32) -> vec2f { let u = 1.0 - t; return u * u * a + 2.0 * u * t * b + t * t * c; }
+fn archR(a: f32) -> f32 { return ARCH_R + 0.16 * pow(max(sin(a), 0.0), 12.0); }
+fn onCircle(r: f32, a: f32) -> vec2f { return vec2f(cos(a), sin(a)) * r; }
+
+/** a curve's point (gate-local, radii) and its thickness, at s (0 … 1). `floorY`: the floor's height, local */
+fn frameCurve(c: u32, s: f32, floorY: f32) -> vec4f {
+  if (c == 0u) { return vec4f(onCircle(RING_R, s * TAU), 0.0, 0.07 + 0.025 * pow(abs(sin(s * TAU)), 6.0)); }
+  if (c == 1u) { let a = mix(ARCH_A0, ARCH_A1, s); return vec4f(onCircle(archR(a), a), -0.01, 0.048); }
+  if (c <= 7u) {
+    // the spokes between the panes (the arch's two ends are the tendrils')
+    let a = mix(ARCH_A0, ARCH_A1, f32(c - 1u) / f32(FRAME_PANES));
+    return vec4f(onCircle(mix(RING_R, archR(a), s), a), -0.01, 0.026);
+  }
+  if (c <= 9u) {
+    // the feet: from the ring's lower quarter down to the floor, ending in a curl
+    let sx = select(-1.0, 1.0, c == 9u);
+    let a0 = select(4.15, 5.27, c == 9u);
+    let p0 = onCircle(RING_R, a0);
+    let p2 = vec2f(sx * 0.95, floorY + 0.06);
+    let p1 = vec2f(sx * 0.72, mix(p0.y, floorY, 0.9));
+    var p = bez(p0, p1, p2, min(s / 0.8, 1.0));
+    if (s > 0.8) {
+      let k = (s - 0.8) / 0.2;
+      let a = k * 4.4;
+      let r = 0.13 * (1.0 - 0.6 * k);
+      p = p2 + vec2f(sx * (sin(a) * r), (1.0 - cos(a)) * r);
+    }
+    return vec4f(p, 0.0, mix(0.06, 0.03, s));
+  }
+  if (c <= 11u) {
+    // the whiplash tendrils: from the ring's flank up and out to the arch's end, an S on the way
+    let sx = select(-1.0, 1.0, c == 11u);
+    let a0 = select(3.4, 6.02, c == 11u);
+    let a1 = select(ARCH_A1, ARCH_A0, c == 11u);
+    let p0 = onCircle(RING_R, a0);
+    let p2 = onCircle(archR(a1), a1);
+    let p1 = vec2f(sx * 1.95, -0.05);
+    let p = bez(p0, p1, p2, s) + vec2f(sx * 0.08 * sin(s * 6.2832), 0.0);
+    return vec4f(p, 0.0, mix(0.045, 0.03, s));
+  }
+  // the vines: a thin green stem twining round the ring's lower half and up one flank (12), and the other (13)
+  let sx = select(-1.0, 1.0, c == 13u);
+  let a = select(mix(4.71, 1.95, s), mix(4.71, 1.19 - 0.0, s), c == 13u);
+  let p = onCircle(RING_R + 0.06 + 0.035 * sin(s * 37.0), select(a, 9.42 - a, c == 13u));
+  return vec4f(p, 0.05 * cos(s * 37.0) + 0.02 * sx, 0.016);
+}
+
+struct FrameV {
+  @builtin(position) pos: vec4f,
+  @location(0) wp: vec3f,
+  @location(1) nrm: vec3f,
+  @location(2) uv: vec2f,
+  @location(3) @interpolate(flat) kind: u32,   // 0 brass, 1 glass, 2 leaf, 3 stem
+  @location(4) @interpolate(flat) gate: u32,
+}
+
+fn toWorld(G: Gate, l: vec3f) -> vec3f { return G.at.xyz + (G.right.xyz * l.x + G.up.xyz * l.y + G.n.xyz * l.z) * G.at.w; }
+fn dirWorld(G: Gate, l: vec3f) -> vec3f { return normalize(G.right.xyz * l.x + G.up.xyz * l.y + G.n.xyz * l.z); }
+
+@vertex fn vs_frame(@builtin(vertex_index) vi: u32, @builtin(instance_index) ii: u32) -> FrameV {
+  var o: FrameV;
+  o.pos = vec4f(2.0, 2.0, 2.0, 1.0);
+  if (ii >= gates.count) { return o; }
+  let G = gates.g[ii];
+  let open = G.right.w;
+  if (open <= 0.0) { return o; }
+  // grows in with the opening, all there from half open
+  let grow = smoothstep(0.0, 0.5, open);
+  let floorY = (G.info.y - G.at.y) / G.at.w;
+  o.gate = ii;
+  let q = array<vec2f, 6>(vec2f(0.0, 0.0), vec2f(1.0, 0.0), vec2f(1.0, 1.0), vec2f(0.0, 0.0), vec2f(1.0, 1.0), vec2f(0.0, 1.0));
+  var L = vec3f(0.0);
+  var N = vec3f(0.0, 0.0, 1.0);
+  if (vi < FRAME_TUBE_V) {
+    let quad = vi / 6u;
+    let corner = q[vi % 6u];
+    let c = quad / (FRAME_SEGS * FRAME_SIDES);
+    let r = quad % (FRAME_SEGS * FRAME_SIDES);
+    let seg = r / FRAME_SIDES;
+    let side = r % FRAME_SIDES;
+    let s = (f32(seg) + corner.x) / f32(FRAME_SEGS);
+    let ang = (f32(side) + corner.y) / f32(FRAME_SIDES) * TAU;
+    let P = frameCurve(c, s, floorY);
+    let ds = 0.004;
+    let P2 = frameCurve(c, min(s + ds, 1.0), floorY).xyz - frameCurve(c, max(s - ds, 0.0), floorY).xyz;
+    let T = normalize(P2 + vec3f(1e-6, 0.0, 0.0));
+    let B0 = select(vec3f(0.0, 0.0, 1.0), vec3f(1.0, 0.0, 0.0), abs(T.z) > 0.9);
+    let U = normalize(cross(T, B0));
+    let V = cross(T, U);
+    N = U * cos(ang) + V * sin(ang);
+    L = P.xyz + N * P.w * grow;
+    o.kind = select(0u, 3u, c >= 12u);
+    o.uv = vec2f(s, f32(c));
+  } else if (vi < FRAME_TUBE_V + FRAME_GLASS_V) {
+    // the crown's panes: between the ring and the arch, a little behind the brass
+    let k = vi - FRAME_TUBE_V;
+    let quad = k / 6u;
+    let corner = q[k % 6u];
+    let pane = quad / FRAME_PANE_SUB;
+    let sub = quad % FRAME_PANE_SUB;
+    let u = (f32(pane) + (f32(sub) + corner.x) / f32(FRAME_PANE_SUB)) / f32(FRAME_PANES);
+    let a = mix(ARCH_A0, ARCH_A1, u);
+    L = vec3f(onCircle(mix(RING_R, archR(a), corner.y), a), -0.012);
+    L = vec3f(L.xy * mix(0.85, 1.0, grow), L.z);
+    N = vec3f(0.0, 0.0, 1.0);
+    o.kind = 1u;
+    o.uv = vec2f(u * f32(FRAME_PANES), corner.y);
+  } else {
+    // the leaves: on the vines, each a small blade turned out from its stem
+    let k = vi - FRAME_TUBE_V - FRAME_GLASS_V;
+    let leaf = k / 6u;
+    let corner = q[k % 6u];
+    let stem = 12u + (leaf & 1u);
+    let s = (f32(leaf / 2u) + 0.5 + 0.3 * (rnd(leaf * 17u + 3u) - 0.5)) / f32(FRAME_LEAVES / 2u);
+    let P = frameCurve(stem, s, floorY).xyz;
+    let out2 = normalize(vec3f(P.xy, 0.0));
+    let tw = rnd(leaf * 31u + 7u) * TAU;
+    let along = normalize(out2 * cos(tw * 0.3) + vec3f(-out2.y, out2.x, 0.0) * sin(tw * 0.3) + vec3f(0.0, 0.0, 0.5 * sin(tw)));
+    let side = normalize(cross(along, vec3f(0.0, 0.0, 1.0)) + vec3f(0.0, 0.0, 0.3));
+    let size = (0.08 + 0.05 * rnd(leaf * 13u + 1u)) * grow;
+    let c2 = corner * 2.0 - 1.0;
+    L = P + along * (corner.x * size * 1.6) + side * c2.y * size * 0.5;
+    N = normalize(cross(along, side));
+    o.kind = 2u;
+    o.uv = vec2f(corner.x, c2.y);
+  }
+  let wp = toWorld(G, L);
+  o.wp = wp;
+  o.nrm = dirWorld(G, N);
+  o.pos = frame.viewProj * vec4f(wp, 1.0);
+  return o;
+}
+
+@fragment fn fs_frame(i: FrameV, @builtin(front_facing) ff: bool) -> @location(0) vec4f {
+  let G = gates.g[i.gate];
+  // (a piece of the frame right at the eye dissolves, as the near fade does a world's solids: a camera standing by a
+  // mirror isn't looking through a brass tube)
+  let near = smoothstep(0.5, 1.6, length(i.wp - frame.camPos));
+  if (near < 1.0 && pixelRnd(vec2i(i.pos.xy), 7u) > near) { discard; }
+  var n = normalize(i.nrm);
+  if (!ff && i.kind != 0u && i.kind != 3u) { n = -n; }
+  let v = normalize(frame.camPos - i.wp);
+  let sunDir = normalize(vec3f(0.35, 0.85, 0.4));
+  let sun = G.lite.rgb;
+  let sky = G.lite.w;
+  let dif = max(dot(n, sunDir), 0.0);
+  let hemi = 0.55 + 0.45 * n.y;
+  var col = vec3f(0.0);
+  if (i.kind == 0u) {
+    // brass, gone green in its hollows (and where the noise says it weathered)
+    let patina = smoothstep(0.45, 0.75, vnoise(i.wp * 5.0) * 0.7 + (1.0 - hemi) * 0.5);
+    let base = mix(vec3f(0.66, 0.4, 0.13), vec3f(0.22, 0.52, 0.42), patina * 0.75);
+    let h = normalize(sunDir + v);
+    let spec = pow(max(dot(n, h), 0.0), 40.0) * (1.0 - patina * 0.8);
+    let fres = pow(1.0 - max(dot(n, v), 0.0), 4.0);
+    col = base * (sun * dif + vec3f(sky) * hemi * vec3f(0.9, 0.95, 1.0)) + sun * spec * vec3f(1.0, 0.86, 0.6) * 1.6
+      + mix(vec3f(0.9, 0.7, 0.4), vec3f(0.7, 0.85, 1.0), n.y * 0.5 + 0.5) * sky * fres * 0.6;
+  } else if (i.kind == 1u) {
+    // stained glass: each pane its colour (gold, teal, rose, leaf; the keystone the far world's own), lit from behind
+    // by the far world, a lead line drawing a petal in each
+    let pane = u32(floor(i.uv.x));
+    let f = fract(i.uv.x);
+    let pal = array<vec3f, 4>(vec3f(1.0, 0.72, 0.25), vec3f(0.25, 0.78, 0.75), vec3f(1.0, 0.45, 0.42), vec3f(0.45, 0.82, 0.3));
+    var tint = pal[pane % 4u];
+    if (pane == FRAME_PANES / 2u) { tint = G.look.rgb; }
+    tint = mix(tint, G.look.rgb, 0.2);
+    tint = tint * tint;
+    let petal = abs(length(vec2f((f - 0.5) * 1.6, i.uv.y - 0.15)) - 0.42);
+    let lead = smoothstep(0.035, 0.0, petal);
+    let grain = 0.8 + 0.4 * vnoise(i.wp * 14.0);
+    let glow = 0.5 + 1.6 * sky + G.rim.w * 2.0;
+    col = mix(tint * grain * glow * (0.6 + 0.4 * i.uv.y), vec3f(0.05, 0.04, 0.02), lead * 0.85);
+    col += sun * dif * tint * 0.25;
+  } else if (i.kind == 2u) {
+    // a leaf: a pointed oval blade, a midrib, light through it
+    let x = i.uv.x;
+    let y = i.uv.y;
+    let w = sin(x * 3.14159) * (1.0 - 0.3 * x);
+    if (abs(y) > w) { discard; }
+    let base = mix(vec3f(0.18, 0.42, 0.12), vec3f(0.42, 0.68, 0.2), x * 0.6 + 0.2 * vnoise(i.wp * 20.0));
+    let rib = smoothstep(0.08, 0.0, abs(y)) * 0.25;
+    let through = max(dot(-n, sunDir), 0.0) * 0.5;
+    col = base * (sun * (dif + through) + vec3f(sky) * hemi * vec3f(0.85, 1.0, 0.9)) * (1.0 + rib);
+  } else {
+    col = vec3f(0.22, 0.4, 0.14) * (sun * dif + vec3f(sky) * hemi);
+  }
+  let here = dot(i.wp - frame.camPos, frame.camFwd);
+  return vec4f(col, here);
 }

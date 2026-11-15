@@ -9,6 +9,9 @@ export const portalParams = defineParams('gates', {
   depth: 2,
   /** a gate smaller than this on screen (pixels of radius) isn't drawn live */
   minPx: 6,
+  /** a gate further than this from the eye (m) shows its still, not a live view, unless the followed player heads for it
+   *  or a dancer is seen through it (0: no limit; the duel sets it while it plays: report 18-wayfinding) */
+  liveNear: 0,
   /** how far past a disc's rim a crossing dancer's particles go with it (m): further off, what it shed stays behind */
   carryReach: 1.6,
   /** each gate view's size, as a fraction of the render size (set before start: the targets are made once) */
@@ -32,6 +35,8 @@ export const portalParams = defineParams('gates', {
   stills: true,
   /** the glow round a gate, the halo and the light on the floor (0 off) */
   glow: 1,
+  /** the mirror's frame of brass, stained glass and vines round each gate (surface.wgsl vs_frame; report 18-wayfinding) */
+  frame: true,
   /** ?fly: the gate to fly through ('' off), where along the path (−1 … 1, the disc at 0), how fast (path lengths a
    *  second; 0 holds flyT), the path's angle to the gate's normal (degrees), its offset across the disc (radii) and
    *  its height offset (radii), and how far down it looks (degrees) */
