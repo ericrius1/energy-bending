@@ -17,6 +17,36 @@ struct Look {
   rim: vec4f,    // the rim light's colour; w: its strength
   beat: vec4f,   // x: the beat's phase (0 … 1), y: how much it breathes, z: how locked the view is, w: the water's
                  // height over the arena (a tide; very low: none): a rim under it is drowned, and fades out
+  hole: array<vec4f, 64>,  // the pieces the near fade dissolves (worlds/fade.ts NearFade.holes), four rows each: a.xyz,
+                           // its strength; x.xyz, 1 a capsule (to x.xyz); y.xyz, how much of its rim to keep; h.xyz half
+                           // sizes, w a capsule's radius
+}
+
+/** how much of the rim at p is left by the pieces the near fade dissolves: a rim on a dissolved piece goes with it
+ *  (it was a gold box or a gold stick floating where the block or the bough had been: report 17), but a top near the
+ *  pair, a floor it needs to see, keeps most of its rim */
+fn holeKeep(p: vec3f) -> f32 {
+  var keep = 1.0;
+  for (var j = 0u; j < 16u; j++) {
+    let A = look.hole[j * 4u];
+    if (A.w <= 0.0) { continue; }
+    let X = look.hole[j * 4u + 1u];
+    let Y = look.hole[j * 4u + 2u];
+    let H = look.hole[j * 4u + 3u];
+    var out = 0.0;
+    if (X.w > 0.5) {
+      let ab = X.xyz - A.xyz;
+      let t = clamp(dot(p - A.xyz, ab) / max(dot(ab, ab), 1e-6), 0.0, 1.0);
+      out = length(p - A.xyz - ab * t) - H.w;
+    } else {
+      let l = p - A.xyz;
+      let q = H.xyz - abs(vec3f(dot(l, X.xyz), dot(l, Y.xyz), dot(l, cross(X.xyz, Y.xyz))));
+      out = -min(q.x, min(q.y, q.z));
+    }
+    // (a rim runs a centimetre over its top: within a few of the piece is on it)
+    if (out < 0.06) { keep = min(keep, 1.0 - A.w * (1.0 - 0.6 * Y.w)); }
+  }
+  return keep;
 }
 
 @group(1) @binding(0) var<storage, read> segs: array<Seg>;
@@ -29,6 +59,7 @@ struct LOut {
   @location(0) uv: vec2f,                         // x: across the ribbon (-1 … 1), y: along it (0 … 1)
   @location(1) @interpolate(flat) info: vec4f,    // kind, its length (m), -, -
   @location(2) y: f32,                            // its height (world)
+  @location(3) keep: f32,                         // how much of it the near fade's dissolved pieces leave (holeKeep)
 }
 
 @vertex fn vs(@builtin(vertex_index) vi: u32, @builtin(instance_index) ii: u32) -> LOut {
@@ -46,6 +77,8 @@ struct LOut {
   o.uv = corner;
   o.info = vec4f(s.a.w, L, 0.0, 0.0);
   o.y = p.y;
+  o.keep = 1.0;
+  if (RIM == 1u) { o.keep = holeKeep(p0); }
   return o;
 }
 
@@ -88,7 +121,7 @@ fn kindColour(k: u32) -> vec3f {
   // under the tide a rim is drowned: a trace just under the surface, gone a hand's depth down (the glow is laid over
   // the water, so a drowned court's rims floated as gold lines over it: report 15, issue 5)
   let drowned = 1.0 - 0.85 * smoothstep(look.beat.w + 0.03, look.beat.w - 0.04, i.y) - 0.15 * smoothstep(look.beat.w - 0.04, look.beat.w - 0.2, i.y);
-  if (drowned <= 0.002) { discard; }
-  return vec4f(look.rim.rgb * look.rim.w * across * ends * breath * w * lock * drowned, 0.0);
+  if (drowned <= 0.002 || i.keep <= 0.002) { discard; }
+  return vec4f(look.rim.rgb * look.rim.w * across * ends * breath * w * lock * drowned * i.keep, 0.0);
 
 }

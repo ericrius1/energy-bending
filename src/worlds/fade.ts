@@ -13,8 +13,9 @@
 // up quickly and down slowly; while all are 0 the shaders skip the fade with one uniform branch.
 // On the GPU a fragment fades (worlds/light.wgsl sightFade) where it is within `near` of the eye, where the ray
 // through it passes within a body's radius of a framed dancer and it is well in front of that dancer, or where it is
-// inside one of the pieces the frame test hands over (whole, but for its edges near the pair: a faint outline,
-// `sightLit`, none on a piece the pair is nowhere near or one pale already). Nothing
+// inside one of the pieces the frame test hands over (whole, but for a floor's top edges near the pair: a faint line,
+// `sightLit`; none on anything that is not a floor, on a piece the pair is nowhere near or on one pale already; the
+// arena's rim light on a dissolved piece fades with it unless that line is kept: `holes`, report 18). Nothing
 // below a dancer's feet fades across a sight line (the floor it stands on), nor near the eye below the ground under
 // it; the frame test never hands over what a body stands on or is about to land on.
 import type { Kit } from '@ericrius1/weft';
@@ -68,11 +69,28 @@ const OUTLINE: V3 = [0.8, 0.8, 0.85];
 /** the camera as the fade reads it (weft's Camera, after the rig has applied its pose) */
 export type FadeCamera = FrameView;
 
-/** a piece's slot in the uniform (an empty one: strength 0), with how much of its outline to keep */
+/** whether a piece is a floor the pair may need to see while it is dissolved: a box standing square (one of its axes
+ *  upright, so its top is flat), the only kind whose top edges the shaders keep as a line. A tilted blade, a wall's
+ *  face, a trunk, a bough (a capsule: the arena's rim light keeps a bough's top, worlds/fade.ts `slots`) keep none */
+export function isFloor(s: Solid | null | undefined): boolean {
+  if (!s || s.kind !== 'box') return false;
+  return Math.max(Math.abs(s.x[1]), Math.abs(s.y[1]), Math.abs(s.z[1])) >= 0.985;
+}
+
+/** whether the arena's rim light runs along a piece's top (duel/arena-segments.ts topEdges: a square box, a lying log,
+ *  an upright drum): a dissolved one near the pair keeps its rim, the rest fade with it (duel/arena-lines.wgsl) */
+function hasTop(s: Solid): boolean {
+  if (s.kind === 'box') return isFloor(s);
+  const flat = Math.hypot(s.b[0] - s.a[0], s.b[2] - s.a[2]);
+  return flat < 1e-3 || Math.abs(s.b[1] - s.a[1]) / flat < 0.12;
+}
+
+/** a piece's slot in the uniform (an empty one: strength 0), with how much of its outline to keep (none unless it is a
+ *  floor: report 18) */
 function pieceSlot(s: Solid | null, k: number, line = 0): SightPiece {
   if (!s) return { a: [0, 0, 0, 0], x: [0, 0, 0, 0], y: [0, 0, 0, 0], h: [0, 0, 0, 0] };
-  if (s.kind === 'capsule') return { a: [...s.a, k], x: [...s.b, 1], y: [0, 1, 0, line], h: [0, 0, 0, s.r] };
-  return { a: [...s.c, k], x: [...s.x, 0], y: [...s.y, line], h: [...s.h, 0] };
+  if (s.kind === 'capsule') return { a: [...s.a, k], x: [...s.b, 1], y: [0, 1, 0, 0], h: [0, 0, 0, s.r] };
+  return { a: [...s.c, k], x: [...s.x, 0], y: [...s.y, isFloor(s) ? line : 0], h: [...s.h, 0] };
 }
 
 export class NearFade {
@@ -86,6 +104,10 @@ export class NearFade {
   private f: V4 = [0, 0, 0, 0];
   private glow: V4 = [0, 0, 0, 0];
   private pieces: SightPiece[] = Array.from({ length: FRAME_SLOTS }, () => pieceSlot(null, 0));
+  /** the dissolved pieces for the arena's rim light (duel/arena-layer.ts), FRAME_SLOTS of 16 floats: a.xyz strength;
+   *  x.xyz (a capsule's other end) 1 for a capsule; y.xyz how much of its rim to keep (near the pair, and only a top a
+   *  body stands on); h.xyz half sizes, w a capsule's radius. A box's axes ride in a, x, y as the shaders' slots */
+  readonly holes = new Float32Array(FRAME_SLOTS * 16);
   /** the duel's frame test (worlds/fade-frame.ts) */
   readonly frame = new FrameFade();
   /** each framed body's hips last frame (its velocity, for the frame test's path ahead) */
@@ -163,7 +185,11 @@ export class NearFade {
     const duel = shownArena();
     this.frame.update(dt, cam, solids, framed, on && P.frame && duel !== null);
     const top = this.frame.top(FRAME_SLOTS);
-    for (let i = 0; i < FRAME_SLOTS; i++) this.pieces[i] = pieceSlot(top[i]?.solid ?? null, top[i]?.k ?? 0, top[i]?.line ?? 0);
+    for (let i = 0; i < FRAME_SLOTS; i++) {
+      const s = top[i]?.solid ?? null, P4 = (this.pieces[i] = pieceSlot(s, top[i]?.k ?? 0, top[i]?.line ?? 0));
+      [P4.a, P4.x, P4.y, P4.h].forEach((v, r) => { for (let c = 0; c < 4; c++) this.holes[i * 16 + r * 4 + c] = (v as ArrayLike<number>)[c]; });
+      this.holes[i * 16 + 11] = s && hasTop(s) ? top[i].line : 0;
+    }
     this.seen.pieces = top.map((p) => Math.round(p.k * 100) / 100);
     this.seen.cover = top.reduce((a, p) => a + p.cover + p.corner, 0);
     const rim = (duel !== null ? arenaFor(duel)?.rim : null) ?? OUTLINE;

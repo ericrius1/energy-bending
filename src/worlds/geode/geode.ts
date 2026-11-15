@@ -22,6 +22,8 @@ import backdropShader from './backdrop.wgsl';
 import moteShader from './motes.wgsl';
 import shelfShader from './shelves.wgsl';
 import crystalShader from './crystals.wgsl';
+import gardenShader from './garden.wgsl';
+import { layoutGeodeGarden, type GeodeGarden } from './garden';
 import { layoutShelves, packBlades, solidsOfShelves } from './shelves';
 import { clearOf, type Solid } from '../solids';
 import { hubGates, hubParams } from './gates';
@@ -138,6 +140,10 @@ export class Geode implements World {
   private duelSolids: readonly Solid[];
   private duelBlades: ReturnType<WorldCtx['kit']['storage']>;
   private duelPoints: ReturnType<WorldCtx['kit']['storage']>;
+  /** the planting (garden.ts): the planters under the great window always, the ferns and vines on the duel's crystal */
+  private garden: GeodeGarden;
+  private plantBuf: ReturnType<WorldCtx['kit']['storage']>;
+  private potBuf: ReturnType<WorldCtx['kit']['storage']>;
 
   constructor(ctx: WorldCtx) {
     const P = geodeParams;
@@ -161,6 +167,10 @@ export class Geode implements World {
     this.duelSolids = [...this.stageSolids, ...duel.arena.pieces!];
     this.duelBlades = ctx.kit.storage({ label: 'geode.duel.shelves', data: duel.blades, usage: ['storage'] });
     this.duelPoints = ctx.kit.storage({ label: 'geode.duel.crystals', data: duel.points, usage: ['storage'] });
+    const da = duel.arena;
+    this.garden = layoutGeodeGarden(duel.decor, P.caveRadius + 0.4, ctx.coarse, (x, z) => !inDrop(da.plane, da.drops!, x, z));
+    this.plantBuf = ctx.kit.storage({ label: 'geode.garden', data: this.garden.plants, usage: ['storage'] });
+    this.potBuf = ctx.kit.storage({ label: 'geode.planters', data: this.garden.pots, usage: ['storage'] });
     this.high = shelves.high;
     this.pointBuf = ctx.kit.storage({ label: 'geode.crystals', data: packBlades(this.points), usage: ['storage'] });
     this.stages = [stagePlane({
@@ -224,6 +234,12 @@ export class Geode implements World {
       const duel = geodeDuel(), shown = () => s.on() && arenaShown(this.id);
       s.pass.draw(shelfShader, { label: 'geode.duel.shelves', bind: { blades: this.duelBlades }, count: 8 * 6 * 6 + 48, instances: duel.bladeCount, cull: 'none', enabled: shown });
       s.pass.draw(crystalShader, { label: 'geode.duel.crystals', bind: { points: this.duelPoints }, count: 54, instances: duel.pointCount, cull: 'none', enabled: shown });
+      // the planting (garden.wgsl): the planters under the great window and what grows in them, then the duel's ferns,
+      // flowers and vines
+      const G = this.garden, bind = { plants: this.plantBuf, pots: this.potBuf }, all = G.plants.length / 12;
+      s.pass.draw(gardenShader, { label: 'geode.planters', vertex: 'vs_pot', fragment: 'fs_pot', bind, count: 20 * 9 * 6, instances: G.potCount, cull: 'none', enabled: () => s.on() && geodeParams.green > 0 });
+      s.pass.draw(gardenShader, { label: 'geode.garden', bind, count: 8 * 6 + 6, instances: G.hubPlants, constants: { FIRST: 0 }, cull: 'none', enabled: () => s.on() && geodeParams.green > 0 });
+      s.pass.draw(gardenShader, { label: 'geode.garden.duel', bind, count: 8 * 6 + 6, instances: all - G.hubPlants, constants: { FIRST: G.hubPlants }, cull: 'none', enabled: () => shown() && geodeParams.green > 0 });
     } else if (s.phase === 'glow') {
       s.pass.draw(moteShader, { label: 'geode.motes', count: 6, instances: () => geodeParams.motes + Math.round(geodeParams.fireflies), blend: 'add', depthWrite: false, cull: 'none', enabled: s.on });
     }

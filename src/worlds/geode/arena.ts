@@ -25,6 +25,10 @@ export interface GeodeDuel {
   bladeCount: number;
   points: Float32Array;
   pointCount: number;
+  /** where its beams stand and its shelves reach, for the planting (garden.ts: ferns at a beam's foot, vines over a
+   *  shelf's edge): a beam's middle (x, z), its top, its width and depth, its turn; a shelf's root, its turn, width and
+   *  length */
+  decor: { beams: { x: number; z: number; top: number; w: number; depth: number; yaw: number }[]; shelves: { root: V3; yaw: number; w: number; len: number }[] };
 }
 
 /** the drops' depth (m), and how far they reach in front of the plane (2.2 m until phase 4: the pair dances most in
@@ -41,9 +45,11 @@ function build(): GeodeDuel {
   const rng = mulberry32.create(53);
   const r = () => mulberry32.sample(rng);
   const blades: Blade[] = [], points: Blade[] = [], beamSolids = new Map<Blade, Solid>();
+  const decor: GeodeDuel['decor'] = { beams: [], shelves: [] };
   const aim = (d: V3) => { const l = Math.hypot(...d) || 1; return { yaw: Math.atan2(d[0], d[2]), pitch: Math.asin(Math.max(-1, Math.min(1, d[1] / l))) }; };
   /** a shelf as shelves.ts grows them: a raft of prisms side by side, their tops flush, from `root` along `yaw` */
   const raft = (root: V3, yaw: number, across: [number, number], w: number, len: number) => {
+    decor.shelves.push({ root, yaw, w, len });
     const n = Math.max(2, Math.round(w / 0.7)), pw = w / n;
     for (let k = 0; k < n; k++) {
       const off = (k + 0.5) * pw - w / 2;
@@ -56,7 +62,8 @@ function build(): GeodeDuel {
     // (from the floor up: the backdrop writes no depth, so anything under the floor would show through it; the drop's
     // side below is the backdrop's)
     const x = (s0 + s1) / 2;
-    const b: Blade = { at: [x - Math.sin(yaw) * depth / 2, 0, z - Math.cos(yaw) * depth / 2], yaw, pitch: Math.PI / 2, w: s1 - s0, thick: depth, len: top, tip: 0.04, seed: r() };
+    decor.beams.push({ x, z, top, w: s1 - s0, depth, yaw });
+    const b: Blade ={ at: [x - Math.sin(yaw) * depth / 2, 0, z - Math.cos(yaw) * depth / 2], yaw, pitch: Math.PI / 2, w: s1 - s0, thick: depth, len: top, tip: 0.04, seed: r() };
     blades.push(b);
     beamSolids.set(b, boxOn([x, 0, z], [s1 - s0, top, depth], yaw));
   };
@@ -161,8 +168,8 @@ function build(): GeodeDuel {
     spawns: [[-1.2, 0, 0.6], [3.0, 0, 2.4], [6.6, 2.4, -3.0], [-7.0, 3.6, 0], [-3.4, 3.6, -6.9], [0, 3.1, -1.6]],
     pieces, plane, drops,
     camera: { minDist: 6, maxDist: 10.5, lens: 40, low: -0.6 },
-    // (the selenite's honey light)
-    rim: [1.0, 0.78, 0.5],
+    // (the selenite's honey light; softer since phase 5, a sheen along the tops rather than a gold line round every block)
+    rim: [0.6, 0.47, 0.3],
     // the hazard: the crystals' hum, each phrase at the open spot nearest the pair as its warning begins (hazards.ts
     // chooseHum: phase 4; it took four spots in turn before, two of them behind the stage where the pair seldom is)
     hazard: humHazard({ spots: HUM_SPOTS, r: 1.25, h: 4.2 }),
@@ -178,7 +185,7 @@ function build(): GeodeDuel {
     if (Math.abs(z) < 2 && Math.abs(x) < HALF) throw new Error(`geode arena: the ${w} gate stands on its plane`);
     for (const [bx, bz] of beams3) if (Math.hypot(bx - x, bz - z) < 2.2) throw new Error(`geode arena: a beam stands in the ${w} gate`);
   }
-  return { arena, blades: packBlades(blades), bladeCount: blades.length, points: packBlades(points), pointCount: points.length };
+  return { arena, blades: packBlades(blades), bladeCount: blades.length, points: packBlades(points), pointCount: points.length, decor };
 }
 
 let made: GeodeDuel | null = null;

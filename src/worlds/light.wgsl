@@ -169,8 +169,7 @@ var<private> sightDither: f32 = 2.0;
  *  front of a framed body across the line of sight to it, and (the duel) a piece standing in the near part of the
  *  frame, whole but for its edges. Only in the view that `sight` describes (the main view sets frame.user.x to 1,
  *  worlds/fade.ts; a gate's view, the inset leave it 0), and only while worlds/fade.ts finds something to fade (k.w),
- *  so most frames it costs one uniform branch. Call it in uniform control flow (first in the fragment shader): a
- *  piece's outline takes the surface's facet from the derivatives */
+ *  so most frames it costs one uniform branch. Call it first in the fragment shader */
 fn sightFade(p: vec3f) -> f32 {
   let K = worldLight.sight.k;
   if (frame.user.x < 0.5 || K.w <= 0.0) { return 0.0; }
@@ -181,16 +180,15 @@ fn sightFade(p: vec3f) -> f32 {
   let d = e / max(dist, 1e-4);
   // the pieces in the near part of the frame: the whole piece dissolves (patch by patch, a front moving through a noise
   // in the stone as its strength rises, so a half-dissolved piece is whole patches and holes, not a screen door the lens
-  // blurs into a veil), but near the pair its edges and its outline against what is behind (where the surface turns away
-  // from the eye) stay as a faint line, which sightLit brightens: only where the pair can use it (the piece's own weight
-  // from the CPU, y.w, and the fragment's distance from the nearer body), so a piece the pair is nowhere near goes whole
-  // and leaves no wireframe; no line within a metre of the eye (there it is only a blur), and nothing at the pair's own
-  // depth
+  // blurs into a veil). Only a floor the pair needs to see keeps a line (report 18): the edges of a box's flat top, near
+  // the pair (the piece's own weight from the CPU, y.w, which worlds/fade.ts leaves 0 for anything that is not a floor: a
+  // wall, a tilted blade, a trunk, a capsule; and the fragment's distance from the nearer body), which sightLit brightens
+  // a little. No side edges and no outline against what is behind: a dissolved block drawn as its wire was the gold-edged
+  // box report 17 found in the geode and the redwoods. No line within a metre of the eye (there it is only a blur), and
+  // nothing at the pair's own depth
   let F = worldLight.sight.f;
   var whole = f;
   if (F.w > 0.0) {
-    let facet = normalize(cross(dpdx(p), dpdy(p)));
-    let rim = 1.0 - smoothstep(0.06, 0.18, abs(dot(facet, d)));
     let w = clamp(dist * 0.003, 0.01, 0.04);
     let away = 1.0 - smoothstep(F.x - 0.6, F.x, dist);
     // (how far from the nearer body's axis: the line fades along a long piece as it leaves the pair)
@@ -208,7 +206,7 @@ fn sightFade(p: vec3f) -> f32 {
       let P = worldLight.sight.piece[j];
       if (P.a.w <= 0.0) { continue; }
       var out = 0.0;
-      var line = rim;
+      var line = 0.0;
       if (P.x.w > 0.5) {
         let ab = P.x.xyz - P.a.xyz;
         let t = clamp(dot(p - P.a.xyz, ab) / max(dot(ab, ab), 1e-6), 0.0, 1.0);
@@ -216,14 +214,19 @@ fn sightFade(p: vec3f) -> f32 {
       } else {
         let l = p - P.a.xyz;
         let z = cross(P.x.xyz, P.y.xyz);
-        // how far in from each face: on a face the least is about 0, on an edge the middle one is too. A surface on the
-        // box's faces (a blade, a beam, a slab) keeps its edges; one inside it (a round column stood in for by a box) keeps
-        // its outline against what is behind, where it turns away from the eye
-        let q = P.h.xyz - abs(vec3f(dot(l, P.x.xyz), dot(l, P.y.xyz), dot(l, z)));
+        // how far in from each face (on a face the least is about 0)
+        let lc = vec3f(dot(l, P.x.xyz), dot(l, P.y.xyz), dot(l, z));
+        let q = P.h.xyz - abs(lc);
         out = -min(q.x, min(q.y, q.z));
-        let mid = q.x + q.y + q.z - min(q.x, min(q.y, q.z)) - max(q.x, max(q.y, q.z));
-        let edge = 1.0 - smoothstep(w, w * 2.0, max(mid, 0.0));
-        line = max(edge, rim * smoothstep(0.03, 0.06, -out));
+        if (P.y.w > 0.0) {
+          // a floor: its top face (the box's most upright axis, its upper side) where it meets a side face
+          let ay = vec3f(P.x.y, P.y.y, z.y);
+          let aa = abs(ay);
+          let up = select(select(vec3f(0.0, 0.0, 1.0), vec3f(0.0, 1.0, 0.0), aa.y >= aa.z), vec3f(1.0, 0.0, 0.0), aa.x >= aa.y && aa.x >= aa.z);
+          let onTop = (1.0 - smoothstep(w, w * 2.0, max(dot(q, up), 0.0))) * step(0.0, dot(lc * sign(ay), up));
+          let sides = q + up * 1e3;
+          line = onTop * (1.0 - smoothstep(w, w * 2.0, max(min(sides.x, min(sides.y, sides.z)), 0.0)));
+        }
       }
       if (out > 0.12) { continue; }
       let k = smoothstep(grain - 0.08, grain + 0.08, P.a.w * 1.2 - 0.1) * away;

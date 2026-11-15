@@ -44,6 +44,9 @@ export interface ArenaLayerCtx {
   locked(): number;
   /** a world's solids now (its own and, while the arena is shown, the pieces) */
   solids(world: string): readonly Solid[];
+  /** the pieces the near fade dissolves now (worlds/fade.ts NearFade.holes): a rim on one fades with it, unless it is a
+   *  top near the pair (report 18) */
+  holes?(): Float32Array;
 }
 
 class ArenaLayer {
@@ -69,7 +72,8 @@ class ArenaLayer {
       const H = arenaFor(w)?.hazard;
       this.beat[3] = arenaParams.drown && H?.on && H.kind === 'tide' ? tideAt(H, H.beat) : -1e4;
       this.rim[3] = arenaParams.rim;
-      this.u.set({ rim: this.rim, beat: this.beat });
+      const hole = this.ctx.holes?.();
+      this.u.set(hole ? { rim: this.rim, beat: this.beat, hole } : { rim: this.rim, beat: this.beat });
     }, 'the arena rim light');
   }
 

@@ -397,11 +397,13 @@ export class PowerFxDraw {
           points: [[p[0] - u[0] * hz + sd[0] * o, top - 0.07, p[2] - u[1] * hz + sd[2] * o], [p[0] + u[0] * hz + sd[0] * o, top - 0.07, p[2] + u[1] * hz + sd[2] * o]],
           width: 0.6, life: L.life, seed: L.id * 17 + (o > 0 ? 1 : 0),
         })));
-        // frost on its edges and corners, glinting; a cold heart in it
+        // frost at its corners, glinting (a short tuft along each edge from the corner, not the whole edge: a square of
+        // light round every step drew a stair of ice as white wire boxes, report 17); a cold heart in it
         const cs: V3[] = [[1, 1, 0], [1, -1, 0], [-1, -1, 0], [-1, 1, 0]].map(([a1, b1]) => [p[0] + u[0] * hz * a1 + sd[0] * hx * b1, top, p[2] + u[1] * hz * a1 + sd[2] * hx * b1]);
         for (let i = 0; i < 4; i++) {
-          const A = cs[i], B = cs[(i + 1) % 4];
-          G.seg(A, B, 0.025, FROST, 0.6 * a, 'soft');
+          const A = cs[i], B = cs[(i + 1) % 4], Z = cs[(i + 3) % 4];
+          G.seg(A, [A[0] + (B[0] - A[0]) * 0.18, top, A[2] + (B[2] - A[2]) * 0.18], 0.02, FROST, 0.35 * a, 'soft');
+          G.seg(A, [A[0] + (Z[0] - A[0]) * 0.18, top, A[2] + (Z[2] - A[2]) * 0.18], 0.02, FROST, 0.35 * a, 'soft');
           G.dot(A, 0.05, FROST, (0.7 + 0.7 * Math.max(0, Math.sin(t * 6 + i * 1.7 + L.id))) * a, 'gem');
           G.seg([A[0], top - 0.3, A[2]], [A[0], top - 0.48, A[2]], 0.018, FROST, 0.5 * a, 'spark');
         }

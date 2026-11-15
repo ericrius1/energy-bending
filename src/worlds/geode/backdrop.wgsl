@@ -36,6 +36,113 @@ fn geodePaths(q: vec2f) -> vec4f {
   return vec4f(tint, on);
 }
 
+// ---------------------------------------------------------------- the mosaic (phase 5, report 18)
+// The floor is no longer a texture of agate rings (it read as brown and cream wood grain at 720p): it is a glazed
+// mosaic, a material that answers the light. A petal mandala round the stage's middle in small tesserae laid along its
+// rings (a sun disc of gold glaze, a crown of coral and sun-gold petals, a ring of leaves in leaf green and sky teal, a
+// band of cream lotus petals with terracotta tips), brass inlaid between the rings and round the petals, then a field
+// of larger cream tiles and, toward the wall, honey terracotta. Each tile is set a little askew (its own small tilt), so
+// the glaze catches the softbox, the wells and the great window tile by tile; grout between them, which the distance
+// blurs into an even tone rather than shimmer.
+
+struct Mosaic { col: vec3f, brass: f32, grout: f32, tilt: vec2f }
+
+const MO_CREAM = vec3f(0.93, 0.88, 0.78);
+const MO_CORAL = vec3f(0.9, 0.42, 0.3);
+const MO_GOLD = vec3f(0.95, 0.7, 0.26);
+const MO_LEAF = vec3f(0.34, 0.6, 0.26);
+const MO_TEAL = vec3f(0.24, 0.6, 0.6);
+const MO_TERRA = vec3f(0.78, 0.44, 0.28);
+
+/** a tile's random numbers (three) from its cell */
+fn moRand(c: vec2f) -> vec3f { return causticRand(vec2i(c) + vec2i(77, 13)); }
+
+/** how much grout at a tile's local coordinate f (0 … 1 across it), size m (metres), fw the pixel's size (m): 1 in the
+ *  grout, and a flat mean once the tiles are smaller than a few pixels */
+fn moGrout(f: vec2f, m: f32, fw: f32) -> f32 {
+  let e = min(min(f.x, 1.0 - f.x), min(f.y, 1.0 - f.y)) * m;
+  let g = (1.0 - smoothstep(0.002, 0.002 + fw * 0.7, e)) * smoothstep(m * 0.25, m * 0.06, fw);
+  return mix(g, 0.06, smoothstep(m * 0.06, m * 0.25, fw));
+}
+
+fn geodeMosaic(xz: vec2f, fw: f32) -> Mosaic {
+  var o: Mosaic;
+  let r = length(xz);
+  let th = atan2(xz.y, xz.x);
+  let u = th / 6.2831853 + 0.5;
+  // the brass rings between the bands, and the bands themselves
+  let rings = array<f32, 5>(0.78, 2.45, 4.3, 6.5, 7.6);
+  var bd = 9.0;
+  for (var k = 0; k < 5; k++) { bd = min(bd, abs(r - rings[k])); }
+  let ringW = 0.022;
+  var brass = 1.0 - smoothstep(ringW, ringW + fw * 1.5, bd);
+  var col = MO_CREAM;
+  var tile = 0.055;
+  if (r < 7.6) {
+    // tesserae along the rings: rows `tile` deep, each row cut into a whole number of tiles round
+    let row = floor(r / tile);
+    let n = max(round(6.2831853 * (row + 0.5) * tile / tile), 6.0);
+    let cell = vec2f(row, floor(u * n));
+    let f = vec2f(fract(r / tile), fract(u * n));
+    let h = moRand(cell);
+    o.grout = moGrout(f, tile, fw);
+    o.tilt = (h.xy - 0.5) * 0.09;
+    let jit = 0.92 + 0.14 * h.z;
+    if (r < 0.78) {
+      // the sun disc: gold glaze, its rays coral and gold
+      let rays = abs(fract(u * 16.0) - 0.5) * 2.0;
+      col = select(MO_GOLD * 1.1, mix(MO_CORAL, MO_GOLD, step(0.5, fract(u * 8.0))), r > 0.32 + 0.3 * (1.0 - rays));
+      brass = max(brass, 1.0 - smoothstep(0.015, 0.015 + fw * 1.5, abs(r - 0.32)));
+    } else if (r < 2.45) {
+      // twelve petals, coral and sun gold in turn, on cream
+      let a = (fract(u * 12.0) - 0.5) * 6.2831853 / 12.0 * r;
+      let t = (r - 0.78) / (2.45 - 0.78);
+      let w = 0.48 * sin(3.14159 * pow(t, 0.75)) * (r / 2.45 + 0.35);
+      let pd = abs(a) - w;
+      col = select(MO_CREAM, select(MO_CORAL, MO_GOLD, fract(u * 6.0) > 0.5), pd < 0.0);
+      brass = max(brass, 1.0 - smoothstep(0.012, 0.012 + fw * 1.5, abs(pd)) * step(0.02, t));
+    } else if (r < 4.3) {
+      // a ring of 24 leaves, leaf green and sky teal, each with its midrib
+      let a = (fract(u * 24.0) - 0.5) * 6.2831853 / 24.0 * r;
+      let t = (r - 2.45) / (4.3 - 2.45);
+      let w = 0.36 * sin(3.14159 * t);
+      let pd = abs(a) - w;
+      col = select(MO_CREAM, select(MO_LEAF, MO_TEAL, fract(u * 12.0) > 0.5), pd < 0.0);
+      col = mix(col, MO_CREAM * 0.95, (1.0 - smoothstep(0.012, 0.024, abs(a))) * step(pd, 0.0) * step(0.15, t));
+      brass = max(brass, 1.0 - smoothstep(0.012, 0.012 + fw * 1.5, abs(pd)));
+    } else if (r < 6.5) {
+      // a band of cream lotus petals, their tips terracotta, gold between them
+      let a = (fract(u * 32.0) - 0.5) * 6.2831853 / 32.0 * r;
+      let t = (r - 4.3) / (6.5 - 4.3);
+      let w = 0.6 * sqrt(max(sin(3.14159 * min(t * 1.1, 1.0)), 0.0));
+      let pd = abs(a) - w;
+      col = select(mix(MO_GOLD, MO_CREAM, 0.35), mix(vec3f(0.98, 0.95, 0.88), MO_TERRA, smoothstep(0.6, 0.9, t)), pd < 0.0);
+      brass = max(brass, 1.0 - smoothstep(0.012, 0.012 + fw * 1.5, abs(pd)));
+    } else {
+      // a ring of small flowers on cream: a coral heart every metre or so
+      let a = (fract(u * 40.0) - 0.5) * 6.2831853 / 40.0 * r;
+      let fl = length(vec2f(a, r - 7.05));
+      col = select(MO_CREAM, select(MO_CORAL, MO_GOLD, fl < 0.08), fl < 0.2);
+    }
+    col *= jit;
+  } else {
+    // the field: cream tiles 30 cm square, then honey terracotta toward the wall
+    let terra = smoothstep(8.6, 9.6, r + (vnoise2(xz * 0.4) - 0.5) * 1.2);
+    tile = mix(0.3, 0.42, terra);
+    let q = xz / tile + vec2f(0.5 * step(0.5, fract(floor(xz.y / tile) * 0.5)), 0.0) * terra;
+    let cell = floor(q);
+    let h = moRand(cell + 300.0);
+    o.grout = moGrout(fract(q), tile, fw) * 0.6;
+    o.tilt = (h.xy - 0.5) * 0.05;
+    col = mix(MO_CREAM * (0.94 + 0.1 * h.z), MO_TERRA * (0.85 + 0.25 * h.z), terra);
+    // (now and then a tile painted with a leaf, in the cream field)
+    col = mix(col, MO_LEAF, step(0.93, h.x) * (1.0 - terra) * smoothstep(0.32, 0.18, length(fract(q) - 0.5)));
+  }
+  o.col = col;
+  o.brass = brass;
+  return o;
+}
+
 @fragment fn fs(i: FullscreenOut) -> @location(0) vec4f {
   let L = worldLight.geode;
   let d = viewRay(i.uv);
@@ -50,6 +157,8 @@ fn geodePaths(q: vec2f) -> vec4f {
     if (tf > 0.0 && tf < tw) { t = tf; floorHit = true; }
   }
   let p = cam + d * t;
+  // (a floor pixel's size in metres, for the mosaic's grout: here, in uniform control flow)
+  let fw = length(fwidth(p.xz));
   var c = vec3f(0.0);
   let dh = dropHit(cam, d, t, L.floorY, 2.4, L.dropFrame, L.drops[0], L.drops[1]);
   if (!floorHit) {
@@ -70,18 +179,15 @@ fn geodePaths(q: vec2f) -> vec4f {
   } else {
     let r = length(p.xz - L.pool.xy);
     let pool = exp(-r * r / (L.pool.w * L.pool.w));
-    // agate: rings round the middle of the slab, wandering, with finer bands inside the broad ones
-    let q = p.xz * 0.55;
-    let warp = fbm(vec3f(q * 0.7, 3.1)) * 2.2 + fbm(vec3f(q * 2.3, 7.7)) * 0.35;
-    let rr = length(p.xz) * 0.9 + warp;
-    let broad = smoothstep(0.25, 0.75, 0.5 + 0.5 * sin(rr * 3.1));
-    let fine = 0.5 + 0.5 * sin(rr * 23.0 + warp * 4.0);
-    var band = mix(broad, fine, 0.3);
-    // the paths to the gates: worn smooth (the fine bands rubbed out, the polish brighter), lit by the gate at its end
+    // the mosaic (geodeMosaic): its tile's glaze colour, brass inlay, grout and tilt
+    let M = geodeMosaic(p.xz, fw);
+    let band = 0.6;
+    // the paths to the gates: worn smooth (the polish brighter), lit by the gate at its end
     let path = geodePaths(p.xz);
-    band = mix(band, broad * 0.6 + 0.2, path.w * 0.7);
-    // (honey and cream: the dark between the bands a warm brown, not black, since phase 4)
-    let slab = mix(L.floorCol.rgb * 0.32, L.floorBand.rgb, band * L.floorBand.w);
+    let grout = M.grout * (1.0 - M.brass);
+    let brassCol = vec3f(0.95, 0.68, 0.32);
+    var slab = mix(M.col * 0.85, vec3f(0.3, 0.25, 0.18), grout);
+    slab = mix(slab, brassCol * 0.35, M.brass);
     // under the shaft the pool's light comes through the water, gathered into a net, and the light itself lands
     // there as a soft warm net of its own
     let u = causticU(p, L.shaft, L.shaftCol.w);
@@ -93,22 +199,28 @@ fn geodePaths(q: vec2f) -> vec4f {
       net = mix(1.0, cl, under);
       lines = max(cl - 1.0, 0.0) * under;
     }
-    // (the greenhouse's daylight on the whole slab, not only the pool under the shaft)
-    var f = slab * (0.12 + 0.16 * L.sun.w + pool * 0.8 * net) + L.floorCol.rgb * pool * 0.12 * (0.6 + 0.4 * band) * net;
-    // the dancers' fire on the polished slab (worlds/light.wgsl worldFire)
+    // (the greenhouse's daylight on the whole floor, not only the pool under the shaft)
+    var f = slab * (0.09 + 0.12 * L.sun.w + pool * 0.7 * net) + L.floorCol.rgb * pool * 0.08 * net * (1.0 - grout);
+    // the dancers' fire on the glaze (worlds/light.wgsl worldFire)
     f += (slab + L.floorCol.rgb * 0.05) * worldFire(p, vec3f(0.0, 1.0, 0.0));
-    f += vec3f(1.0, 0.95, 0.88) * lines * 0.06 * (0.6 + 0.4 * band);
-    // the key's long highlight on the polish, and what the polish reflects: the studio and the wall's glow, a lot at a
-    // glance along it, less looking straight down (Fresnel), more on the worn paths
+    f += vec3f(1.0, 0.95, 0.88) * lines * 0.06 * (1.0 - grout);
+    // the great window's light coming in along the sun: its colours laid on the floor in front of it
+    f += (slab * 1.6 + vec3f(0.02)) * geodeWindowFloor(p) * 0.55;
+    // the glaze: each tile set a little askew mirrors the softbox, the wall's glow and the great window, a lot at a
+    // glance along it, less looking straight down (Fresnel); brass mirrors them warm and sharper; grout mirrors nothing
+    let N = normalize(vec3f(M.tilt.x, 1.0, M.tilt.y));
     let kd = normalize(L.key.xyz);
-    let refl = vec3f(d.x, -d.y, d.z);
-    let fres = 0.04 + 0.96 * pow(max(1.0 - abs(d.y), 0.0), 5.0);
-    let gloss = L.floorGloss * (1.0 + path.w * 0.8);
-    f += vec3f(1.0, 0.96, 0.92) * pow(max(dot(refl, kd), 0.0), 160.0) * gloss * 0.25 * fres;
-    f += studio(refl) * gloss * 0.015 * (0.6 + 0.4 * band) * fres * 3.0;
-    f += geodeWallSoft(p, refl) * gloss * (0.25 + 0.75 * fres) * (0.5 + 0.5 * band);
+    let refl = reflect(d, N);
+    let cosV = max(-dot(d, N), 0.0);
+    let fres = 0.04 + 0.96 * pow(1.0 - cosV, 5.0);
+    let gloss = L.floorGloss * (1.0 + path.w * 0.5) * (1.0 - grout);
+    let env = studio(refl) * 0.045 + geodeWallSoft(p, refl);
+    let glint = vec3f(1.0, 0.96, 0.9) * (pow(max(dot(refl, kd), 0.0), 220.0) * 0.6 + pow(max(dot(refl, kd), 0.0), 24.0) * 0.04);
+    let glaze = (env + glint) * fres * gloss * (1.0 - M.brass);
+    let metal = (env * 2.2 + glint * 2.0) * brassCol * (0.35 + 0.65 * fres) * M.brass;
+    f += glaze + metal;
     // each gate's own light spilling onto its path
-    f += path.rgb * 0.035 * (0.5 + 0.5 * band);
+    f += path.rgb * 0.035 * (1.0 - grout);
     // the light wells' sun on the agate: a warm pool where each beam lands, and beside it the rainbow a crystal in the
     // beam lays down as a prism would
     for (var k = 0; k < 4; k++) {
