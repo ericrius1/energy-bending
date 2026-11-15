@@ -8,7 +8,8 @@
 // pops (pops.ts) keep off it.
 import type { HudState } from './state';
 import type { Layout, Box } from './layout';
-import { FONT, GOLD, GOLD_HI, glow, haloText, lift, measure, rgba, sprite, stamp, easeOut, clamp01, type Ctx } from './style';
+import { DISPLAY, FONT, GOLD, GOLD_HI, glow, haloText, lift, measure, rgba, sprite, stamp, easeOut, clamp01, type Ctx } from './style';
+import { PALETTE } from './theme';
 
 const fmt = (v: number) => { const s = String(Math.max(0, Math.round(v))); return s.length <= 3 ? s : s.replace(/\B(?=(\d{3})+(?!\d))/g, ','); };
 
@@ -18,11 +19,11 @@ function bigWord(text: string, size: number, dpr: number, colour: string) {
   return sprite(`big:${text}:${size.toFixed(1)}:${colour}`, dpr, w, h, w / 2, h / 2, (s) => {
     stamp(s, glow(colour, size * 0.85, dpr, 0.3), w / 2, h / 2);
     const word = text.length > 1;
-    s.font = `${word ? 650 : 300} ${size}px ${FONT}`;
+    s.font = `${word ? 600 : 300} ${size}px ${DISPLAY}`;
     s.letterSpacing = word ? `${(size * 0.22).toFixed(1)}px` : '0px';
     s.textAlign = 'center'; s.textBaseline = 'middle';
     const gr = s.createLinearGradient(0, h / 2 - size / 2, 0, h / 2 + size / 2);
-    gr.addColorStop(0, '#ffffff'); gr.addColorStop(1, word ? colour : '#e6defa');
+    gr.addColorStop(0, '#ffffff'); gr.addColorStop(1, word ? colour : PALETTE.sunHi);
     // (the tracking adds space after the last letter too: half of it back)
     const x = w / 2 + (word ? size * 0.11 : 0);
     s.lineJoin = 'round';
@@ -49,12 +50,12 @@ export function nearly(st: HudState): string | null {
 /** the winner's name for the banner, at its size or smaller till it fits the screen, its glow behind (a sprite) */
 function winName(text: string, col: string, L: Layout, dpr: number) {
   let fs = (L.compact ? 30 : 52) * L.u;
-  const tw = measure(text, fs, 650, 0.16);
+  const tw = measure(text, fs, 600, 0.16, DISPLAY);
   if (tw > L.W * 0.8) fs *= (L.W * 0.8) / tw;
-  const w = Math.min(L.W, measure(text, fs, 650, 0.16) + fs * 3);
+  const w = Math.min(L.W, measure(text, fs, 600, 0.16, DISPLAY) + fs * 3);
   const spr = sprite(`win2:${text}:${col}:${fs.toFixed(1)}`, dpr, w, fs * 2, w / 2, fs, (s) => {
     stamp(s, glow(col, fs * 1.3, dpr, 0.35), w / 2, fs);
-    s.font = `650 ${fs}px ${FONT}`;
+    s.font = `600 ${fs}px ${DISPLAY}`;
     s.letterSpacing = `${(fs * 0.16).toFixed(1)}px`;
     s.textAlign = 'center'; s.textBaseline = 'middle';
     const gr = s.createLinearGradient(0, fs * 0.5, 0, fs * 1.5);
@@ -68,7 +69,7 @@ function winName(text: string, col: string, L: Layout, dpr: number) {
 /** the countdown's sprites, to make ahead (Hud's warm-up) */
 export function warmCentre(L: Layout, dpr: number, st?: HudState): (() => void)[] {
   const size = (L.compact ? 92 : 150) * L.u;
-  return [...(st?.players ?? []).map((p) => () => { winName(p.name.toUpperCase(), p.color, L, dpr); }), ...['3', '2', '1'].map((d) => () => { bigWord(d, size, dpr, '#b9a8ff'); }), () => { bigWord(GO, size * 0.42, dpr, GOLD); }, () => { bigWord(FIN, size * 0.36, dpr, GOLD); }];
+  return [...(st?.players ?? []).map((p) => () => { winName(p.name.toUpperCase(), p.color, L, dpr); }), ...['3', '2', '1'].map((d) => () => { bigWord(d, size, dpr, PALETTE.sky); }), () => { bigWord(GO, size * 0.42, dpr, GOLD); }, () => { bigWord(FIN, size * 0.36, dpr, GOLD); }];
 }
 
 export class Centre {
@@ -111,13 +112,13 @@ export class Centre {
       // (the finale's word stands high, over the two's duet, which happens about the middle: finale.ts)
       cy = text === FIN ? L.top + (cy0 - L.top) * 0.32 : cy0;
       const s = word ? size * (text === FIN ? 0.36 : 0.42) : size;
-      const spr = bigWord(text, s, dpr, word ? GOLD : '#b9a8ff');
+      const spr = bigWord(text, s, dpr, word ? GOLD : PALETTE.sky);
       const sc = word ? 0.92 + 0.08 * easeOut(k * 3) + 0.06 * k : 1.28 - 0.28 * easeOut(k * 3.2);
       const a = clamp01(k * 7) * (1 - clamp01((k - (word ? 0.55 : 0.72)) / (word ? 0.45 : 0.28)));
       // the ring: opens out from the digit and fades
       const rr = s * (0.5 + 0.55 * easeOut(k)) * (text === FIN ? 1.15 : 1);
       g.lineWidth = Math.max(1, 1.5 * u);
-      g.strokeStyle = word ? rgba(GOLD, 0.5 * (1 - k)) : `rgba(220,210,255,${(0.35 * (1 - k)).toFixed(3)})`;
+      g.strokeStyle = word ? rgba(GOLD, 0.5 * (1 - k)) : rgba(PALETTE.sky, 0.35 * (1 - k));
       g.beginPath(); g.arc(cx, cy, rr, 0, Math.PI * 2); g.stroke();
       stamp(g, spr, cx, cy, sc, a);
       const half = Math.max(spr.w * sc, rr * 2 + 8) / 2 + 4, halfH = Math.max(spr.h * sc, rr * 2 + 8) / 2 + 4;
@@ -127,12 +128,12 @@ export class Centre {
     // the winner: a band across the middle opening from the centre, the name tracking in, the battle's numbers
     if (S.phase === 'done' && this.doneAt >= 0) {
       const w = S.winner != null ? (st.players.find((p) => p.seat === S.winner) ?? st.players[S.winner]) : undefined;
-      const col = w?.color ?? '#d8d0f0';
+      const col = w?.color ?? PALETTE.parchment;
       const e = this.t - this.doneAt, open = easeOut(e / 0.45), H = (L.compact ? 104 : 168) * u, half = (L.W / 2) * open;
       const y0 = cy - H / 2;
       const band = g.createLinearGradient(cx - L.W / 2, 0, cx + L.W / 2, 0);
-      band.addColorStop(0, 'rgba(10,8,18,0)'); band.addColorStop(0.22, 'rgba(10,8,18,0.6)');
-      band.addColorStop(0.5, 'rgba(14,10,24,0.74)'); band.addColorStop(0.78, 'rgba(10,8,18,0.6)'); band.addColorStop(1, 'rgba(10,8,18,0)');
+      band.addColorStop(0, 'rgba(20,15,8,0)'); band.addColorStop(0.22, 'rgba(20,15,8,0.62)');
+      band.addColorStop(0.5, 'rgba(28,21,10,0.76)'); band.addColorStop(0.78, 'rgba(20,15,8,0.62)'); band.addColorStop(1, 'rgba(20,15,8,0)');
       g.fillStyle = band;
       g.fillRect(cx - half, y0, half * 2, H);
       // hairlines in the winner's colour along the band's edges, a light running along them
@@ -175,7 +176,7 @@ export class Centre {
         g.font = `700 ${ls}px ${FONT}`;
         g.letterSpacing = `${(ls * 0.34).toFixed(1)}px`;
         g.textAlign = 'center';
-        g.fillStyle = 'rgba(236,230,244,0.7)';
+        g.fillStyle = rgba(PALETTE.parchment, 0.78);
         g.fillText('STYLE', cx + ls * 0.17, ny);
         g.fillStyle = rgba(GOLD_HI, 0.8);
         g.fillText(`TOGETHER  ${Math.round(st.shared.peak * 100)}%  AT PEAK`, cx + ls * 0.17, ny + ns * 1.05);
@@ -183,7 +184,7 @@ export class Centre {
         // needs (and that it needs a merge too, when there was none), so the next set knows what to reach for
         const nb = nearly(st);
         if (nb) {
-          g.fillStyle = 'rgba(236,230,244,0.62)';
+          g.fillStyle = rgba(PALETTE.parchment, 0.68);
           g.fillText(nb, cx + ls * 0.17, ny + ns * 1.05 + ls * 1.7);
         }
         g.globalAlpha = 1;
