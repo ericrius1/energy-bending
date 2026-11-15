@@ -1,6 +1,7 @@
-// The Tide Temple behind everything: the dusk sky with the moon (temple.wgsl templeSky), and below it the court's floor
-// of worn flagstones (each a little higher or lower than its neighbours, so the low ones hold the last of the water at
-// low tide), a carved ring round the middle, the pillars' long moon shadows across it; beyond the court's edge the sea
+// The Tide Temple behind everything: the afternoon sky with the sun (temple.wgsl templeSky), and below it the court's
+// floor of pale flagstones (each a little higher or lower than its neighbours, so the low ones hold the last of the water
+// at low tide), a carved ring round the middle, the pillars' shadows and the stained glass's coloured light across it,
+// water channels lined in white tile running round its edge (always full: the fountains feed them); beyond it the sea
 // bed, deep and dark. Under the tide it is seen through the water (templeUnder); the surface is laid over it in the
 // air pass. Drawn first, with no depth; alpha the view distance (half floats: under 30 km). In the duel, its arena's
 // drops open in the court (worlds/drops.wgsl): pits lined with courses of ashlar down to the sea bed, flooded by the tide.
@@ -15,6 +16,16 @@ const CZ1: f32 = 11.6;
 const SEA: f32 = -2.6;
 
 struct Flag { h: f32, edge: f32, id: vec2f }
+
+/** the water channels in the floor: down both sides of the court and across its front, outside the arena's drops and
+ *  the stage (decoration only: a body walks over them, a hand deep); the distance from xz to the nearest's middle line */
+const CH_W: f32 = 0.18;
+fn templeChannel(xz: vec2f) -> f32 {
+  let side = max(abs(abs(xz.x) - 10.3), max(-8.5 - xz.y, xz.y - 7.4));
+  let front = max(abs(xz.y - 7.4), abs(xz.x) - 10.3);
+  return min(side, front);
+}
+
 
 /** the flagstone at xz: rows of differing depth, each laid in flags of its own width, staggered */
 fn flagAt(xz: vec2f) -> Flag {
@@ -90,10 +101,10 @@ fn flagAt(xz: vec2f) -> Flag {
     let groove = max(max(joint, crack), max(ring, key) * 0.8);
     albedo *= 1.0 - 0.6 * groove;
     // weed and moss in the joints; wet and dark where the water is or lately was, and the low flags holding puddles
-    albedo = mix(albedo, vec3f(0.03, 0.045, 0.025), joint * 0.6);
+    albedo = mix(albedo, vec3f(0.12, 0.2, 0.06), joint * 0.5);
     let wet = max(templeWet(f.h), smoothstep(-0.008, -0.022, f.h) * 0.8);
     albedo *= mix(0.86, 0.6, wet);
-    let shadow = templeShadow(p + vec3f(0.0, 0.02, 0.0));
+    let shadow = templeShadow(p + vec3f(0.0, 0.02, 0.0)) * templeCanopy(p);
     let diff = max(worldLight.temple.moon.y, 0.0);
     col = albedo * (moonL * diff * shadow + templeAmbient(up, 1.0 - groove * 0.6, p, 1.0));
     // the wet sheen: the moon's long path and the sky, broken up by the flags' little tilts
@@ -103,6 +114,22 @@ fn flagAt(xz: vec2f) -> Flag {
     let gloss = (1.0 - groove) * worldLight.temple.stone.w * mix(0.25, 1.0, wet);
     col += templeSky(normalize(vec3f(R.x, abs(R.y), R.z)), 0.0) * fres * 0.1 * gloss;
     col += moonL * pow(max(dot(R, worldLight.temple.moon.xyz), 0.0), mix(30.0, 120.0, wet)) * mix(0.25, 0.8, wet) * shadow * gloss;
+    // a water channel: a strip of clean water a hand deep, lined in white tile with a teal line at its lip, catching the
+    // sky and the sun
+    let ch = templeChannel(p.xz);
+    if (ch < CH_W + 0.06) {
+      let lip = smoothstep(CH_W + 0.06, CH_W + 0.03, ch) * smoothstep(CH_W - 0.01, CH_W + 0.01, ch);
+      let tile = vec3f(0.93, 0.92, 0.88) * (moonL * diff * shadow + templeAmbient(up, 1.0, p, 1.0));
+      col = mix(col, tile * mix(vec3f(1.0), vec3f(0.35, 0.8, 0.75), smoothstep(0.012, 0.0, abs(ch - CH_W - 0.045))), lip);
+      if (ch < CH_W) {
+        let t = worldLight.temple.fire.y;
+        let wn = normalize(vec3f(sin(p.x * 9.0 + t * 3.0) * 0.06 + (vnoise2(p.xz * 6.0 + t) - 0.5) * 0.12, 1.0, cos(p.z * 8.0 - t * 2.5) * 0.06));
+        let Rw = reflect(d, wn);
+        let fw = 0.04 + 0.96 * pow(1.0 - max(-d.y, 0.0), 5.0);
+        let bed = vec3f(0.55, 0.85, 0.82) * (moonL * diff * shadow * templeCaustic(p + vec3f(0.0, -0.3, 0.0), 0.3) + templeAmbient(up, 1.0, p, 1.0)) * 0.7;
+        col = mix(bed, templeSky(normalize(vec3f(Rw.x, abs(Rw.y), Rw.z)), 0.0), fw) + moonL * pow(max(dot(Rw, worldLight.temple.moon.xyz), 0.0), 200.0) * 2.0 * shadow;
+      }
+    }
     col = templeUnder(col, p, albedo * moonL * diff * shadow);
   } else {
     // the sea bed: rippled sand and stones, far down

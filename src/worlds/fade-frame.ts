@@ -11,7 +11,13 @@
 // share of the frame and of the frame's four corners. A piece starts to dissolve when it covers `share` of the frame or
 // `corner` of the corners (or is about to: the grid reaches a little past the lens and a little deeper than the near
 // part), and stays dissolving while any ray still meets it a little further out (`keep`) and for `hold` seconds after:
-// hysteresis, so a piece at the edge of the test doesn't flicker. Its strength eases in and out. Never what a body
+// hysteresis, so a piece at the edge of the test doesn't flicker. While the camera turns the hold doesn't run down (a
+// turn sweeps a piece out of the grid and back in: the decision is held until the turn settles), and a piece that came
+// back lately needs more of the frame to start again. Its strength eases in and out.
+//
+// Each piece also has its outline's weight (`line`, eased): a dissolved piece keeps its edges as a faint line only where
+// the pair can use it, near one of the bodies (full within `lineNear` m of the nearer, none past `lineFar`); a piece the
+// pair is nowhere near dissolves whole (report 15, issue 5: the lines were a wireframe over the arenas). Never what a body
 // stands on, hangs from, or (on its path over the next `ahead` seconds) is about to land on: that comes back quickly
 // and stays whole a moment after. The shaders take FRAME_SLOTS pieces (worlds/light.wgsl `Sight.piece`); a piece only
 // starts while a slot is free, so none ever loses its slot while dissolved.
@@ -34,12 +40,22 @@ export const frameParams = defineParams('fadeFrame', {
   corner: 0.1,
   /** and keeps dissolving while a ray meets it within `keep` × the near part, and `hold` seconds after */
   keep: 1.3,
-  hold: 1.0,
+  hold: 2.0,
+  /** while the camera turns faster than this (rad/s) the hold doesn't run down; a piece back within `again` seconds needs
+   *  `againShare` × the share to start again */
+  turn: 0.3,
+  again: 2.5,
+  againShare: 2,
+  /** the outline kept where the pair can use the piece: full within `lineNear` m of the nearer body, none past `lineFar` */
+  lineNear: 0.8,
+  lineFar: 2.2,
+  /** seconds for the outline's weight to follow */
+  lineEase: 0.35,
   /** a body's feet this near a piece keep it (m), and its path this many seconds on (what it is about to land on);
    *  after a body was on it, it stays whole `rest` seconds more */
   touch: 0.45,
   ahead: 0.9,
-  rest: 0.8,
+  rest: 1.0,
   /** seconds to dissolve, to come back, and to come back under a body (or to free a slot) */
   easeIn: 0.18,
   easeOut: 0.6,
@@ -50,7 +66,13 @@ export const frameParams = defineParams('fadeFrame', {
   share: { min: 0, max: 0.3 },
   corner: { min: 0, max: 1 },
   keep: { min: 1, max: 2 },
-  hold: { min: 0, max: 3 },
+  hold: { min: 0, max: 4 },
+  turn: { min: 0, max: 2 },
+  again: { min: 0, max: 6 },
+  againShare: { min: 1, max: 4 },
+  lineNear: { min: 0, max: 6 },
+  lineFar: { min: 0, max: 10 },
+  lineEase: { min: 0, max: 2 },
   touch: { min: 0, max: 1.5 },
   ahead: { min: 0, max: 2 },
   rest: { min: 0, max: 3 },
@@ -87,6 +109,11 @@ export interface FramePiece {
   hold: number;
   /** how long it stays whole yet after a body was on it */
   rest: number;
+  /** its outline's weight (0 … 1, eased): 1 near a body, 0 where the pair is nowhere near (worlds/light.wgsl) */
+  line: number;
+  /** how far it is from the nearer body (m), and how long since it last came back whole (s) */
+  dist: number;
+  back: number;
   /** this frame: its share of the frame and of the corners, and whether a body keeps it */
   cover: number;
   corner: number;
@@ -148,9 +175,25 @@ export class FrameFade {
   /** each solid's piece (kept across lists: the world's and the arena's solids are the same objects in each) */
   private groups = new WeakMap<Solid, Group>();
 
+  /** how fast the camera turns now (rad/s, eased a little) */
+  turning = 0;
+  private fwd: [number, number, number] | null = null;
+  /** pieces that came back whole lately, and when (they keep their `back` time after leaving `pieces`) */
+  private backs = new Map<Solid, number>();
+  private clock = 0;
+
   /** each frame: the view, the world's solids (null: none), the framed bodies; `on` false eases everything back */
   update(dt: number, view: FrameView, solids: Solids | null, bodies: readonly FrameBody[], on: boolean) {
     const P = frameParams, list = solids?.list ?? null;
+    this.clock += dt;
+    // the camera's turn: the angle its forward moved through this frame
+    const F = view.forward;
+    if (this.fwd && dt > 1e-4) {
+      const c = Math.max(-1, Math.min(1, F[0] * this.fwd[0] + F[1] * this.fwd[1] + F[2] * this.fwd[2]));
+      const w = Math.acos(c) / dt;
+      this.turning += (Math.min(w, 10) - this.turning) * (1 - Math.exp(-dt / 0.15));
+    }
+    this.fwd = [F[0], F[1], F[2]];
     if (list !== this.list) this.remap(list);
     for (const p of this.pieces.values()) { p.cover = 0; p.corner = 0; p.support = false; }
     const want = new Set<FramePiece>(), met = new Set<FramePiece>();
@@ -192,10 +235,13 @@ export class FrameFade {
           let p = this.pieces.get(g.rep);
           const cover = h.strict / NINSIDE, corners = h.corner / NCORNER, coming = h.early / NINSIDE;
           const support = this.supports(g.members, bodies);
-          const start = cover >= P.share || corners >= P.corner || coming >= P.share;
+          // (back lately: it needs more of the frame to start again, so a piece at the edge doesn't pulse)
+          const m = p && !p.on && p.back < P.again ? P.againShare : 1;
+          const start = cover >= P.share * m || corners >= P.corner * m || coming >= P.share * m;
           if (!p) {
             if (support || !start || busy >= FRAME_SLOTS) continue;
-            p = { solid: g.shape, members: g.members, k: 0, on: false, hold: 0, rest: 0, cover: 0, corner: 0, support: false };
+            p = { solid: g.shape, members: g.members, k: 0, on: false, hold: 0, rest: 0, line: 0, dist: Infinity, back: Infinity, cover: 0, corner: 0, support: false };
+            p.line = this.lineOf(p, bodies);
             this.pieces.set(g.rep, p);
           }
           if (!p.on && p.k <= 0 && start && !support && p.rest <= 0) { if (busy >= FRAME_SLOTS) continue; busy++; }
@@ -211,19 +257,43 @@ export class FrameFade {
     let taken = 0;
     for (const p of this.pieces.values()) if (p.on || p.k > 0) taken++;
     const crowded = taken >= FRAME_SLOTS - 1;
+    const turning = this.turning > P.turn;
     for (const [s, p] of this.pieces) {
       // (once a body has been on it, it rests whole a moment before it may dissolve again: no flicker under a body that
       // hovers at the edge of the touch)
       if (p.support) p.rest = P.rest;
       else p.rest = Math.max(0, p.rest - dt);
+      const was = p.on;
       if (want.has(p)) { p.on = true; p.hold = P.hold; }
       else if (p.support || !on) p.on = false;
-      else if (p.on && (p.hold -= dt) <= 0) p.on = false;
+      // (the hold runs down only while the camera is steady: a turn sweeps it out of the grid and back)
+      else if (p.on && !turning && (p.hold -= dt) <= 0) p.on = false;
+      if (was && !p.on) this.backs.set(s, this.clock);
+      const b = this.backs.get(s);
+      p.back = b === undefined ? Infinity : this.clock - b;
+      // its outline's weight: near the pair, eased
+      const lw = this.lineOf(p, bodies);
+      p.line = P.lineEase <= 0 ? lw : p.line + (lw - p.line) * (1 - Math.exp(-dt / P.lineEase));
       const goal = p.on ? 1 : 0, tau = p.support || (!p.on && (p.rest > 0 || crowded)) ? P.easeBack : p.on ? P.easeIn : P.easeOut;
       p.k = tau <= 0 ? goal : p.k + (goal - p.k) * (1 - Math.exp(-dt / tau));
       if (Math.abs(p.k - goal) < 2e-3) p.k = goal;
       if (!p.on && p.k <= 0 && p.rest <= 0) this.pieces.delete(s);
     }
+    for (const [s, b] of this.backs) if (this.clock - b > P.again) this.backs.delete(s);
+  }
+
+  /** a piece's outline weight now (0 … 1): 1 within `lineNear` of the nearer body's points, 0 past `lineFar` */
+  private lineOf(p: FramePiece, bodies: readonly FrameBody[]) {
+    const P = frameParams;
+    let d = Infinity;
+    for (const s of p.members) for (const b of bodies) {
+      d = Math.min(d, distTo(s, b.mid));
+      for (const q of b.pts) d = Math.min(d, distTo(s, q));
+    }
+    p.dist = d;
+    if (!Number.isFinite(d)) return 0;
+    const u = Math.max(0, Math.min(1, (d - P.lineNear) / Math.max(1e-3, P.lineFar - P.lineNear)));
+    return 1 - u * u * (3 - 2 * u);
   }
 
   /** how strongly a solid is dissolved (0 … 1): its piece's, or the same piece's in another list (a growing pillar) */

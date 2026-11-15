@@ -20,6 +20,8 @@ import { defineParams } from '../engine/params';
 import type { Solid } from '../worlds/solids';
 import { arenaFor, shownArena } from './arena';
 import { arenaSegments, SEG_FLOATS } from './arena-segments';
+import { tideAt } from './hazards';
+
 
 export const arenaParams = defineParams('arena', {
   /** the rim light's strength (× the arena's own colour), and how much it breathes with the beat */
@@ -27,6 +29,8 @@ export const arenaParams = defineParams('arena', {
   breath: 0.15,
   /** draw the arena's data as lines over everything */
   debug: false,
+  /** a rim under the tide is drowned (fades out under the water: 0 draws it as before, for the measure) */
+  drown: true,
 }, {
   rim: { min: 0, max: 4, label: 'arena rim light' },
   breath: { min: 0, max: 1 },
@@ -61,6 +65,9 @@ class ArenaLayer {
       this.beat[0] = f.beat.beats - Math.floor(f.beat.beats);
       this.beat[1] = arenaParams.breath;
       this.beat[2] = this.ctx.locked();
+      // (the tide's height: a rim under it is drowned, arena-lines.wgsl)
+      const H = arenaFor(w)?.hazard;
+      this.beat[3] = arenaParams.drown && H?.on && H.kind === 'tide' ? tideAt(H, H.beat) : -1e4;
       this.rim[3] = arenaParams.rim;
       this.u.set({ rim: this.rim, beat: this.beat });
     }, 'the arena rim light');

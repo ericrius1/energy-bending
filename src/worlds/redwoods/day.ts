@@ -120,6 +120,8 @@ export class Woods {
     v.mist[3] = sky.mistK * (1 + 0.9 * morning) * p.mist;
     v.air[1] = p.godRays;
     v.night = smooth(2, -8, el);
+    // (the fireflies come out at dusk, before the night: forest.horizon.w, lanterns.wgsl vs_fly)
+    v.horizon[3] = Math.max(v.night, smooth(10, 1, el) * 0.7);
     v.hour = p.hour;
     v.wind = p.wind;
     v.clock[0] = t; v.clock[1] = p.flowerSize; v.clock[2] = p.grassHeight;

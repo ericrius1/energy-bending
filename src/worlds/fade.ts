@@ -13,7 +13,8 @@
 // up quickly and down slowly; while all are 0 the shaders skip the fade with one uniform branch.
 // On the GPU a fragment fades (worlds/light.wgsl sightFade) where it is within `near` of the eye, where the ray
 // through it passes within a body's radius of a framed dancer and it is well in front of that dancer, or where it is
-// inside one of the pieces the frame test hands over (whole, but for its edges: a faint outline, `sightLit`). Nothing
+// inside one of the pieces the frame test hands over (whole, but for its edges near the pair: a faint outline,
+// `sightLit`, none on a piece the pair is nowhere near or one pale already). Nothing
 // below a dancer's feet fades across a sight line (the floor it stands on), nor near the eye below the ground under
 // it; the frame test never hands over what a body stands on or is about to land on.
 import type { Kit } from '@ericrius1/weft';
@@ -23,7 +24,8 @@ import { defineParams } from '../engine/params';
 import { JOINT, JOINT_FLOATS, MAXJ } from '../skeleton/rig';
 import { arenaFor, shownArena } from '../duel/arena';
 import { lightSlot, type LightSlot } from './shared';
-import { FRAME_SLOTS, FrameFade, type FrameBody, type FrameView } from './fade-frame';
+import { FRAME_SLOTS, FrameFade, frameParams, type FrameBody, type FrameView } from './fade-frame';
+
 import type { Solid } from './solids';
 import type { Sight, SightPiece } from './light.wgsl';
 
@@ -39,8 +41,11 @@ export const fadeParams = defineParams('fade', {
   between: true,
   /** in the duel, dissolve a piece standing in the near part of the frame (worlds/fade-frame.ts: fadeFrame's params) */
   frame: true,
-  /** how bright a dissolved piece's outline glows (× the arena's rim light) */
-  outline: 0.35,
+  /** how bright a dissolved piece's outline glows (× the arena's rim light; 0.35 till report 16, whose lines were
+   *  brighter than the pieces had been) */
+  outline: 0.2,
+  /** how much of a dissolved piece's edges is kept at all (0: it dissolves whole; the measure's off switch) */
+  lines: 1,
   /** how far round a dancer's middle the line of sight is kept clear (m, at least) */
   radius: 0.45,
   /** seconds to fade in and to come back */
@@ -49,6 +54,7 @@ export const fadeParams = defineParams('fade', {
 }, {
   near: { min: 0, max: 2 },
   outline: { min: 0, max: 2 },
+  lines: { min: 0, max: 1 },
   radius: { min: 0.2, max: 1.2 },
   easeIn: { min: 0, max: 1 },
   easeOut: { min: 0, max: 2 },
@@ -62,11 +68,11 @@ const OUTLINE: V3 = [0.8, 0.8, 0.85];
 /** the camera as the fade reads it (weft's Camera, after the rig has applied its pose) */
 export type FadeCamera = FrameView;
 
-/** a piece's slot in the uniform (an empty one: strength 0) */
-function pieceSlot(s: Solid | null, k: number): SightPiece {
+/** a piece's slot in the uniform (an empty one: strength 0), with how much of its outline to keep */
+function pieceSlot(s: Solid | null, k: number, line = 0): SightPiece {
   if (!s) return { a: [0, 0, 0, 0], x: [0, 0, 0, 0], y: [0, 0, 0, 0], h: [0, 0, 0, 0] };
-  if (s.kind === 'capsule') return { a: [...s.a, k], x: [...s.b, 1], y: [0, 1, 0, 0], h: [0, 0, 0, s.r] };
-  return { a: [...s.c, k], x: [...s.x, 0], y: [...s.y, 0], h: [...s.h, 0] };
+  if (s.kind === 'capsule') return { a: [...s.a, k], x: [...s.b, 1], y: [0, 1, 0, line], h: [0, 0, 0, s.r] };
+  return { a: [...s.c, k], x: [...s.x, 0], y: [...s.y, line], h: [...s.h, 0] };
 }
 
 export class NearFade {
@@ -148,7 +154,7 @@ export class NearFade {
         }
         this.was[k] = mid;
         framed.push({ mid, pts, vel });
-      } else this.was[k] = null;
+      } else { this.was[k] = null; lo4[3] = 0; }
       this.seen.blocked[k] = blocked;
       this.bodies[k] = J ? ease(this.bodies[k], blocked ? 1 : 0) : 0;
       hi4[3] = this.bodies[k];
@@ -157,12 +163,12 @@ export class NearFade {
     const duel = shownArena();
     this.frame.update(dt, cam, solids, framed, on && P.frame && duel !== null);
     const top = this.frame.top(FRAME_SLOTS);
-    for (let i = 0; i < FRAME_SLOTS; i++) this.pieces[i] = pieceSlot(top[i]?.solid ?? null, top[i]?.k ?? 0);
+    for (let i = 0; i < FRAME_SLOTS; i++) this.pieces[i] = pieceSlot(top[i]?.solid ?? null, top[i]?.k ?? 0, top[i]?.line ?? 0);
     this.seen.pieces = top.map((p) => Math.round(p.k * 100) / 100);
     this.seen.cover = top.reduce((a, p) => a + p.cover + p.corner, 0);
     const rim = (duel !== null ? arenaFor(duel)?.rim : null) ?? OUTLINE;
-    this.f[0] = this.frame.far; this.f[3] = top.length ? 1 : 0;
-    this.glow[0] = rim[0] * P.outline; this.glow[1] = rim[1] * P.outline; this.glow[2] = rim[2] * P.outline;
+    this.f[0] = this.frame.far; this.f[1] = frameParams.lineNear; this.f[2] = Math.max(frameParams.lineFar, frameParams.lineNear + 0.01); this.f[3] = top.length ? 1 : 0;
+    this.glow[0] = rim[0] * P.outline; this.glow[1] = rim[1] * P.outline; this.glow[2] = rim[2] * P.outline; this.glow[3] = P.lines;
     const g = groundAt(E[0], E[2]);
     // (the floor under the eye: the rig keeps the eye 25 cm over it, so a "ground" above that is a raised slab the eye
     // stands beside, which is what should fade)

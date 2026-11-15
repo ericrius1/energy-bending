@@ -11,11 +11,12 @@
 //   node scripts/cam-sim.mjs [--world temple,redwoods,geode,pool] [--sets 6] [--set-s 40] [--seed 1] [--json out.json]
 //                            [--impulses] (feeds the camera an impulse at every catch, fling, lift and merge)
 //                            [--nofade] (the frame test off: "with the fade" is then the old near frame)
+//                            [--oldfade] (the frame test as phase 3 left it: a 1 s hold, no turn hold, every piece outlined)
 import { simulateDuel, makeBrains } from './sim';
 import { DuelCamera, nearReach, raysAt, screenOf, type CamBody, type CamSpace, type V3 } from './camera';
 import { judge, spaceOf } from './camspace';
 import { CAM_WORLDS, nodeWorld } from './camworlds';
-import { FRAME_SLOTS, FrameFade, type FrameView } from '../worlds/fade-frame';
+import { FRAME_SLOTS, FrameFade, frameParams, type FrameView } from '../worlds/fade-frame';
 import { distTo } from '../engine/camera';
 import type { Solid } from '../worlds/solids';
 import type { DuelStyle } from '../ai/duel-brain';
@@ -30,6 +31,10 @@ const jsonOut = arg('json', '');
 const impulses = argv.includes('--impulses');
 const nofade = argv.includes('--nofade');
 const why = argv.includes('--why');
+// (phase 3's frame test, for the before numbers: report 16)
+if (argv.includes('--oldfade')) Object.assign(frameParams, { hold: 1, turn: 1e9, againShare: 1, lineNear: 1e6, lineFar: 2e6 });
+// (--fadeset hold=2,turn=0.3: the frame test's params for this run)
+for (const kv of arg('fadeset', '').split(',').filter(Boolean)) { const [k, v] = kv.split('='); (frameParams as Record<string, unknown>)[k] = Number(v); }
 const whyN = new Map<string, number>();
 const ASPECT = 16 / 9;
 
@@ -49,13 +54,19 @@ interface Tally {
   // with the fade: the near frame and its corners with dissolved pieces clear; frames with a piece dissolving, the pieces
   // dissolving (summed over frames), a dissolved piece under a body, a piece dissolving again within a second, the time
   fgAnyF: number; fg10F: number; cornerAnyF: number; corner8F: number; fading: number; pieces: number; under: number; again: number; fadeMs: number;
+  // the outlines on screen: pieces in the lens dissolved past a tenth with an outline (summed over frames), the same
+  // weighted by strength × the outline's weight, frames with any; a piece dissolving again within 3 s
+  lined: number; lineW: number; linedAny: number; again3: number; againBody: number;
 }
-const blank = (): Tally => ({ frames: 0, inside: 0, nearEye: 0, fgAny: 0, fg10: 0, fgSum: 0, hidden: 0, hiddenAny: 0, flyer: 0, flyerOut: 0, whole: 0, out: 0, maxStep: 0, flips: 0, ms: 0, dist: 0, pitch: 0, minClear: Infinity, p35: 0, p45: 0, cornerAny: 0, corner8: 0, cornerSum: 0, fgAnyF: 0, fg10F: 0, cornerAnyF: 0, corner8F: 0, fading: 0, pieces: 0, under: 0, again: 0, fadeMs: 0 });
+const blank = (): Tally => ({ frames: 0, inside: 0, nearEye: 0, fgAny: 0, fg10: 0, fgSum: 0, hidden: 0, hiddenAny: 0, flyer: 0, flyerOut: 0, whole: 0, out: 0, maxStep: 0, flips: 0, ms: 0, dist: 0, pitch: 0, minClear: Infinity, p35: 0, p45: 0, cornerAny: 0, corner8: 0, cornerSum: 0, fgAnyF: 0, fg10F: 0, cornerAnyF: 0, corner8F: 0, fading: 0, pieces: 0, under: 0, again: 0, fadeMs: 0, lined: 0, lineW: 0, linedAny: 0, again3: 0, againBody: 0 });
 const add = (a: Tally, b: Tally) => { for (const k of Object.keys(a) as (keyof Tally)[]) { if (k === 'maxStep') a[k] = Math.max(a[k], b[k]); else if (k === 'minClear') a[k] = Math.min(a[k], b[k]); else a[k] += b[k]; } };
 
 const pct = (n: number, d: number) => `${((100 * n) / Math.max(1, d)).toFixed(1)}%`;
 const fadeLine = (n: string, T: Tally) => `${n.padEnd(9)} with the fade: near frame ${pct(T.fgAnyF, T.frames)} (over a tenth ${pct(T.fg10F, T.frames)}), a near corner ${pct(T.cornerAnyF, T.frames)} (≥ 1/8 ${pct(T.corner8F, T.frames)}); ` +
-  `a piece dissolving in ${pct(T.fading, T.frames)} of frames (${(T.pieces / Math.max(1, T.frames)).toFixed(2)} a frame), under a standing body ${T.under} frames, again within 1 s ${(T.again / (T.frames / 3600)).toFixed(2)}/min; ${(T.fadeMs / Math.max(1, T.frames)).toFixed(3)} ms/frame`;
+  `a piece dissolving in ${pct(T.fading, T.frames)} of frames (${(T.pieces / Math.max(1, T.frames)).toFixed(2)} a frame), under a standing body ${T.under} frames, again within 1 s ${(T.again / (T.frames / 3600)).toFixed(2)}/min (a body on it between: ${(T.againBody / (T.frames / 3600)).toFixed(2)}; within 3 s ${(T.again3 / (T.frames / 3600)).toFixed(2)});
+ ${(T.fadeMs / Math.max(1, T.frames)).toFixed(3)} ms/frame
+` +
+  `          outlines: ${(T.lined / Math.max(1, T.frames)).toFixed(2)} pieces outlined a frame (weighted ${(T.lineW / Math.max(1, T.frames)).toFixed(2)}), any in ${pct(T.linedAny, T.frames)} of frames`;
 const report: Record<string, unknown>[] = [];
 const all = blank();
 const pitchesAll: number[] = [];
@@ -68,7 +79,7 @@ for (const id of worlds) {
     const cam = new DuelCamera();
     cam.debug = why;
     let space: CamSpace | null = null, version = -1, prev: number | null = null, lastSign = 0, lastT = -9;
-    const ff = new FrameFade(), wasOn = new Set<Solid>(), offAt = new Map<Solid, number>();
+    const ff = new FrameFade(), wasOn = new Set<Solid>(), offAt = new Map<Solid, number>(), offBody = new Set<Solid>();
     simulateDuel({
       arena, world, seconds: setS, dress, brains: makeBrains(pair, [0.85, 0.85], [seed, seed + 7]),
       each: ({ t, match, powers, bodies, events }) => {
@@ -105,9 +116,20 @@ for (const id of worlds) {
             if (why) whyN.set(`under: k ${p.k.toFixed(2)} on ${p.on} support ${p.support} rest ${p.rest.toFixed(2)} t ${t.toFixed(2)} root ${under.root.map((x) => x.toFixed(2)).join(',')}`, 1);
           }
           const key = p.members[0];
-          if (p.on && !wasOn.has(key) && (offAt.get(key) ?? -9) > t - 1) T.again++;
+          if (p.on && !wasOn.has(key) && (offAt.get(key) ?? -9) > t - 1) { T.again++; if (offBody.has(key)) T.againBody++; }
+          if (p.on && !wasOn.has(key) && (offAt.get(key) ?? -9) > t - 3) T.again3++;
         }
-        for (const s of wasOn) if (!ff.pieces.get(s)?.on) offAt.set(s, t);
+        // (the outlines the shaders draw: the pieces they take, in the lens, dissolved past a tenth, outlined)
+        let lined = 0;
+        for (const p of ff.top(FRAME_SLOTS)) if (p.k > 0.1 && p.cover + p.corner > 0 && p.line > 0.05) { lined++; T.lineW += p.k * p.line; }
+        T.lined += lined;
+        if (lined) T.linedAny++;
+        for (const s of wasOn) if (!ff.pieces.get(s)?.on) {
+          offAt.set(s, t);
+          // (came back because a body was on it, or let go)
+          const q = ff.pieces.get(s);
+          if (q && (q.support || q.rest > 0)) offBody.add(s); else offBody.delete(s);
+        }
         wasOn.clear();
         for (const p of ff.pieces.values()) if (p.on) wasOn.add(p.members[0]);
         if (ff.top().length) T.fading++;
@@ -197,6 +219,7 @@ for (const id of worlds) {
     cornerAny: T.cornerAny / T.frames, corner8: T.corner8 / T.frames, cornerMean: T.cornerSum / T.frames,
     fgAnyF: T.fgAnyF / T.frames, fg10F: T.fg10F / T.frames, cornerAnyF: T.cornerAnyF / T.frames, corner8F: T.corner8F / T.frames,
     fading: T.fading / T.frames, piecesPerFrame: T.pieces / T.frames, under: T.under, againPerMin: T.again / (T.frames / 3600), fadeMs: T.fadeMs / T.frames,
+    again3PerMin: T.again3 / (T.frames / 3600), linedPerFrame: T.lined / T.frames, lineWPerFrame: T.lineW / T.frames, linedAny: T.linedAny / T.frames,
   };
   report.push(line);
   console.log(`${id.padEnd(9)} (${(world.solids ?? []).length} solids) ${T.frames} frames: eye in a solid ${pct(T.inside, T.frames)}, past the room ${pct(T.out, T.frames)}, within 0.6 m ${pct(T.nearEye, T.frames)} (nearest ${T.minClear.toFixed(2)} m); ` +

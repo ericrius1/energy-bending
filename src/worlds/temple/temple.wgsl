@@ -1,20 +1,23 @@
 // The Tide Temple's light (included by worlds/light.wgsl, where `Temple` is its slot of the shared light uniform,
-// `worldLight.temple`, and `templeWaves` the ripples on its water). A drowned stone court at dusk: the sun gone down behind the
-// audience, its afterglow warm low in the west; a large moon rising out of the sea in the east, behind the stage,
-// laying a path of light across the water and throwing the pillars' shadows long over the floor; the sea coming in
-// over the flagstones and going out again, over eight bars. Firelight: each dancer can carry a light (its colour ×
-// strength, from the game or the matter it wears) that warms the stone round it.
+// `worldLight.temple`, and `templeWaves` the ripples on its water). A sunlit water temple of pale stone over the sea
+// (the solarpunk pass, report 16; a moonlit dusk before it): the sun high behind the stage and to the left, laying a
+// path of glitter on the water and throwing the pillars' shadows over the floor, its light through a canopy of
+// stained solar glass over the court in pools of gold, teal, coral and leaf (`templeCanopy`), the court's warm bounce
+// on the stones' fronts; clean bright water coming in over the flagstones and going out again, over eight bars.
+// Firelight: each dancer can carry a light (its colour × strength, from the game or the matter it wears) that warms
+// the stone round it. (The light's members keep the old names: `moon` is the key light, the sun; `dusk` the warm haze.)
 //
 // Under the water (below `water.x`, the tide now) the stone is seen through it: dimmed and tinted by the depth it was
-// seen through and netted by the moon's caustics (`templeUnder`); the surface itself is laid over the scene in the air
+// seen through and netted by the sun's caustics (`templeUnder`); the surface itself is laid over the scene in the air
 // pass (`templeScene`, water/water.wgsl).
+
 
 struct Temple {
   zenith: vec4f,    // the sky overhead; w: how many stars show
   dusk: vec4f,      // the afterglow low in the west (behind the audience); w: how strong
   duskDir: vec4f,   // xyz: towards it (level); w: how tightly it gathers on its bearing
-  horizon: vec4f,   // the sky low down elsewhere; w: -
-  moon: vec4f,      // xyz: towards the moon; w: its disc's radius (radians)
+  horizon: vec4f,   // the sky low down elsewhere; w: how much of the stone the vines cover (0 … 1)
+  moon: vec4f,      // xyz: towards the key light (the sun since report 16; the moon before); w: its disc's radius (rad)
   moonCol: vec4f,   // its light; w: how strong on things
   water: vec4f,     // x: the tide's height now, y: how much more than water it mirrors, z: how much the ripples bend
                     // it, w: the wind's small waves
@@ -25,8 +28,8 @@ struct Temple {
   march: vec4f,     // x: steps the reflection is marched in, y: how far (m), z: the haze over the sea (per m), w: shadow-casting pillars
   tide: vec4f,      // x: the low tide, y: the high (m over the floor), z: where the cycle is now (0 low … 0.5 high … 1),
                     // w: how quickly wet stone dries once the water has left it (per cycle)
-  glitter: vec4f,   // the moon's path on the water: x how bright, y how wide (the slope of the facets), z how fine the
-                    // sparkle (per m); w: the thin cloud over the moon (how thick)
+  glitter: vec4f,   // the sun's path on the water: x how bright, y how wide (the slope of the facets), z how fine the
+                    // sparkle (per m); w: how strongly the stained glass over the court tints the sun (templeCanopy)
   tide2: vec4f,     // x: how strong the afterglow's low light on the stone's fronts is, y: the moonlit sky's cool fill,
                     // z: how much of the moon's direct light the stone takes, w: how weathered its sea side is
   lights: array<vec4f, 8>,  // each dancer's light: xyz where it is (the chest), w: -
@@ -37,62 +40,74 @@ struct Temple {
 }
 
 // ---------------------------------------------------------------- the sky
-/** the sky in direction d (d.y ≥ 0; lower comes back as the horizon), with the moon and the stars (0 … 1) */
+/** the sky in direction d (d.y ≥ 0; lower comes back as the horizon): a clear late-afternoon sky over the sea, deep
+ *  teal overhead and pale gold low down, warm round the sun (the `moon` member: the temple's one key light, now the sun),
+ *  a few soft clouds, gold-edged where the sun is behind them. `stars` is kept for the callers' sake: 1 the full sky, 0
+ *  a cheaper one for reflections and haze (no clouds) */
 fn templeSky(d: vec3f, stars: f32) -> vec3f {
   let up = max(d.y, 0.0);
+  let S = worldLight.temple.moon.xyz;
   let flat = normalize(vec3f(d.x, 0.0, d.z) + vec3f(1e-5, 0.0, 0.0));
-  let west = pow(max(dot(flat, worldLight.temple.duskDir.xyz), 0.0), worldLight.temple.duskDir.w);
-  let east = max(-dot(flat, worldLight.temple.duskDir.xyz), 0.0);
-  // overhead a deep blue; low in the west the afterglow, rose over gold; low in the east the cooler band the moon
-  // rises through
-  var c = mix(worldLight.temple.horizon.rgb, worldLight.temple.zenith.rgb, smoothstep(0.0, 0.55, pow(up, 0.7)));
-  c += worldLight.temple.dusk.rgb * worldLight.temple.dusk.w * west * (exp(-up * 9.0) + 0.35 * exp(-up * 3.0));
-  c += worldLight.temple.dusk.rgb * worldLight.temple.dusk.w * 0.5 * vec3f(1.0, 0.75, 0.55) * west * exp(-up * 40.0);
-  c += vec3f(0.035, 0.03, 0.06) * east * exp(-up * 6.0);
-  let mm = max(dot(d, worldLight.temple.moon.xyz), 0.0);
-  let ang = acos(clamp(dot(d, worldLight.temple.moon.xyz), -1.0, 1.0));
+  let toward = max(dot(flat, normalize(vec3f(S.x, 0.0, S.z) + vec3f(1e-5, 0.0, 0.0))), 0.0);
+  var c = mix(worldLight.temple.horizon.rgb, worldLight.temple.zenith.rgb, smoothstep(0.0, 0.7, pow(up, 0.55)));
+  // the warm haze low along the sea, gathering toward the sun, and the glow round it
+  let ss = max(dot(d, S), 0.0);
+  let warm = worldLight.temple.dusk.rgb * worldLight.temple.dusk.w;
+  c += warm * (exp(-up * 7.0) * (0.25 + 0.5 * pow(toward, 3.0)) + pow(ss, 8.0) * 0.5);
+  let sun = worldLight.temple.moonCol.rgb;
   let R = worldLight.temple.moon.w;
+  let ang = acos(clamp(dot(d, S), -1.0, 1.0));
+  // soft clouds drifting: banks low over the sea, wisps higher; lit cream, gold at their edges toward the sun
   let t = worldLight.temple.fire.y;
-  // the moon: a large pale disc, darker seas, a soft limb (drawn first: the clouds pass in front of it)
-  let mx = normalize(cross(worldLight.temple.moon.xyz, vec3f(0.0, 1.0, 0.0)));
-  let my = cross(mx, worldLight.temple.moon.xyz);
-  let q = vec2f(dot(d, mx), dot(d, my)) / R;
-  if (ang < R * 1.2) {
-    let seas = 0.78 + 0.22 * smoothstep(0.35, 0.7, vnoise2(q * 2.3 + 4.0) * 0.6 + vnoise2(q * 6.0) * 0.4);
-    let limb = sqrt(max(1.0 - dot(q, q), 0.0));
-    c = mix(c, worldLight.temple.moonCol.rgb * 3.2 * seas * (0.7 + 0.3 * limb), smoothstep(R, R * 0.97, ang));
+  if (stars > 0.5 && d.y > 0.0) {
+    let cq = d.xz / max(d.y + 0.12, 0.03) + vec2f(t * 0.01, 0.0);
+    let bank = smoothstep(0.5, 0.8, vnoise2(cq * vec2f(0.45, 0.9) + 3.0) * 0.65 + vnoise2(cq * 1.7 + 9.0) * 0.35);
+    let lit = mix(vec3f(1.0, 0.97, 0.92) * 0.9, sun * 1.4, pow(ss, 4.0) * 0.6) + warm * 0.3;
+    c = mix(c, lit, bank * smoothstep(0.0, 0.08, up) * smoothstep(0.75, 0.2, up) * 0.75);
   }
-  // long thin clouds drifting slowly north, lit rose on the western side, silver round the moon
-  let cq = d.xz / max(d.y + 0.08, 0.02) + vec2f(t * 0.012, 0.0);
-  let streak = smoothstep(0.55, 0.85, vnoise2(vec2f(cq.x * 0.35, cq.y * 1.6) + 7.0) * 0.7 + vnoise2(cq * 1.3 + 3.0) * 0.3);
-  let silver = worldLight.temple.moonCol.rgb * (pow(mm, 12.0) * 0.5 + pow(mm, 300.0) * 1.2);
-  let cloudLit = worldLight.temple.dusk.rgb * worldLight.temple.dusk.w * (0.15 + 0.6 * west) + silver;
-  c = mix(c, c * 0.45 + cloudLit * 0.4, streak * smoothstep(0.02, 0.12, up) * smoothstep(0.7, 0.25, up));
-  // and one thin veil always somewhere across the moon's face, slowly changing: torn wisps, lit silver through, the
-  // disc dimmed behind them
-  if (ang < R * 9.0) {
-    let lane = q.y + 0.2 + 0.35 * sin(q.x * 0.45 + t * 0.03) + 0.25 * vnoise2(vec2f(q.x * 0.3 - t * 0.02, 1.0));
-    let wisp = vnoise2(vec2f(q.x * 0.55 - t * 0.09, q.y * 2.6 + 3.0)) * 0.65 + vnoise2(vec2f(q.x * 1.7 - t * 0.15, q.y * 6.0)) * 0.35;
-    let veil = exp(-lane * lane / 0.22) * smoothstep(0.3, 0.75, wisp) * smoothstep(9.0, 4.0, length(q)) * worldLight.temple.glitter.w;
-    c = mix(c, c * 0.3 + silver * 0.9 + worldLight.temple.moonCol.rgb * 0.06, veil);
-  }
-  // the light round it in the damp air: a tight glow and a soft corona (brownish in, bluish out)
-  let cor = max(ang / R - 1.0, 0.0);
-  c += worldLight.temple.moonCol.rgb * (pow(mm, 400.0) * 0.5 + pow(mm, 40.0) * 0.06 + pow(mm, 6.0) * 0.02);
-  c += worldLight.temple.moonCol.rgb * mix(vec3f(1.0, 0.82, 0.6), vec3f(0.7, 0.85, 1.1), smoothstep(0.3, 1.6, cor)) * exp(-cor * 1.4) * 0.28 * step(R, ang);
-
-  if (stars > 0.0 && worldLight.temple.zenith.w > 0.0 && d.y > 0.0) {
-    let p = d * 230.0;
-    let cell = floor(p);
-    let h = hash3(cell);
-    if (h > 0.993) {
-      let at = (vec3f(hash3(cell + 1.3), hash3(cell + 2.7), hash3(cell + 4.1)) - 0.5) * 0.6;
-      let r = length(fract(p) - 0.5 - at);
-      let twinkle = 0.7 + 0.3 * sin(worldLight.temple.fire.y * (1.5 + 3.0 * h) + h * 90.0);
-      c += vec3f(0.85, 0.9, 1.0) * smoothstep(0.2, 0.0, r) * (0.2 + 2.5 * pow(hash3(cell + 7.7), 8.0)) * twinkle * worldLight.temple.zenith.w * stars * smoothstep(0.15, 0.6, d.y) * (1.0 - west);
-    }
-  }
+  // the sun: a white-gold disc and its bloom in the air
+  c = mix(c, sun * 30.0, smoothstep(R, R * 0.8, ang));
+  c += sun * (pow(ss, 900.0) * 3.0 + pow(ss, 90.0) * 0.35 + pow(ss, 12.0) * 0.12);
   return c;
+}
+
+/** the stained solar glass high over the court: the sunlight reaching p through it (a tint × the sun), leaded panes in
+ *  an art-nouveau fan of petals, gold, teal, coral, leaf and cream, the lead's shadow between them; full sun outside its
+ *  rim. Traced from p up toward the sun to the canopy's height (no shadow map: the pattern is a function of where that
+ *  ray crosses it). The canopy hangs toward the sun from the court (it is never in the duel's frame, only its light), so
+ *  that light falls on the court's middle (CANOPY_AT on the floor) wherever the sun stands */
+const CANOPY_Y: f32 = 11.5;
+const CANOPY_AT: vec2f = vec2f(0.0, -1.6);
+const CANOPY_R: vec2f = vec2f(8.5, 5.8);
+fn templeCanopy(p: vec3f) -> vec3f {
+  let L = worldLight.temple.moon.xyz;
+  if (L.y < 0.05 || p.y > CANOPY_Y) { return vec3f(1.0); }
+  let q = p.xz - L.xz / L.y * p.y - CANOPY_AT;
+  let e = length(q / CANOPY_R);
+  if (e > 1.04) { return vec3f(1.0); }
+  // the fan: petals by angle, rings by the ellipse's radius, each ring's petals offset; the panes curve (a petal's
+  // sides bow out) so the lead reads as plant forms, not a grid
+  let a = atan2(q.y, q.x);
+  let ring = floor(e * 3.0 + 0.3 * sin(a * 6.0));
+  let n = 8.0 + ring * 4.0;
+  let u = a / 6.2831853 * n + ring * 0.5 + 0.18 * sin(e * 9.0);
+  let cell = vec2f(floor(u), ring);
+  let fu = fract(u);
+  let fe = fract(e * 3.0 + 0.3 * sin(a * 6.0));
+  let lead = min(min(fu, 1.0 - fu) * 1.6, min(fe, 1.0 - fe)) ;
+  let h = hash2i(vec2i(cell) + vec2i(31, 7));
+  var tint = vec3f(1.0, 0.86, 0.5);                       // sun gold
+  if (h < 0.22) { tint = vec3f(0.45, 0.95, 0.9); }        // sky teal
+  else if (h < 0.4) { tint = vec3f(1.0, 0.55, 0.45); }    // coral
+  else if (h < 0.58) { tint = vec3f(0.62, 0.95, 0.45); }  // leaf
+  else if (h < 0.72) { tint = vec3f(1.0, 0.97, 0.88); }   // cream
+  // a pane is brightest in its middle (the glass's own swirl), the lead between panes a soft shadow on the stone
+  let swirl = 0.85 + 0.15 * vnoise2(q * 1.3 + vec2f(h * 10.0));
+  // (soft: the glass is high, so its lead blurs into a gentle seam, not a line drawn on the floor)
+  let glass = mix(vec3f(1.0), tint, 0.85 * smoothstep(0.0, 0.25, lead)) * swirl * 0.95;
+  let leaded = mix(0.72, 1.0, smoothstep(0.0, 0.12, lead));
+  return mix(vec3f(1.0), glass * leaded, smoothstep(1.04, 0.98, e) * worldLight.temple.glitter.w);
+
 }
 
 // ---------------------------------------------------------------- carving (the stones and the floor share the key)
@@ -211,7 +226,7 @@ fn templeEnv(d: vec3f, p: vec3f) -> vec3f {
 /** the soft light on a surface facing N (fire: how much of the dancers' own light to add: matter takes a little of it,
  *  or a fire dancer would light its own body) */
 fn templeAmbient(N: vec3f, ao: f32, p: vec3f, fire: f32) -> vec3f {
-  let sky = worldLight.temple.zenith.rgb * 2.2 + worldLight.temple.horizon.rgb * 0.4;
+  let sky = worldLight.temple.zenith.rgb * 0.45 + worldLight.temple.horizon.rgb * 0.2;
   let west = worldLight.temple.dusk.rgb * worldLight.temple.dusk.w * 0.12 * (0.5 + 0.5 * dot(N, worldLight.temple.duskDir.xyz));
   let below = worldLight.temple.moonCol.rgb * worldLight.temple.moonCol.w * 0.05 + worldLight.temple.sea.rgb * 0.5;
   return (mix(below, sky, N.y * 0.5 + 0.5) + west) * (0.3 + 0.7 * ao) * 1.8 + (templeFire(p, N, 0.3) + worldFire(p, N)) * fire;

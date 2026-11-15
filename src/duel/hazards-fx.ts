@@ -3,9 +3,9 @@
 // wind (the redwoods' grass and every flame lean into a gust), the crystals' own light. Gentle, as the hazards are:
 //   water    a body landing in it: a ring opening on the surface, a few drops thrown up, the water rippled; afloat, a
 //            soft ring now and then round it
-//   tide     moonlit glints drifting on the water round the pair with the tide's current (in while it rises, out while
+//   tide     sunlit glints drifting on the water round the pair with the tide's current (in while it rises, out while
 //            it falls), and the current's ripples moving with them: the sea's way can be read before a body floats on it
-//   wind     leaves (warm and green) and needles (thin streaks) carried across the clearing round the pair, a few from
+//   wind     leaves (warm and green) and petals and needles (thin streaks) carried across the clearing round the pair, a few from
 //            two beats before the gust and many while it blows, and the field's wind with them
 //   swell    the crest pushed into the water as it rolls (ripples along its line), sun glints along it (the Pool's
 //            surface draws the crest itself: lit through, foam streaks on it: pool.wgsl); a jump off it a spray of foam.
@@ -38,7 +38,8 @@ type Draw = Pick<Glows, 'dot' | 'seg' | 'flat'>;
 const FOAM: RGB = [1.15, 1.4, 1.65], GLINT: RGB = [1.5, 1.55, 1.6];
 /** the Pool's foam and glints, in its low evening sun */
 const POOL_FOAM: RGB = [1.25, 1.15, 0.95], POOL_GLINT: RGB = [1.7, 1.35, 0.85];
-const LEAVES: RGB[] = [[0.55, 0.9, 0.3], [0.95, 0.85, 0.3], [0.8, 0.55, 0.22], [0.45, 0.75, 0.32]];
+// (leaves, and since report 16's solarpunk pass petals among them: coral, cream, rose)
+const LEAVES: RGB[] = [[0.55, 0.9, 0.3], [1.05, 0.62, 0.52], [0.95, 0.85, 0.3], [1.0, 0.93, 0.8], [0.8, 0.55, 0.22], [1.0, 0.6, 0.75], [0.45, 0.75, 0.32]];
 const NEEDLE: RGB = [0.7, 0.85, 0.45];
 const HONEY: RGB = [1.45, 1.1, 0.62], VIOLET: RGB = [1.1, 0.75, 1.6];
 const hash = (n: number) => { const x = Math.sin(n * 127.1 + 311.7) * 43758.5453; return x - Math.floor(x); };
@@ -123,7 +124,8 @@ export class HazardFxDraw {
         this.ringT[k] = this.t;
         this.ctx.ripple?.(r[0], r[2], 0.35, 0.5);
         const at: V3 = [r[0], w + 0.02, r[2]];
-        this.moment(1.1, (u) => G.flat(at, 0.45 + 0.8 * u, FOAMC, 0.45 * (1 - u), 'ring'));
+        // (soft: in the temple's sunlit water a bright ring round a floating body hid the body)
+        this.moment(1.1, (u) => G.flat(at, 0.45 + 0.8 * u, FOAMC, 0.3 * (1 - u), 'ring'));
       }
     }
     // ---- each hazard as it stands

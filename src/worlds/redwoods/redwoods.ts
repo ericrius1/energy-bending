@@ -19,6 +19,9 @@ import flowerShader from './flowers.wgsl';
 import fernShader from './ferns.wgsl';
 import lanternShader from './lanterns.wgsl';
 import pollenShader from './pollen.wgsl';
+import gardenShader from './garden.wgsl';
+import { layoutGarden } from './garden';
+import { gustNow } from '../../duel/hazards';
 import type { Grade, PortalDef, World, WorldCtx } from '../world';
 import type { ScenePass } from '../../engine/scene';
 import type { FrameCtx } from '../../engine/frame';
@@ -40,7 +43,7 @@ export const redwoodsParams = defineParams('redwoods', {
   dayGoes: true,
   dayMinutes: 8,
   sunlight: 1,
-  godRays: 1,
+  godRays: 1.3,
   mist: 1,
   lanterns: 1,
   fireflies: 1,
@@ -90,6 +93,9 @@ export class Redwoods implements World {
   private duelSolids: readonly Solid[];
   private duelBuf: ReturnType<Kit['storage']> | null = null;
   private forest: LightSlot<Forest>;
+  /** what hangs in the clearing (garden.ts): the strings between the ring's trees, then the duel's boughs' pennants */
+  private garden: ReturnType<typeof layoutGarden>;
+  private gardenBuf: ReturnType<Kit['storage']> | null = null;
   private tex: { bark: Texture; barkH: Texture; ground: Texture };
   private loading: Promise<void> | null = null;
   private q: { grass: number; blades: number; flowers: number; spires: number; ferns: number; fronds: number; trunks: number; steps: number; flies: number };
@@ -133,6 +139,7 @@ export class Redwoods implements World {
     const gate: [number, number, number] = [-10.03, 1.35, 5.23], gn: [number, number, number] = [0.885, 0, -0.466];
     this.portals = [{ id: 'redwoods.geode', at: gate, normal: gn, radius: 1.3, to: { world: 'geode', portal: 'geode.redwoods' } }];
     this.woods.values.gate = [gate[0] + gn[0] * 0.2, gate[2] + gn[2] * 0.2, gate[0] + gn[0] * 7.5, gate[2] + gn[2] * 7.5];
+    this.garden = layoutGarden(this.woods.layout.trunks, 9, redwoodsDuel().runs, coarse);
     this.forest = lightSlot(kit, 'forest');
     this.forest.set(this.woods.values);
     this.shared = {};
@@ -155,6 +162,12 @@ export class Redwoods implements World {
     this.watch(f);
     // the duel arena's drops in the meadow (empty unless it is shown)
     const duel = redwoodsDuel(), drops = dropsUniform(duel.arena.plane, duel.arena.drops!, arenaShown(this.id));
+    // the duel's gust, for what hangs in the air to stream out along (forest.near.xyz: its way in xz, its strength)
+    const H = duel.arena.hazard, near = this.woods.values.near;
+    if (H?.on && arenaShown(this.id)) {
+      const g = gustNow(H, H.beat);
+      near[0] = g.dir[0]; near[1] = g.dir[1]; near[2] = Math.max(g.strength, g.warn * 0.25);
+    } else near[2] = 0;
     this.forest.set({ ...this.woods.values, drops: drops.rects, dropFrame: drops.frame });
   }
 
@@ -245,6 +258,10 @@ export class Redwoods implements World {
       pass.draw(flowerShader, { label: 'redwoods.spires', vertex: 'vs_spire', count: 288, instances: q.spires * q.spires, constants: { SPIRES: q.spires }, cull: 'none', enabled: on });
       pass.draw(lanternShader, { label: 'redwoods.lanterns', count: 24 * (2 + 9 * 4 + 2) * 6, instances: L.lanterns.length, constants: { AROUND: 24, HOOPS: 9, BAY: 4 }, cull: 'none', enabled: on });
       pass.draw(lanternShader, { label: 'redwoods.cords', vertex: 'vs_cord', fragment: 'fs_cord', count: 6, instances: L.lanterns.length, cull: 'none', enabled: on });
+      // pennants, strings and chimes (garden.ts): the clearing's always, the duel's boughs' while its arena is shown
+      const G = this.garden, gbuf = (this.gardenBuf ??= this.ctx.kit.storage({ label: 'redwoods.garden', data: G.data, usage: ['storage'] }));
+      pass.draw(gardenShader, { label: 'redwoods.garden', bind: { hangs: gbuf }, count: 6 * 6, instances: G.clearing, constants: { FIRST: 0, SEG: 6 }, cull: 'none', enabled: on });
+      pass.draw(gardenShader, { label: 'redwoods.garden.duel', bind: { hangs: gbuf }, count: 6 * 6, instances: G.duel, constants: { FIRST: G.clearing, SEG: 6 }, cull: 'none', enabled: () => on() && arenaShown(this.id) });
     } else {
       pass.draw(pollenShader, { label: 'redwoods.pollen', count: 6, instances: () => (this.ctx.coarse ? 700 : 1400), blend: 'add', depthWrite: false, cull: 'none', enabled: on });
       pass.draw(pollenShader, { label: 'redwoods.kicks', vertex: 'vs_kick', count: 6, instances: 4 * 40, constants: { KICK: 40 }, blend: 'add', depthWrite: false, cull: 'none', enabled: on });
@@ -253,11 +270,12 @@ export class Redwoods implements World {
         label: 'redwoods.halos', vertex: 'vs_halo', fragment: 'fs_halo', count: 6, instances: L.lanterns.length, blend: 'add', depthWrite: false, cull: 'none',
         enabled: () => on() && redwoodsParams.lanterns > 0,
       });
-      // fireflies, once it's dark
+      // fireflies, from dusk (forest.horizon.w: the sun under 10°) into the night
       pass.draw(lanternShader, {
         label: 'redwoods.fireflies', vertex: 'vs_fly', fragment: 'fs_fly', count: 6, instances: () => Math.round(q.flies * redwoodsParams.fireflies),
-        blend: 'add', depthWrite: false, cull: 'none', enabled: () => on() && this.woods.values.night > 0.01,
+        blend: 'add', depthWrite: false, cull: 'none', enabled: () => on() && this.woods.values.horizon[3] > 0.01,
       });
+
     }
   }
 

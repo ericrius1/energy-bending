@@ -260,11 +260,15 @@ fn carving(kind: f32, u: f32, v: f32, hw: f32, height: f32, seed: f32) -> f32 {
   let kind = i.info.y;
   // (the normals are made outward; the stones are drawn from both sides)
   var N = normalize(i.n);
-  let geomN = normalize(cross(dpdx(i.wp), dpdy(i.wp)));
+  // (the facet turned to the same side as the surface: its winding says nothing of which way is out)
+  var geomN = normalize(cross(dpdx(i.wp), dpdy(i.wp)));
+  if (dot(geomN, N) < 0.0) { geomN = -geomN; }
   // how big a pixel is on the stone (m): the carving's relief is taken over at least two of them and fades where its
   // detail is finer than that (at a distance an egg-and-dart's lips would shimmer and ghost into a doubled outline)
   let foot = length(fwidth(i.wp));
   var groove = 0.0;
+  // glazed ceramic (a carved band's tiles, a panel's facing): white, glossy, clean
+  var glaze = 0.0;
   var relief = 0.0;
   var chip = 0.0;
   // where the water runs down from (the top of the stone, or the joint above), and across the face (m)
@@ -282,6 +286,10 @@ fn carving(kind: f32, u: f32, v: f32, hw: f32, height: f32, seed: f32) -> f32 {
     let u = select(L.x, L.z, side) * select(1.0, -1.0, face == 1u || face == 5u);
     let hw = select(hx, hz, side);
     across = u + seed * 13.0;
+    if (face != 2u && face != 3u) {
+      if (kind > 0.5 && kind < 1.5) { glaze = step(i.info.w - min(0.2, i.info.w * 0.6) * 1.35, L.y); }
+      else if (kind > 1.5 && kind < 2.5) { glaze = 1.0; }
+    }
     below = i.info.w - L.y;
     if (face != 2u && face != 3u && kind > 0.5) {
       let e = max(0.004, foot * 2.0);
@@ -351,7 +359,8 @@ fn carving(kind: f32, u: f32, v: f32, hw: f32, height: f32, seed: f32) -> f32 {
   albedo = mix(albedo, worldLight.temple.stone.rgb * vec3f(1.1, 1.07, 1.0), chip * 0.5);
   // the rain's streaks: dark, grey-green, running down from every top and joint, long and narrow, fading as they go
   let streakN = vnoise2(vec2f(across * 9.0, wp.y * 0.6 + seed * 5.0)) * 0.7 + vnoise2(vec2f(across * 23.0, wp.y * 1.3)) * 0.3;
-  let run = smoothstep(0.5, 0.8, streakN) * exp(-below / 1.1) * (1.0 - abs(N.y));
+  // (the temple is tended: the rain's streaks are faint)
+  let run = smoothstep(0.5, 0.8, streakN) * exp(-below / 1.1) * (1.0 - abs(N.y)) * 0.35;
   albedo = mix(albedo, albedo * vec3f(0.42, 0.44, 0.4), run * (1.0 - chip) * 0.85);
   // the side that faces the sea and the moon takes the weather: a mottled crust, grey-brown in blotches, rust-ochre
   // stains here and there, more of the rain's streaks; so seen against the afterglow, lit by the moon behind the eye,
@@ -383,11 +392,67 @@ fn carving(kind: f32, u: f32, v: f32, hw: f32, height: f32, seed: f32) -> f32 {
   let weed = smoothstep(hi * 0.35, -0.02, wp.y + wob) * smoothstep(0.35, 0.65, vnoise(wp * 4.0 + seed * 5.0));
   albedo = mix(albedo, vec3f(0.03, 0.045, 0.025), weed * 0.7);
   let wet = templeWet(wp.y + wob * 0.5);
-  albedo *= 1.0 - 0.45 * wet;
+  albedo *= 1.0 - 0.3 * wet;
+  // the craft: glazed ceramic in the carved bands and panels (white, a thin line of teal and gold at its edges); a
+  // column's capital and base in bronze gone green (verdigris in the hollows, the bronze rubbed warm on the crowns)
+  var shine = 0.0;
+  if (glaze > 0.0) {
+    let tile = vec3f(0.93, 0.91, 0.86) * (0.94 + 0.08 * grain);
+    albedo = mix(albedo, tile * (1.0 - 0.3 * max(-relief, 0.0)) * (1.0 + 0.08 * max(relief, 0.0)), glaze * (1.0 - wet * 0.3));
+    shine = glaze * 0.7;
+  }
+  if (i.shape.x > 0.5 && i.shape.x < 1.5 && kind < 0.5) {
+    let patina = smoothstep(0.35, 0.7, n1 * 0.7 + vnoise(wp * 9.0 + seed * 4.0) * 0.3 + groove);
+    let bronze = vec3f(0.5, 0.33, 0.16) * (0.85 + 0.3 * grain);
+    let verd = vec3f(0.22, 0.52, 0.42) * (0.9 + 0.2 * grain);
+    albedo = mix(bronze, verd, patina) * (1.0 - 0.3 * wet);
+    shine = mix(0.9, 0.25, patina);
+  }
+  // the garden: vines climbing the columns (two leafy stems wound round each shaft, up to a height of its own) and
+  // draping over the high blocks' faces from their tops (the lintels, the architraves), flowers in them: coral, rose,
+  // cream and gold. Only above the highest tide (salt kills them) and never on a top where a body lands
+  var leaf = 0.0;
+  var bloom = vec4f(0.0);
+  let vineAmt = worldLight.temple.horizon.w;
+  if (vineAmt > 0.0 && wp.y > hi + 0.15 && abs(normalize(i.n).y) < 0.75) {
+    if (i.shape.x > 0.5 && i.shape.x < 1.5 && i.info.z < 0.5) {
+      // a drum's side: its stems wind up it; not every column has one
+      let has = step(fract(seed * 3.17), 0.7);
+      let reach = 2.2 + 4.0 * fract(seed * 7.31);
+      let wind = fract(i.local.x / 6.2831853 * 2.0 + wp.y * 0.21 + seed * 5.0);
+      let stem = abs(wind - 0.5) * 2.0 + (vnoise(wp * 3.1 + seed) - 0.5) * 0.55;
+      leaf = has * smoothstep(0.62, 0.3, stem) * smoothstep(reach, reach - 0.7, wp.y + vnoise(wp * 1.7) * 0.5);
+    } else if (i.shape.x < 0.5 && i.info.w < 1.6 && wp.y > 2.2) {
+      // a high block's face: a curtain from its top, longer here and shorter there
+      let len = 0.15 + 0.75 * vnoise2(vec2f(across * 1.6, seed * 9.0)) * vnoise2(vec2f(across * 0.5 + 3.0, seed));
+      // (continuous along the edge, breaking into strands lower down)
+      let strands = smoothstep(0.3, 0.6, vnoise2(vec2f(across * 7.0, wp.y * 1.3 + seed * 7.0)));
+      leaf = smoothstep(len + 0.08, len - 0.12, below + (vnoise(wp * 6.0) - 0.5) * 0.15) * mix(1.0, strands, smoothstep(0.04, 0.2, below));
+    }
+    leaf *= vineAmt;
+    if (leaf > 0.002) {
+      // leaves in clusters, light where they face the sky; flowers as small rounded dots in the clusters
+      let lv = vnoise(wp * 13.0 + seed * 2.0);
+      let lv2 = vnoise(wp * 31.0);
+      let green = mix(vec3f(0.07, 0.2, 0.05), vec3f(0.3, 0.48, 0.1), lv * 0.7 + lv2 * 0.3);
+      let cell = floor(wp * 6.0);
+      let fh = hash3(cell + seed);
+      let fc = (vec3f(hash3(cell + 1.7), hash3(cell + 4.3), hash3(cell + 8.9)) - 0.5) * 0.7;
+      let fd = length(fract(wp * 6.0) - 0.5 - fc * 0.5);
+      var flower = vec3f(1.0, 0.55, 0.45);
+      if (fh > 0.93) { flower = vec3f(1.0, 0.95, 0.85); } else if (fh > 0.86) { flower = vec3f(1.0, 0.78, 0.3); } else if (fh > 0.79) { flower = vec3f(0.98, 0.5, 0.68); }
+      bloom = vec4f(flower, step(0.72, fh) * smoothstep(0.17, 0.1, fd));
+      let edge = smoothstep(0.0, 0.5, leaf);
+      albedo = mix(albedo * (1.0 - 0.4 * leaf), mix(green, bloom.rgb, bloom.a), edge);
+      N = normalize(mix(N, normalize(N + (vec3f(lv, lv2, vnoise(wp * 17.0)) - 0.5) * 1.4 + vec3f(0.0, 0.35, 0.0)), edge));
+      leaf = edge;
+    }
+  }
   // the light
   let V = normalize(frame.camPos - wp);
   let Ld = worldLight.temple.moon.xyz;
-  let moon = worldLight.temple.moonCol.rgb * worldLight.temple.moonCol.w * templeShadow(wp + N * 0.03);
+  // (the sun through the stained glass over the court: pools of coloured light)
+  let moon = worldLight.temple.moonCol.rgb * worldLight.temple.moonCol.w * templeShadow(wp + N * 0.03) * templeCanopy(wp);
   let ao = (1.0 - 0.55 * max(groove, 0.0)) * mix(0.55, 1.0, smoothstep(0.0, 0.7, wp.y + 0.3));
   let diff = max(dot(N, Ld), 0.0);
   // the afterglow behind the audience, low: a warm light raking the fronts (it is what shows the carving)
@@ -405,7 +470,8 @@ fn carving(kind: f32, u: f32, v: f32, hw: f32, height: f32, seed: f32) -> f32 {
   col += moon * albedo * edgeOn * 0.8;
   // wet stone shines: the moon's highlight and the sky in it
   let R = reflect(-V, N);
-  let gloss = mix(0.05, 1.0, wet) * worldLight.temple.stone.w;
+  let gloss = max(mix(0.05, 1.0, wet), shine) * worldLight.temple.stone.w * (1.0 - leaf * 0.85);
+
   col += moon * pow(max(dot(R, Ld), 0.0), mix(12.0, 80.0, wet)) * gloss * 0.6;
   let fres = 0.04 + 0.96 * pow(1.0 - max(dot(N, V), 0.0), 5.0);
   // (dry stone is rough: it only mirrors the sky when it's wet)

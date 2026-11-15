@@ -22,6 +22,9 @@ export interface RedwoodsDuel {
   pieces: Float32Array;
   big: number;
   count: number;
+  /** the boughs' level runs (from, to: their top's line) and their radius, and their lifting tips: what the garden hangs
+   *  its pennants and chimes from (garden.ts) */
+  runs: { a: V3; b: V3; r: number; tip: V3 }[];
 }
 
 /** the drops' depth */
@@ -33,7 +36,7 @@ function build(): RedwoodsDuel {
   const right = stage.right, toward: V3 = [-right[2], 0, right[0]];
   /** a point given in the plane's coordinates (along, up, toward the camera) in the world */
   const P = (s: number, y: number, w = 0): V3 => [right[0] * s + toward[0] * w, y, right[2] * s + toward[2] * w];
-  const big: Piece[] = [], small: Piece[] = [], groups: PieceGroup[] = [];
+  const big: Piece[] = [], small: Piece[] = [], groups: PieceGroup[] = [], runs: RedwoodsDuel['runs'] = [];
   let seed = 0.611;
   const next = () => (seed = (seed * 9.31 + 0.37) % 1);
   const tilesFor = (r: number) => Math.max(1, Math.round((6.2831853 * r) / 1.7));
@@ -57,6 +60,7 @@ function build(): RedwoodsDuel {
       [at(t.R - 0.5, y + 0.75), r * 1.9], [at(t.R + 0.5, y + 0.45), r * 1.4], [at(d0, y - r), r], [at(d1, y - r), r],
       [at(d1 + 0.8, y - r + 0.1), r * 0.6], [at(d1 + 1.4, y - r + 0.3), r * 0.35],
     ], small);
+    runs.push({ a: at(d0, y), b: at(d1, y), r, tip: at(d1 + 0.8, y - r + 0.1 - r * 0.6) });
     groups.push({ id, solids });
   };
   /** a stump cut flat at `top` (the drum's flat end: a broken one shows the heartwood) */
@@ -137,7 +141,7 @@ function build(): RedwoodsDuel {
     // other, now and then slanting across it (hazards.ts)
     hazard: windHazard({ dirs: [0, Math.PI, 0.8, Math.PI + 0.8, Math.PI - 0.5, -0.5].map((a) => a + Math.atan2(right[2], right[0])), often: 7 }),
   };
-  return { arena, pieces: packPieces(pieces), big: big.length, count: pieces.length };
+  return { arena, pieces: packPieces(pieces), big: big.length, count: pieces.length, runs };
 }
 
 let made: RedwoodsDuel | null = null;
