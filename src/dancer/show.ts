@@ -15,7 +15,7 @@ import { CameraController } from './camera';
 import { Programme, PROGRAMS, FRONT, danceParams, type Program, type Stagehand } from './programme';
 import { gemsLoadout, layersOf, type MatterPasses } from '../matter/core/kind';
 import type { BodyBuffers } from '../matter/core/bodies';
-import { dressed, dressFromQuery } from '../matter/core/presets';
+import { dressed, dressFromQuery, distinctDress } from '../matter/core/presets';
 import type { CameraRig } from '../engine/camera';
 import { LIMITS } from '../engine/limits';
 import { matterParams as showParams } from '../matter/core/params';
@@ -35,7 +35,7 @@ const DRESS_KEY = 'energybending.front.dress';
 export function lastDress(): [string, string] {
   try {
     const v = JSON.parse(localStorage.getItem(DRESS_KEY) ?? 'null');
-    if (Array.isArray(v) && v.length === 2 && v.every((x) => typeof x === 'string' && x)) return [v[0], v[1]];
+    if (Array.isArray(v) && v.length === 2 && v.every((x) => typeof x === 'string' && x)) return distinctDress(v);
   } catch { /* no storage, or nothing kept */ }
   return ['fire', 'water'];
 }

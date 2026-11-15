@@ -16,7 +16,7 @@
 //   waiting       online, until the other seat comes: the room's code and link
 // The strip is walked with the arrow keys (or a gamepad's d-pad and stick: front.ts) as well as the pointer and Tab.
 // Esc goes back to the front from anywhere in a jogo.
-import { PRESETS } from '../matter/core/presets';
+import { PRESETS, distinctDress, sameFamily, contrastOf } from '../matter/core/presets';
 import { lastDress } from '../dancer/show';
 import type { FrameBuilder } from '../engine/frame';
 import type { InputHub, Player } from '../input/hub';
@@ -107,7 +107,7 @@ export function hrefOf(c: Choice, base = location.pathname, keep: URLSearchParam
   else {
     q.set('jogo', c.mode);
     q.set('world', c.world);
-    q.set('dress', c.dress.join(','));
+    q.set('dress', distinctDress(c.dress).join(','));
     if (!c.lock) q.set('free', '');
     if (c.mode === 'online') { if (c.room) q.set('room', c.room); if (c.create) q.set('create', ''); if (c.watch) q.set('watch', ''); }
   }
@@ -121,7 +121,7 @@ export function duelHref(c: Choice, base = location.pathname, keep: URLSearchPar
   q.set('duel', '');
   if (c.mode === 'online') q.set('net', c.room || roomName());
   q.set('world', c.world);
-  q.set('dress', c.dress.join(','));
+  q.set('dress', distinctDress(c.dress).join(','));
   if (c.mode !== 'online') { q.set('p1', 'human'); q.set('p2', c.mode === 'same' ? 'human' : 'bot'); }
   if (c.lock) q.set('lock', '');
   for (const k of KEEP) if (keep.has(k)) q.set(k, keep.get(k)!);
@@ -203,7 +203,13 @@ export function showFront(query: URLSearchParams, open: (href: string) => void =
     const row = el('div', 'jg-row jg-body', `<b class="jg-seat">${s + 1}</b>`);
     for (const n of names) {
       const [a, b] = SWATCH[n];
-      const btn = button('jg-swatch', `<i style="--a:${a};--b:${b}"></i>`, n, () => { c.dress[s] = n; paint(); onChoose?.({ kind: 'body', seat: s, value: n }); });
+      const btn = button('jg-swatch', `<i style="--a:${a};--b:${b}"></i>`, n, () => {
+        c.dress[s] = n;
+        // (the other seat never wears the same family of colour: it turns to this body's contrast)
+        const o = 1 - s;
+        if (sameFamily(n, c.dress[o])) { c.dress[o] = contrastOf(n); onChoose?.({ kind: 'body', seat: o, value: c.dress[o] }); }
+        paint(); onChoose?.({ kind: 'body', seat: s, value: n });
+      });
       btn.dataset.seat = String(s); btn.dataset.name = n;
       bodyBtns[s].push(btn);
       row.append(btn);

@@ -66,12 +66,12 @@ export const BUDGETS: Record<DeviceClass, Budget> = {
   desktop: {
     targetFps: 60, gpuMs: 14, renderScale: { min: 0.5, max: 1 }, maxPixelRatio: 2, coarse: false,
     stones: 15_000, flamesPerDancer: 60_000, waterPerDancer: 100_000, waterResolution: 1, waterSmooth: 3, steam: 6000,
-    spriteScale: 1, field: { dims: [48, 32, 48], cell: 0.18 }, gates: { live: 2, scale: 0.5 }, dof: true, roda: 4,
+    spriteScale: 1, field: { dims: [48, 32, 48], cell: 0.18 }, gates: { live: 2, scale: 0.5 }, dof: true, roda: 0,
   },
   laptop: {
     targetFps: 60, gpuMs: 12, renderScale: { min: 0.5, max: 1 }, maxPixelRatio: 1.5, coarse: false,
     stones: 12_000, flamesPerDancer: 36_000, waterPerDancer: 60_000, waterResolution: 0.75, waterSmooth: 2, steam: 4000,
-    spriteScale: 0.85, field: { dims: [40, 28, 40], cell: 0.21 }, gates: { live: 1, scale: 0.4 }, dof: true, roda: 2,
+    spriteScale: 0.85, field: { dims: [40, 28, 40], cell: 0.21 }, gates: { live: 1, scale: 0.4 }, dof: true, roda: 0,
   },
   phone: {
     targetFps: 30, gpuMs: 26, renderScale: { min: 0.5, max: 0.85 }, maxPixelRatio: 2, coarse: true,
