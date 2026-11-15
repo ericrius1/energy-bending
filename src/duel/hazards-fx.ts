@@ -7,8 +7,10 @@
 //            it falls), and the current's ripples moving with them: the sea's way can be read before a body floats on it
 //   wind     leaves (warm and green) and needles (thin streaks) carried across the clearing round the pair, a few from
 //            two beats before the gust and many while it blows, and the field's wind with them
-//   swell    the crest pushed into the water as it rolls (ripples along its line), foam glinting along it; a jump off it
-//            a spray of foam
+//   swell    the crest pushed into the water as it rolls (ripples along its line), sun glints along it (the Pool's
+//            surface draws the crest itself: lit through, foam streaks on it: pool.wgsl); a jump off it a spray of foam.
+//            In the Pool the foam is warm (the evening sun), and a body moving through the water leaves a wake (pushes
+//            on the ripples behind it each frame: the Pool's surface turns their steep slopes into foam)
 //   hum      glints rising round the crystal that will hum, two bars before it lifts; then a column of light: rings
 //            rising, points of light spiralling up it, the field drawn up with it
 import type { Glows, RGB } from '../play/glow';
@@ -34,6 +36,8 @@ export interface HazardFxCtx {
 type Draw = Pick<Glows, 'dot' | 'seg' | 'flat'>;
 
 const FOAM: RGB = [1.15, 1.4, 1.65], GLINT: RGB = [1.5, 1.55, 1.6];
+/** the Pool's foam and glints, in its low evening sun */
+const POOL_FOAM: RGB = [1.25, 1.15, 0.95], POOL_GLINT: RGB = [1.7, 1.35, 0.85];
 const LEAVES: RGB[] = [[0.55, 0.9, 0.3], [0.95, 0.85, 0.3], [0.8, 0.55, 0.22], [0.45, 0.75, 0.32]];
 const NEEDLE: RGB = [0.7, 0.85, 0.45];
 const HONEY: RGB = [1.45, 1.1, 0.62], VIOLET: RGB = [1.1, 0.75, 1.6];
@@ -78,7 +82,7 @@ export class HazardFxDraw {
     this.t += dt;
     const H = Z.hazard, G = this.G;
     if (!H || !H.on) { this.clear(); return; }
-    const b = H.beat, C = Z.chars;
+    const b = H.beat, C = Z.chars, FOAMC = H.kind === 'swell' ? POOL_FOAM : FOAM;
     const mid: V3 = [(C[0].root[0] + C[1].root[0]) / 2, (C[0].root[1] + C[1].root[1]) / 2, (C[0].root[2] + C[1].root[2]) / 2];
     // ---- the moments: a landing in the water, a jump off the crest, a lift begun
     for (const e of Z.fx) {
@@ -87,18 +91,18 @@ export class HazardFxDraw {
         const s = e.strength;
         this.ctx.ripple?.(p[0], p[2], 0.6 + 1.2 * s, 0.45 + 0.4 * s);
         this.moment(0.7 + 0.4 * s, (u) => {
-          G.flat([p[0], p[1] + 0.02, p[2]], 0.25 + (0.9 + 0.8 * s) * u, FOAM, 1.1 * (1 - u) * (1 - u), 'ring');
+          G.flat([p[0], p[1] + 0.02, p[2]], 0.25 + (0.9 + 0.8 * s) * u, FOAMC, 1.1 * (1 - u) * (1 - u), 'ring');
           for (let j = 0; j < 7; j++) {
             const a = j * 2.4 + p[0], r = (0.25 + 0.5 * hash(j + p[2])) * u * (1 + s), up = (2.2 + 2 * hash(j + 5)) * s;
             const age = u * 0.7, y = p[1] + up * age - 4.5 * age * age;
-            if (y > p[1] - 0.05) G.dot([p[0] + Math.cos(a) * r, y, p[2] + Math.sin(a) * r], 0.035, FOAM, 1.3 * (1 - u), 'spark');
+            if (y > p[1] - 0.05) G.dot([p[0] + Math.cos(a) * r, y, p[2] + Math.sin(a) * r], 0.035, FOAMC, 1.3 * (1 - u), 'spark');
           }
         });
       } else if (e.k === 'crest') {
         this.ctx.ripple?.(p[0], p[2], 1.2, 0.8);
         this.moment(0.6, (u) => {
-          G.flat([p[0], p[1] + 0.03, p[2]], 0.4 + 1.1 * u, FOAM, (1 - u) * 1.2, 'ring');
-          for (let j = 0; j < 9; j++) { const a = j * 0.7, r = 0.3 + u * 1.2; G.dot([p[0] + Math.cos(a) * r, p[1] + 0.25 + u * 0.8 - u * u * 1.2, p[2] + Math.sin(a) * r], 0.04, FOAM, 1.4 * (1 - u), 'spark'); }
+          G.flat([p[0], p[1] + 0.03, p[2]], 0.4 + 1.1 * u, FOAMC, (1 - u) * 1.2, 'ring');
+          for (let j = 0; j < 9; j++) { const a = j * 0.7, r = 0.3 + u * 1.2; G.dot([p[0] + Math.cos(a) * r, p[1] + 0.25 + u * 0.8 - u * u * 1.2, p[2] + Math.sin(a) * r], 0.04, FOAMC, 1.4 * (1 - u), 'spark'); }
         });
       } else if (e.k === 'lift') {
         this.moment(0.6, (u) => G.flat([p[0], p[1] + 0.04, p[2]], 0.3 + 0.9 * u, HONEY, 1.0 * (1 - u), 'ring'));
@@ -107,12 +111,19 @@ export class HazardFxDraw {
     // ---- a body afloat: a soft ring round it now and then
     for (let k = 0; k < 2; k++) {
       const c = C[k], r = c.root, w = H.kind === 'tide' ? tideAt(H, b) : H.kind === 'swell' ? swellAt(H, r[0], r[2], b) : null;
-      if (w == null || !c.grounded || Math.abs(r[1] - (w - HAZARD.FLOAT)) > 0.08) continue;
+      if (w == null) continue;
+      // (the Pool: a body moving through the water pushes it behind itself each frame, its wake)
+      const sp = Math.hypot(c.v[0], c.v[2]);
+      if (H.kind === 'swell' && r[1] < w - 0.6 && sp > 0.4) {
+        const back = Math.min(0.35, 0.12 * sp) / sp;
+        this.ctx.ripple?.(r[0] - c.v[0] * back, r[2] - c.v[2] * back, 0.11 * Math.min(sp, 3.4), 0.3);
+      }
+      if (!c.grounded || Math.abs(r[1] - (w - HAZARD.FLOAT)) > 0.08) continue;
       if (this.t - this.ringT[k] > 0.65) {
         this.ringT[k] = this.t;
         this.ctx.ripple?.(r[0], r[2], 0.35, 0.5);
         const at: V3 = [r[0], w + 0.02, r[2]];
-        this.moment(1.1, (u) => G.flat(at, 0.45 + 0.8 * u, FOAM, 0.45 * (1 - u), 'ring'));
+        this.moment(1.1, (u) => G.flat(at, 0.45 + 0.8 * u, FOAMC, 0.45 * (1 - u), 'ring'));
       }
     }
     // ---- each hazard as it stands
@@ -196,12 +207,12 @@ export class HazardFxDraw {
       const open = !this.ctx.ground || this.ctx.ground(p[0], p[2]) < h - 0.6;
       if (!open) { prev = null; continue; }
       if (prev && k > 0.05) {
-        G.seg(prev, p, 0.07, FOAM, 0.55 * k, 'soft');
-        G.seg([prev[0] - d[0] * 1.3, prev[1] * 0.4, prev[2] - d[1] * 1.3], [p[0] - d[0] * 1.3, p[1] * 0.4, p[2] - d[1] * 1.3], 0.35, [0.35, 0.55, 0.85], 0.12 * k, 'soft');
+        // (a faint warm line on the crest's top: the surface draws its foam and its light, this only lifts it a little)
+        G.seg(prev, p, 0.06, POOL_FOAM, 0.22 * k, 'soft');
       }
       prev = p;
       const tw = 0.5 + 0.5 * Math.sin(this.t * 7 + i * 1.9);
-      if (k > 0.1) G.dot([p[0] + (hash(i) - 0.5) * 0.3, p[1] + 0.03, p[2] + (hash(i + 4) - 0.5) * 0.3], 0.06, GLINT, 1.4 * k * tw, 'spark');
+      if (k > 0.1) G.dot([p[0] + (hash(i) - 0.5) * 0.3, p[1] + 0.03, p[2] + (hash(i + 4) - 0.5) * 0.3], 0.05, POOL_GLINT, 1.2 * k * tw, 'spark');
     }
     // (pushed into the ripples a few points at a time, the crest itself running through the water)
     for (let j = 0; j < 5; j++) {

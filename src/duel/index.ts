@@ -369,7 +369,7 @@ export async function startDuel(app: PlayApp, opts: { joined?: Joined } = {}) {
     const [w, h] = kit.size.render;
     rig.pose = dcam.update(f.dt, {
       bodies: [a, b], aspect: w / Math.max(1, h), gravity: chars[0].phys.gravity, space: camSpace(), near: rig.sight.near,
-      center: arena.space.center, room: arena.camera?.maxDist ?? arena.space.radius + 6, maxDist: arena.camera?.maxDist, pad: rig.framePad,
+      center: arena.space.center, room: arena.camera?.maxDist ?? arena.space.radius + 6, maxDist: arena.camera?.maxDist, pad: rig.framePad, arena: arena.world,
     });
   }, 'duel: the free camera, side on to the pair with head room');
   // the world's gates shut while the duel is on (a body flung through one left the arena, the camera with it; their

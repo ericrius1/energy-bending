@@ -87,7 +87,15 @@ export interface CamInput {
   maxDist?: number;
   /** more margin all round (0 … 1: the finale stands back) */
   pad?: number;
+  /** the arena's world (ARENA_CAM: what the camera does differently there) */
+  arena?: string;
 }
+
+/** what the camera does differently in an arena (by its world): over water, the plain view comes down by `waterLow`
+ *  rad while the bodies float (both: all of it, one: half), so from a lower eye a body afloat reads as afloat and the
+ *  water shows the sky (report 16-pool); `water` the surface's height, a body afloat with its root 0.6 m under it.
+ *  Only the plain view moves: the higher views the clean eye rises to are as they were */
+export const ARENA_CAM: Record<string, { water: number; waterLow: number }> = { pool: { water: 0, waterLow: 0.1 } };
 
 /** the pose this frame */
 export interface CamPose { eye: V3; look: V3; fov: number; yaw: number; pitch: number; dist: number }
@@ -327,6 +335,8 @@ export class DuelCamera {
   private riseLow = 0;
   /** the impulses under way (their age in seconds of real time), and how much of them the clean eye lets through */
   private imps: (CamImpulse & { age: number })[] = [];
+  /** how far the plain view has come down over water now (rad: ARENA_CAM) */
+  private low = 0;
   private impGain = 1;
   /** the probe's: also judge the eye it gives (last.eyeBad) */
   debug = false;
@@ -336,7 +346,7 @@ export class DuelCamera {
   last = { clear: Infinity, blocked: 0, choices: 0, bad: 0, found: true, lag: 0, pull: 1, lean: 0, push: 0, eyeBad: 0, wantFg: 0, wantScore: 0 };
 
   /** start again from the next update (snapped there, as on a duel's first frame) */
-  reset() { this.fresh = true; this.want = null; this.side = null; this.yawV = 0; this.imps.length = 0; this.riseKeep = 0; this.riseLow = 0; }
+  reset() { this.fresh = true; this.want = null; this.side = null; this.yawV = 0; this.imps.length = 0; this.riseKeep = 0; this.riseLow = 0; this.low = 0; }
 
   /** a moment of contact for the camera to feel (phase 3's juice: the feel calls `camera.impulse?.(…)`): for a moment
    *  the look point leans toward `at` and the boom eases in (or, for a fling, out), with a soft settle or sway, sized
@@ -400,6 +410,11 @@ export class DuelCamera {
 
   update(dt: number, I: CamInput): CamPose {
     const P = DUEL_CAM, pad = I.pad ?? 0;
+    // (the plain view over water, eased: ARENA_CAM)
+    const AC = I.arena ? ARENA_CAM[I.arena] : undefined;
+    const afloat = AC ? I.bodies.filter((b) => !b.away && b.root[1] < AC.water - 0.6).length / Math.max(1, I.bodies.length) : 0;
+    this.low += ((AC ? AC.waterLow * afloat : 0) - this.low) * Math.min(1, dt * 1.5);
+    const plain = P.pitches[0] - this.low, pitches = [plain, ...P.pitches.slice(1)];
     // (a body fallen and reforming is not followed down: the other is framed alone till it is back)
     if (I.bodies.length === 2 && I.bodies.some((b) => b.away) && !I.bodies.every((b) => b.away)) {
       const here = I.bodies.find((b) => !b.away)!;
@@ -489,7 +504,7 @@ export class DuelCamera {
       // lens unwidened; little turn from what it is heading for; the other side only for a real gain
       const ideal = base + P.behind * Math.sign(wrap(behind - base));
       s += Math.abs(wrap(yaw - ideal)) * K.side * sep;
-      s += Math.abs(pitch - P.pitches[0]) * K.pitch;
+      s += Math.abs(pitch - plain) * K.pitch;
       s += Math.max(0, f.fov - P.fov) / 25;
       if (this.want) {
         s += Math.abs(wrap(yaw - this.yaw)) * K.turn;
@@ -503,7 +518,7 @@ export class DuelCamera {
       this.wait = P.every;
       let best: Choice | null = null, n = 0;
       for (const base of [this.side, wrap(this.side + Math.PI)]) {
-        for (const o of P.offsets) for (const sg of o ? [1, -1] : [1]) for (const pitch of P.pitches) for (const lens of P.lenses) {
+        for (const o of P.offsets) for (const sg of o ? [1, -1] : [1]) for (const pitch of pitches) for (const lens of P.lenses) {
           const yaw = wrap(base + o * sg), sc = score(yaw, pitch, base, lens);
           n++;
           if (!best || sc < best.score) best = { yaw, pitch, lens, side: base, score: sc };
