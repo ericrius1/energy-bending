@@ -13,6 +13,9 @@
 // the dry upper stone, a white line of salt at the high tide's mark, weed below the low water, and wet stone dark and
 // glossy under the water and drying as the tide falls (temple.wgsl templeWet). Lit by the moon behind (the pillars'
 // shadows; a cool rim), the afterglow in front (a low warm light that rakes the carving), the dusk and the dancers.
+// (Report 18: the craft answers the sun: the carved bands and panels white glaze with the sky and the canopy's glass in
+// them and a hard small highlight, the capitals and bases brass rubbed bright, brass collars at a tall shaft's joints;
+// the vines on the shafts are their stems only, the leaves and flowers are cards, garden.wgsl vs_vine.)
 #include "weft/frame"
 #include "../light"
 
@@ -274,6 +277,8 @@ fn carving(kind: f32, u: f32, v: f32, hw: f32, height: f32, seed: f32) -> f32 {
   // where the water runs down from (the top of the stone, or the joint above), and across the face (m)
   var below = 0.0;
   var across = 0.0;
+  // brass: a collar round a tall shaft at its joints (the capitals and bases are brass too, below)
+  var collar = 0.0;
   // (the platform's inner walls, seen through the floor from inside the court, aren't there)
   if (i.shape.x > 1.5 && dot(N, frame.camPos - i.wp) < 0.0) { discard; }
   if (i.shape.x < 0.5 || i.shape.x > 1.5) {
@@ -330,6 +335,8 @@ fn carving(kind: f32, u: f32, v: f32, hw: f32, height: f32, seed: f32) -> f32 {
     let joint = smoothstep(0.012, 0.003, min(jf, 1.0 - jf) * dh) * step(1.6, H) * step(0.3, yj) * step(yj, H - 0.2);
     below = min(H - yj, jf * dh + 0.15 * step(1.6, H));
     groove = max(groove, joint * 0.7);
+    // (report 18: a brass collar round a tall shaft at each joint, a hand wide, catching the sun)
+    collar = smoothstep(0.042, 0.03, min(jf, 1.0 - jf) * dh) * step(1.6, H) * step(0.3, yj) * step(yj, H - 0.2);
     if (kind > 2.5) {
       let F = FLUTES;
       let g = fract(a * F / 6.2831853) * 2.0 - 1.0;
@@ -397,17 +404,21 @@ fn carving(kind: f32, u: f32, v: f32, hw: f32, height: f32, seed: f32) -> f32 {
   // column's capital and base in bronze gone green (verdigris in the hollows, the bronze rubbed warm on the crowns)
   var shine = 0.0;
   if (glaze > 0.0) {
-    let tile = vec3f(0.93, 0.91, 0.86) * (0.94 + 0.08 * grain);
+    // (white glaze, a thin line of teal and gold at its edges where the tile meets the stone)
+    let tile = vec3f(0.95, 0.94, 0.9) * (0.96 + 0.06 * grain);
     albedo = mix(albedo, tile * (1.0 - 0.3 * max(-relief, 0.0)) * (1.0 + 0.08 * max(relief, 0.0)), glaze * (1.0 - wet * 0.3));
-    shine = glaze * 0.7;
+    shine = glaze;
   }
+  // brass: a column's capital and base (rubbed bright on the crowns, verdigris only in the hollows) and the collars
+  var metal = collar * (1.0 - wet * 0.5);
+  var metalCol = vec3f(0.95, 0.68, 0.3);
   if (i.shape.x > 0.5 && i.shape.x < 1.5 && kind < 0.5) {
-    let patina = smoothstep(0.35, 0.7, n1 * 0.7 + vnoise(wp * 9.0 + seed * 4.0) * 0.3 + groove);
-    let bronze = vec3f(0.5, 0.33, 0.16) * (0.85 + 0.3 * grain);
+    let patina = smoothstep(0.45, 0.8, n1 * 0.5 + vnoise(wp * 9.0 + seed * 4.0) * 0.3 + groove * 1.5);
     let verd = vec3f(0.22, 0.52, 0.42) * (0.9 + 0.2 * grain);
-    albedo = mix(bronze, verd, patina) * (1.0 - 0.3 * wet);
-    shine = mix(0.9, 0.25, patina);
+    albedo = mix(vec3f(0.5, 0.33, 0.14), verd, patina) * (1.0 - 0.3 * wet);
+    metal = 1.0 - patina;
   }
+  albedo = mix(albedo, metalCol * 0.4, collar);
   // the garden: vines climbing the columns (two leafy stems wound round each shaft, up to a height of its own) and
   // draping over the high blocks' faces from their tops (the lintels, the architraves), flowers in them: coral, rose,
   // cream and gold. Only above the highest tide (salt kills them) and never on a top where a body lands
@@ -417,11 +428,13 @@ fn carving(kind: f32, u: f32, v: f32, hw: f32, height: f32, seed: f32) -> f32 {
   if (vineAmt > 0.0 && wp.y > hi + 0.15 && abs(normalize(i.n).y) < 0.75) {
     if (i.shape.x > 0.5 && i.shape.x < 1.5 && i.info.z < 0.5) {
       // a drum's side: its stems wind up it; not every column has one
+      // (report 18: only the woody stems now, a thin line; the leaves and flowers are cards round them, garden.wgsl
+      // vs_vine, on the same two helices: garden.ts vinesOf reads the same seed)
       let has = step(fract(seed * 3.17), 0.7);
       let reach = 2.2 + 4.0 * fract(seed * 7.31);
       let wind = fract(i.local.x / 6.2831853 * 2.0 + wp.y * 0.21 + seed * 5.0);
-      let stem = abs(wind - 0.5) * 2.0 + (vnoise(wp * 3.1 + seed) - 0.5) * 0.55;
-      leaf = has * smoothstep(0.62, 0.3, stem) * smoothstep(reach, reach - 0.7, wp.y + vnoise(wp * 1.7) * 0.5);
+      let stem = abs(wind - 0.5) * 2.0 + (vnoise(wp * 3.1 + seed) - 0.5) * 0.08;
+      leaf = has * smoothstep(0.1, 0.05, stem) * smoothstep(reach, reach - 0.3, wp.y) * 0.8;
     } else if (i.shape.x < 0.5 && i.info.w < 1.6 && wp.y > 2.2) {
       // a high block's face: a curtain from its top, longer here and shorter there
       let len = 0.15 + 0.75 * vnoise2(vec2f(across * 1.6, seed * 9.0)) * vnoise2(vec2f(across * 0.5 + 3.0, seed));
@@ -475,7 +488,14 @@ fn carving(kind: f32, u: f32, v: f32, hw: f32, height: f32, seed: f32) -> f32 {
   col += moon * pow(max(dot(R, Ld), 0.0), mix(12.0, 80.0, wet)) * gloss * 0.6;
   let fres = 0.04 + 0.96 * pow(1.0 - max(dot(N, V), 0.0), 5.0);
   // (dry stone is rough: it only mirrors the sky when it's wet)
-  col += templeSky(normalize(vec3f(R.x, abs(R.y), R.z)), 0.0) * fres * gloss * mix(0.06, 0.5, wet);
+  let env = templeSky(normalize(vec3f(R.x, abs(R.y), R.z)), 0.0);
+  col += env * fres * gloss * mix(0.06, 0.5, wet);
+  // (report 18) glaze is a clear coat: the sky and the canopy's glass in it at every angle, the sun a small hard
+  // highlight; brass mirrors them warm, its own colour, little light of its own
+  let g = shine * (1.0 - leaf);
+  col += (env * (0.05 + 0.95 * pow(1.0 - max(dot(N, V), 0.0), 4.0)) * 0.55 + moon * pow(max(dot(R, Ld), 0.0), 260.0) * 5.0) * g;
+  let brass = metalCol * (env * 0.7 + moon * (pow(max(dot(R, Ld), 0.0), 50.0) * 4.0 + diff * 0.25) + templeAmbient(N, ao, wp, 1.0) * ao * 0.25);
+  col = mix(col, brass, metal * (1.0 - leaf));
   col = templeUnder(col, wp, albedo * moon * diff);
   return vec4f(sightLit(col), dot(wp - frame.camPos, frame.camFwd));
 }

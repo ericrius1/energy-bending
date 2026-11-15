@@ -74,6 +74,135 @@ fn sway(s: f32, t: f32, seed: f32, kind: f32) -> vec2f {
   return o;
 }
 
+/** leaves on a column's vine (one stem a draw instance) */
+override VLEAVES: u32 = 56u;
+
+/** a vine round a column (report 18: real leaves and flowers in place of a green coat): one of the two stems that
+ *  stones.wgsl draws as a thin line winding up the shaft, at.xyz the shaft's foot, n: x its radius, y, z the stem's
+ *  lowest and highest point (m), w the stem's turn at y = 0 (rad, world); look: x a seed, y how it turns per m up.
+ *  Leaves either side of the stem, each a card standing out from the stone and hanging a little, cut to a leaf's shape;
+ *  one in seven a flower */
+@vertex fn vs_vine(@builtin(vertex_index) vi: u32, @builtin(instance_index) ii: u32) -> GOut {
+  var o: GOut;
+  let H = hangs[FIRST + ii];
+  let k = vi / 6u;
+  let c = array<vec2f, 6>(vec2f(-1.0, 0.0), vec2f(1.0, 0.0), vec2f(1.0, 1.0), vec2f(-1.0, 0.0), vec2f(1.0, 1.0), vec2f(-1.0, 1.0))[vi % 6u];
+  let seed = H.look.x;
+  let hk = fract(sin(f32(k) * 12.9898 + seed * 78.233) * 43758.5453);
+  let hk2 = fract(hk * 7.13 + 0.37);
+  // where up the stem (with a little scatter), and round the shaft there
+  let y = mix(H.n.y, H.n.z, (f32(k) + 0.3 + 0.4 * hk) / f32(VLEAVES));
+  let th = H.n.w + H.look.y * y;
+  let radial = vec3f(cos(th), 0.0, sin(th));
+  let tang = normalize(vec3f(-sin(th), 0.0, cos(th)) * H.n.x * H.look.y + vec3f(0.0, 1.0, 0.0));
+  let side = select(-1.0, 1.0, (k % 2u) == 0u);
+  let flower = (k % 7u) == 3u;
+  let t = worldLight.temple.fire.y;
+  let flutter = sin(t * 2.1 + seed * 20.0 + f32(k) * 1.7) * 0.15;
+  // a leaf: from the stem out from the stone and to its side, tipped down; a flower: a disc facing out
+  let foot = H.at.xyz + vec3f(0.0, y, 0.0) + radial * (H.n.x + 0.015);
+  let size = select(0.075 + 0.05 * hk2, 0.05 + 0.025 * hk2, flower);
+  var along = normalize(radial * (0.8 + flutter) + cross(vec3f(0.0, 1.0, 0.0), radial) * side * 0.9 + vec3f(0.0, -0.55 + 0.3 * hk, 0.0));
+  var across = normalize(cross(along, radial) + vec3f(1e-4, 0.0, 0.0));
+  var p = foot + along * c.y * size * 1.7 + across * c.x * size * 0.6;
+  var N = normalize(cross(across, along));
+  if (dot(N, radial) < 0.0) { N = -N; }
+  if (flower) {
+    N = normalize(radial + vec3f(0.0, 0.35, 0.0));
+    across = normalize(cross(N, vec3f(0.0, 1.0, 0.0)));
+    along = cross(N, across);
+    p = foot + radial * 0.03 + (across * c.x + along * (c.y * 2.0 - 1.0)) * size;
+  }
+  o.pos = frame.viewProj * vec4f(p, 1.0);
+  o.wp = p;
+  o.n = N;
+  o.uv = vec2f(c.x, select(c.y, c.y * 2.0 - 1.0, flower));
+  o.info = vec4f(select(3.0, 4.0, flower), seed + f32(k) * 0.01, hk2, 0.0);
+  return o;
+}
+
+/** a stained-glass screen (report 18: the temple's landmark at its edge, at the height of the bodies, the canopy's
+ *  glass brought down into the duel's frame): at.xyz the middle of its foot; n: xy its face (outward, toward the court),
+ *  z its height, w its width; look: x a seed. One quad, its arched outline, brass frame, leading and panes cut in the
+ *  fragment shader */
+@vertex fn vs_screen(@builtin(vertex_index) vi: u32, @builtin(instance_index) ii: u32) -> GOut {
+  var o: GOut;
+  let H = hangs[FIRST + ii];
+  let c = array<vec2f, 6>(vec2f(-1.0, 0.0), vec2f(1.0, 0.0), vec2f(1.0, 1.0), vec2f(-1.0, 0.0), vec2f(1.0, 1.0), vec2f(-1.0, 1.0))[vi % 6u];
+  let nOut = normalize(vec3f(H.n.x, 0.0, H.n.y));
+  let across = vec3f(-nOut.z, 0.0, nOut.x);
+  let p = H.at.xyz + across * c.x * H.n.w * 0.5 + vec3f(0.0, c.y * H.n.z, 0.0);
+  o.pos = frame.viewProj * vec4f(p, 1.0);
+  o.wp = p;
+  o.n = nOut;
+  o.uv = vec2f(c.x, c.y);
+  o.info = vec4f(5.0, H.look.x, H.n.w / H.n.z, H.n.z);
+  return o;
+}
+
+/** a pane's glass by a hash (sun gold, teal, coral, leaf, cream, and a deep amber) */
+fn paneTint(h: f32) -> vec3f {
+  if (h < 0.2) { return vec3f(0.2, 0.8, 0.75); }
+  if (h < 0.36) { return vec3f(1.0, 0.42, 0.3); }
+  if (h < 0.54) { return vec3f(0.45, 0.85, 0.25); }
+  if (h < 0.64) { return vec3f(1.0, 0.94, 0.8); }
+  if (h < 0.74) { return vec3f(0.95, 0.5, 0.12); }
+  return vec3f(1.0, 0.78, 0.3);
+}
+
+/** a screen at uv (x across -1 … 1, y up 0 … 1; aspect: width over height): its pane's tint, how much is lead, how much is
+ *  its brass frame, whether uv is inside its arched outline */
+struct Glass { tint: vec3f, lead: f32, brass: f32, inside: bool }
+fn screenGlass(uv: vec2f, aspect: f32, seed: f32) -> Glass {
+  var g: Glass;
+  // (in metres-ish: x across from its middle, y up; the arch a half circle on the top)
+  let hw = aspect * 0.5;
+  let p = vec2f(uv.x * hw, uv.y);
+  let springY = 1.0 - hw;
+  var outside = abs(p.x) / hw;
+  if (p.y > springY) { outside = length(vec2f(p.x, p.y - springY)) / hw; }
+  g.inside = outside <= 1.0;
+  if (!g.inside) { return g; }
+  // the brass frame round it, and a transom where the arch springs
+  let frameW = 0.035 / max(hw, 0.1);
+  g.brass = max(smoothstep(1.0 - frameW * 1.2, 1.0 - frameW, outside), smoothstep(0.006, 0.003, abs(p.y - springY) / max(hw, 0.1)));
+  // the rose in the arch: petals round a sun disc
+  var cell = vec2f(0.0);
+  var lead = 1.0;
+  if (p.y > springY) {
+    let q = vec2f(p.x, p.y - springY) / hw;
+    let r = length(q);
+    let a = atan2(q.y, q.x);
+    let ring = floor(r * 3.0);
+    let n = 3.0 + ring * 4.0;
+    let u = a / 3.1415927 * n + ring * 0.5;
+    cell = vec2f(floor(u) + 50.0, ring);
+    let fu = fract(u);
+    let fr = fract(r * 3.0);
+    lead = min(min(fu, 1.0 - fu) * r * 3.0 * 1.2, min(fr, 1.0 - fr) * 1.3);
+    if (r < 0.2) { cell = vec2f(99.0, 0.0); lead = (0.2 - r) * 6.0; }
+  } else {
+    // below: whiplash stems rising (the panes' seams bow), leaves at their sides; panes by a curved grid
+    let sx = p.x / hw * 2.0 + 0.22 * sin(p.y * 5.0 + seed * 9.0) * (1.0 - p.y / springY * 0.3);
+    let sy = p.y * 3.2 / max(springY, 0.3) + 0.25 * sin(p.x / hw * 3.0 + seed * 4.0);
+    cell = vec2f(floor(sx), floor(sy));
+    let fx = fract(sx);
+    let fy = fract(sy);
+    lead = min(min(fx, 1.0 - fx) * hw * 0.9, min(fy, 1.0 - fy) * 0.3);
+    // (a leaf in a pane: an oval across it, its own glass)
+    let lq = vec2f((fx - 0.5) * 1.3, (fy - 0.5) * 1.0 - (fx - 0.5) * 0.6);
+    let leafD = length(lq * vec2f(1.0, 2.2));
+    if (hash2i(vec2i(cell) + vec2i(7, 3)) > 0.55 && leafD < 0.42) { cell = cell + vec2f(200.0, 0.0); lead = min(lead, (0.42 - leafD) * 0.35); }
+  }
+  let h = hash2i(vec2i(cell) + vec2i(i32(seed * 50.0), 1));
+  var tint = paneTint(h);
+  if (cell.x > 150.0) { tint = select(vec3f(0.35, 0.8, 0.2), vec3f(0.6, 0.9, 0.3), h > 0.5); }
+  if (cell.x > 98.0 && cell.x < 100.0) { tint = vec3f(1.0, 0.85, 0.4); }
+  g.tint = tint;
+  g.lead = 1.0 - smoothstep(0.004, 0.012, lead);
+  return g;
+}
+
 /** a banner's dye (0 … 4: sun gold, coral, leaf, teal, cream) */
 fn dye(k: f32) -> vec3f {
   let i = u32(k + 0.5) % 5u;
@@ -90,6 +219,33 @@ fn dye(k: f32) -> vec3f {
   let u = i.uv.x;
   let v = i.uv.y;
   let L = i.info.w;
+  if (kind > 4.5) {
+    // a stained-glass screen: the light through its panes (the sun when it is behind the glass from the eye, else the
+    // sky behind it), the sky and the sun mirrored on its face, the lead dark, the frame brass
+    let g = screenGlass(i.uv, i.info.z, i.info.y);
+    if (!g.inside) { discard; }
+    let V = normalize(frame.camPos - i.wp);
+    let n0 = normalize(i.n);
+    let nV = select(-n0, n0, dot(V, n0) > 0.0);
+    let Ls = worldLight.temple.moon.xyz;
+    let sunC = worldLight.temple.moonCol.rgb * worldLight.temple.moonCol.w;
+    let behind = max(-dot(Ls, nV), 0.0);
+    let through = templeSky(normalize(vec3f(-V.x, max(-V.y, 0.06), -V.z)), 0.0);
+    let swirl = 0.82 + 0.18 * vnoise2(i.uv * vec2f(i.info.w * i.info.z, i.info.w) * 3.0 + i.info.y * 7.0);
+    // (deep glass: its colour squared, so a pane is rich, not pastel, in the bright sky behind it)
+    let deep = g.tint * g.tint;
+    var col = deep * swirl * (through * 0.95 + sunC * (behind * 0.6 + pow(max(dot(-V, Ls), 0.0), 6.0) * 1.6 * behind) + sunC * 0.1);
+    let R = reflect(-V, nV);
+    let F = 0.04 + 0.96 * pow(1.0 - max(dot(nV, V), 0.0), 5.0);
+    let env = templeSky(normalize(vec3f(R.x, abs(R.y), R.z)), 0.0);
+    col = col * (1.0 - F) + env * F + sunC * pow(max(dot(R, Ls), 0.0), 400.0) * 4.0;
+    let leadCol = vec3f(0.04, 0.03, 0.02) * (sunC * max(dot(nV, Ls), 0.0) + templeAmbient(nV, 1.0, i.wp, 1.0)) + env * F * 0.5;
+    col = mix(col, leadCol, g.lead);
+    let brass = vec3f(0.95, 0.68, 0.3) * (env * 0.7 + sunC * (pow(max(dot(R, Ls), 0.0), 40.0) * 3.0 + max(dot(nV, Ls), 0.0) * 0.3) + templeAmbient(nV, 1.0, i.wp, 1.0) * 0.25);
+    col = mix(col, brass, g.brass);
+    col = templeUnder(col, i.wp, vec3f(0.0));
+    return vec4f(col, dot(i.wp - frame.camPos, frame.camFwd));
+  }
   var albedo = vec3f(0.5);
   var gloss = 0.0;
   var through = 0.0;
@@ -127,6 +283,23 @@ fn dye(k: f32) -> vec3f {
       albedo = select(select(vec3f(1.0, 0.55, 0.45), vec3f(0.98, 0.52, 0.7), h > 0.9), vec3f(1.0, 0.95, 0.85), h > 0.96);
     }
     through = 0.25;
+  } else if (kind > 2.5 && kind < 3.5) {
+    // a vine's leaf: a pointed oval from its stalk, a paler midrib, glossy, lit through by the sun behind it
+    let w = pow(sin(3.1415927 * min(v * 0.95 + 0.05, 1.0)), 0.8);
+    if (abs(u) > w) { discard; }
+    albedo = mix(vec3f(0.05, 0.17, 0.035), vec3f(0.2, 0.38, 0.07), i.info.z) * (1.0 + 0.5 * smoothstep(0.12, 0.0, abs(u)));
+    through = 0.6;
+    gloss = 0.25;
+  } else if (kind > 3.5 && kind < 4.5) {
+    // a vine's flower: five petals round a gold eye (jasmine cream, coral, sun gold, peach)
+    let r = length(vec2f(u, v));
+    let a = atan2(v, u);
+    if (r > 0.55 + 0.45 * pow(abs(cos(a * 2.5)), 0.6)) { discard; }
+    let k = i.info.z;
+    var petal = vec3f(1.0, 0.96, 0.88);
+    if (k > 0.75) { petal = vec3f(1.0, 0.5, 0.38); } else if (k > 0.55) { petal = vec3f(1.0, 0.76, 0.28); } else if (k > 0.4) { petal = vec3f(1.0, 0.68, 0.52); }
+    albedo = mix(petal, vec3f(0.95, 0.6, 0.1), smoothstep(0.28, 0.2, r));
+    through = 0.7;
   } else {
     // a chime's tube: bronze gone green, a bright line down it where the sky catches its curve
     albedo = mix(vec3f(0.5, 0.36, 0.18), vec3f(0.25, 0.55, 0.45), smoothstep(0.3, 0.7, vnoise2(vec2f(u * 3.0, v * 12.0 + i.info.y * 20.0))));

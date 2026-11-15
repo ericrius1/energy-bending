@@ -53,7 +53,9 @@ export const templeParams = defineParams('temple', {
   moonHeight: 34,
   sunBearing: -1.05,
   stars: 0,
-  stone: '#c2b8a4',
+  // (report 18: honey sandstone, a step warmer and deeper than the cream it was, so the white glaze, the brass and the
+  // bodies stand off it)
+  stone: '#c3ad8d',
   wetGloss: 1,
   /** the sunlit court's warm bounce on the stones' fronts (it rakes the carving) */
   afterglow: 0.32,
@@ -75,12 +77,13 @@ export const templeParams = defineParams('temple', {
   sparkle: 7,
   /** (the moon's veil of cloud: unused by the day sky) */
   veil: 0,
-  sea: '#0f5e66',
+  sea: '#0c5561',
   depthDim: 1.0,
   mirror: 0.05,
   ripples: 1,
   wind: 0.06,
-  haze: 0.006,
+  // (report 18: half the sea haze it had: the court was washed out, cream on cream on pale teal)
+  haze: 0.003,
   /** how far the dancers' own light reaches (m), and a light for every dancer (for stills; the game sets each its own) */
   fireReach: 6,
   firelight: 0,
@@ -166,7 +169,7 @@ export class Temple implements World {
     this.duelSolids = [...this.courtSolids, ...duel.arena.pieces!];
     this.duelBuf = kit.storage({ label: 'temple.duel', data: duel.data, usage: ['storage'] });
     this.buf = kit.storage({ label: 'temple.stones', data: this.packed.data, usage: ['storage'] });
-    this.garden = layoutGarden(this.layout.stones, coarse);
+    this.garden = layoutGarden(this.layout.stones, coarse, duel.stones);
     this.gardenBuf = kit.storage({ label: 'temple.garden', data: this.garden.data, usage: ['storage'] });
     this.u = lightSlot(kit, 'temple');
     this.waves = new Ripples(kit, frame, {
@@ -277,6 +280,12 @@ export class Temple implements World {
       const G = this.garden, SEG = coarse ? 8 : 14;
       pass.draw(gardenShader, { label: 'temple.garden', bind: { hangs: this.gardenBuf }, count: SEG * 6, instances: G.court, constants: { FIRST: 0, SEG }, cull: 'none', enabled: on });
       pass.draw(gardenShader, { label: 'temple.garden.duel', bind: { hangs: this.gardenBuf }, count: SEG * 6, instances: G.duel, constants: { FIRST: G.court, SEG }, cull: 'none', enabled: shown });
+      // the leaves and flowers on the columns' vines (report 18), the court's and the duel's
+      const VL = coarse ? 32 : 56, v0 = G.court + G.duel;
+      pass.draw(gardenShader, { label: 'temple.vines', vertex: 'vs_vine', bind: { hangs: this.gardenBuf }, count: VL * 6, instances: G.courtVines, constants: { FIRST: v0, VLEAVES: VL }, cull: 'none', enabled: () => on() && G.courtVines > 0 });
+      pass.draw(gardenShader, { label: 'temple.vines.duel', vertex: 'vs_vine', bind: { hangs: this.gardenBuf }, count: VL * 6, instances: G.duelVines, constants: { FIRST: v0 + G.courtVines, VLEAVES: VL }, cull: 'none', enabled: () => shown() && G.duelVines > 0 });
+      // the stained-glass screens at the court's edge: the temple's landmark (garden.ts)
+      pass.draw(gardenShader, { label: 'temple.screens', vertex: 'vs_screen', bind: { hangs: this.gardenBuf }, count: 6, instances: G.screens, constants: { FIRST: v0 + G.courtVines + G.duelVines }, cull: 'none', enabled: on });
     } else if (s.phase === 'glow') {
       // the fountains' jets at the channels' corners
       const per = coarse ? 80 : 160;

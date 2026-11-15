@@ -20,6 +20,8 @@ export interface TempleDuel {
   data: Float32Array;
   blocks: number;
   drums: number;
+  /** the same stones as layout.ts describes them (the vines round its columns: garden.ts) */
+  stones: Stone[];
 }
 
 /** how deep the drops are (to the sea bed, the backdrop's SEA) */
@@ -143,7 +145,7 @@ function build(): TempleDuel {
     // a body floating with its feet 0.3 m over the floor; at its lowest the drops' water 0.5 m down their sides
     hazard: tideHazard({ low: -0.5, high: 1.45, bars: 16 }),
   };
-  return { arena, data, blocks: blocks.length, drums: drums.length };
+  return { arena, data, blocks: blocks.length, drums: drums.length, stones: all };
 }
 
 let made: TempleDuel | null = null;

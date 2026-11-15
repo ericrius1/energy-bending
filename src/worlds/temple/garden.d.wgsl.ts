@@ -186,6 +186,12 @@ export interface GOut {
   uv: Vec2;
   info: Vec4;
 }
+export interface Glass {
+  tint: Vec3;
+  lead: number;
+  brass: number;
+  inside: unknown;
+}
 
-declare const shader: Shader<{ Frame: Frame; Geode: Geode; Forest: Forest; Pool: Pool; Temple: Temple; FireLight: FireLight; FireLights: FireLights; WorldLight: WorldLight; SightBody: SightBody; SightPiece: SightPiece; Sight: Sight; KeyLight: KeyLight; Hang: Hang; GOut: GOut }, 'frame' | 'worldLight' | 'hangs' | 'poolWaves' | 'templeWaves' | 'samp_linear' | 'samp_repeat' | 'samp_nearest' | 'samp_shadow'>;
+declare const shader: Shader<{ Frame: Frame; Geode: Geode; Forest: Forest; Pool: Pool; Temple: Temple; FireLight: FireLight; FireLights: FireLights; WorldLight: WorldLight; SightBody: SightBody; SightPiece: SightPiece; Sight: Sight; KeyLight: KeyLight; Hang: Hang; GOut: GOut; Glass: Glass }, 'frame' | 'worldLight' | 'hangs' | 'poolWaves' | 'templeWaves' | 'samp_linear' | 'samp_repeat' | 'samp_nearest' | 'samp_shadow'>;
 export default shader;

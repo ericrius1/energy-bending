@@ -7,13 +7,15 @@
 import type { Kit } from '@ericrius1/weft';
 import { mulberry32 } from 'math/random';
 import gardenShader from './garden.wgsl';
+import bedShader from './beds.wgsl';
 import type { ScenePass } from '../../engine/scene';
 import { topAt } from '../../duel/arena';
-import { poolDuel, ROCK_FLOATS } from './arena';
+import { poolDuel, ROCK_FLOATS, ROCK_LOOK } from './arena';
 
 const FLOATS = 8;
-/** vertices per instance of each kind (garden.wgsl: a pad's fan and rim, a flower's petals and seed head, a clump) */
-const PAD_VERTS = 20 * 3 + 20 * 6, LOTUS_VERTS = 15 * 18 + 18, REED_VERTS = 9 * 4 * 6;
+/** vertices per instance of each kind (garden.wgsl: a pad's fan and rim, a flower's petals and seed head, a clump;
+ *  beds.wgsl: a clump's seven leaves of two halves of three quads, three flowers of a stem and a head) */
+const PAD_VERTS = 20 * 3 + 20 * 6, LOTUS_VERTS = 15 * 18 + 18, REED_VERTS = 9 * 4 * 6, BED_VERTS = 7 * 2 * 3 * 6 + 3 * 12;
 
 interface Plants { pads: number[]; lotus: number[]; reeds: number[] }
 
@@ -85,23 +87,75 @@ function plant(coarse: boolean): Plants {
   return out;
 }
 
-export class PoolGarden {
-  private bufs: { pads: ReturnType<Kit['storage']>; lotus: ReturnType<Kit['storage']>; reeds: ReturnType<Kit['storage']> };
-  readonly counts: { pads: number; lotus: number; reeds: number };
+/** the planting round the rims of the planters, rafts and blocks (beds.wgsl, report 18): clumps of leaves a stride or
+ *  so apart round each top, a hand in from its edge, some with flowers; none where another piece stands on the top (the
+ *  arch's pillars on the middle stone). Each clump is in its piece's own frame, so it rides a raft on the swell */
+function bedsOf(coarse: boolean): number[] {
+  const rng = mulberry32.create(907);
+  const r = () => mulberry32.sample(rng);
+  const D = poolDuel(), pieces = D.arena.pieces!, out: number[] = [];
+  for (let i = 0; i < D.count; i++) {
+    const o = i * ROCK_FLOATS, look = D.data[o + 11];
+    if (look === ROCK_LOOK.standing) continue;
+    const x = D.data[o], z = D.data[o + 2], yaw = D.data[o + 3], hx = D.data[o + 4] / 2, hz = D.data[o + 6] / 2;
+    const top = D.data[o + 1] + D.data[o + 5], rp = Math.min(D.data[o + 10], Math.min(hx, hz) * 0.95);
+    const cx = hx - rp, cz = hz - rp;
+    // the outline (a rounded rectangle), walked by its length: straight sides and quarter arcs
+    const segs: [number, number][] = [[2 * cz, 0], [rp * Math.PI / 2, 1], [2 * cx, 2], [rp * Math.PI / 2, 3], [2 * cz, 4], [rp * Math.PI / 2, 5], [2 * cx, 6], [rp * Math.PI / 2, 7]];
+    const perim = segs.reduce((a, s) => a + s[0], 0);
+    const at = (s: number): [number, number, number, number] => {
+      for (const [len, k] of segs) {
+        if (s > len) { s -= len; continue; }
+        const q = Math.floor(k / 2), arc = k % 2 === 1, f = s / Math.max(len, 1e-6);
+        const corner = [[cx, cz], [-cx, cz], [-cx, -cz], [cx, -cz]][q];
+        if (!arc) {
+          // (side q runs from corner q-1 to corner q)
+          const a = [[cx, -cz], [cx, cz], [-cx, cz], [-cx, -cz]][q], b = corner;
+          const n = [[1, 0], [0, 1], [-1, 0], [0, -1]][q];
+          return [a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f, n[0], n[1]];
+        }
+        const ang = (q * Math.PI) / 2 + f * (Math.PI / 2);
+        return [corner[0], corner[1], Math.cos(ang), Math.sin(ang)];
+      }
+      return [cx, 0, 1, 0];
+    };
+    const every = look === ROCK_LOOK.block ? 0.6 : look === ROCK_LOOK.raft ? 0.42 : 0.36;
+    const c = Math.cos(yaw), sn = Math.sin(yaw);
+    for (let s = r() * every; s < perim; s += every * (0.75 + 0.5 * r())) {
+      if (r() < (coarse ? 0.5 : 0.15)) continue;
+      const [ox, oz, nx, nz] = at(s);
+      const inset = 0.13 + 0.12 * r();
+      const lx = ox + nx * (rp - inset), lz = oz + nz * (rp - inset);
+      const wx = x + lx * c + lz * sn, wz = z - lx * sn + lz * c;
+      // (not where a piece stands on this top)
+      if (pieces.some((p) => topAt(p, wx, wz, 0.18) > top + 0.05)) continue;
+      const len = (look === ROCK_LOOK.block ? 0.3 : 0.26) + 0.2 * r();
+      const flowers = r() < 0.55 ? 1 + Math.floor(r() * 3) : 0;
+      out.push(i, lx, lz, Math.atan2(nz, nx), len, flowers, r(), r());
+    }
+  }
+  return out;
+}
 
-  constructor(kit: Kit, coarse: boolean) {
-    const P = plant(coarse);
+export class PoolGarden {
+  private bufs: { pads: ReturnType<Kit['storage']>; lotus: ReturnType<Kit['storage']>; reeds: ReturnType<Kit['storage']>; beds: ReturnType<Kit['storage']> };
+  readonly counts: { pads: number; lotus: number; reeds: number; beds: number };
+
+  /** stones: the stones' live buffer (pool.ts: the rafts where the swell has them), which the beds stand on */
+  constructor(kit: Kit, coarse: boolean, private stones: ReturnType<Kit['storage']>) {
+    const P = plant(coarse), B = bedsOf(coarse);
     const buf = (label: string, a: number[]) => kit.storage({ label: `pool.garden.${label}`, data: new Float32Array(a.length ? a : new Array(FLOATS).fill(0)), usage: ['storage'] });
-    this.bufs = { pads: buf('pads', P.pads), lotus: buf('lotus', P.lotus), reeds: buf('reeds', P.reeds) };
-    this.counts = { pads: P.pads.length / FLOATS, lotus: P.lotus.length / FLOATS, reeds: P.reeds.length / FLOATS };
+    this.bufs = { pads: buf('pads', P.pads), lotus: buf('lotus', P.lotus), reeds: buf('reeds', P.reeds), beds: buf('beds', B) };
+    this.counts = { pads: P.pads.length / FLOATS, lotus: P.lotus.length / FLOATS, reeds: P.reeds.length / FLOATS, beds: B.length / FLOATS };
   }
 
-  /** its three draws in the opaque phase, on while `on` (the duel's arena shown) */
+  /** its four draws in the opaque phase, on while `on` (the duel's arena shown) */
   declare(s: ScenePass, on: () => boolean) {
     const d = (label: 'pads' | 'lotus' | 'reeds', vertex: string, count: number) =>
       s.pass.draw(gardenShader, { label: `pool.garden.${label}`, vertex, fragment: 'fs', bind: { plants: this.bufs[label] }, count, instances: this.counts[label], cull: 'none', enabled: () => on() && this.counts[label] > 0 });
     d('pads', 'vs_pad', PAD_VERTS);
     d('lotus', 'vs_lotus', LOTUS_VERTS);
     d('reeds', 'vs_reed', REED_VERTS);
+    s.pass.draw(bedShader, { label: 'pool.garden.beds', bind: { stones: this.stones, beds: this.bufs.beds }, count: BED_VERTS, instances: this.counts.beds, cull: 'none', enabled: () => on() && this.counts.beds > 0 });
   }
 }

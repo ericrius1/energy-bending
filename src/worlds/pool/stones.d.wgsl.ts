@@ -185,6 +185,7 @@ export interface VOut {
   n: Vec3;
   local: Vec3;
   info: Vec4;
+  shape: Vec4;
 }
 
 declare const shader: Shader<{ Frame: Frame; Geode: Geode; Forest: Forest; Pool: Pool; Temple: Temple; FireLight: FireLight; FireLights: FireLights; WorldLight: WorldLight; SightBody: SightBody; SightPiece: SightPiece; Sight: Sight; KeyLight: KeyLight; Stone: Stone; VOut: VOut }, 'frame' | 'worldLight' | 'stones' | 'poolWaves' | 'templeWaves' | 'samp_linear' | 'samp_repeat' | 'samp_nearest' | 'samp_shadow'>;
