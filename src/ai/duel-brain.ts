@@ -66,7 +66,14 @@ export interface DuelSight {
   /** the arena's hazard as it stands now (src/duel/hazards.ts sight()): its water, the wind, the hum's columns, the
    *  swell; absent or null: none */
   hazard?: HazardSight | null;
+  /** the pair's wish to go through a mirror (phase 6, src/duel/crossing.ts Voyage): its disc (the middle, its face, its
+   *  right, its radius), or null; and the disc the pair just came out of, kept away from for a few seconds */
+  voyage?: MirrorSight | null;
+  cameOut?: MirrorSight | null;
 }
+
+/** a mirror as a virtual player sees it */
+export interface MirrorSight { at: [number, number, number]; n: [number, number, number]; right: [number, number, number]; r: number }
 
 export interface DuelBrainOptions {
   skill?: number;
@@ -297,6 +304,11 @@ export class DuelBrain implements Brain {
       };
       for (let k = 0; k < 8 && edgy(gx, gz); k++) { gx += (C[0] - gx) * 0.25; gz += (C[2] - gz) * 0.25; }
       gy = groundOf(D, gx, gz, me.y, 2.5);
+      // a voyage (src/duel/crossing.ts): toward the mirror together, in front of its disc; the one nearer it, close
+      // enough and not joined, runs on through it (the other is brought along). Just out of one: away from it
+      const V = otherOut ? null : this.voyageGoal(me, o, D);
+      if (V) { this.goal = V; return; }
+      if (D.cameOut) [gx, gz] = this.awayFromDisc(D.cameOut, gx, gz);
       // the hazard's places and the ice steps: a step to run up onto, the hum's column, a stone out of the water
       const place = otherOut ? null : this.placeFor(S, me, o, D, gx, gz);
       if (place) { this.goal = { ...place, s: 0 }; return; }
@@ -310,6 +322,37 @@ export class DuelBrain implements Brain {
       }
     }
     this.goal = { x: gx, y: gy, z: gz, s: 0, why };
+  }
+
+  /** on a voyage, where to be: in front of the mirror's disc (a little to each side, so the two meet there), and once
+   *  both are near it, through it (the one nearer the disc, or the lead, runs through; a held or holding pair leaves it
+   *  to the fling). Null: no voyage, or joined */
+  private voyageGoal(me: Snap, o: Snap, D: DuelSight): { x: number; y: number; z: number; s: number; why: string } | null {
+    const V = D.voyage;
+    if (!V || D.link) return null;
+    const side = (p: Snap) => (p.x - V.at[0]) * V.n[0] + (p.z - V.at[2]) * V.n[2];
+    const across = (p: Snap) => (p.x - V.at[0]) * V.right[0] + (p.z - V.at[2]) * V.right[2];
+    const sMe = side(me), sO = side(o);
+    // (behind it already, the other through: nothing to do here)
+    if (sMe < -0.2) return null;
+    const near = sMe < 3.2 && Math.abs(across(me)) < V.r + 1 && sO < 4.5 && Math.abs(across(o)) < V.r + 2.5;
+    const first = sMe < sO - 0.3 || (Math.abs(sMe - sO) <= 0.3 && this.style !== 'flyer');
+    if (near && first && this.rng.chance(0.5)) {
+      this.count('voyage-through');
+      const x = V.at[0] - V.n[0] * 1.6, z = V.at[2] - V.n[2] * 1.6;
+      return { x, y: me.y, z, s: 0, why: 'through' };
+    }
+    const off = (this.style === 'flyer' ? 1 : -1) * 0.7, d = 1.5 + (first ? 0 : 0.8);
+    const x = V.at[0] + V.n[0] * d + V.right[0] * off, z = V.at[2] + V.n[2] * d + V.right[2] * off;
+    this.count('voyage');
+    return { x, y: groundOf(D, x, z, me.y, 2.5), z, s: 0, why: 'voyage' };
+  }
+
+  /** a goal kept a few metres in front of the disc the pair just came out of (no dancing straight back through it) */
+  private awayFromDisc(d: MirrorSight, x: number, z: number): [number, number] {
+    const rx = x - d.at[0], rz = z - d.at[2], s = rx * d.n[0] + rz * d.n[2], across = rx * d.right[0] + rz * d.right[2];
+    if (s >= 3.2 || Math.abs(across) > d.r + 2) return [x, z];
+    return [x + d.n[0] * (3.2 - s), z + d.n[2] * (3.2 - s)];
   }
 
   /** a place within a few metres that stands 0.6 to 1.9 m above here, clear to stand on */
@@ -645,6 +688,12 @@ export class DuelBrain implements Brain {
    *  or up and in from the edges (the space's middle) */
   private flingTarget(c: Character, O: Character, D: DuelSight | null): [number, number] {
     const at: Snap = { ...this.snap(O, 0) };
+    if (D && !c.plane && D.voyage) {
+      // on a voyage, near the mirror: through its middle (a fling through it, the holder brought after)
+      const V = D.voyage, s = (O.root[0] - V.at[0]) * V.n[0] + (O.root[2] - V.at[2]) * V.n[2];
+      const across = (O.root[0] - V.at[0]) * V.right[0] + (O.root[2] - V.at[2]) * V.right[2];
+      if (s > 0.3 && s < 5.5 && Math.abs(across) < V.r + 2.5) return [V.at[0] - V.n[0] * 1.2 - O.root[0], V.at[2] - V.n[2] * 1.2 - O.root[2]];
+    }
     if (D && !c.plane) {
       const hi = this.highPlace({ ...at, y: at.y - 0.5 }, D);
       if (hi) return [hi[0] - O.root[0], hi[2] - O.root[2]];
@@ -682,7 +731,10 @@ export class DuelBrain implements Brain {
       // regardless); the stick aimed there
       const aim = this.flingTarget(c, O, D), al = Math.hypot(aim[0], aim[1]) || 1;
       const vl = Math.hypot(O.v[0], O.v[2]) || 1, toward = (O.v[0] * aim[0] + O.v[2] * aim[1]) / (vl * al);
-      if (hold > this.holdFor && (toward > 0.55 - 0.3 * (1 - this.skill) || hold > this.holdFor + 0.9)) {
+      // (on a voyage with the mirror near, the fling through it comes sooner, as soon as the swing turns its way)
+      const voy = !!D?.voyage && al < 6.5, minHold = voy ? Math.min(this.holdFor, 0.7) : this.holdFor;
+      if (hold > minHold && (toward > (voy ? 0.7 : 0.55 - 0.3 * (1 - this.skill)) || hold > this.holdFor + 0.9)) {
+        if (voy) this.count('voyage-fling');
         this.grabUntil = -1;
         stickFor(c, aim[0] / al, aim[1] / al, 1, it);
         this.count('fling'); this.why = 'fling';

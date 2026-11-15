@@ -57,6 +57,9 @@ export class MusicClock {
   /** the applied offset (server s − local s), slewed toward the filtered measurement */
   syncOff: number | null = null;
   private syncFilt: number | null = null;
+  /** tempo glides (a mirror crossing's bridge, Engine.crossTo): from step k0 to k1 the tempo goes b0 → b1, linear in
+   *  the steps (each step at the tempo of its middle); after the last, its b1 is the tempo. The free clock only */
+  glides: { k0: number; k1: number; b0: number; b1: number }[] = [];
   /** the last step's time handed to the host (a jump never schedules before it) */
   private lastSchedT = -Infinity;
   jumps = 0;
@@ -178,6 +181,20 @@ export class MusicClock {
     this.gridTime = t + (k - beats * 4) * sd;
   }
 
+  /** the tempo step k plays at under the glides (null: no glide covers it) */
+  glideBpm(k: number) {
+    for (const g of this.glides) if (k >= g.k0 && k < g.k1) return g.b0 + (g.b1 - g.b0) * ((k - g.k0 + 0.5) / Math.max(1, g.k1 - g.k0));
+    return null;
+  }
+  /** the (unswung) time of a step at or after the next one to schedule, with the glides' tempi on the way (the free
+   *  clock; a step before the next is extrapolated at the tempo now) */
+  timeOfStep(k: number) {
+    if (this.synced || k <= this.step) return this.stepTime(k);
+    let t = this.gridTime, bpm = this.bpm;
+    for (let s = this.step; s < k; s++) { const g = this.glideBpm(s); if (g != null) bpm = g; t += 60 / bpm / 4; }
+    return t;
+  }
+
   /** the time base under the clock moved (live: the AudioContext started after a while on the page's clock) */
   rebase(dt: number) { this.gridTime += dt; this.lastSchedT += dt; }
 
@@ -225,6 +242,12 @@ export class MusicClock {
       this.step += skip; this.gridTime += skip * this.stepDur;
     }
     while (this.gridTime < until) {
+      // (a glide sets this step's tempo; past the last, its end tempo stays)
+      if (this.glides.length) {
+        const g = this.glideBpm(this.step);
+        if (g != null) this.bpm = this.targetBpm = g;
+        else if (this.step >= this.glides[this.glides.length - 1].k1) { this.bpm = this.targetBpm = this.glides[this.glides.length - 1].b1; this.glides = []; }
+      }
       const rel = this.step - this.origin;
       const t = this.gridTime + ((rel & 1) === 1 ? this.swing * this.stepDur : 0);
       host.step(rel, Math.max(t, cur));

@@ -105,6 +105,33 @@ export interface CamInput {
   /** the player's own body (report 18-you): the camera stands a little behind it rather than seat 1's, `turn` rad more
    *  than `behind` (the opening of a set). None: behind seat 1 */
   you?: { seat: number; turn: number };
+  /** the mirrors (gates) of the world (phase 6, report 20-crossing): an eye standing in one's frame, just behind its
+   *  plane beside it, or seeing the pair through it, costs (the pair arrived to the eye inside the far mirror's ring
+   *  looking at its disc, report 19) */
+  discs?: readonly { at: V3; n: V3; r: number }[];
+}
+
+/** what a mirror costs an eye (DuelCamera's choice): standing inside its frame or near its middle, just behind it beside
+ *  the disc, and the pair seen through it (`mid`: the pair's middle) */
+export function discCost(eye: V3, mid: V3, discs: readonly { at: V3; n: V3; r: number }[] | undefined) {
+  if (!discs) return 0;
+  let s = 0;
+  for (const d of discs) {
+    const rx = eye[0] - d.at[0], ry = eye[1] - d.at[1], rz = eye[2] - d.at[2], z = rx * d.n[0] + ry * d.n[1] + rz * d.n[2];
+    const lat = Math.hypot(rx - d.n[0] * z, ry - d.n[1] * z, rz - d.n[2] * z), R = d.r + 0.5;
+    // (in or right by its frame: the brass and glass fill the lens)
+    const by = Math.hypot(Math.max(0, lat - R), z);
+    if (by < 2.2) s += 2.5 * (1 - by / 2.2);
+    // (behind its face, near: the disc's back and the world through it seen from beside)
+    if (z < 0 && z > -3.5 && lat < R + 2.5) s += 1.2 * (1 + z / 3.5);
+    // (the pair seen through the disc: another world in the way)
+    const mz = (mid[0] - d.at[0]) * d.n[0] + (mid[1] - d.at[1]) * d.n[1] + (mid[2] - d.at[2]) * d.n[2];
+    if ((z > 0) !== (mz > 0) && Math.abs(z - mz) > 1e-6) {
+      const k = z / (z - mz), px = rx + (mid[0] - eye[0]) * k, py = ry + (mid[1] - eye[1]) * k, pz = rz + (mid[2] - eye[2]) * k;
+      if (Math.hypot(px, py, pz) < R) s += 3;
+    }
+  }
+  return s;
 }
 
 /** what the camera does differently in an arena (by its world): over water, the plain view comes down by `waterLow`
@@ -549,6 +576,7 @@ export class DuelCamera {
       for (const p of [b.pts[0], b.head]) ahead.push([p[0] + b.vel[0] * t, Math.max(b.root[1], p[1] + dy), p[2] + b.vel[2] * t]);
     }
     const maxD = Math.min(P.maxDist, I.maxDist ?? Infinity);
+    const mid: V3 = [(A.root[0] + B.root[0]) / 2, (A.root[1] + B.root[1]) / 2 + 1, (A.root[2] + B.root[2]) / 2];
     let lastFg = 0;
     const score = (yaw: number, pitch: number, base: number, lens: number): number => {
       lastFg = 0;
@@ -594,6 +622,8 @@ export class DuelCamera {
       // (and never out through the world's shell: past the room by more than roomOver, in any direction)
       const out3 = Math.hypot(f.eye[0] - I.center[0], f.eye[1] - I.center[1], f.eye[2] - I.center[2]) - (I.room + P.roomOver);
       if (out3 > 0) s += K.inside + out3 * 2;
+      // (the mirrors: never inside one's frame, beside its back, or seeing the pair through it)
+      if (I.discs) s += discCost(f.eye, mid, I.discs);
       // side on (with the turn toward behind seat 1) unless the pair is on top of each other; the lower view; the
       // lens unwidened; little turn from what it is heading for; the other side only for a real gain
       const ideal = base + behindBy * Math.sign(wrap(behind - base));

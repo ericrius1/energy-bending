@@ -59,9 +59,24 @@ export class TrackLoader {
 }
 
 /** what the deck reads of the music each tick */
-export interface DeckHost { readonly track: TrackInfo | null; readonly trackAt: number; readonly trackBeat0: number; readonly clock: MusicClock }
+export interface DeckHost {
+  readonly track: TrackInfo | null; readonly trackAt: number; readonly trackBeat0: number; readonly clock: MusicClock;
+  /** a mirror crossing's bridge (Engine.crossTo): the old track bent from tA to tB and faded, the new one from tB at
+   *  `pos` in its file, bent by rB and eased to its own rate by tC */
+  readonly bridge?: { from: TrackInfo | null; to: TrackInfo; tA: number; tB: number; tC: number; rA: number; rB: number; pos: number } | null;
+}
 
-interface Seg { track: TrackInfo; src: AudioBufferSourceNode; gain: GainNode; t0: number; p0: number; rate: number; fading: boolean; handed: boolean; stop: number }
+/** a segment's rate ramp (linear from r0 at t0 to r1 at t1) */
+interface Ramp { t0: number; t1: number; r0: number; r1: number }
+interface Seg { track: TrackInfo; src: AudioBufferSourceNode; gain: GainNode; t0: number; p0: number; rate: number; fading: boolean; handed: boolean; stop: number; ramp?: Ramp }
+
+/** where a segment is in its file at time t (its rate ramp integrated) */
+export function segPos(s: { t0: number; p0: number; rate: number; ramp?: Ramp }, t: number) {
+  const R = s.ramp;
+  if (!R || t <= R.t0) return s.p0 + (t - s.t0) * (R ? R.r0 : s.rate);
+  const u = Math.min(t, R.t1) - R.t0, k = (R.r1 - R.r0) / Math.max(1e-6, R.t1 - R.t0);
+  return s.p0 + (R.t0 - s.t0) * R.r0 + R.r0 * u + 0.5 * k * u * u + Math.max(0, t - R.t1) * R.r1;
+}
 
 const N = 32, IN = new Float32Array(N), OUT = new Float32Array(N);
 for (let i = 0; i < N; i++) { IN[i] = Math.sin(((i / (N - 1)) * Math.PI) / 2); OUT[i] = Math.cos(((i / (N - 1)) * Math.PI) / 2); }
@@ -78,18 +93,42 @@ export class Deck {
   /** where the clock says the track is at time t */
   private where(t: TrackInfo, at: number) { return trackPos(t, this.host.clock.beatAt(at) - this.host.trackBeat0); }
 
+  /** the bridge whose old track has been bent (each is bent once) */
+  private bent: object | null = null;
+
   /** each tick of the scheduler (cur: the context's time now) */
   update(cur: number) {
-    const H = this.host, T = H.track, horizon = cur + 0.6;
+    const H = this.host, T = H.track, horizon = cur + 0.6, Bx = H.bridge ?? null;
     this.segs = this.segs.filter((s) => s.stop > cur - 0.1);
-    // another track's segments fade from when the new one began
-    for (const s of this.segs) if (!s.fading && s.track !== T) this.fade(s, Math.max(cur + 0.01, H.trackAt), 1.2);
+    // a crossing's bridge: the old track's rate bent toward the new tempo up to the beat the new one comes in on (its
+    // beats stay with the clock's as the clock bends), then it fades from there, below
+    if (Bx && this.bent !== Bx && Bx.from) {
+      this.bent = Bx;
+      const t0 = Math.max(cur + 0.01, Bx.tA), t1 = Math.max(t0 + 0.02, Bx.tB);
+      for (const s of this.segs) if (!s.fading && s.track === Bx.from) {
+        const r = s.src.playbackRate;
+        r.cancelScheduledValues(t0); r.setValueAtTime(s.rate, t0); r.linearRampToValueAtTime(s.rate * Bx.rA, t1);
+        s.ramp = { t0, t1, r0: s.rate, r1: s.rate * Bx.rA };
+      }
+    }
+    // another track's segments fade from when the new one began (a bridge's old track quicker)
+    for (const s of this.segs) if (!s.fading && s.track !== T) this.fade(s, Math.max(cur + 0.01, H.trackAt), Bx && s.track === Bx.from ? 0.75 : 1.2);
     if (!T) return;
     const buf = this.loader.get(T.id);
     if (!buf) { void this.loader.want(T); return; }
     const r = this.rateFor(T), L = loopOf(T);
     const live = this.segs.filter((s) => !s.fading && s.track === T);
     const s = live[live.length - 1];
+    if (!s && Bx && Bx.to === T && H.trackAt === Bx.tB && Bx.tC > cur) {
+      // the bridge's new track: in on its beat at its place, bent and eased to its own rate by tC
+      const ts = Math.max(cur + 0.02, Bx.tB), late = ts - Bx.tB;
+      const ramp: Ramp = { t0: Bx.tB, t1: Bx.tC, r0: Bx.rB, r1: 1 };
+      const p = segPos({ t0: Bx.tB, p0: Bx.pos, rate: 1, ramp }, ts);
+      if (ts > horizon) return;
+      this.start(T, buf, ts, p, Bx.rB + (1 - Bx.rB) * Math.min(1, late / Math.max(1e-3, Bx.tC - Bx.tB)), late > 0.05 ? 0.25 : 0.12, { ...ramp, t0: ts, r0: Bx.rB + (1 - Bx.rB) * Math.min(1, late / Math.max(1e-3, Bx.tC - Bx.tB)) });
+      this.counts.starts++;
+      return;
+    }
     if (!s) {
       let ts = Math.max(cur + 0.03, H.trackAt), p = this.where(T, ts);
       if (p < 0) { ts += -p / r; p = 0; }
@@ -98,12 +137,14 @@ export class Deck {
       this.counts.starts++;
       return;
     }
-    const te = s.t0 + (L.end - s.p0) / s.rate;   // when this segment reaches the loop's end
+    // when this segment reaches the loop's end (past its ramp: the ramp ends long before the loop does)
+    const te = s.ramp ? s.ramp.t1 + (L.end - segPos(s, s.ramp.t1)) / s.ramp.r1 : s.t0 + (L.end - s.p0) / s.rate;
     // drift: a little ahead of now, if this segment is still playing then
     // (a segment not started yet is where it was put; places compare round the loop, so a seam's two sides agree)
     const tc = cur + 0.05;
-    if (!s.handed && tc >= s.t0 && tc < te - 0.05) {
-      let err = s.p0 + (tc - s.t0) * s.rate - this.where(T, tc);
+    // (not while a bridge's ramp is under way: the clock bends with it, both linear, and they agree within a few ms)
+    if (!s.handed && tc >= s.t0 && tc < te - 0.05 && (!s.ramp || tc > s.ramp.t1 + 0.05)) {
+      let err = segPos(s, tc) - this.where(T, tc);
       const len = L.end - L.start;
       if (Math.abs(err) > len / 2) err -= Math.round(err / len) * len;
       this.counts.lastErrMs = err * 1000;
@@ -125,14 +166,15 @@ export class Deck {
     }
   }
 
-  private start(t: TrackInfo, buf: AudioBuffer, at: number, pos: number, rate: number, fadeIn: number) {
+  private start(t: TrackInfo, buf: AudioBuffer, at: number, pos: number, rate: number, fadeIn: number, ramp?: Ramp) {
     const src = new AudioBufferSourceNode(this.ctx, { buffer: buf, playbackRate: rate });
+    if (ramp) { src.playbackRate.setValueAtTime(ramp.r0, at); src.playbackRate.linearRampToValueAtTime(ramp.r1, Math.max(at + 0.02, ramp.t1)); }
     const gain = new GainNode(this.ctx, { gain: 0 });
     src.connect(gain).connect(this.dest);
     if (fadeIn <= 0.06) gain.gain.setValueCurveAtTime(IN, at, fadeIn);
     else { gain.gain.setValueAtTime(0, at); gain.gain.setTargetAtTime(1, at, fadeIn / 3); }
     src.start(at, Math.max(0, Math.min(buf.duration - 0.01, pos)));
-    this.segs.push({ track: t, src, gain, t0: at, p0: pos, rate, fading: false, handed: false, stop: Infinity });
+    this.segs.push({ track: t, src, gain, t0: at, p0: pos, rate: ramp ? ramp.r1 : rate, fading: false, handed: false, stop: Infinity, ...(ramp ? { ramp } : {}) });
   }
 
   private fade(s: Seg, at: number, dur: number) {

@@ -19,7 +19,7 @@ import { MusicClock, type StepHost, type Sync } from './clock';
 import { Harmony, near, notes, pc, MOODS, type Harm } from './harmony';
 import { FUSIONS, SFX, type Instrument, type FusionKind, type SfxName, type Element } from './instrument';
 import type { Tone, Room } from './sound';
-import { trackMood, trackChord, type TrackInfo } from './track';
+import { trackMood, trackChord, trackPos, type TrackInfo } from './track';
 import { defineParams } from '../engine/params';
 
 const clamp = (x: number, a: number, b: number) => Math.max(a, Math.min(b, x));
@@ -73,6 +73,11 @@ export class Engine implements StepHost {
   trackAt = 0;
   /** the beat on the clock that is the track's bar 1 (0 in the game; a film puts its shot on the film's track) */
   trackBeat0 = 0;
+  /** a mirror crossing's bridge (phase 6, crossTo): the old track's tempo bent toward the new one's from now (step
+   *  kA, time tA) to the next beat (kB, tB), where the new track comes in at its beat `nb` (since its bar 1: its
+   *  place in the file `pos`) bent toward the old one's, and eased to its own tempo by the bar after (kC, tC). The old
+   *  track plays at `rA` of its rate by tB and fades; the new starts at `rB` and is at 1 by tC. The deck reads it */
+  bridge: { from: TrackInfo | null; to: TrackInfo; kA: number; kB: number; kC: number; tA: number; tB: number; tC: number; rA: number; rB: number; nb: number; pos: number; done: boolean } | null = null;
   /** a track waiting for the next bar line (free) or the shared clock's next jump (synced); undefined: none */
   private pendingTrack: TrackInfo | null | undefined = undefined;
   private bed = false;
@@ -129,6 +134,8 @@ export class Engine implements StepHost {
   setTrack(t: TrackInfo | null, now = false) {
     if (now) { this.pendingTrack = undefined; this.useTrack(t, this.time()); return; }
     if ((this.pendingTrack === undefined ? this.track : this.pendingTrack)?.id === t?.id) return;
+    // (the track a crossing's bridge is bringing in: it comes on its beat, not again on a bar line)
+    if (t && this.bridge && this.bridge.to.id === t.id) return;
     // (back to the track playing before the bar line came (a mirror crossed and crossed back within a bar): it plays on,
     // not started again from its bar 1)
     if (this.pendingTrack !== undefined && this.track?.id === t?.id) { this.pendingTrack = undefined; return; }
@@ -141,8 +148,39 @@ export class Engine implements StepHost {
     if (!t) { this.harmony.setMood(this.harmony.moodIndex, 0); this.clock.swing = this.harmony.mood.swing; return; }
     this.harmony.setCustom(trackMood(t));
     this.clock.swing = t.swing;
-    if (!this.clock.sync) this.clock.bpm = this.clock.targetBpm = t.bpm;
+    if (!this.clock.sync && !this.clock.glides.length) this.clock.bpm = this.clock.targetBpm = t.bpm;
     this.padKey = '';
+  }
+
+  /** through a mirror (phase 6, report 20-crossing): the new world's track comes in on the next beat (at least a 16th
+   *  from now), at its bar `bar` (a phrase whose energy matches: SetMusic.cross chooses it) and the same beat of the
+   *  bar as the clock's, so the bar lines go on where they were. The tempo is bridged rather than jumped: from now to
+   *  that beat the clock (and the old track, as the deck plays it) bends toward the geometric mean of the two tempi, at
+   *  most `bendOut` of its own; the new track comes in at most `bendIn` off its own tempo toward it and eases onto its
+   *  own over `bars`. The free clock only (a room's shared clock says for itself). Returns the bridge */
+  crossTo(t: TrackInfo, bar: number, o: { bendOut?: number; bendIn?: number; bars?: number; lead?: number } = {}) {
+    const c = this.clock;
+    if (c.sync) { this.setTrack(t); return null; }
+    const from = this.track, cur = this.time();
+    const bendOut = o.bendOut ?? 0.1, bendIn = o.bendIn ?? 0.06, steps = Math.round((o.bars ?? 1.5) * 16);
+    // (a bridge already under way: what it has bent stays bent, the next one goes on from the tempo now)
+    c.glides = [];
+    // the next beat at least `lead` s off (a step's worth at the least: the scheduler has handed out up to c.step - 1)
+    const lead = o.lead ?? 0.2;
+    let kB = c.step;
+    while (((((kB - c.origin) % 4) + 4) % 4) !== 0 || c.stepTime(kB) < cur + lead || kB < c.step + 1) kB++;
+    const kA = c.step, b0 = c.bpm, M = Math.sqrt(b0 * t.bpm);
+    const rA = Math.max(1 - bendOut, Math.min(1 + bendOut, M / b0)), rB = Math.max(1 - bendIn, Math.min(1 + bendIn, M / t.bpm));
+    const kC = kB + steps;
+    if (kB > kA) c.glides.push({ k0: kA, k1: kB, b0, b1: b0 * rA });
+    c.glides.push({ k0: kB, k1: kC, b0: t.bpm * rB, b1: t.bpm });
+    const tA = c.stepTime(kA), tB = c.timeOfStep(kB), tC = c.timeOfStep(kC);
+    // (the beat of the bar the clock is on there: the new track's place keeps it, so its bar lines are the clock's)
+    const j = (((kB - c.origin) / 4) % 4 + 4) % 4, nb = bar * 4 + j;
+    this.pendingTrack = undefined;
+    this.bridge = { from, to: t, kA, kB, kC, tA, tB, tC, rA: kB > kA ? rA : 1, rB, nb, pos: trackPos(t, nb), done: false };
+    this.events.push({ t: cur, type: 'bridge', to: t.id, at: tB, bar, rA, rB });
+    return this.bridge;
   }
 
   // ---------------------------------------------------------------- the place and the harmony
@@ -193,6 +231,15 @@ export class Engine implements StepHost {
   // ---------------------------------------------------------------- one step
   step(rel: number, t: number) {
     const o = this.out, c = this.clock;
+    // a crossing's bridge: the new track from this beat, at its place (its bar lines on the clock's)
+    const Bx = this.bridge;
+    if (Bx && !Bx.done && c.step >= Bx.kB) {
+      Bx.done = true;
+      this.useTrack(Bx.to, Bx.tB);
+      this.trackBeat0 = rel / 4 - Bx.nb;
+      this.harmony.setChord(trackChord(Bx.to, Bx.nb), t);
+      this.events.push({ t, type: 'track', id: Bx.to.id, bridge: true });
+    }
     if (this.dropStep >= 0 && c.step >= this.dropStep) {
       // solo: re-base the bar so the drop lands on beat one; synced (or on a track): it is on a bar line already
       if (!c.synced && !this.track) { c.origin = c.step; rel = 0; }
