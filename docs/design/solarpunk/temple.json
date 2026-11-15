@@ -1,0 +1,10 @@
+{
+  "generator": "GPT Image via the Codex CLI image tool (ChatGPT login)",
+  "codexModel": "gpt-5.6-terra",
+  "prompt": "Concept art: a sunlit water temple for a dance game. Terraces of white ceramic and honey sandstone around a shallow court of clear turquoise water where dancers play; fountains, brass water channels and little falls, sailcloth canopies and long banners moving in the breeze, wind chimes, lotus and climbing jasmine over arches, stained-glass rose windows throwing coloured light on the water. Morning sun, soft bounce light, caustics on the stone. Hopeful, peaceful, full of awe; a sunlit future where nature and craft live together. Palette: warm sun gold, leaf and moss green, sky teal, terracotta, cream, a touch of coral. Materials: white ceramic, brass, copper gone green with verdigris, honey wood, woven fibre, leaded stained glass. Art-nouveau curves and botanical ornament. Painterly, clean, luminous video game concept art. Not grim, not dystopian, not industrial, not neon, not cyberpunk, no text, no logos, no weapons, nothing burning or hurt.",
+  "inputs": {},
+  "codexThread": "01a1dc5d-1881-74f2-884f-719fc8efb8c7",
+  "codexFile": "C:\\Users\\ericr\\.codex\\generated_images\\01a1dc5d-1881-74f2-884f-719fc8efb8c7\\exec-19cb9016-3b67-415e-a4d4-1ea12424d3f2.png",
+  "seconds": 59.5,
+  "sha256": "7a2583906e4df537956707e5c33dff259846605e9914a30e4a70f99e864ef203"
+}

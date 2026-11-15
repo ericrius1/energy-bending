@@ -1,0 +1,10 @@
+{
+  "generator": "GPT Image via the Codex CLI image tool (ChatGPT login)",
+  "codexModel": "gpt-5.6-terra",
+  "prompt": "Concept art: walkways in a redwood canopy for a dance game. Giant redwood trunks, round platforms of honey wood and woven-fibre rope bridges high among the branches, solar-glass lanterns like seed pods, kites and prayer-flag banners, wind chimes, ferns and moss on every branch. Late golden hour turning to dusk: warm light shafts through mist above, and below bioluminescent moss, glowing fungi and fireflies beginning to shine. Hopeful, peaceful, full of awe; a sunlit future where nature and craft live together. Palette: warm sun gold, leaf and moss green, sky teal, terracotta, cream, a touch of coral. Materials: white ceramic, brass, copper gone green with verdigris, honey wood, woven fibre, leaded stained glass. Art-nouveau curves and botanical ornament. Painterly, clean, luminous video game concept art. Not grim, not dystopian, not industrial, not neon, not cyberpunk, no text, no logos, no weapons, nothing burning or hurt.",
+  "inputs": {},
+  "codexThread": "01a1dc5d-1859-7eb1-af36-19ac1b038234",
+  "codexFile": "C:\\Users\\ericr\\.codex\\generated_images\\01a1dc5d-1859-7eb1-af36-19ac1b038234\\exec-ffa80b09-b4be-4035-a9d1-b43a2f57884a.png",
+  "seconds": 60.7,
+  "sha256": "36cb1bea503fa702ff4bf6037dd41283e887dceae6676c77974346fda430407d"
+}
