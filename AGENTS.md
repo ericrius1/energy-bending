@@ -33,7 +33,7 @@ dancer and its 13-landmark copy), `?wander` (motion-matched dancers walking to r
 locked to the world's stage plane; `l` toggles), `?world=redwoods|pool|temple` (an unknown one opens the hub), `?panel` (or `/`),
 `?debug` (weft's overlay: GPU time per pass), `?baseline` (only WebGPU's default limits: a phone's), `?noautores`, `?you` (webcam on first touch; `y` toggles),
 `?jogo=same|partner|online|script` (the game: src/play; `&partner=playful|calm|fierce|mirror|standin`, `&roda=N`,
-`&free`, `&bpm=N` a local room's tempo, `&hold=S` a script's room S seconds late with the dancers asleep, a bare
+`&lock` the side view (open 3D is the default since report 20-roam; a script keeps the side view unless `&free`), `&bpm=N` a local room's tempo, `&hold=S` a script's room S seconds late with the dancers asleep, a bare
 `&hold` at `bend.jogo.start()`), `?play&partner`, `?roda`, `?teach`, `?npcs=5` (the brains' demos: src/ai), `?class=desktop|laptop|phone`
 (the device's budget; `?probe` measures again), `?perf=default|quick&sink=…` (the self-measuring suite, 4-perf.md),
 `?dress=fire,water` (loadout presets per dancer: matter/core/presets.ts), `?play` (a playable dancer; `&two` adds a

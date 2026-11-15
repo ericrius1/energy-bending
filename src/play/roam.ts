@@ -5,7 +5,7 @@
 //     second player on this screen) is brought through just behind (Portals.bring), and the one who crossed is kept
 //     from crossing straight back for a moment (Portals.holdBack)
 //   - the main view follows: the follow camera brings the eye through the disc behind the pair; an eye that stood past
-//     the mirror's plane beside its disc (it would never come through it), or one not through in 3 s, goes over at once
+//     the mirror's plane beside its disc (it would never come through it), or one not through in 1.6 s (the dance pauses until it is), goes over at once
 //     under the mirror's light (Portals.arrive, flash), as the duel's does
 //   - the way to the other worlds is said: the "mirrors" chip (labels.ts: M names every mirror) when the dance begins,
 //     and while the view is locked to the side, a chip saying how to roam (V, Tab, a gamepad's View, the touch pad's
@@ -36,12 +36,14 @@ export interface RoamCtx {
 }
 
 /** seconds a crossing may take before the main view goes over under the mirror's light */
-const TRANSIT_S = 3;
+const TRANSIT_S = 1.6;
+/** frames running the eye must stand on the pair's side of the disc, off it, before the view goes over under the light */
+const BESIDE_FRAMES = 6;
 
 export function roam(o: RoamCtx) {
   const { gates, rig, main } = o;
   /** the crossing under way: the disc the pair came out of (in the new world), seconds left */
-  let crossing: { at: V3; n: V3; t: number; to: string } | null = null;
+  let crossing: { at: V3; n: V3; t: number; to: string; beside: number } | null = null;
   /** every crossing (the room's seconds are the jogo's; these are the page's): from, to, how the view went over */
   const log: { at: number; from: string; to: string; how?: 'through' | 'flash' | 'late' }[] = [];
   const t0 = performance.now();
@@ -57,7 +59,7 @@ export function roam(o: RoamCtx) {
       gates.holdBack(d, 0.6);
     }
     const out = gates.gates.get(e.partner);
-    crossing = out ? { at: [...out.at] as V3, n: [...out.n] as V3, t: TRANSIT_S, to: e.to } : null;
+    crossing = out ? { at: [...out.at] as V3, n: [...out.n] as V3, t: TRANSIT_S, to: e.to, beside: 0 } : null;
     log.push({ at: +((performance.now() - t0) / 1000).toFixed(2), from: e.from, to: e.to });
   });
 
@@ -75,8 +77,11 @@ export function roam(o: RoamCtx) {
       px += J[0]; py += J[1]; pz += J[2]; n++;
     }
     const side = (p: ArrayLike<number>) => (p[0] - c.at[0]) * c.n[0] + (p[1] - c.at[1]) * c.n[1] + (p[2] - c.at[2]) * c.n[2];
+    // (on the pair's side for a few frames running: the frame the eye passes through the disc it is on their side too,
+    // until the gates' phase carries the camera after this one, and that is a crossing, not a cut)
     const beside = n > 0 && gates.rigWorld === c.to && side(rig.eye) * side([px / n, py / n, pz / n]) > 0;
-    if ((beside || c.t <= 0) && gates.rigWorld === c.to) {
+    c.beside = beside ? c.beside + 1 : 0;
+    if ((c.beside >= BESIDE_FRAMES || c.t <= 0) && gates.rigWorld === c.to) {
       gates.arrive();
       gates.flash(c.to);
       if (X && !X.how) X.how = c.t <= 0 ? 'late' : 'flash';

@@ -457,6 +457,12 @@ export async function startJogo(app: PlayApp, mode: string, opts: { joined?: Joi
       if (c && o) { const r = bodies[1 - s].root(); c.character.lookAt = r; c.lookAtHead = o.skeleton.pos[JOINT.Head]; }
     }
     if (waiting) waiting.visible = !st || st.phase === 'waiting';
+    // online, the other seat through a mirror: its poses come in the far world's coordinates, named with that world; it
+    // is drawn there (seen through the mirror until this page's own dancer follows), not in this page's world
+    if (online) for (let s = 0; s < 2; s++) {
+      const d = seatDancer[s], w = (d?.controller as { info?: { ok: boolean; world?: string } } | undefined)?.info;
+      if (d && d !== play.dancers[0] && w?.ok && w.world && app.worldOf(w.world)?.id === w.world && gates.worldOf(d) !== w.world) gates.place(d, w.world);
+    }
   }, 'jogo: the room\'s clock, the beat, the tension, the script');
 
   frame.tick('travel', (f) => {
@@ -515,7 +521,8 @@ export async function startJogo(app: PlayApp, mode: string, opts: { joined?: Joi
     // online: this page's dancer to the room (20 Hz on the wire), with its state for the others' exchanges
     if (online) {
       const c = play.controllers[0].character;
-      room.session.sendPose(play.dancers[0].skeleton, { world: world().id, flags: c.flags, move: c.move ? [String(c.move.serial), c.move.startTime] : null });
+      // (the world this page's dancer is in, not the main view's: the view comes through a mirror a moment later)
+      room.session.sendPose(play.dancers[0].skeleton, { world: gates.worldOf(play.dancers[0]), flags: c.flags, move: c.move ? [String(c.move.serial), c.move.startTime] : null });
     }
   }, 'jogo: the fusion stands back; online, the pose out');
 
