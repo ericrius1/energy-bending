@@ -194,6 +194,30 @@ test('the geode\'s hum: a crystal warns two bars ahead, then its column lifts wh
   return `lifted to ${top.toFixed(2)} m, ${high.toFixed(1)} s near the top`;
 });
 
+test('the geode\'s hum rises where the pair is: the open spot nearest them as its warning begins, and lifts both', () => {
+  const { arena } = nodeArena('geode');
+  const H = arena.hazard!, M = H.hum!;
+  // (each spot stands on the agate with floor all round it, clear of the arena's drops: a body flung from the top lands)
+  const { world } = nodeArena('geode');
+  for (const s of M.spots) for (let k = 0; k < 12; k++) {
+    const a = (k / 12) * Math.PI * 2;
+    near(world.groundAt(s[0] + Math.cos(a) * (M.r + 0.6), s[2] + Math.sin(a) * (M.r + 0.6)), 0, 1e-6, `floor round the spot ${s}`);
+  }
+  // the warning of phrase 2 begins at beat 24 (HUM_WARN before 32): the pair stands by one spot then
+  const R = rig('geode', true, 24 - 6 - 0.5);
+  const far = M.spots.reduce((a, s) => (Math.hypot(s[0], s[2] - 4) > Math.hypot(a[0], a[2] - 4) ? s : a), M.spots[0]);
+  R.place(0, far[0] - 0.4, far[2]); R.place(1, far[0] + 0.4, far[2] + 0.2);
+  R.run(2.5);
+  const m = humNow(H, 31);
+  assert(m.next === far || (m.next[0] === far[0] && m.next[2] === far[2]), `the coming column at the pair's spot ${far} (got ${m.next})`);
+  // through the lift (beat 32 on): both ride it up together
+  let topA = 0, topB = 0;
+  for (let i = 0; i < 60 * 4; i++) { R.run(DT); topA = Math.max(topA, R.chars[0].root[1]); topB = Math.max(topB, R.chars[1].root[1]); }
+  assert(topA > M.h - 1 && topB > M.h - 1, `both lifted (${topA.toFixed(2)}, ${topB.toFixed(2)} m; the column ${M.h} m)`);
+  R.hazards.rest();
+  return `the column rose at ${far.join(', ')}, both lifted to ${Math.min(topA, topB).toFixed(2)} m`;
+});
+
 // ---------------------------------------------------------------- every arena, two players, a set
 test('virtual players ride each hazard in a set, and nobody falls more than before', () => {
   const out: string[] = [];

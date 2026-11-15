@@ -13,7 +13,9 @@
 //          on it and the low stepping stones rock, a swimmer is lifted and carried along its crest, and a jump off the
 //          crest (from the water or a floe on it) goes higher
 //   hum    the geode: on each phrase a crystal hums (its glints rising for two bars first), then for a bar and a half
-//          lifts whoever stands round it on a column of soft light, holding them floating at its top
+//          lifts whoever stands round it on a column of soft light, holding them floating at its top. The crystal that
+//          hums is the one nearest the pair as its warning begins (of the arena's open spots; the glints may move to a
+//          nearer one through the warning's first bar, then it stands), so the column rises where the two are dancing
 //
 // Through `Character.env` (updraft) and the bodies' velocity as the powers do (src/duel/powers.ts), the worlds' floors
 // (the water a world's groundAt returns, `waterFloor`), and the Pool's moving stones (its solids, moved in place). Pure:
@@ -48,8 +50,9 @@ export interface Hazard {
   /** the wind: the gusts' directions (rad from +x, one a phrase in turn, by the phrase's hash), and how many phrases of
    *  ten have one */
   wind?: { dirs: number[]; often: number };
-  /** the crystals' hum: the spots that lift (their foot), the column's radius and height */
-  hum?: { spots: V3[]; r: number; h: number };
+  /** the crystals' hum: the spots that may lift (their foot), the column's radius and height; and the spot chosen for
+   *  each phrase (by DuelHazards.step, nearest the pair; a phrase not chosen takes the spots in turn) */
+  hum?: { spots: V3[]; r: number; h: number; chosen?: Map<number, V3> };
 }
 
 export const HAZARD = {
@@ -71,6 +74,9 @@ export const HAZARD = {
   GUST_AIR: 2.4, GUST_GROUND: 0.6, GUST_WARN: 3, GUST_RISE: 1.5, GUST_HOLD: 6, GUST_FALL: 3,
   /** the hum: its warning (beats before the phrase), its lift (beats), the column's rise (m/s) */
   HUM_WARN: 8, HUM_BEATS: 6, HUM_UP: 6.5,
+  /** the hum's choice: through the first HUM_PICK beats of its warning the column's spot follows the pair (to a spot
+   *  HUM_SWITCH m nearer than the one chosen), then it stands */
+  HUM_PICK: 4, HUM_SWITCH: 1,
 };
 
 const clamp = (x: number, a: number, b: number) => Math.max(a, Math.min(b, x));
@@ -121,7 +127,7 @@ export function gustNow(H: Hazard, beat: number) {
 /** the hum now: the spot that lifts this phrase (and the next), its lift (0 … 1) and its warning (0 … 1) */
 export function humNow(H: Hazard, beat: number) {
   const M = H.hum!, P = HAZARD, p = Math.floor(beat / P.PHRASE), b = beat - p * P.PHRASE;
-  const at = (q: number) => M.spots[((q % M.spots.length) + M.spots.length) % M.spots.length];
+  const at = (q: number) => M.chosen?.get(q) ?? M.spots[((q % M.spots.length) + M.spots.length) % M.spots.length];
   const lift = b < P.HUM_BEATS ? smooth(b / 0.5) * smooth((P.HUM_BEATS - b) / 0.75) : 0;
   const warn = b > P.PHRASE - P.HUM_WARN ? smooth((b - (P.PHRASE - P.HUM_WARN)) / P.HUM_WARN) : 0;
   return { spot: at(p), next: at(p + 1), lift, warn, phrase: p };
@@ -146,7 +152,25 @@ export const withWater = (H: Hazard | undefined, ground: (x: number, z: number) 
 
 export const tideHazard = (o: { low: number; high: number; bars: number }): Hazard => ({ kind: 'tide', on: true, beat: 0, tide: o });
 export const windHazard = (o: { dirs: number[]; often: number }): Hazard => ({ kind: 'wind', on: true, beat: 0, wind: o });
-export const humHazard = (o: { spots: V3[]; r: number; h: number }): Hazard => ({ kind: 'hum', on: true, beat: 0, hum: o });
+export const humHazard = (o: { spots: V3[]; r: number; h: number }): Hazard => ({ kind: 'hum', on: true, beat: 0, hum: { ...o, chosen: new Map() } });
+/** the hum's spot for the coming phrase: the open spot nearest the pair's middle (x, z), kept unless another is
+ *  HUM_SWITCH m nearer; chosen through the warning's first HUM_PICK beats, standing after (and the phrase playing now
+ *  chosen at once if it never was: the set's first). Pure but for the hazard's own `chosen` */
+export function chooseHum(H: Hazard, beat: number, mid: V2) {
+  const M = H.hum!, P = HAZARD;
+  if (!M.chosen) M.chosen = new Map();
+  const p = Math.floor(beat / P.PHRASE), b = beat - p * P.PHRASE;
+  const near = (s: V3) => Math.hypot(s[0] - mid[0], s[2] - mid[1]);
+  const best = () => M.spots.reduce((a, s) => (near(s) < near(a) ? s : a), M.spots[0]);
+  if (!M.chosen.has(p)) M.chosen.set(p, best());
+  const warnFrom = P.PHRASE - P.HUM_WARN;
+  if (b >= warnFrom && b < warnFrom + P.HUM_PICK) {
+    const was = M.chosen.get(p + 1), s = best();
+    if (!was || near(s) < near(was) - P.HUM_SWITCH) M.chosen.set(p + 1, s);
+  }
+  // (only the phrases near now are kept)
+  for (const q of M.chosen.keys()) if (q < p - 1 || q > p + 1) M.chosen.delete(q);
+}
 export const swellHazard = (o: { amp: number; width: number; reach: number; dirs: number[]; movers: Mover[]; center?: V2 }): Hazard =>
   ({ kind: 'swell', on: true, beat: 0, swell: { ...o, center: o.center ?? [0, 0], bob: new Float32Array(o.movers.length) } });
 
@@ -200,6 +224,8 @@ export class DuelHazards {
 
   constructor(readonly chars: readonly [Character, Character], readonly match: DuelMatch, readonly arena: Arena, readonly o: HazardsOptions = {}) {
     this.hazard = arena.hazard ?? null;
+    // (a new duel: no column chosen yet)
+    this.hazard?.hum?.chosen?.clear();
     if (this.hazard && o.on !== undefined) setHazards(arena, o.on);
     // locked to the stage plane, the water is a ledge across it at the floating height under the body (the plane's own
     // floor has gaps where the water is)
@@ -220,6 +246,7 @@ export class DuelHazards {
     const H = this.hazard;
     if (!H) return;
     H.beat = 0; H.on = true;
+    H.hum?.chosen?.clear();
     if (H.swell) { for (const m of H.swell.movers) m.solid.c[1] = m.rest[1]; H.swell.bob.fill(0); }
   }
 
@@ -270,6 +297,10 @@ export class DuelHazards {
       });
     }
     const gust = H.kind === 'wind' ? gustNow(H, beat) : null;
+    if (H.kind === 'hum') {
+      const A = this.chars[0].root, B = this.chars[1].root;
+      chooseHum(H, beat, [(A[0] + B[0]) / 2, (A[2] + B[2]) / 2]);
+    }
     const hum = H.kind === 'hum' ? humNow(H, beat) : null;
     for (let k = 0; k < 2; k++) {
       const c = this.chars[k];
