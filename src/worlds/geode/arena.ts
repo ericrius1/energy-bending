@@ -168,9 +168,10 @@ function build(): GeodeDuel {
     hazard: humHazard({ spots: HUM_SPOTS, r: 1.25, h: 4.2 }),
     // the world's energy (DuelTune): the hum lifting the pair together four times as often as before (14 rides a set
     // against 3), more of the catches from the air (53 % against 40) and the peak up (0.91 against 0.86) made the geode
-    // the easiest world to fuse in (28 of 120 sets in Node); its gains a little smaller and its ebbs a little faster keep
-    // it about 1 in 8 (15 of 120), as elsewhere (report 16)
-    energy: { gain: 0.96, ebb: 1.05 },
+    // the easiest world to fuse in Node (28 of 120 sets); its gains a little smaller and its ebbs a little faster keep it
+    // about 1 in 8 in the page (3 of 28; Node 22 of 120), as elsewhere. (×0.96 and ×1.05 was 15 of 120 in Node but 1 of
+    // 28 in the page: report 16)
+    energy: { gain: 0.98, ebb: 1.025 },
   };
   // (the gates stand clear: none within 2 m of the plane between the ends, nor of a piece)
   for (const [w, [x, z]] of Object.entries(HUB_GATES)) {
