@@ -48,6 +48,9 @@ export const CONTACT = {
   FLING_AIM: 4.5,
   FLING_UP: 2.6,
   MAX_SPEED: 17,
+  /** a flight the contact gives (a fling; a lift three quarters of it) keeps its speed this long in the air (s:
+   *  Character.carry, phase 5: the flow): the flown body steers it but no longer brakes it */
+  CARRY_S: 1.1,
   /** a fling's flight counts as landed within this (s) */
   FLOWN_MAX: 3,
   /** the lift's launch (m/s up: the duel's jump is 13.3) and the counter's push */
@@ -209,6 +212,7 @@ export class Contact {
         const s = fin.stick;
         if (above && fin.jump) {
           this.setV(F, [F.v[0] + s[0] * 3, CONTACT.LAUNCH, F.v[2] + s[1] * 3]);
+          F.carry(CONTACT.CARRY_S * 0.75);
           out.push({ kind: 'lift', seat: L.held, other: L.holder, perfect: onBeat, at: L.at });
         } else {
           const sl = Math.hypot(s[0], s[1]), dir: [number, number] = sl > 0.2 ? [s[0] / sl, s[1] / sl] : [n[0], n[2]];
@@ -227,6 +231,7 @@ export class Contact {
           const sp = len(fv);
           if (sp > CONTACT.MAX_SPEED) for (let a = 0; a < 3; a++) fv[a] *= CONTACT.MAX_SPEED / sp;
           this.setV(F, fv);
+          F.carry(CONTACT.CARRY_S);
           this.flown = { flinger: L.holder, flyer: L.held, since: this.t };
           // (the flown body's own link comes when it lands the flight, 'flown' below: being flung is not its move)
           out.push({ kind: 'fling', seat: L.holder, other: L.held, perfect: onBeat, at: L.at, speed: len(fv), v: [fv[0], fv[1], fv[2]] });

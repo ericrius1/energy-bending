@@ -104,7 +104,7 @@ function build(): RedwoodsDuel {
   bough('bough4', 4, 0.35, 1.6, 2.6, 4.8, 0.22);
   bough('bough2', 2, -0.15, 1.5, 2.4, 4.8, 0.22);
   bough('bough3', 3, 0.25, 2.0, 2.5, 4.9, 0.22);
-  stump('stumpL', P(-4.0, 0, 4.2), 0.75, 1.2);
+  stump('stumpL', P(-3.0, 0, 5.6), 0.75, 1.0);
   stump('stumpB', P(5.2, 0, -3.8), 0.8, 2.2);
   stump('stumpBL', P(-6.6, 0, -3.4), 0.65, 1.7);
   {
@@ -137,7 +137,7 @@ function build(): RedwoodsDuel {
   const arena: Arena = {
     world: 'redwoods',
     space: { center: [0.4, 0, 0], radius: 11, yKill: -2.2, yTop: 8.6 },
-    spawns: [P(-0.2, 0, 2.6), P(3.6, 0, 2.2), P(-5.0, 1.1, 0), P(5.2, 2.2, -3.8), P(-4.0, 1.2, 4.2), P(1.0, 0, -5.5), P(2.0, 1.5, 0)],
+    spawns: [P(-0.2, 0, 2.6), P(3.6, 0, 2.2), P(-5.0, 1.1, 0), P(5.2, 2.2, -3.8), P(-3.0, 1.0, 5.6), P(1.0, 0, -5.5), P(2.0, 1.5, 0)],
     pieces: groups.flatMap((g) => g.solids), plane, drops,
     camera: { minDist: 6, maxDist: 9.5, lens: 40, low: -0.6 },
     // (the lanterns' warm light, a little green from the leaves; softer since phase 5: a sheen on the tops, not gold sticks)
@@ -145,6 +145,13 @@ function build(): RedwoodsDuel {
     // the hazard: the wind through the clearing, a gust on seven phrases of ten, mostly along the stage one way or the
     // other, now and then slanting across it (hazards.ts)
     hazard: windHazard({ dirs: [0, Math.PI, 0.8, Math.PI + 0.8, Math.PI - 0.5, -0.5].map((a) => a + Math.atan2(right[2], right[0])), often: 7 }),
+    // the ways out (phase 5: report 18-flow): the gate to the geode between the ring's trees on the camera's side, and
+    // two open gaps in the ring, behind on the right and on the right (bearings 298° and 349° from the middle)
+    exits: [
+      { id: 'gate', at: [-10.03, 0, 5.23], dir: [-0.885, 0.466], r: 1.6 },
+      { id: 'back', at: [4.9, 0, -8.4], dir: [0.47, -0.88], r: 1.5 },
+      { id: 'right', at: [9.7, 0, -1.8], dir: [0.98, -0.19], r: 1.5 },
+    ],
   };
   return { arena, pieces: packPieces(pieces), big: big.length, count: pieces.length, runs, stumps };
 }

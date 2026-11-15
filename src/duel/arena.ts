@@ -57,6 +57,10 @@ export interface Arena {
   /** (beyond the contract, phase 3) the shared energy here (shared/duel.ts DuelTune): its gains and ebbs scaled, for a
    *  world whose ground makes the dance denser than the others (the Pool). Absent: as the rules say */
   energy?: { gain?: number; ebb?: number };
+  /** (beyond the contract, phase 5: report 18-flow) the arena's ways out: open floor at its edge kept clear, with a lane
+   *  from the middle to it, where a mirror (a gate to another world) can stand and a route leads on out of the arena.
+   *  `at` the middle of the clear zone on the floor, `dir` the way out (x, z, unit), `r` how far round it is clear */
+  exits?: { id: string; at: V3; dir: [number, number]; r: number }[];
 }
 
 const byWorld = new Map<string, Arena>();

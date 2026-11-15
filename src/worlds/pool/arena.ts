@@ -39,6 +39,10 @@ export interface PoolDuel {
 
 /** how deep the stones go into the water (their feet), and the water's surface */
 const FOOT = -1.6;
+/** the channels of open water out from the middle (bearings, atan2(z, x)): toward the gate to the geode, straight out
+ *  behind, out to the front right; and how far either side of each line no stone stands (m) */
+const CHANNELS = [Math.atan2(4.5, -7.5), -Math.PI / 2, 0.7];
+const CHANNEL_HALF = 1.5;
 
 function build(): PoolDuel {
   const rng = mulberry32.create(71);
@@ -86,6 +90,9 @@ function build(): PoolDuel {
     if (Math.hypot(x, z) > 11.6) continue;
     if (Math.abs(z) < 2.4 && Math.abs(x) < 10) continue;
     if (Math.hypot(x - gate[0], z - gate[1]) < 2.6) continue;
+    // (phase 5, the flow: report 18-flow. Channels of open water run out from the middle, a stone's width and more,
+    // to glide along: to the gate, out behind and out to the front right, beside the one along the stage)
+    if (CHANNELS.some((a) => { const along = x * Math.cos(a) + z * Math.sin(a); return along > 2 && Math.abs(-x * Math.sin(a) + z * Math.cos(a)) < CHANNEL_HALF; })) continue;
     places.push([x, z]);
   }
   // the standing stones: six round the field at mid radius, alternating sides; a block a jump high beside each
@@ -134,6 +141,8 @@ function build(): PoolDuel {
     spawns, pieces, plane,
     camera: { minDist: 8, maxDist: 24, lens: 26, low: -1.0 },
     drops: [],
+    // the ways out (phase 5: report 18-flow): each channel's end at the space's edge, the first the gate to the geode
+    exits: CHANNELS.map((a, k) => ({ id: ['gate', 'back', 'front'][k], at: k === 0 ? [-7.5, 0, 4.5] as V3 : [Math.cos(a) * 10.4, 0, Math.sin(a) * 10.4] as V3, dir: [Math.cos(a), Math.sin(a)] as [number, number], r: 1.5 })),
     // (the evening sun's gold, faint: the stones and rafts are dark and warm now, the bodies on them pale)
     rim: [0.34, 0.24, 0.11],
     // the hazard: a swell across the pool on each phrase, from a different side in turn (hazards.ts)
