@@ -109,7 +109,10 @@ scripts/             shot.mjs (stills + GPU timings; a step's `eval`/`eval2` run
                      film-seams.mjs checks the seams; front-cap.mjs films the front with its DOM, which a film's
                      canvas frames never show), critic-cap.mjs (a staged take frame by frame: stills, a sheet,
                      timings; `ab` grabs each frame twice, a stepped frame apart), fade-cap.mjs (a duel's moments
-                     grabbed with the near fade's frame test on and off), cam-sim.mjs (the duel camera's measure),
+                     grabbed with the near fade's frame test on and off), cam-sim.mjs (the duel camera's measure:
+                     with `--key` one line a world, the place in the frame too: the horizon, the sky, each world's
+                     landmarks, the bodies' size; `--tune k=v` its numbers for a run), cam-page.mjs (the duel
+                     camera's look down, lens and breath recorded in the page's own duels),
                      duel-page.mjs (whole duels in the page, stepped on the frames' clock, each world at its own
                      tempo: the fusion table; duel-measure.mjs `--bpm own` the same in Node),
                      test-ts.mjs, test-audio.mjs, check-portals.mjs, check-limits.mjs,

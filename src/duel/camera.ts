@@ -34,6 +34,14 @@
 // weight.ts) rises over its hold and settles after it, so the camera arrives as the bodies let go (`hold`, smootherstep
 // both ways, still no step in speed or acceleration). Time: the camera runs on real time (the
 // page's f.dt, not the game's danceDt), so in a hit-stop or a slow motion it keeps easing toward the slowed bodies.
+//
+// The place in the frame (phase 5, report 18-camera; report 17 issue 1, "the solarpunk stands above the duel's frame"):
+// the plain view is nearly level (3°), so the horizon, the sky and what stands over the stage are in the frame with the
+// pair; a piece over less than a twelfth of the near frame is left to the near fade rather than tilting the eye up over
+// it, and a tilt eases back down twice as fast. Between moments the frame breathes (`breathe`): once a catch has
+// settled and while the two are not about to meet, it opens out a little lower and wider, the pair lower in it, and
+// comes back in for the next moment (a critically damped spring, no step in its speed). Of its two sides it prefers
+// the one looking toward the world's sky and landmarks (ARENA_CAM.face).
 export type V3 = [number, number, number];
 
 /** the world as the camera needs it: how far a point is from the nearest solid, whether a solid crosses the segment a → b
@@ -100,7 +108,17 @@ export interface CamInput {
  *  rad while the bodies float (both: all of it, one: half), so from a lower eye a body afloat reads as afloat and the
  *  water shows the sky (report 16-pool); `water` the surface's height, a body afloat with its root 0.6 m under it.
  *  Only the plain view moves: the higher views the clean eye rises to are as they were */
-export const ARENA_CAM: Record<string, { water: number; waterLow: number }> = { pool: { water: 0, waterLow: 0.1 } };
+export const ARENA_CAM: Record<string, { water?: number; waterLow?: number; face?: [number, number] }> = {
+  // (phase 5, report 18-camera: `face` is the way (x, z on the ground) from the stage toward what the world stands round
+  // it for the eye: the sun and the sky's glow, the landmarks at the stage's edge, the temple's colonnade and sea, the
+  // geode's light wells (three of the four), the Pool's sunset shore. Every world's is behind the stage as the lock
+  // looks (−z): of the two sides the pair can be seen from, the camera takes the one looking that way, other things
+  // being equal: camworlds.ts landmarksOf)
+  temple: { face: [0, -1] },
+  redwoods: { face: [0, -1] },
+  geode: { face: [0, -1] },
+  pool: { water: 0, waterLow: 0.04, face: [0, -1] },
+};
 
 /** the pose this frame */
 export interface CamPose { eye: V3; look: V3; fov: number; yaw: number; pitch: number; dist: number }
@@ -114,8 +132,11 @@ export const DUEL_CAM = {
   top: 0.16, bottom: 0.1, side: 0.1,
   /** the margins never crossed (the hard pass) */
   hardTop: 0.1, hardBottom: 0.04, hardSide: 0.04,
-  /** the pitches it may look down at (rad): the plain view first, then rising over the pieces */
-  pitches: [0.2, 0.38, 0.55],
+  /** the pitches it may look down at (rad): the plain view first, then rising over the pieces. (Phase 5, report
+   *  18-camera: the plain view is nearly level, 3°, the eye at about the bodies' chest, so the horizon and what stands
+   *  over the stage are in frame; it was 11.5°, and with the higher choices and the fallback's rises the look down
+   *  averaged 22°: the frame was the floor) */
+  pitches: [0.05, 0.28, 0.45],
   /** the fallback's dips under what hangs over the pair where no tilt up is clean (rad, added to the pitch), and the
    *  lowest it looks (a little up) */
   dips: [-0.12, -0.22], minPitch: -0.08,
@@ -153,15 +174,32 @@ export const DUEL_CAM = {
   lookAhead: 0.3,
   /** a sight line stops this short of the body (m) */
   shortOf: 0.4,
-  costs: { blocked: 1.2, blockedShare: 3, inside: 4, margin: 1.5, side: 0.4, pitch: 2.0, turn: 1.0, otherSide: 0.8, near: 0.8, nearShare: 6 },
+  /** (and phase 5's: looking away from the world's landmarks and sky, ARENA_CAM.face, at most) */
+  costs: { blocked: 1.2, blockedShare: 3, inside: 4, margin: 1.5, side: 0.4, pitch: 2, turn: 1.0, otherSide: 0.8, near: 0.8, nearShare: 6, face: 0.5 },
+  /** the breath (phase 5, report 18-camera): between moments the frame opens to a wider, lower view of the place, and
+   *  comes back in for the action. Calm once `quiet` s have passed since the last moment of contact settled (its hold
+   *  and 0.6 of its ease: a catch's first 0.72 s), while the two are not closing on each other to meet within `meet` s
+   *  (a catch on its way: it is back in before the moment, not after it), and (`clean` 1) only while the eye is
+   *  clean; the spring out (rad/s: `out`, most
+   *  of the way in a second and a half) and back in (`back`, in about a second); breathing fully, the plain view looks
+   *  down `low` rad less (a little up), the lens opens `widen` degrees and the pair sits lower (`top`: more head room)
+   *  with a little more room at the sides. (The dance is mostly in the air and a moment comes every 1.3 s: a calm that
+   *  waited for both bodies on their feet came in 0.2 % of the frames, one that waited for a clean eye in a third as
+   *  many as this one) */
+  breathe: { lowest: -0.03, clean: 0, quiet: 0.4, meet: 0.6, out: 3, back: 5, low: 0.07, widen: 10, top: 0.08, side: 0.03 },
   /** the frame's near part (a piece across the lens): rays through a cols × rows grid, looking for a solid nearer than
-   *  `fgNear` of the way to the nearer body and at most `fgMax` m; the eye is clean while under `fgOk` of them meet one */
-  fgCols: 7, fgRows: 4, fgNear: 0.6, fgMax: 5, fgOk: 0.03,
+   *  `fgNear` of the way to the nearer body and at most `fgMax` m; the eye is clean while under `fgOk` of them meet one.
+   *  (Phase 5: 0.08, was 0.03. A piece over less than a twelfth of the near frame is the near fade's (its frame test
+   *  starts at 3 % of the frame, worlds/fade-frame.ts), not a reason to tilt the eye up over it) */
+  fgCols: 7, fgRows: 4, fgNear: 0.6, fgMax: 5, fgOk: 0.08,
   /** a ray through a corner of the frame (the two outer columns of the top and bottom rows) counts this many times: a
    *  drum filling a near corner is nearly as bad as one over a body */
   fgCorner: 2.5,
-  /** the fallback's rise is held this long (s) before it eases down to a lower one that is clean */
-  riseHold: 0.6,
+  /** the fallback's rise is held this long (s) before it eases down to a lower one that is clean (phase 5: 0.4, was 0.6) */
+  riseHold: 0.4,
+  /** and eases back down at most this fast (rad/s), approaching at this rate (1/s; phase 5: 3, was 1.5, whose long
+   *  tail kept the eye tilted up in four frames of five) */
+  riseDown: [0.5, 3],
   /** the eye never stands further than this past the room from the arena's middle (m, any direction) */
   roomOver: 1.2,
 };
@@ -318,7 +356,7 @@ export function boomFor(pts: readonly V3[], look: V3, yaw: number, pitch: number
 }
 
 /** a choice of where to stand: a yaw and a pitch, and what it costs */
-interface Choice { yaw: number; pitch: number; lens: number; side: number; score: number }
+interface Choice { yaw: number; pitch: number; pi: number; lens: number; side: number; score: number }
 
 export class DuelCamera {
   /** the turn and look down now, and what they head for */
@@ -349,15 +387,22 @@ export class DuelCamera {
   /** how far the plain view has come down over water now (rad: ARENA_CAM) */
   private low = 0;
   private impGain = 1;
+  /** the breath (DUEL_CAM.breathe): how calm it is now (0 … 1) and how fast that moves, and the seconds since the last
+   *  moment of contact */
+  calm = 0;
+  private calmV = 0;
+  private quiet = 0;
+  /** the steepest look down allowed now (rad: DUEL_CAM.softPitch, or maxPitch while nothing modest cleans the eye) */
+  private cap: number = DUEL_CAM.softPitch;
   /** the probe's: also judge the eye it gives (last.eyeBad) */
   debug = false;
   /** what the last update framed, and what the choice saw (for the page's probes and the tests): the eye's clearance,
    *  how unclean the fallback found it (0: clean), the impulses' lean (m) and push (share of the boom) */
   framed: V3[] = [];
-  last = { clear: Infinity, blocked: 0, choices: 0, bad: 0, found: true, lag: 0, pull: 1, lean: 0, push: 0, eyeBad: 0, wantFg: 0, wantScore: 0 };
+  last = { clear: Infinity, blocked: 0, choices: 0, bad: 0, found: true, lag: 0, pull: 1, lean: 0, push: 0, eyeBad: 0, wantFg: 0, wantScore: 0, why: '', calmWhy: '' };
 
   /** start again from the next update (snapped there, as on a duel's first frame) */
-  reset() { this.fresh = true; this.want = null; this.side = null; this.yawV = 0; this.imps.length = 0; this.riseKeep = 0; this.riseLow = 0; this.low = 0; }
+  reset() { this.fresh = true; this.want = null; this.side = null; this.yawV = 0; this.imps.length = 0; this.riseKeep = 0; this.riseLow = 0; this.low = 0; this.calm = 0; this.calmV = 0; this.quiet = 0; }
 
   /** a moment of contact for the camera to feel (phase 3's juice: the feel calls `camera.impulse?.(…)`): for a moment
    *  the look point leans toward `at` and the boom eases in (or, for a fling, out), with a soft settle or sway, sized
@@ -372,6 +417,8 @@ export class DuelCamera {
     const h = Number.isFinite(e.hold) && e.hold! > 0 ? e.hold! : 0, len = IMPULSE[e.kind].len;
     const rise = h > 0 ? Math.min(len * 0.5, Math.max(0.25, h + 0.5 * (0.12 + 0.8 * h))) : 0;
     this.imps.push({ at: [e.at[0], e.at[1], e.at[2]], kind: e.kind, k, age: 0, rise });
+    // (the breath comes back in for it: calm again only once it has settled, most of its ease and its hold over)
+    this.quiet = Math.min(this.quiet, -Math.max(rise, len * 0.6));
     if (this.imps.length > 6) this.imps.shift();
   }
 
@@ -426,9 +473,27 @@ export class DuelCamera {
     const P = DUEL_CAM, pad = I.pad ?? 0;
     // (the plain view over water, eased: ARENA_CAM)
     const AC = I.arena ? ARENA_CAM[I.arena] : undefined;
-    const afloat = AC ? I.bodies.filter((b) => !b.away && b.root[1] < AC.water - 0.6).length / Math.max(1, I.bodies.length) : 0;
-    this.low += ((AC ? AC.waterLow * afloat : 0) - this.low) * Math.min(1, dt * 1.5);
-    const plain = P.pitches[0] - this.low, pitches = [plain, ...P.pitches.slice(1)];
+    const afloat = AC?.water != null ? I.bodies.filter((b) => !b.away && b.root[1] < AC.water! - 0.6).length / Math.max(1, I.bodies.length) : 0;
+    this.low += ((AC?.waterLow ?? 0) * afloat - this.low) * Math.min(1, dt * 1.5);
+    // the breath (phase 5, DUEL_CAM.breathe): calm wants 1 once the last moment of contact has settled and while the
+    // two are not about to meet, 0 the moment either goes; eased as a critically damped spring (slowly out, more
+    // quickly back in: no step in its speed either way)
+    const BR = P.breathe;
+    this.quiet += dt;
+    // (the pair coming together: a catch on its way, so it comes back in before the moment, not after it)
+    const [A0, B0] = I.bodies, gap = Math.hypot(B0.root[0] - A0.root[0], B0.root[1] - A0.root[1], B0.root[2] - A0.root[2]);
+    const closing = -((B0.root[0] - A0.root[0]) * (B0.vel[0] - A0.vel[0]) + (B0.root[1] - A0.root[1]) * (B0.vel[1] - A0.vel[1]) + (B0.root[2] - A0.root[2]) * (B0.vel[2] - A0.vel[2])) / Math.max(0.3, gap);
+    const meeting = gap > 0.3 && closing > 0 && gap / closing < BR.meet;
+    const calmWant = !this.fresh && this.quiet > BR.quiet && !meeting && (!BR.clean || this.last.bad === 0) ? 1 : 0;
+    if (this.debug) this.last.calmWhy = `${this.quiet > BR.quiet ? 'q' : '-'}${meeting ? 'm' : '-'}${this.last.bad === 0 ? '-' : 'u'}`;
+    if (this.fresh) { this.calm = 0; this.calmV = 0; }
+    else {
+      const w = calmWant > this.calm ? BR.out : BR.back, a = w * w * (calmWant - this.calm) - 2 * w * this.calmV;
+      this.calmV += a * dt; this.calm = Math.max(0, Math.min(1, this.calm + this.calmV * dt));
+      if (this.calm <= 0 || this.calm >= 1) this.calmV = 0;
+    }
+    const calm = this.calm * this.calm * (3 - 2 * this.calm);
+    const plain = Math.max(BR.lowest, P.pitches[0] - this.low - calm * BR.low), pitches = [plain, ...P.pitches.slice(1)];
     // (a body fallen and reforming is not followed down: the other is framed alone till it is back)
     if (I.bodies.length === 2 && I.bodies.some((b) => b.away) && !I.bodies.every((b) => b.away)) {
       const here = I.bodies.find((b) => !b.away)!;
@@ -442,7 +507,8 @@ export class DuelCamera {
     }
     const pts = this.pointsOf(I);
     this.framed = pts;
-    const soft: Margins = { top: P.top + pad * 0.08, bottom: P.bottom + pad * 0.06, side: P.side + pad * 0.06 };
+    // (breathing, the pair sits lower in a wider frame: the place over them in it)
+    const soft: Margins = { top: P.top + pad * 0.08 + calm * BR.top, bottom: P.bottom + pad * 0.06, side: P.side + pad * 0.06 + calm * BR.side };
     const hard: Margins = { top: P.hardTop, bottom: P.hardBottom, side: P.hardSide };
     // the side-on direction: square to the line between the two (eased; held while they stand on top of each other)
     const [A, B] = I.bodies;
@@ -519,6 +585,8 @@ export class DuelCamera {
       const ideal = base + P.behind * Math.sign(wrap(behind - base));
       s += Math.abs(wrap(yaw - ideal)) * K.side * sep;
       s += Math.abs(pitch - plain) * K.pitch;
+      // (looking toward the world's landmarks and sky, ARENA_CAM.face)
+      if (AC?.face) s += (K.face * (1 + Math.sin(yaw) * AC.face[0] + Math.cos(yaw) * AC.face[1])) / 2;
       s += Math.max(0, f.fov - P.fov) / 25;
       if (this.want) {
         s += Math.abs(wrap(yaw - this.yaw)) * K.turn;
@@ -532,25 +600,29 @@ export class DuelCamera {
       this.wait = P.every;
       let best: Choice | null = null, n = 0;
       for (const base of [this.side, wrap(this.side + Math.PI)]) {
-        for (const o of P.offsets) for (const sg of o ? [1, -1] : [1]) for (const pitch of pitches) for (const lens of P.lenses) {
-          const yaw = wrap(base + o * sg), sc = score(yaw, pitch, base, lens);
+        for (const o of P.offsets) for (const sg of o ? [1, -1] : [1]) for (let pi = 0; pi < pitches.length; pi++) for (const lens of P.lenses) {
+          const pitch = pitches[pi], yaw = wrap(base + o * sg), sc = score(yaw, pitch, base, lens);
           n++;
-          if (!best || sc < best.score) best = { yaw, pitch, lens, side: base, score: sc };
+          if (!best || sc < best.score) best = { yaw, pitch, pi, lens, side: base, score: sc };
         }
       }
       // (what it heads for now, scored the same way: kept unless the best is clearly better)
       if (this.want) {
         // (the current choice keeps its place relative to the side-on direction as the pair turns)
         const nowSide = Math.abs(wrap(this.want.side - this.side)) < Math.PI / 2 ? this.side : wrap(this.side + Math.PI);
-        const off = wrap(this.want.yaw - this.want.side);
-        const y = wrap(nowSide + off), sc = score(y, this.want.pitch, nowSide, this.want.lens);
-        this.want = { yaw: y, pitch: this.want.pitch, lens: this.want.lens, side: nowSide, score: sc };
+        const off = wrap(this.want.yaw - this.want.side), pi = this.want.pi;
+        const y = wrap(nowSide + off), sc = score(y, pitches[pi], nowSide, this.want.lens);
+        this.want = { yaw: y, pitch: pitches[pi], pi, lens: this.want.lens, side: nowSide, score: sc };
         if (best && best.score < sc - P.beat) this.want = best;
       } else this.want = best;
       this.last.choices = n;
       if (this.debug && this.want) { score(this.want.yaw, this.want.pitch, this.want.side, this.want.lens); this.last.wantFg = lastFg; this.last.wantScore = this.want.score; }
     }
     const W = this.want!;
+    // (the choice's pitch is one of the list, which moves as the plain view breathes and comes down over water)
+    W.pitch = pitches[W.pi];
+    // (and the lens opens a little as it breathes)
+    const lens = W.lens + calm * BR.widen;
     // the yaw and pitch eased toward the choice at a bounded rate and acceleration (no snaps, no overshoot)
     if (this.fresh) { this.yaw = W.yaw; this.pitch = W.pitch; this.yawV = 0; }
     else {
@@ -564,7 +636,7 @@ export class DuelCamera {
       this.pitch += Math.max(-P.pitchRate * dt, Math.min(P.pitchRate * dt, dp * (1 - Math.exp(-dt * 3))));
     }
     // the fit from where it is turned now, chased: out and up quickly, in and down gently
-    const F = fit(pts, this.yaw, this.pitch, W.lens, I.aspect, soft, P.minDist, maxD);
+    const F = fit(pts, this.yaw, this.pitch, lens, I.aspect, soft, P.minDist, maxD);
     if (this.fresh) { this.look[0] = F.look[0]; this.look[1] = F.look[1]; this.look[2] = F.look[2]; this.dist = F.dist; this.fov = F.fov; }
     else {
       const k = 1 - Math.exp(-dt * 5);
@@ -593,21 +665,22 @@ export class DuelCamera {
       return [at[0] + b[0] * d, at[1] + b[1] * d, at[2] + b[2] * d];
     };
     /** how unclean an eye is (0: clean), for a camera at this pitch */
-    const bad = (e: V3, pitch: number): number => {
+    let why = '';
+    const bad = (e: V3, pitch: number, note = false): number => {
       if (!sp) return 0;
       let b = 0;
       const c = sp.clear(e), want = I.near + 0.35, o = outOf(e);
-      if (o > 0) b += 1 + o * 2;
-      if (c < want) b += 1 + (want - c) * 2;
+      if (o > 0) { b += 1 + o * 2; if (note) why += 'o'; }
+      if (c < want) { b += 1 + (want - c) * 2; if (note) why += 'c'; }
       if (sp.fg) {
         const fg = sp.fg(e, raysAt(this.yaw, pitch, this.fov, I.aspect, P.fgCols, P.fgRows), nearReach(e, I.bodies), 0.04, FG_W);
-        if (fg > P.fgOk) b += 0.5 + fg * 3;
+        if (fg > P.fgOk) { b += 0.5 + fg * 3; if (note) why += 'f'; }
       }
       for (const B of I.bodies) {
         let n = 0;
         for (const p of [B.sight[0], B.sight[1] ?? B.sight[0], B.head]) if (sp.blocked(e, short(e, p, P.shortOf))) n++;
         // (one of them hidden is already unclean: a slab partly over the pair)
-        if (n) b += 0.2 + 0.3 * n;
+        if (n) { b += 0.2 + 0.3 * n; if (note) why += 'b'; }
       }
       return b;
     };
@@ -621,6 +694,8 @@ export class DuelCamera {
     const badBoth = (p: number) => { const b = bad(eyeAt(p, this.dist), p); return b > 0 || vl <= 0.5 ? b : bad(eyeAt(p, this.dist, lookOn), p); };
     let riseWant = 0, found = false;
     const bad0 = sp ? badBoth(this.pitch) : 0;
+    // (the probe's --why: what made it unclean, here or a moment on)
+    if (this.debug && sp) { why = ''; const b = bad(eyeAt(this.pitch, this.dist), this.pitch, true); if (!b && bad0) { why = 'ahead:'; bad(eyeAt(this.pitch, this.dist, lookOn), this.pitch, true); } this.last.why = why; }
     // (an unclean eye asks the choice again at once: a turn to a clear side first, a modest rise meanwhile)
     this.swingT -= dt;
     if (bad0 > 0 && this.swingT <= 0) { this.wait = 0; this.swingT = P.swingEvery; }
@@ -650,9 +725,13 @@ export class DuelCamera {
     // (eased up quickly and down slowly; while the eye it gave last frame was unclean, quickly either way)
     // (away from the plain view quickly, back to it slowly; while the eye it gave last frame was unclean, quickly)
     const dr = this.riseKeep - this.rise, quick = this.last.eyeBad > 0 || Math.abs(this.riseKeep) > Math.abs(this.rise) + 1e-4;
-    const rate = quick ? 1.6 : 0.5, kr = quick ? 8 : 1.5;
+    const rate = quick ? 1.6 : P.riseDown[0], kr = quick ? 8 : P.riseDown[1];
     this.rise = this.fresh ? this.riseKeep : this.rise + Math.max(-rate * dt, Math.min(rate * dt, dr * (1 - Math.exp(-dt * kr))));
-    const pitch = Math.max(P.minPitch, Math.min(this.steep ? P.maxPitch : Math.max(P.softPitch, Math.min(P.maxPitch, this.pitch)), this.pitch + this.rise));
+    // (the ceiling: the soft one, or the steepest while nothing modest cleaned the eye; phase 5: it moves between them
+    // at the rise's own pace, up quickly and down slowly, where it used to jump in a frame, an 8° snap of the look down)
+    const capWant = this.steep ? P.maxPitch : Math.max(P.softPitch, Math.min(P.maxPitch, this.pitch));
+    this.cap = this.fresh ? capWant : capWant > this.cap ? Math.min(capWant, this.cap + 1.6 * dt) : Math.max(capWant, this.cap - P.riseDown[0] * dt);
+    const pitch = Math.max(P.minPitch, Math.min(this.cap, this.pitch + this.rise));
     // the hard pass: whatever the ease left out, the boom (then the lens) takes in from where the look point is now
     const need = boomFor(pts, look, this.yaw, pitch, this.fov, I.aspect, hard);
     if (need > this.dist) this.dist = Math.min(need, maxD * 1.25);
