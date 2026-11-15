@@ -49,6 +49,9 @@ export interface Steam {
   keepR: Vec4;
   keepK: Vec4;
   look: Vec4;
+  column: Vec4;
+  columnB: Vec4;
+  columnCol: Vec4;
   near: ArrayLike<number> | Vec4[];
 }
 
