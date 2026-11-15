@@ -49,6 +49,10 @@ export class GateNames {
   private revealUntil = 0;
   private chipUntil = 0;
   private padWas = false;
+  /** the plaques as last placed (CSS px of a w × h screen), for the captures: a film's frames and a still are the
+   *  canvas and the HUD, never the DOM, so `paint` draws them there as the page shows them */
+  private placed: { x: number; y: number; s: number; k: number; text: string; c: string; edge: boolean; ang: number }[] = [];
+  private size: [number, number] = [1, 1];
   on = true;
 
   constructor() {
@@ -93,6 +97,7 @@ export class GateNames {
     if (pad && !this.padWas) this.reveal();
     this.padWas = pad;
     const showing = now < this.revealUntil;
+    this.placed.length = 0; this.size = [w, h];
     this.chip?.classList.toggle('on', this.on && (now < this.chipUntil || showing) && !document.body.classList.contains('front'));
     const seen = new Set<string>();
     if (this.on) for (const g of gates) {
@@ -138,8 +143,49 @@ export class GateNames {
       const px = Math.max(hw, Math.min(w - hw, (sx * 0.5 + 0.5) * w)), py = Math.max(hh, Math.min(h - 8, (0.5 - sy * 0.5) * h));
       t.style.transform = `translate(${px.toFixed(1)}px, ${py.toFixed(1)}px) translate(-50%, ${edge ? '-50%' : '-100%'}) scale(${s.toFixed(3)})`;
       t.style.opacity = k.toFixed(3);
+      const to = g.partner.world;
+      this.placed.push({ x: px, y: py, s, k, text: WORLD_NAMES[to] ?? to, c: WORLD_CSS[to] ?? '#ffc861', edge, ang });
     }
     for (const [id, t] of this.tags) if (!seen.has(id)) t.style.opacity = '0';
+  }
+
+  /** the plaques drawn into a capture of w × h pixels (the HUD's `under`: a film's frames, bend.grab), as the CSS above
+   *  draws them: the honey glass pill, its brass rim, the far world's leaf, its name in the display face */
+  paint(g: CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D, w: number, _h: number) {
+    if (!this.on || !this.placed.length) return;
+    const r = w / this.size[0];
+    for (const p of this.placed) {
+      const fs = 15 * p.s * r, padL = 0.6 * fs, padR = 0.85 * fs, gap = 0.45 * fs, leaf = 0.7 * fs, ph = fs * 1.75;
+      g.save();
+      g.font = `600 ${fs.toFixed(2)}px "Fraunces", "Iowan Old Style", Georgia, serif`;
+      const tw = g.measureText(p.text).width, pw = padL + leaf + gap + tw + padR + (p.edge ? gap + fs * 0.9 : 0);
+      const x0 = p.x * r - pw / 2, y0 = p.y * r - (p.edge ? ph / 2 : ph);
+      g.globalAlpha = Math.max(0, Math.min(1, p.k));
+      g.beginPath(); g.roundRect(x0, y0, pw, ph, ph / 2);
+      g.shadowColor = 'rgba(0,0,0,0.25)'; g.shadowBlur = 18 * p.s * r; g.shadowOffsetY = 4 * p.s * r;
+      const body = g.createLinearGradient(0, y0, 0, y0 + ph);
+      body.addColorStop(0, 'rgba(52,40,22,0.62)'); body.addColorStop(1, 'rgba(18,14,8,0.55)');
+      g.fillStyle = body; g.fill();
+      g.shadowColor = 'transparent';
+      g.lineWidth = Math.max(1, r); g.strokeStyle = 'rgba(201,164,99,0.8)'; g.stroke();
+      // the leaf: a rounded diamond turned a little, in the far world's colour with its glow
+      const lx = x0 + padL + leaf / 2, ly = y0 + ph / 2;
+      g.save(); g.translate(lx, ly); g.rotate(-Math.PI / 6);
+      g.shadowColor = p.c; g.shadowBlur = 8 * p.s * r; g.fillStyle = p.c;
+      const lw = leaf / 2, lh = fs * 0.95 / 2;
+      g.beginPath(); g.moveTo(-lw, lh); g.quadraticCurveTo(-lw, -lh, lw, -lh); g.quadraticCurveTo(lw, lh, -lw, lh); g.fill();
+      g.restore();
+      g.fillStyle = 'rgba(0,0,0,0.5)'; g.textBaseline = 'middle';
+      const tx = x0 + padL + leaf + gap, ty = y0 + ph / 2 + fs * 0.04;
+      g.fillText(p.text, tx, ty + r);
+      g.fillStyle = '#fbf4e4'; g.fillText(p.text, tx, ty);
+      if (p.edge) {
+        g.save(); g.translate(tx + tw + gap + fs * 0.45, ty); g.rotate(p.ang);
+        g.fillStyle = '#ffc861'; g.beginPath(); g.moveTo(fs * 0.4, 0); g.lineTo(-fs * 0.3, -fs * 0.3); g.lineTo(-fs * 0.3, fs * 0.3); g.fill();
+        g.restore();
+      }
+      g.restore();
+    }
   }
 }
 

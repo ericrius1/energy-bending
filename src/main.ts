@@ -109,6 +109,7 @@ const gems = kinds.find((k) => k.id === 'gems') as GemPasses | undefined;
 installArenaLayer(kit, frame, { locked: () => rig.locked, solids: (id) => worldOf(id).solids ?? [], holes: () => fade.holes }, query);
 // (the HUD over the stage, src/hud: laid into a film's frames by the post chain, into a still by bend.grab)
 const hud = installHud({ kit, frame, stage: canvas, query, film: FILM, dancers: () => show.dancers });
+hud.hud.under.push((g, w, h) => gates.names?.paint(g, w, h));   // (the mirrors' names, DOM on screen, in the captures)
 for (const v of drawn) { declareScene(v, worlds, kinds); frame.add('scene', v.scene, `view ${v.id}`); }
 const post = new PostChain(kit, frame, main, worlds, { film: filmSize, coarse, overlay: hud.overlay });
 if (pip) { post.declareAir(pip.view, worlds); post.inset(pip.view, pip.rect); }

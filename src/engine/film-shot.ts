@@ -145,8 +145,12 @@ async function run(api: FilmApi, recorder: Recorder, shot: ShotSpec, plan: ShotP
   const inTimeOf = () => (prerollFrames + 1) * dt;
   /** the track beat on the film's grid start, `g` seconds after the in-point */
   const beatAtGrid = (g: number) => plan.track!.beatAtIn != null ? plan.track!.beatAtIn + g / spb : 4 * Math.max(0, Math.ceil((g - track!.downbeat) / barOf(track!) - 1e-9));
+  // a duel with its mirrors open (&mirrors=1): a crossing takes the new world's track from the next bar line, as in
+  // play (Music.retone), and info.json's `track.switches` says when (on the score's clock) and which: film.mjs lays it
+  const follow = shot.mode === 'duel' && new URLSearchParams(location.search).get('mirrors') === '1';
+  const switches: { t: number; tau: number; id: string; bpm: number }[] = [];
   if (track) {
-    M.trackFixed = true;
+    M.trackFixed = !follow;
     M.engine.setTrack(track, true);
     if (!jogo) {
       trackBeatAtGrid = beatAtGrid(0); trackBeatAtIn = trackBeatAtGrid; gridScore = inTimeOf();
@@ -449,6 +453,11 @@ async function run(api: FilmApi, recorder: Recorder, shot: ShotSpec, plan: ShotP
         }
       }
     }
+    if (track && follow && M.engine.track && M.engine.track.id !== (switches[switches.length - 1]?.id ?? track.id)) {
+      const t = M.engine.trackAt as number;
+      switches.push({ t: +t.toFixed(5), tau: +(t - inTimeOf()).toFixed(5), id: M.engine.track.id, bpm: M.engine.track.bpm });
+      console.log(`film: ${shot.id} the track is ${M.engine.track.id}'s from ${(t - inTimeOf()).toFixed(3)} s (a mirror crossed)`);
+    }
     if (track && jogo && gridScore == null) {
       const b = J.beat() as number | null;
       if (b != null) gridScore = M.filmClock - b * spb;
@@ -488,8 +497,8 @@ async function run(api: FilmApi, recorder: Recorder, shot: ShotSpec, plan: ShotP
     shot: shot.id, inPoint, inTime: (inPoint + 1) * dt, slowed, pageFrames: i, pageTime: i * dt, width: kit.size.render[0], height: kit.size.render[1], jogo: J?.stats?.() ?? null,
     // (a duel's state at the end and what happened when, in its own ms: the moments to cut on, for working on a timeline)
     // (and the hazards' rides, each one's count and seconds, and the duel's sounds: what played, how many a minute)
-    duel: B.duel ? { now0: duelNow0, beat0: B.music.clock.beatAt(dt), stats: B.duel.stats(), hazards: B.duel.hazards ? { rides: B.duel.hazards.rides, waterS: B.duel.hazards.waterS } : null, sound: B.duel.sound?.stats?.() ?? null, log: duelLog, words, cams } : null,
-    track: track ? { id: track.id, bpm: track.bpm, gridTime: gridScore, trackBeatAtGrid, trackBeatAtIn, trackBeat0: M.engine.trackBeat0, clockBpm: M.clock.bpm } : null,
+    duel: B.duel ? { now0: duelNow0, beat0: B.music.clock.beatAt(dt), stats: B.duel.stats(), hazards: B.duel.hazards ? { rides: B.duel.hazards.rides, waterS: B.duel.hazards.waterS } : null, sound: B.duel.sound?.stats?.() ?? null, log: duelLog, words, cams, crossings: B.duel.crossings ?? [] } : null,
+    track: track ? { id: track.id, bpm: track.bpm, gridTime: gridScore, trackBeatAtGrid, trackBeatAtIn, trackBeat0: M.engine.trackBeat0, clockBpm: M.clock.bpm, switches } : null,
   };
   await post('/end', JSON.stringify(info));   // the sink releases the lock before it answers
   if (plan.audio) {
