@@ -75,8 +75,10 @@ if (mode === 'finale') {
   }
   // the finale and the banner, frame by frame: grabbed every `every`, the bloom's cover sampled every frame
   const res = await page.evaluate(async (every) => {
-    const B = window.bend, D = B.duel, M = D.moments, out = [], fused = D.state.fused;
+    const B = window.bend, D = B.duel, M = D.moments, out = [], fused = D.state.fused, timing = {};
     M.reset();
+    B.kit.profiler.force = true;
+    const snap = () => ({ frame: +B.kit.profiler.frameMs.toFixed(3), passes: Object.fromEntries([...B.kit.profiler.ms].sort((a, b) => b[1] - a[1]).slice(0, 12).map(([k, v]) => [k, +v.toFixed(3)])) });
     let f = 0, worst = 0, sum = 0, frames = 0, top = -1, peakCover = 0;
     const cover = [];
     for (;;) {
@@ -85,31 +87,40 @@ if (mode === 'finale') {
       const c = M.bloomCover();
       if (c) { frames++; sum += c.core; worst = Math.max(worst, c.core); cover.push(+c.core.toFixed(3)); }
       if (top < 0 && look && look.u >= 0.55) top = f;
+      // (the GPU's time per pass as the duet begins, the bloom not yet grown, and with the flower open)
+      if (f === 6) timing.start = snap();
+      if (top >= 0 && f === top + 40) timing.open = { ...snap(), glows: c?.glows ?? 0 };
       if (f % every === 0) out.push({ f, u: look ? +look.u.toFixed(3) : null, phase: s.phase, img: await B.grab('image/jpeg') });
       f++;
       if (s.phase === 'intro' || f > 60 * 9) break;
     }
-    return { out, fused, top, frames, mean: frames ? sum / frames : 0, worst, cover, peakCover };
+    return { out, fused, top, frames, mean: frames ? sum / frames : 0, worst, cover, peakCover, timing };
   }, every);
   let n = 0;
   for (const o of res.out) save(`frames/${String(n++).padStart(4, '0')}.jpg`, o.img);
   const meta = res.out.map(({ f, u, phase }) => ({ f, u, phase }));
-  writeFileSync(join(outDir, 'finale.json'), JSON.stringify({ fused: res.fused, top: res.top, cover: { frames: res.frames, mean: +res.mean.toFixed(4), worst: +res.worst.toFixed(3), each: res.cover }, frames: meta }, null, 1));
+  writeFileSync(join(outDir, 'finale.json'), JSON.stringify({ fused: res.fused, top: res.top, timing: res.timing, cover: { frames: res.frames, mean: +res.mean.toFixed(4), worst: +res.worst.toFixed(3), each: res.cover }, frames: meta }, null, 1));
   console.log(`finale: fused ${res.fused}, ${n} frames grabbed, the lift's top at frame ${res.top}; the bloom over a body's core: mean ${(res.mean * 100).toFixed(1)}%, worst ${(res.worst * 100).toFixed(1)}%`);
 }
 
 if (mode === 'word') {
-  const res = await page.evaluate(async () => {
-    const B = window.bend, D = B.duel;
+  // (and with --grabs N: a frame every 6 for a second after each of the first N pair tiers, as report 17's sheet)
+  const grabs = Number(arg('grabs', '0'));
+  const res = await page.evaluate(async (grabs) => {
+    const B = window.bend, D = B.duel, shots = [];
     B.hud.stats(true);
-    for (let i = 0; i < 60 * 100; i += 30) {
-      for (let j = 0; j < 30; j++) { await B.step(1); window.__pin(); }
+    let seen = D.history.length, left = 0, tiers = 0;
+    for (let i = 0; i < 60 * 100; i++) {
+      await B.step(1); window.__pin();
+      for (; seen < D.history.length; seen++) if (D.history[seen].e.k === 'pairTier' && tiers < grabs) { tiers++; left = 60; }
+      if (left > 0) { if (left % 6 === 0) shots.push({ n: tiers, t: +(D.now() / 1000).toFixed(2), img: await B.grab('image/jpeg') }); left--; }
       if (D.state.phase === 'finale') break;
     }
-    return B.hud.stats().place;
-  });
-  writeFileSync(join(outDir, 'word.json'), JSON.stringify(res, null, 1));
-  console.log(`word: ${JSON.stringify(res)}`);
+    return { place: B.hud.stats().place, shots };
+  }, grabs);
+  res.shots.forEach((o, i) => save(`frames/tier${o.n}-${String(i).padStart(3, '0')}.jpg`, o.img));
+  writeFileSync(join(outDir, 'word.json'), JSON.stringify(res.place, null, 1));
+  console.log(`word: ${JSON.stringify(res.place)}; ${res.shots.length} frames at tiers`);
 }
 console.log(`(${((Date.now() - t0) / 1000).toFixed(0)} s)`);
 await browser.close();

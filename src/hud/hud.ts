@@ -16,7 +16,7 @@ import { Shared, warmShared } from './shared';
 import { PairChain } from './pair';
 import { LinkLine } from './link';
 import { drawBeat } from './beat';
-import { Pops, drawTags, warmPops } from './pops';
+import { Pops, drawTags, warmPops, placeStats } from './pops';
 import { fontEpoch, loadFaces, makeCanvas, type Ctx, type Sprite } from './style';
 
 export interface HudStats {
@@ -29,6 +29,9 @@ export interface HudStats {
   size: [number, number]; ratio: number; compact: boolean; mode: string; visible: boolean;
   /** the pops drawn last frame (in all, per seat, nobody's) and the most at once since the last stats reset */
   pops: { now: { total: number; seats: number[]; centre: number }; most: { total: number; seats: number[]; centre: number } };
+  /** the words' placement since the last reset: seconds stood and slot changes (a pair tier's word, every word), and
+   *  the changes a second (report 18) */
+  place: Record<'pair' | 'all', { seconds: number; changes: number; around: number; perS: number; aroundPerS: number }>;
 }
 
 export class Hud {
@@ -255,8 +258,13 @@ export class Hud {
       parts: Object.fromEntries(Object.entries(this.parts).map(([k, v]) => [k, +(v / Math.max(1, this.counts.frames)).toFixed(4)])),
       size: [this.cssW, this.cssH], ratio: +this.ratio.toFixed(3), compact: !!this.L?.compact, mode: this.state.mode, visible: this.on,
       pops: { now: { ...this.pops.shown }, most: { ...this.pops.most } },
+      place: (() => {
+        const P = this.pops.place, per = (n: number, T: { seconds: number }) => +(n / Math.max(1e-9, T.seconds)).toFixed(2);
+        const r = (T: typeof P.pair) => ({ ...T, seconds: +T.seconds.toFixed(2), perS: per(T.changes, T), aroundPerS: per(T.around, T) });
+        return { pair: r(P.pair), all: r(P.all) };
+      })(),
     };
-    if (reset) { this.cpu = []; this.counts = { base: 0, frames: 0 }; this.parts = {}; this.pops.most = { total: 0, seats: [0, 0], centre: 0 }; }
+    if (reset) { this.cpu = []; this.counts = { base: 0, frames: 0 }; this.parts = {}; this.pops.most = { total: 0, seats: [0, 0], centre: 0 }; this.pops.place = placeStats(); }
     return s;
   }
 }
