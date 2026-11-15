@@ -1,0 +1,8 @@
+[
+  { "name": "temple-shut", "query": "duel&world=temple&dress=fire,water&p1=bot&p2=bot&go&set=90&hud=0", "frames": 600, "eval": "for (const g of [...bend.gates.gates.values()]) if (g.world === 'temple') bend.gates.close(g.id);", "timings": true },
+  { "name": "temple-open", "query": "duel&world=temple&dress=fire,water&p1=bot&p2=bot&go&set=90&hud=0", "frames": 600, "timings": true },
+  { "name": "pool-shut", "query": "duel&world=pool&dress=fire,water&p1=bot&p2=bot&go&set=90&hud=0", "frames": 600, "eval": "for (const g of [...bend.gates.gates.values()]) if (g.world === 'pool') bend.gates.close(g.id);", "timings": true },
+  { "name": "pool-open", "query": "duel&world=pool&dress=fire,water&p1=bot&p2=bot&go&set=90&hud=0", "frames": 600, "timings": true },
+  { "name": "redwoods-shut", "query": "duel&world=redwoods&dress=fire,water&p1=bot&p2=bot&go&set=90&hud=0", "frames": 600, "eval": "for (const g of [...bend.gates.gates.values()]) if (g.world === 'redwoods') bend.gates.close(g.id);", "timings": true },
+  { "name": "redwoods-open", "query": "duel&world=redwoods&dress=fire,water&p1=bot&p2=bot&go&set=90&hud=0", "frames": 600, "timings": true }
+]

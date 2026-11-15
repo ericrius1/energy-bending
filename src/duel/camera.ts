@@ -402,6 +402,17 @@ export class DuelCamera {
   last = { clear: Infinity, blocked: 0, choices: 0, bad: 0, found: true, lag: 0, pull: 1, lean: 0, push: 0, eyeBad: 0, wantFg: 0, wantScore: 0, why: '', calmWhy: '' };
 
   /** start again from the next update (snapped there, as on a duel's first frame) */
+  /** go on from a pose held by someone else (the rig's own way through a gate, report 18-wayfinding): the eased pose
+   *  starts there, with nothing snapped, and heads for its own choice from the next update */
+  from(eye: ArrayLike<number>, look: ArrayLike<number>, fov: number) {
+    this.reset();
+    this.fresh = false;
+    this.wait = 0;
+    const dx = eye[0] - look[0], dy = eye[1] - look[1], dz = eye[2] - look[2], d = Math.max(1e-3, Math.hypot(dx, dy, dz));
+    for (let a = 0; a < 3; a++) this.look[a] = look[a];
+    this.dist = d; this.fov = fov;
+    this.yaw = Math.atan2(dx, dz); this.pitch = Math.asin(Math.max(-1, Math.min(1, dy / d)));
+  }
   reset() { this.fresh = true; this.want = null; this.side = null; this.yawV = 0; this.imps.length = 0; this.riseKeep = 0; this.riseLow = 0; this.low = 0; this.calm = 0; this.calmV = 0; this.quiet = 0; }
 
   /** a moment of contact for the camera to feel (phase 3's juice: the feel calls `camera.impulse?.(…)`): for a moment
