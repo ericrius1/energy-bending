@@ -238,8 +238,25 @@ fn geodeMosaic(xz: vec2f, fw: f32) -> Mosaic {
       f += geodeSpectrum(h) * exp(-along * along) * 0.035 * L.sun.w * (0.7 + 0.3 * band);
     }
     // moss grown in over the agate at the edge of the floor, round the wall's foot
-    let edge = smoothstep(8.6, 11.0, length(p.xz) + (vnoise2(p.xz * 0.6) - 0.5) * 2.4) * L.green;
+    let rr = length(p.xz);
+    let edge = smoothstep(8.6, 11.0, rr + (vnoise2(p.xz * 0.6) - 0.5) * 2.4) * L.green;
     f = mix(f, GEO_MOSS * (0.012 + 0.02 * vnoise2(p.xz * 5.0)) * (1.0 + L.sun.w), edge * 0.9);
+    // the water channel round the floor's edge at the crystal's foot (phase 6): clear water over pale stones in a channel
+    // of cream stone, mirroring the glass vault and the sun, the light netting its bed
+    let inCh = smoothstep(11.0, 11.06, rr) * smoothstep(11.9, 11.84, rr);
+    if (inCh > 0.0) {
+      let tw = frame.time;
+      let wn = normalize(vec3f(0.04 * sin(p.x * 3.1 + tw * 1.3) + 0.03 * sin(p.z * 4.3 - tw * 1.1), 1.0, 0.04 * sin(p.z * 2.7 + tw * 1.2) + 0.03 * sin(p.x * 5.1 + tw * 0.9)));
+      let wr = reflect(d, wn);
+      let wf = 0.03 + 0.97 * pow(1.0 - max(-dot(d, wn), 0.0), 5.0);
+      let bed = vec3f(0.55, 0.62, 0.52) * (0.6 + 0.4 * vnoise2(p.xz * 7.0));
+      let net = causticLight(p.xz * 0.5, 3.0, tw * 0.6, false);
+      let below = bed * vec3f(0.55, 0.85, 0.8) * (0.06 + 0.12 * L.sun.w) * net;
+      let above = geodeSky(normalize(vec3f(wr.x, max(wr.y, 0.05), wr.z))) * (0.55 + 0.45 * L.sun.w);
+      f = mix(f, mix(below, above, wf * 0.9 + 0.08), inCh);
+    }
+    let coping = max(smoothstep(0.09, 0.05, abs(rr - 10.98)), smoothstep(0.09, 0.05, abs(rr - 11.92)));
+    f = mix(f, vec3f(0.9, 0.84, 0.7) * (0.12 + 0.16 * L.sun.w) * (0.85 + 0.15 * vnoise2(p.xz * 9.0)), coping);
     c = mix(f, horizon, 1.0 - exp(-t * L.fog));
   }
   // a soft halo round the stage, over the wall and the floor alike

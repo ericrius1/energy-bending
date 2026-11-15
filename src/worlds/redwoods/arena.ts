@@ -140,8 +140,9 @@ function build(): RedwoodsDuel {
     spawns: [P(-0.2, 0, 2.6), P(3.6, 0, 2.2), P(-5.0, 1.1, 0), P(5.2, 2.2, -3.8), P(-3.0, 1.0, 5.6), P(1.0, 0, -5.5), P(2.0, 1.5, 0)],
     pieces: groups.flatMap((g) => g.solids), plane, drops,
     camera: { minDist: 6, maxDist: 9.5, lens: 40, low: -0.6 },
-    // (the lanterns' warm light, a little green from the leaves; softer since phase 5: a sheen on the tops, not gold sticks)
-    rim: [0.6, 0.5, 0.28],
+    // no rim light (phase 6, report 20): round every stump's top and the drops' edges it lay on the meadow as floating gold
+    // rectangles (report 19's issue 1). The drops read by their mossy, glowing lips and the stumps by their oiled tops
+    rim: [0, 0, 0],
     // the hazard: the wind through the clearing, a gust on seven phrases of ten, mostly along the stage one way or the
     // other, now and then slanting across it (hazards.ts)
     hazard: windHazard({ dirs: [0, Math.PI, 0.8, Math.PI + 0.8, Math.PI - 0.5, -0.5].map((a) => a + Math.atan2(right[2], right[0])), often: 7 }),

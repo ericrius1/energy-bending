@@ -15,9 +15,10 @@ const _dome_up: Vec3 = [0, 1, 0];
 
 /**
  * A dome of gems as state (Particle: pos, life, vel, mode, rot) and looks (specimen, radius, role, random) rows.
- * `kinds` are the specimen indices to use, most common first.
+ * `kinds` are the specimen indices to use, most common first. `top` (0 … 1 of the radius) keeps them below that height:
+ * a bank of crystal round the foot of a wall that opens above it (the geode's greenhouse vault, phase 6).
  */
-export function buildDome(count: number, radius: number, kinds: number[], kindCount: number, seed = 4242): Dome {
+export function buildDome(count: number, radius: number, kinds: number[], kindCount: number, seed = 4242, top = 1): Dome {
   const rng = mulberry32.create(seed);
   const r = () => mulberry32.sample(rng);
   const state = new Float32Array(count * 12), looks = new Float32Array(count * 4);
@@ -25,7 +26,8 @@ export function buildDome(count: number, radius: number, kinds: number[], kindCo
   const golden = Math.PI * (3 - Math.sqrt(5));
   for (let i = 0; i < count; i++) {
     // a Fibonacci spiral over the upper hemisphere (and a little below the floor's edge), denser low down
-    const u = Math.pow((i + 0.5) / count, 1.35);
+    const u0 = (1 - Math.min(1, top)) / 1.04;
+    const u = u0 + (1 - u0) * Math.pow((i + 0.5) / count, 1.35);
     const y = 1 - u * 1.04;
     const ring = Math.sqrt(Math.max(0, 1 - y * y));
     const a = i * golden + (r() - 0.5) * 0.3;

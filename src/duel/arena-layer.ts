@@ -94,7 +94,9 @@ class ArenaLayer {
     const here = () => view.on() && this.world !== null && this.world === view.world;
     pass.draw(shader, {
       label: 'arena.rim', bind: { segs: this.buf, look: this.u }, count: 6, instances: () => this.n.rim, constants: { RIM: 1 },
-      blend: 'add', depthWrite: false, cull: 'none', enabled: () => here() && arenaParams.rim > 0 && this.n.rim > 0,
+      // (an arena whose rim is black draws none: phase 6, report 20, the geode and the redwoods, whose tops read as
+      // planted wood and stone and whose rims floated over the meadow as gold rectangles)
+      blend: 'add', depthWrite: false, cull: 'none', enabled: () => here() && arenaParams.rim > 0 && this.n.rim > 0 && this.rim[0] + this.rim[1] + this.rim[2] > 0,
     });
     pass.draw(shader, {
       label: 'arena.debug', bind: { segs: this.buf, look: this.u }, count: 6, instances: () => this.n.debug, firstInstance: () => this.n.rim,

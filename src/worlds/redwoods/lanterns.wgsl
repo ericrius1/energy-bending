@@ -10,6 +10,9 @@
 #include "../light"
 
 override AROUND: u32 = 24u;
+/** the fireflies from NEAR on live out in the wood beyond the ring (phase 6): fireflies in volume, tier on tier back
+ *  into the mist, up to the lowest decks */
+override NEAR: u32 = 1000000u;
 // rows down a lantern: LID across its lid, then the paper (HOOPS bays of BAY rows), then FOOT across its foot ring
 override HOOPS: u32 = 9u;
 override BAY: u32 = 4u;
@@ -230,9 +233,15 @@ struct FOut {
   let a = h.y * 6.2831853;
   var home = vec3f(cos(a) * r, 0.12 + 2.4 * h.z * h.z, sin(a) * r);
   var wander = 0.9;
+  let deep = ii >= NEAR;
+  if (deep) {
+    let rd = worldLight.forest.clock.w + 1.5 + 34.0 * sqrt(h.x);
+    home = vec3f(cos(a) * rd, 0.3 + 7.5 * pow(h.z, 1.6), sin(a) * rd);
+    wander = 1.8;
+  }
   // a third of them are drawn to a dancer near their home: they gather round it, circling at arm's length, low
   let n = u32(worldLight.forest.near.w);
-  if (n > 0u && h3.x < 0.36) {
+  if (n > 0u && h3.x < 0.36 && !deep) {
     let d = worldLight.forest.dancers[ii % n];
     let pull = smoothstep(8.0, 2.5, length(d.xz - home.xz)) * d.w;
     let ang = h3.y * 6.2831853 + t * (0.25 + 0.35 * h3.z) * select(-1.0, 1.0, h3.z > 0.5);
@@ -252,7 +261,8 @@ struct FOut {
   o.bright = worldLight.forest.horizon.w * (flash + 0.1);
   let c = array<vec2f, 6>(vec2f(-1.0, -1.0), vec2f(1.0, -1.0), vec2f(1.0, 1.0), vec2f(-1.0, -1.0), vec2f(1.0, 1.0), vec2f(-1.0, 1.0))[vi];
   o.uv = c;
-  let size = 0.05 + 0.03 * h2.y;
+  // (a far one a little bigger, so at 720p it is a point of light and not lost under a pixel)
+  let size = (0.05 + 0.03 * h2.y) * (1.0 + 0.02 * max(length(p - frame.camPos) - 10.0, 0.0));
   o.pos = select(frame.viewProj * vec4f(p + (frame.camRight * c.x + frame.camUp * c.y) * size, 1.0), vec4f(2.0, 2.0, 2.0, 1.0), o.bright <= 0.0);
   return o;
 }

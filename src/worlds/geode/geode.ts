@@ -50,10 +50,10 @@ export const geodeParams = defineParams('geode', {
   cave: true,
   /** the stage's crystal shelves on the back wall */
   shelves: true,
-  caveStones: 3600,
+  caveStones: 1700,
   caveRadius: 12,
   caveTint: '#e0c48e',
-  caveBright: 0.4,
+  caveBright: 0.45,
   floorBand: '#dccdae',
   floorBandAmt: 0.8,
   shaft: 0.045,
@@ -68,13 +68,13 @@ export const geodeParams = defineParams('geode', {
   motes: 1400,
   moteSize: 0.008,
   haze: 0.03,
-  hazeCol: '#0c120b',
+  hazeCol: '#1c1a10',
   // the greenhouse (phase 4): the light wells' sun (how bright), how grown over the stone is, the fireflies
   sun: 1,
   green: 1,
   fireflies: 90,
   /** the hollow's wall: how much higher than wide its vault reaches, how strongly its crystals glow, their glints */
-  vault: 1,
+  vault: 1.45,
   wallGlow: 1,
   wallGlints: 1.2,
   // how it sounds: under water (Hz), the cave's echo, a fire somewhere, the depth under the bed
@@ -180,7 +180,7 @@ export class Geode implements World {
     this.spawns = spawnsOf(this.stages[0]);
     // the wall: crystal points and clusters pointing in at the stage, thicker and bigger where the dome meets the floor
     this.fixtures = [{ kind: 'gems', id: 'geode.wall', shape: 'dome', count: Math.min(P.caveStones, 4096), radius: P.caveRadius,
-      specimens: ['quartz', 'citrine', 'celestite', 'malachite', 'amethyst'], seed: 4242, enabled: () => geodeParams.cave }];
+      specimens: ['quartz', 'citrine', 'celestite', 'malachite', 'amethyst'], seed: 4242, top: 0.27, enabled: () => geodeParams.cave }];
     this.upload();
     onParams(P, () => this.upload());
   }
