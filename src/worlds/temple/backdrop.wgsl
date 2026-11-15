@@ -48,7 +48,13 @@ fn flagAt(xz: vec2f) -> Flag {
 @fragment fn fs(i: FullscreenOut) -> @location(0) vec4f {
   let d = viewRay(i.uv);
   let cam = frame.camPos;
-  if (d.y > -1e-4 || cam.y <= SEA) { return vec4f(templeSky(d, 1.0), 30000.0); }
+  if (d.y > -1e-4 || cam.y <= SEA) {
+    // the sky, and the far world on its horizon at its own distance, so the air's haze lies over it by that much
+    // (report 20)
+    let v = templeVista(d, 1.0);
+    let sky = templeSkyBase(d, 1.0) * (1.0 - v.a) + v.c;
+    return vec4f(sky, min(v.dist * max(dot(d, frame.camFwd), 0.05), 30000.0));
+  }
   // the floor (each flag at its own height: one step of refinement from the plane), or past the court the sea bed
   var t = -cam.y / d.y;
   var p = cam + d * t;
@@ -100,13 +106,38 @@ fn flagAt(xz: vec2f) -> Flag {
     let key = select(0.0, smoothstep(0.06, 0.02, templeMeander(ang, (r - 5.38) / 0.64)), r > 5.38 && r < 6.02) * (0.3 + 0.7 * worn);
     let groove = max(max(joint, crack), max(ring, key) * 0.8);
     albedo *= 1.0 - 0.6 * groove;
-    // weed and moss in the joints; wet and dark where the water is or lately was, and the low flags holding puddles
-    albedo = mix(albedo, vec3f(0.12, 0.2, 0.06), joint * 0.5);
+    // (report 20) a lotus of glazed tesserae inside the carved ring, teal and cream and gold: the court's mosaic, seen
+    // through the tide at its height as the concept has it, worn where the most feet have gone
+    if (r < 5.25) {
+      let la = atan2(p.z, p.x);
+      let petals = r / 5.0 - (0.5 + 0.5 * pow(abs(cos(la * 4.0)), 1.6));
+      let inner = r / 2.6 - (0.55 + 0.45 * pow(abs(cos(la * 4.0 + 0.785)), 1.6));
+      let tess = vec2i(floor(p.xz / 0.16));
+      let th = hash2i(tess + vec2i(17, 9));
+      var tile = vec3f(0.88, 0.84, 0.72);
+      if (petals < 0.0) { tile = mix(vec3f(0.18, 0.58, 0.58), vec3f(0.3, 0.7, 0.66), th); }
+      if (inner < 0.0) { tile = mix(vec3f(0.95, 0.72, 0.32), vec3f(0.98, 0.84, 0.5), th); }
+      if (r < 0.7) { tile = vec3f(0.98, 0.8, 0.4); }
+      let line = smoothstep(0.035, 0.0, min(abs(petals) * 5.0, abs(inner) * 2.6));
+      tile = mix(tile, vec3f(0.62, 0.45, 0.2), line);
+      let grout = smoothstep(0.012, 0.0, min(min(fract(p.x / 0.16), 1.0 - fract(p.x / 0.16)), min(fract(p.z / 0.16), 1.0 - fract(p.z / 0.16))) * 0.16);
+      let wornM = 0.55 + 0.45 * smoothstep(0.25, 0.75, vnoise2(p.xz * 0.9 + 3.0));
+      albedo = mix(albedo, tile * (0.88 + 0.12 * th) * (1.0 - 0.15 * grout), wornM * (1.0 - joint) * smoothstep(5.25, 5.05, r));
+    }
+    // weed and moss creeping out of the joints, a small flower in some (report 20: greener and further in than before);
+    // wet and dark where the water is or lately was, and the low flags holding puddles
+    let creep = smoothstep(0.16, 0.0, f.edge - 0.06 * vnoise2(p.xz * 4.0 + f.id)) * smoothstep(0.3, 0.6, vnoise2(p.xz * 0.6 + 5.0));
+    let mossC = mix(vec3f(0.1, 0.2, 0.05), vec3f(0.3, 0.46, 0.1), vnoise2(p.xz * 9.0));
+    albedo = mix(albedo, mossC, max(joint * 0.6, creep * 0.85));
+    let fl = vnoise2(p.xz * 26.0);
+    albedo = mix(albedo, select(vec3f(1.0, 0.95, 0.85), vec3f(1.0, 0.6, 0.45), fl > 0.9), step(0.84, fl) * creep * step(0.5, joint + creep));
     let wet = max(templeWet(f.h), smoothstep(-0.008, -0.022, f.h) * 0.8);
     albedo *= mix(0.86, 0.6, wet);
     let shadow = templeShadow(p + vec3f(0.0, 0.02, 0.0)) * templeCanopy(p);
     let diff = max(worldLight.temple.moon.y, 0.0);
     col = albedo * (moonL * diff * shadow + templeAmbient(up, 1.0 - groove * 0.6, p, 1.0));
+    // the stained glass's colour pooled on the stone, thrown long by the low sun (report 20)
+    col += albedo * moonL * templeScreenLight(p) * worldLight.temple.shafts.x;
     // the wet sheen: the moon's long path and the sky, broken up by the flags' little tilts
     let n = normalize(vec3f((hash2i(vec2i(f.id) + vec2i(1, 1)) - 0.5) * 0.04, 1.0, (hash2i(vec2i(f.id) + vec2i(2, 2)) - 0.5) * 0.04));
     let R = reflect(d, n);
