@@ -6,7 +6,8 @@
 //   often each hazard is ridden (rides and seconds: the tide floated on, a gust ridden in the air, the crystals' lift,
 //   the swell), and seconds spent in water.
 //   node scripts/duel-measure.mjs [--world temple,redwoods,geode,pool] [--sets 20] [--skills 0.85,0.85] [--hazards 1]
-//                                 [--seed 1] [--view free] [--json out.json]
+//                                 [--seed 1] [--view free] [--json out.json] [--bpm own|N] [--phrase 1] [--warp 1]
+//   (phase 4: the links a minute and the share on the beat; `--bpm own` each world at its own track's tempo)
 import { simulateDuel, nodeArena, makeBrains, type DuelSimResult } from './sim';
 import type { DuelStyle } from '../ai/duel-brain';
 import { DUEL } from '../../shared/duel.ts';
@@ -24,6 +25,19 @@ const jsonOut = arg('json', '');
 // shared/duel.ts DUEL, for tuning)
 const warp = arg('warp', '0') !== '0';
 for (const kv of arg('duel', '').split(',').filter(Boolean)) { const [k, v] = kv.split('='); (DUEL as unknown as Record<string, number>)[k] = Number(v); }
+// the music's tempo: `--bpm own` each world's own track's (public/music/tracks.json, as the page plays it), a number for
+// every world, default 112 (the harness's tempo until phase 4); `--phrase 1` a set of whole phrases of that tempo, as the
+// page's (sound.ts phraseSetMs), in place of 60 s
+const bpmArg = arg('bpm', '112');
+const phrase = arg('phrase', '0') !== '0';
+const tracks: Record<string, { bpm: number }> = await (async () => {
+  if (bpmArg !== 'own') return {};
+  const fs = await import('node:fs');
+  const j = JSON.parse(fs.readFileSync('public/music/tracks.json', 'utf8'));
+  return j.tracks ?? j;
+})();
+const bpmOf = (world: string) => (bpmArg === 'own' ? tracks[world]?.bpm ?? 112 : Number(bpmArg));
+const setMsOf = (bpm: number) => (phrase ? Math.max(1, Math.round(60000 / (16 * 60000 / bpm))) * (16 * 60000 / bpm) : 60000);
 
 /** each matter in two pairs; the pairs that can react (steam: fire and water, freeze: water and ice, melt: ice and
  *  fire) among them */
@@ -37,6 +51,7 @@ const f2 = (x: number) => (Number.isFinite(x) ? x.toFixed(2) : '-');
 const report: Record<string, unknown>[] = [];
 for (const world of worlds) {
   const { arena, world: W } = nodeArena(world);
+  const bpm = bpmOf(world), setMs = setMsOf(bpm);
   // (--tune world:gain:ebb: a world's energy to try, in place of its arena's)
   for (const t of arg('tune', '').split(',').filter(Boolean)) { const [w, g, e] = t.split(':'); if (w === world) arena.energy = { gain: Number(g), ebb: Number(e) }; }
   const all: DuelSimResult[] = [];
@@ -53,7 +68,7 @@ for (const world of worlds) {
     const onStep = [false, false];
     let eWas = 0, wasJoined = false, apartAt = -1, tNow = 0;
     const res = simulateDuel({
-      arena, world: W, locked: view === 'locked', dress, hazards, warp, brains: makeBrains(styles, skills, [seed, seed + 7]), sets: 1, setMs: 60000, seconds: 90,
+      arena, world: W, locked: view === 'locked', dress, hazards, warp, brains: makeBrains(styles, skills, [seed, seed + 7]), sets: 1, setMs, bpm, seconds: setMs / 1000 + 30,
       each: ({ powers, bodies, match, events }) => {
         const d = match.state;
         if (d.phase === 'play') {
@@ -104,7 +119,7 @@ for (const world of worlds) {
   const second = Object.fromEntries(PAIRS.map(([m, a, b]) => [m, +((casts[b] ?? 0) / Math.max(1, casts[a] ?? 0)).toFixed(2)])) as Record<string, number>;
   const rideOut = Object.fromEntries(Object.entries(rides).map(([k, v]) => [k, { n: v.n, perSet: +(v.n / nSets).toFixed(2), s: +v.s.toFixed(1) }]));
   const line = {
-    world, view, hazards, sets: nSets, skills,
+    world, view, hazards, sets: nSets, skills, bpm: +bpm.toFixed(2), setMs: Math.round(setMs),
     fallsPerSet: falls / nSets, catchesPerMin: catches / min, aerialShare: aerials / Math.max(1, catches), powerCatchesPerMin: powerCatches / min,
     castsPerMin: totalCasts / min, share, casts: Object.fromEntries(POWERS.map((p) => [p, casts[p] ?? 0])), secondToFirst: second,
     reactionsPerSet: Object.values(reacts).reduce((a, b) => a + b, 0) / nSets, reactions: reacts,
@@ -113,13 +128,15 @@ for (const world of worlds) {
     peak: peak / nSets, fused, merges,
   };
   report.push(line);
-  console.log(`\n${world} (${view}, hazards ${hazards ? 'on' : 'off'}): ${nSets} sets of 60 s, skill ${skills.join(',')}, dress rotated`);
+  console.log(`\n${world} (${view}, hazards ${hazards ? 'on' : 'off'}${warp ? ', warp on' : ''}): ${nSets} sets of ${f1(setMs / 1000)} s at ${f1(bpm)} bpm, skill ${skills.join(',')}, dress rotated`);
   console.log(`  falls ${f2(line.fallsPerSet)} a set; catches ${f1(line.catchesPerMin)} a minute (${(line.aerialShare * 100).toFixed(0)}% from the air, ${f1(line.powerCatchesPerMin)} by a power); apart ${f1(line.spread)} m on average`);
   console.log(`  casts ${f1(line.castsPerMin)} a minute: ${POWERS.map((p) => `${p} ${(share[p] * 100).toFixed(0)}%`).join(', ')}`);
   console.log(`  second power to first: ${PAIRS.map(([m]) => `${m} ${f2(second[m])}`).join(', ')}`);
   console.log(`  reactions ${f2(line.reactionsPerSet)} a set ${JSON.stringify(reacts)}; the ice step as a ledge: ${ledge.stands} stands (${f2(line.ledge.perSet)} a set), ${f1(ledge.s)} s`);
   console.log(`  hazards ridden: ${Object.entries(rideOut).map(([k, v]) => `${k} ${v.n} (${v.perSet} a set, ${v.s} s)`).join(', ') || 'none'}; ${line.waterS} s a set in water`);
-  console.log(`  peak ${f2(line.peak)}, ${fused} fused, ${merges} merges`);
+  const perfect = all.reduce((x, r) => x + r.stats.perfect, 0), links = all.reduce((x, r) => x + r.stats.links, 0);
+  Object.assign(line, { perfectShare: perfect / Math.max(1, links), linksPerMin: links / min });
+  console.log(`  peak ${f2(line.peak)}, ${fused} fused, ${merges} merges; links ${f1(links / min)} a minute, ${(100 * perfect / Math.max(1, links)).toFixed(0)}% on the beat`);
   // the pacing: each set's first MERGE (s into its play), the longest stretch at FUSE_AT, the energy's sources
   const firsts = all.map((r) => r.merges[0]?.[0]).filter((x): x is number => x != null);
   const highs = all.map((r) => r.sets[0]?.high ?? 0), mean = (x: number[]) => (x.length ? x.reduce((a, b) => a + b, 0) / x.length : NaN);
