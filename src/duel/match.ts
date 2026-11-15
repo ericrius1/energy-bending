@@ -160,6 +160,13 @@ export class DuelMatch {
     const S = this.arena.space, dx = c.root[0] - S.center[0], dz = c.root[2] - S.center[2], d = Math.hypot(dx, dz);
     const E = EDGE, inner = S.radius - E.band;
     if (d <= inner || d < 1e-6) return 0;
+    // (in the lane of a way out (a gate or a mirror, arena.ts exits), up to its disc and a little past: open. Two
+    // gates stand past their space's radius, the geode's to the redwoods and the redwoods' to the hub, and the edge
+    // kept every body from them: report 19, src/duel/test/edge.test.ts)
+    for (const e of this.arena.exits ?? []) {
+      const rx = c.root[0] - e.at[0], rz = c.root[2] - e.at[2], along = rx * e.dir[0] + rz * e.dir[1];
+      if (along < 0.6 && along > -E.band - 2 && Math.abs(-rx * e.dir[1] + rz * e.dir[0]) < e.r) return 0;
+    }
     const nx = dx / d, nz = dz / d, over = d - S.radius;
     if (over > 0) { c.root[0] -= nx * over * E.ease; c.root[2] -= nz * over * E.ease; }
     const out = c.v[0] * nx + c.v[2] * nz;

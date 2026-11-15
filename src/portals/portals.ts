@@ -364,6 +364,9 @@ export class Portals implements SceneLayer {
     return true;
   }
 
+  /** let dancer `d` cross no gate for `s` seconds (a duel's pair just through a mirror: no crossing straight back) */
+  holdBack(d: Dancer, s: number) { this.exempt.set(d, Math.max(this.exempt.get(d) ?? -1, this.t + s)); }
+
   /** every dancer as `world` sees it: its joints (carried through the gate it is nearest, for one in another world
    *  joined to this one by an open gate), and their middle. What the camera follows and frames: it passes `reach`
    *  (m), so a dancer in another world counts only while it is that near the gate (part way through, or just past) */

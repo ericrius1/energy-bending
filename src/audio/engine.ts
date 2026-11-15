@@ -129,6 +129,9 @@ export class Engine implements StepHost {
   setTrack(t: TrackInfo | null, now = false) {
     if (now) { this.pendingTrack = undefined; this.useTrack(t, this.time()); return; }
     if ((this.pendingTrack === undefined ? this.track : this.pendingTrack)?.id === t?.id) return;
+    // (back to the track playing before the bar line came (a mirror crossed and crossed back within a bar): it plays on,
+    // not started again from its bar 1)
+    if (this.pendingTrack !== undefined && this.track?.id === t?.id) { this.pendingTrack = undefined; return; }
     this.pendingTrack = t;
   }
 
@@ -333,7 +336,8 @@ export class Engine implements StepHost {
     // a new track (free): this bar line is its bar 1
     if (this.pendingTrack !== undefined && !this.clock.sync) {
       const tr = this.pendingTrack; this.pendingTrack = undefined;
-      if (tr) { this.clock.origin = this.clock.step; bar = 0; }
+      // (and its chords from its own bar 1: a film's shot had the old track's place in trackBeat0)
+      if (tr) { this.clock.origin = this.clock.step; bar = 0; if (Number.isFinite(this.trackBeat0)) this.trackBeat0 = 0; }
       this.useTrack(tr, t);
       this.events.push({ t, type: 'track', id: tr?.id ?? null });
     }

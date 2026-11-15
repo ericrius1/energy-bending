@@ -410,7 +410,24 @@ export async function startDuel(app: PlayApp, opts: { joined?: Joined } = {}) {
   let transit = 0;
   /** the disc the pair came out of (in the duel's new world), for the crossing's first frame */
   let cameOut: { at: V3; n: V3 } | null = null;
+  /** every crossing this page made: the set's seconds, the two worlds, and how the main view went over (`through` the
+   *  disc behind the pair, or cut under the mirror's `flash`: the eye beside the plane, or `late`, not through in 3 s) */
+  const crossings: { d: number; from: string; to: string; how?: 'through' | 'flash' | 'late' }[] = [];
+  /** the disc the pair came out of, for a few seconds after (`t`): a body brought through held lands behind it, still
+   *  reaching through (Portals.bring), and is kept from crossing while it is still there. With a fixed 1.5 s, a body
+   *  not yet out in front was carried back, and its partner after it: a pair went back and forth a second and a half
+   *  apart in the scouts (report 19) */
+  let behind: { at: V3; n: V3; r: number; t: number } | null = null;
   frame.tick('camera', (f: FrameCtx) => {
+    if (behind) {
+      const B = behind;
+      B.t -= f.dt;
+      for (let k = 0; k < 2 && B.t > 0; k++) {
+        const r = chars[k].root, dx = r[0] - B.at[0], dz = r[2] - B.at[2], s = dx * B.n[0] + dz * B.n[2];
+        if (s < 0 && s > -2.5 && Math.abs(dx * B.n[2] - dz * B.n[0]) < B.r + 0.6 && play.dancers[k]) app.gates.holdBack(play.dancers[k], 0.1);
+      }
+      if (B.t <= 0) behind = null;
+    }
     const a = camBody(0), b = camBody(1);
     if (!a || !b) { rig.pose = null; return; }
     if (transit > 0) {
@@ -422,7 +439,9 @@ export async function startDuel(app: PlayApp, opts: { joined?: Joined } = {}) {
       const pair: V3 = [(a.root[0] + b.root[0]) / 2, (a.root[1] + b.root[1]) / 2 + 1, (a.root[2] + b.root[2]) / 2];
       transit = Math.max(0, transit - f.dt);
       const stuck = (o && side(rig.eye) * side(pair) > 0) || transit <= 0;
-      if (stuck && app.main.world !== W.id && app.gates.rigWorld === W.id) { app.gates.arrive(); app.gates.flash(W.id); }
+      const X = crossings[crossings.length - 1];
+      if (stuck && app.main.world !== W.id && app.gates.rigWorld === W.id) { app.gates.arrive(); app.gates.flash(W.id); if (X && !X.how) X.how = transit <= 0 ? 'late' : 'flash'; }
+      else if (X && !X.how && app.main.world === W.id) X.how = 'through';
       if (!stuck && transit > 0 && (rig.through || app.main.world !== W.id)) { rig.pose = null; return; }
       transit = 0;
       cameOut = null;
@@ -442,8 +461,8 @@ export async function startDuel(app: PlayApp, opts: { joined?: Joined } = {}) {
   // camera's eye follows through the disc; the music takes the new world's track from its next bar line (Music.retone,
   // as the main view goes through). Online the room server plays the duel in one world: there the world's gates shut
   // while the duel is on, as before (report 18-wayfinding: the crossing online is the next step)
-  // (a film keeps its world, as does &mirrors=0: their gates shut, as before)
-  const keep = online || app.film || q.get('mirrors') === '0';
+  // (a film keeps its world unless it asks for the mirrors, &mirrors=1; &mirrors=0 shuts them: the gates as before)
+  const keep = online || (app.film && q.get('mirrors') !== '1') || q.get('mirrors') === '0';
   const shut = keep ? [...app.gates.gates.values()].filter((g) => g.world === W.id).map((g) => g.def) : [];
   for (const g of shut) app.gates.close(g.id);
   // (the mirrors' cost while the duel plays: a mirror far off shows its still, and no gate is drawn live through another)
@@ -453,6 +472,7 @@ export async function startDuel(app: PlayApp, opts: { joined?: Joined } = {}) {
     if (id === W.id) return;
     const g = app.gates.gates.get(out);
     cameOut = g ? { at: [...g.at] as V3, n: [...g.n] as V3 } : null;
+    behind = g ? { at: [...g.at] as V3, n: [...g.n] as V3, r: g.radius, t: 4 } : null;
     const was = W.id;
     release();
     hazards.rest();
@@ -465,6 +485,7 @@ export async function startDuel(app: PlayApp, opts: { joined?: Joined } = {}) {
     if (match.locked) { for (const c of ctl) c.setPlane(plane); rig.lock(plane); }
     transit = 3;
     rig.pose = null;
+    crossings.push({ d: +(now / 1000).toFixed(3), from: was, to: W.id });
     console.info(`duel: through the mirror from ${was} to ${W.id}`);
   };
   const offTravel = app.gates.on((e) => {
@@ -475,7 +496,10 @@ export async function startDuel(app: PlayApp, opts: { joined?: Joined } = {}) {
     // (a body already through on its own: nothing to bring)
     if (od && app.gates.worldOf(od) === e.from) {
       const held = !!match.contact.link;
-      app.gates.bring(show.dancers, show.dancers.indexOf(od), e.gate, { front: e.front, rigid: held, hold: held ? 1.5 : 0 });
+      app.gates.bring(show.dancers, show.dancers.indexOf(od), e.gate, { front: e.front, rigid: held, hold: held ? 1.5 : 0.6 });
+      // (and the one who crossed: a grip or a swing pulling it straight back through the disc took the pair back and
+      // forth a frame at a time, five crossings in five frames in a scouted set; report 19)
+      app.gates.holdBack(show.dancers[e.dancer], held ? 1.5 : 0.6);
     }
     moveTo(e.to, e.partner);
   });
@@ -564,6 +588,8 @@ export async function startDuel(app: PlayApp, opts: { joined?: Joined } = {}) {
     net,
     /** which one is me (you.ts): the page's own seats (`seats` overrides), the tell's opening and its answer */
     you,
+    /** the crossings through the mirrors so far (the set's seconds, from, to, how the view went over) */
+    crossings,
     /** the free camera (camera.ts): its choice, what it framed, how clear its eye stood */
     camera: dcam, camSpace,
     /** cast a seat's power now (slot 0 or 1; the stick as a world x, z), or the form: as its buttons would */
