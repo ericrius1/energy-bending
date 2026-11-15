@@ -30,6 +30,8 @@
 #include "./pool/pool"
 #include "./temple/temple"
 #include "../matter/fire/light"
+// (phase 6, report 20: the world answering a moment, `answer` below)
+#include "./answer"
 
 /** the light of every world, a slot each, and the dancers' own. A new world appends its member */
 struct WorldLight {
@@ -42,6 +44,8 @@ struct WorldLight {
   temple: Temple,
   /** what the main view may fade (worlds/fade.ts): not a world's */
   sight: Sight,
+  /** the world answering a moment (worlds/answer.wgsl, filled by worlds/answer.ts): not a world's */
+  answer: Answer,
 }
 
 /** a body the camera frames, as the near fade sees it: an upright capsule from `lo` (its feet: below this height
@@ -143,11 +147,14 @@ fn worldFixtureTint(p: vec3f, fade: bool) -> vec3f {
 }
 
 /** the light in the air over the scene `s` (alpha: its view distance) along the view ray d */
-fn worldAir(s: vec4f, px: vec2i, d: vec3f) -> vec3f {
-  if (WORLD == 1u) { return woodsAir(s, px, d); }
-  if (WORLD == 2u) { return poolAir(s, px, d); }
-  if (WORLD == 3u) { return templeAir(s, px, d); }
-  return geodeAir(s, px, d);
+fn worldAir(s0: vec4f, px: vec2i, d: vec3f) -> vec3f {
+  // (the world answering a moment: its light on the surfaces before the world's own air fogs them, its light in the
+  // air after: answer.wgsl)
+  let s = answerAir(s0, d);
+  if (WORLD == 1u) { return woodsAir(s, px, d) + answerLight(s.a, d); }
+  if (WORLD == 2u) { return poolAir(s, px, d) + answerLight(s.a, d); }
+  if (WORLD == 3u) { return templeAir(s, px, d) + answerLight(s.a, d); }
+  return geodeAir(s, px, d) + answerLight(s.a, d);
 }
 
 /** the scene at pixel px as the world shows it, before its air: most worlds show it as drawn; a world with water lays

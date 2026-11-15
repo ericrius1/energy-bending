@@ -72,7 +72,8 @@ fn airPush(s: f32, t: f32, seed: f32, face: vec2f, kind: f32) -> vec2f {
       across = normalize(vec3f(-toEye.z, 0.0, toEye.x) + vec3f(1e-5, 0.0, 0.0));
       N = normalize(vec3f(across.z, 0.0, -across.x));
     }
-    let w = airPush(s, t, H.look.x, face, kind);
+    // (the world answering a moment streams the pennants out and swings the chimes: worlds/answer.wgsl, report 20)
+    let w = airPush(s, t, H.look.x, face, kind) + vec2f(answerLift(1u, H.at.xyz) * s * H.n.z * select(0.9, 0.3, kind > 1.5), 0.0);
     // (a pennant narrows to its point; streamed out by a gust it lifts toward level)
     let width = select(H.n.w * (1.0 - s), H.n.w, kind > 1.5);
     let lift = length(w) / max(H.n.z, 1e-3);

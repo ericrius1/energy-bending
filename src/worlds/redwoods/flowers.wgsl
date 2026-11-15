@@ -169,7 +169,10 @@ fn light(o: ptr<function, FOut>, albedo: vec3f, wp: vec3f, n: vec3f, ao: f32) {
     var curl = S.curl;
     // an iris: standards up, falls down
     if (kind == 3u && (pi & 1u) == 1u) { cup = 0.1; curl = 1.0; }
-    let len = S.len * grow * (0.85 + 0.3 * h2.y);
+    // (the world answering a moment opens them wide as its wave passes: worlds/answer.wgsl, report 20)
+    let open = answerReach(1u, head);
+    cup *= 1.0 - 0.6 * open;
+    let len = S.len * grow * (0.85 + 0.3 * h2.y) * (1.0 + 0.8 * open);
     let el = cup - curl * s * s * 0.6;
     let elTip = cup - curl * s * s;
     let p0 = head + ax * (S.eyeR * grow * 0.4) + radial * (S.eyeR * grow * 0.8 + len * s * cos(el)) + ax * (len * s * sin(el));
@@ -330,6 +333,8 @@ fn light(o: ptr<function, FOut>, albedo: vec3f, wp: vec3f, n: vec3f, ao: f32) {
   let H = normalize(L + V);
   let gloss = select(30.0, 80.0, i.kind == 5u);
   let sheen = pow(max(dot(N, H), 0.0), gloss) * select(0.12, 0.6, i.kind == 5u);
-  let c = col + key * (diff + through) + worldLight.forest.keyCol.rgb * worldLight.forest.key.w * sheen * length(key) * 0.5;
+  var c = col + key * (diff + through) + worldLight.forest.keyCol.rgb * worldLight.forest.key.w * sheen * length(key) * 0.5;
+  // (and glow, opened, as the answer's light passes: report 20)
+  c *= 1.0 + 1.8 * answerGlow(1u, i.wp) * select(0.0, 1.0, i.part >= 2u);
   return vec4f(c, dot(i.wp - frame.camPos, frame.camFwd));
 }

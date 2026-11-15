@@ -82,6 +82,9 @@ export interface CamBody {
   air: boolean;
   /** fallen and reforming (the duel's reform): not framed, the camera stays with the other a moment */
   away?: boolean;
+  /** how much a solid across this body's sight lines costs, × (phase 6, report 20: a fused finale's lifted body and
+   *  its flower, 3: the eye goes round a standing stone rather than keep the lift half behind it). None: 1 */
+  keep?: number;
 }
 
 export interface CamInput {
@@ -568,8 +571,8 @@ export class DuelCamera {
         // the sight lines to each body (hips, chest, head: its first, middle and head points)
         // (each line stops short of its point: a wall the body hangs on or a slab it stands on is not in the way)
         let n = 0, m = 0;
-        const line = (p: V3) => { m++; if (I.space!.blocked(f.eye, short(f.eye, p, P.shortOf))) n++; };
-        for (const b of I.bodies) { for (const p of b.sight) line(p); line(b.head); }
+        const line = (p: V3, w = 1) => { m += w; if (I.space!.blocked(f.eye, short(f.eye, p, P.shortOf))) n += w; };
+        for (const b of I.bodies) { for (const p of b.sight) line(p, b.keep); line(b.head, b.keep); }
         // (and where the body will be a moment on: its hips and head, ballistic in the air, so a choice holds a while)
         for (const q of ahead) line(q);
         if (n) s += K.blocked + K.blockedShare * (n / m);
@@ -694,7 +697,7 @@ export class DuelCamera {
         let n = 0;
         for (const p of [B.sight[0], B.sight[1] ?? B.sight[0], B.head]) if (sp.blocked(e, short(e, p, P.shortOf))) n++;
         // (one of them hidden is already unclean: a slab partly over the pair)
-        if (n) { b += 0.2 + 0.3 * n; if (note) why += 'b'; }
+        if (n) { b += (0.2 + 0.3 * n) * (B.keep ?? 1); if (note) why += 'b'; }
       }
       return b;
     };

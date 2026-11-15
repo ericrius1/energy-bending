@@ -30,7 +30,9 @@ struct JOut {
   let a = h.z * 6.2831853;
   let spread = vec2f(cos(a), sin(a)) * (0.12 + 0.18 * h.x) + toMid * J.w;
   let base = vec3f(J.x, -0.02, J.y);
-  let p = base + vec3f(spread.x * age, vy * age - 0.5 * g * age * age, spread.y * age) + vec3f(worldLight.temple.water.w * age * 2.0, 0.0, 0.0);
+  // (the world answering a moment: the jets leap two and a half times as high, on the beat: worlds/answer.wgsl, report 20)
+  let leap = 1.0 + 1.6 * answerLift(3u, base);
+  let p = base + vec3f(spread.x * age, (vy * age - 0.5 * g * age * age) * leap, spread.y * age) + vec3f(worldLight.temple.water.w * age * 2.0, 0.0, 0.0);
   let c = array<vec2f, 6>(vec2f(-1.0, -1.0), vec2f(1.0, -1.0), vec2f(1.0, 1.0), vec2f(-1.0, -1.0), vec2f(1.0, 1.0), vec2f(-1.0, 1.0))[vi];
   let size = 0.018 + 0.02 * h.x;
   // (stretched along its flight: a streak, not a dot)
@@ -44,7 +46,7 @@ struct JOut {
   // (a droplet glints where the sun is near the line to the eye, softly lit by the sky everywhere)
   let V = normalize(frame.camPos - p);
   let glint = pow(max(dot(normalize(V + worldLight.temple.moon.xyz), V), 0.0), 8.0);
-  o.bright = (sun * (0.12 + 0.5 * glint) + templeAmbient(up, 1.0, p, 0.0) * 0.18) * smoothstep(0.0, 0.05, age) * select(1.0, 0.0, p.y < -0.05);
+  o.bright = (sun * (0.12 + 0.5 * glint) * leap + templeAmbient(up, 1.0, p, 0.0) * 0.18) * smoothstep(0.0, 0.05, age) * select(1.0, 0.0, p.y < -0.05);
   return o;
 }
 

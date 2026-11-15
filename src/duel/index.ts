@@ -67,6 +67,11 @@ import { SEAT_CSS } from './seat';
 import { YouTell, ownSeats } from './you';
 import { camKind } from './weight';
 import { momentsHook } from './moments';
+// (phase 6, report 20: the world answering a pair tier and a fusion)
+import { DuelAnswer } from './answer';
+import { WorldAnswer, NO_ANSWER } from '../worlds/answer';
+import { lightSlot } from '../worlds/shared';
+import { seatRGB } from './seat';
 import { steamHook } from './steam-probe';
 import { steamParams } from '../matter/reactions/params';
 import { DuelHud, screenOf, screenBounds, type HudSeat, type HudState, type HudWord } from './hud-state';
@@ -284,6 +289,13 @@ export async function startDuel(app: PlayApp, opts: { joined?: Joined } = {}) {
     field: field as unknown as DuelFxCtx['field'], burst: app.hand?.burst ?? null, finale: () => finale.look(),
     eye: () => [cam.position[0], cam.position[1], cam.position[2]], form: (k) => powers.hud(k).form, viewProj: () => cam.viewProj,
   });
+  // the world answering a pair tier and a fusion (answer.ts; worlds/answer.wgsl reads it in every world's shaders)
+  const worldAnswer = new WorldAnswer(lightSlot(kit, 'answer'));
+  const answer = new DuelAnswer({
+    glows, light: () => world().light, eye: () => [cam.position[0], cam.position[1], cam.position[2]], finale: () => finale.look(), flower: () => fx.heartNow,
+    pair: () => [(chars[0].root[0] + chars[1].root[0]) / 2, Math.min(chars[0].root[1], chars[1].root[1]), (chars[0].root[2] + chars[1].root[2]) / 2],
+    foot: (k) => [chars[k].root[0], chars[k].root[1], chars[k].root[2]], write: (a) => worldAnswer.write(a), seat: seatRGB,
+  });
   const water = app.kinds.find((k) => k.id === 'water' || k.id === 'ice') as WaterPasses | undefined;
   const plasma = app.kinds.find((k) => k.id === 'plasma') as PlasmaPasses | undefined;
   const powerFx = new PowerFxDraw({
@@ -401,7 +413,9 @@ export async function startDuel(app: PlayApp, opts: { joined?: Joined } = {}) {
     const c = chars[k];
     // (a fused finale's flyer: the bloom's flower over its head is framed too, bloom.ts)
     const top = finale.active && finale.fused && k === finale.flyer ? [fx.flowerTop ?? bloomFrame(at(JOINT.HeadEnd))] : [];
-    return { pts: [...FRAMED.map(at), ...top], sight: [at(JOINT.Hips), at(JOINT.Spine1)], head: at(JOINT.HeadEnd), root: [c.root[0], c.root[1], c.root[2]], vel: [c.v[0], c.v[1], c.v[2]], air: !c.grounded, away: c.reforming };
+    // (and the eye sees the lifted body and the flower's heart past the arena's pieces, a stone across them costing three
+    // times as much: report 20)
+    return { pts: [...FRAMED.map(at), ...top], sight: [at(JOINT.Hips), at(JOINT.Spine1), ...(top.length && fx.heartNow ? [fx.heartNow] : [])], head: at(JOINT.HeadEnd), root: [c.root[0], c.root[1], c.root[2]], vel: [c.v[0], c.v[1], c.v[2]], air: !c.grounded, away: c.reforming, keep: top.length ? 3 : 1 };
   };
   rig.apexG = chars[0].phys.gravity;
   rig.headroom = 0.5;
@@ -536,6 +550,8 @@ export async function startDuel(app: PlayApp, opts: { joined?: Joined } = {}) {
     for (const j of juice) if (j.at) impulse?.call(dcam, { at: j.at, kind: camKind(j.what), k: j.w, hold: j.hold / 60 });
     frameEvents = ev;
     fx.update(danceReal, ev, match.touches, match.contact, match.state);
+    answer.update(f.dt, ev, beat);
+    if (answer.lit) fx.keepOff([answer.lit]);
     powerFx.update(f.danceDt, powers);
     hazardFx.update(f.danceDt, hazards);
     if (steamKind) { steamKind.quiet = fx.quiet; steamKind.column = powerFx.hideSteam ? null : powerFx.column; }
@@ -604,6 +620,8 @@ export async function startDuel(app: PlayApp, opts: { joined?: Joined } = {}) {
     /** the HudState handed to the HUD this frame */
     hud: () => hudState,
     /** the moments probe (moments.ts): words on screen and the bodies covered, sampled after each frame is drawn */
+    /** the world answering the moments (answer.ts): `now`, `level`, `log`, `off` (the measure's switch) */
+    answer,
     moments: momentsHook({ dancer, project, glows, lit: () => [...fx.lit, ...powerFx.lit], events: () => frameEvents, power: () => powers.fx, t: () => now / 1000, bloom: () => fx.bloom }),
     /** the steam probe (steam-probe.ts): steam's and the geyser's veil over the bodies, from the pixels with and without */
     steam: steamHook({
@@ -619,7 +637,7 @@ export async function startDuel(app: PlayApp, opts: { joined?: Joined } = {}) {
     restart: () => { finale.stop(); if (!started) begin(); else match.restart(now); },
     /** the duel's end: the arena off, the world's room back */
     stop: () => {
-      started = false; match.warp.reset(); showArena(null); field.fuse(null); powerFx.clear(); powers.clear(); hazardFx.clear(); if (steamKind) { steamKind.column = null; steamKind.quiet = 0; }
+      started = false; match.warp.reset(); worldAnswer.write(NO_ANSWER); showArena(null); field.fuse(null); powerFx.clear(); powers.clear(); hazardFx.clear(); if (steamKind) { steamKind.column = null; steamKind.quiet = 0; }
       release(); offTravel(); Object.assign(gateParams, gatesWas);
       rig.pose = null; rig.apexG = 0; rig.headroom = 0;
       if (shut.length) app.gates.open(...shut);

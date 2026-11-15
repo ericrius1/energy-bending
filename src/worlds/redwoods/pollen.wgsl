@@ -24,7 +24,8 @@ struct MOut {
   o.pos = frame.viewProj * vec4f(p + (frame.camRight * c.x + frame.camUp * c.y) * size, 1.0);
   o.uv = c;
   let glint = 0.3 + 0.7 * pow(0.5 + 0.5 * sin(t * (1.0 + 3.0 * h.z) + h.x * 40.0), 3.0);
-  o.bright = worldLight.forest.key.w * keyLight(p) * (1.0 - worldLight.forest.night) * glint * 0.5;
+  // (the world answering a moment lights the pollen where its wave has passed, sun or no: report 20)
+  o.bright = worldLight.forest.key.w * keyLight(p) * (1.0 - worldLight.forest.night) * glint * 0.5 + answerReach(1u, p) * glint * 4.0;
   return o;
 }
 

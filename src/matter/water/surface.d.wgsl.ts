@@ -164,6 +164,13 @@ export interface FireLights {
   pad2: number;
   lights: Partial<FireLight>[];
 }
+export interface Answer {
+  at: Vec4;
+  k: Vec4;
+  sun: Vec4;
+  col: Vec4;
+  more: Vec4;
+}
 export interface WorldLight {
   fire: FireLights;
   geode: Geode;
@@ -171,6 +178,7 @@ export interface WorldLight {
   pool: Pool;
   temple: Temple;
   sight: Sight;
+  answer: Answer;
 }
 export interface SightBody {
   lo: Vec4;
@@ -371,5 +379,5 @@ export interface FocusOut {
   body: Vec4;
 }
 
-declare const shader: Shader<{ Frame: Frame; FullscreenOut: FullscreenOut; Geode: Geode; Forest: Forest; Pool: Pool; VistaLook: VistaLook; Vista: Vista; Temple: Temple; FireLight: FireLight; FireLights: FireLights; WorldLight: WorldLight; SightBody: SightBody; SightPiece: SightPiece; Sight: Sight; KeyLight: KeyLight; Joint: Joint; Seg: Seg; Particle: Particle; Home: Home; BodyStep: BodyStep; Bodies: Bodies; Touch: Touch; Goal: Goal; Touched: Touched; Stepped: Stepped; Seen: Seen; ViewSeen: ViewSeen; Heart: Heart; Hearts: Hearts; Surf: Surf; Bone: Bone; Edge: Edge; Shade: Shade; SceneOut: SceneOut; FocusOut: FocusOut }, 'frame' | 'worldLight' | 'bodies' | 'touch' | 'surf' | 'seen' | 'hearts' | 'joints' | 'segs' | 'poolWaves' | 'templeWaves' | 'scene' | 'water' | 'raw' | 'fog' | 'samp_linear' | 'samp_repeat' | 'samp_nearest' | 'samp_shadow'>;
+declare const shader: Shader<{ Frame: Frame; FullscreenOut: FullscreenOut; Geode: Geode; Forest: Forest; Pool: Pool; VistaLook: VistaLook; Vista: Vista; Temple: Temple; FireLight: FireLight; FireLights: FireLights; Answer: Answer; WorldLight: WorldLight; SightBody: SightBody; SightPiece: SightPiece; Sight: Sight; KeyLight: KeyLight; Joint: Joint; Seg: Seg; Particle: Particle; Home: Home; BodyStep: BodyStep; Bodies: Bodies; Touch: Touch; Goal: Goal; Touched: Touched; Stepped: Stepped; Seen: Seen; ViewSeen: ViewSeen; Heart: Heart; Hearts: Hearts; Surf: Surf; Bone: Bone; Edge: Edge; Shade: Shade; SceneOut: SceneOut; FocusOut: FocusOut }, 'frame' | 'worldLight' | 'bodies' | 'touch' | 'surf' | 'seen' | 'hearts' | 'joints' | 'segs' | 'poolWaves' | 'templeWaves' | 'scene' | 'water' | 'raw' | 'fog' | 'samp_linear' | 'samp_repeat' | 'samp_nearest' | 'samp_shadow'>;
 export default shader;

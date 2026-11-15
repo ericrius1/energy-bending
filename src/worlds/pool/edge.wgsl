@@ -186,7 +186,7 @@ const QUAD = array<vec2f, 6>(vec2f(0.0, 0.0), vec2f(1.0, 0.0), vec2f(1.0, 1.0), 
   // (the billow: out along the sail's normal, most in its middle, breathing with the air)
   let nrm = normalize(cross(P1.xyz - P0.xyz, P2.xyz - P0.xyz));
   let t = worldLight.pool.march.z;
-  let belly = s * (1.0 - s) * 4.0 * (u * (1.0 - u) * 4.0 * 0.6 + 0.4) * P0.w * (0.85 + 0.15 * sin(t * 0.7 + P1.w * 6.0));
+  let belly = s * (1.0 - s) * 4.0 * (u * (1.0 - u) * 4.0 * 0.6 + 0.4) * P0.w * (0.85 + 0.15 * sin(t * 0.7 + P1.w * 6.0)) * (1.0 + 1.2 * answerLift(2u, P0.xyz));
   p += nrm * belly;
   emit(&o, p, nrm);
   o.uv = vec2f(s, u);
@@ -307,7 +307,9 @@ struct JOut {
   let age = fract(t / life + h.y) * life;
   let a = select(h.z * 6.2831853, (f32(ii % 4u) + 0.5 + (h.z - 0.5) * 0.15) * 1.5707963, arc);
   let spread = vec2f(cos(a), sin(a)) * select(0.05 + 0.06 * h.x, 0.62 / life, arc);
-  let p = vec3f(J.x, J.y, J.z) + vec3f(spread.x * age, vy * age - 0.5 * g * age * age, spread.y * age);
+  // (the world answering a moment: the jets leap two and a half times as high, on the beat: worlds/answer.wgsl, report 20)
+  let leap = 1.0 + 1.6 * answerLift(2u, vec3f(J.x, J.y, J.z));
+  let p = vec3f(J.x, J.y, J.z) + vec3f(spread.x * age, (vy * age - 0.5 * g * age * age) * leap, spread.y * age);
   let c = array<vec2f, 6>(vec2f(-1.0, -1.0), vec2f(1.0, -1.0), vec2f(1.0, 1.0), vec2f(-1.0, -1.0), vec2f(1.0, 1.0), vec2f(-1.0, 1.0))[vi];
   // (larger than the temple's: the rim stands 10 to 15 m from the duel's eye)
   let size = 0.028 + 0.024 * h.x;
@@ -320,7 +322,7 @@ struct JOut {
   let V = normalize(frame.camPos - p);
   let glint = pow(max(dot(-V, worldLight.pool.key.xyz), 0.0), 6.0);
   // (gone below the bowl's water; dim past the near fade's reach, faded as the decorations are)
-  o.bright = (sun * (0.16 + 0.9 * glint) + poolAmbient(vec3f(0.0, 1.0, 0.0), 1.0) * 0.3) * smoothstep(0.0, 0.04, age) * select(1.0, 0.0, p.y < J.y - 0.75) * (1.0 - decorFade(p));
+  o.bright = (sun * (0.16 + 0.9 * glint) * leap + poolAmbient(vec3f(0.0, 1.0, 0.0), 1.0) * 0.3) * smoothstep(0.0, 0.04, age) * select(1.0, 0.0, p.y < J.y - 0.75) * (1.0 - decorFade(p));
   return o;
 }
 

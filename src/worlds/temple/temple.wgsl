@@ -153,7 +153,8 @@ fn templeVault(d: vec3f) -> vec4f {
   let sun = worldLight.temple.moonCol.rgb * worldLight.temple.moonCol.w;
   let ss = max(dot(d, S), 0.0);
   // (lit through: the sun's light scattered in the glass, much more round its disc)
-  let glass = tint * swirl * sun * (0.17 + 0.9 * pow(ss, 10.0) + 6.0 * pow(ss, 200.0));
+  // (the glass brightens while the world answers a moment: worlds/answer.wgsl, report 20)
+  let glass = tint * swirl * sun * (0.17 + 0.9 * pow(ss, 10.0) + 6.0 * pow(ss, 200.0)) * (1.0 + 1.8 * answerOf(3u) * (0.7 + 0.3 * worldLight.answer.k.w));
   // the cames: dark bronze lead with a thin gold line along it
   let came = 1.0 - smoothstep(0.05, 0.11, lead);
   let leadCol = mix(vec3f(0.035, 0.026, 0.015), vec3f(0.55, 0.38, 0.14) * sun * 0.6, smoothstep(0.02, 0.0, abs(lead - 0.025)));

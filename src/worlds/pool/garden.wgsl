@@ -115,8 +115,10 @@ fn place(o: ptr<function, VOut>, wp: vec3f, n: vec3f) {
   let u = (f32(q) + c.x) / 3.0;
   let v = c.y;
   // the petal: from the middle out and up, the outer ring opening wider, curling in a little at the tip
-  let len = L * select(1.0, 0.82, inner);
-  let tilt = select(0.55, 0.95, inner) + u * 0.5;
+  // (the world answering a moment opens it flat and wide as its wave passes: worlds/answer.wgsl, report 20)
+  let open = answerReach(2u, base);
+  let len = L * select(1.0, 0.82, inner) * (1.0 + 0.45 * open);
+  let tilt = (select(0.55, 0.95, inner) + u * 0.5) * (1.0 - 0.55 * open);
   let radial = vec3f(cos(az), 0.0, sin(az));
   let side = vec3f(-sin(az), 0.0, cos(az));
   let wide = len * 0.34 * pow(sin(3.1415927 * min(u * 0.92 + 0.08, 1.0)), 0.7);
@@ -207,7 +209,7 @@ fn gardenLight(albedo: vec3f, N: vec3f, V: vec3f, wp: vec3f, trans: f32) -> vec3
     let pink = mix(vec3f(0.95, 0.42, 0.55), vec3f(0.98, 0.5, 0.38), tint);
     var albedo = mix(vec3f(0.85, 0.78, 0.62), pink, smoothstep(0.15, 0.85, u));
     albedo *= 0.85 + 0.15 * (1.0 - abs(i.uv.y));
-    col = gardenLight(albedo * 0.75, N, V, i.wp, 0.9);
+    col = gardenLight(albedo * 0.75, N, V, i.wp, 0.9) + albedo * 0.9 * answerGlow(2u, i.wp);
   } else if (kind == 2) {
     col = gardenLight(vec3f(0.75, 0.52, 0.1), N, V, i.wp, 0.2);
   } else if (kind == 3) {
