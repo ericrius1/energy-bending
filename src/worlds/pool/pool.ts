@@ -29,6 +29,9 @@ import { swellAt, swellNow } from '../../duel/hazards';
 import { poolDuel, poolGround, poolStonesNow } from './arena';
 import { PoolGarden } from './garden';
 import { PoolEdge } from './edge';
+import { VistaFocus } from '../vista-focus';
+import { poolHero } from './hero';
+import type { SunHero } from '../sun-hero';
 
 type V4 = [number, number, number, number];
 
@@ -128,11 +131,15 @@ export class Pool implements World {
   private garden: PoolGarden;
   /** what stands round the duel's water at the bodies' height: the pavilion, arches, fountains, sails (edge.ts) */
   private edge: PoolEdge;
+  /** the sun window at the rim behind the stage (hero.ts, report 24) */
+  private hero: SunHero;
   readonly room = 40;
   readonly maxDist = 16;
   private u: LightSlot<PoolU>;
   private waves: Ripples;
   private seen = -1;
+  /** where the lens places the far world (vista-focus.ts, report 24) */
+  private vistaFocus = new VistaFocus();
   private live = {
     waves: [0, 0, 1, 1] as V4, march: [20, 14, 0, 0] as V4, sun: [0, 0.3, -1, 0.015] as V4, key: [0, 0.3, -1, 1] as V4,
     swell: [1, 0, 0, 0] as V4, swellAt: [0, 0, 2, 0] as V4,
@@ -150,6 +157,7 @@ export class Pool implements World {
     this.duelBuf = kit.storage({ label: 'pool.duel', data: poolDuel().data, usage: ['storage'] });
     this.garden = new PoolGarden(kit, coarse, this.duelBuf);
     this.edge = new PoolEdge(kit, coarse);
+    this.hero = poolHero(kit, coarse);
     this.live.march[0] = coarse ? 12 : 22;
     // the pure stage: a flat floor 11.5 m wide, nothing on it
     this.stages = [stagePlane({ id: 'pool', origin: [0, 0, 0], right: [1, 0, 0], halfWidth: 5.75, ground: 0, ledges: [], spawns: [[-2.45, 0], [2.45, 0]], lens: 18 })];
@@ -211,7 +219,7 @@ export class Pool implements World {
     this.live.march[0] = Math.max(6, Math.round((this.ctx.coarse ? 12 : 22) * quality().reflections));
     this.sunAt(f.t);
     this.swellNow();
-    this.u.set(this.live);
+    this.u.set({ ...this.live, lens: this.vistaFocus.update(f, this.id) });
   }
 
   declareScene(s: ScenePass) {
@@ -224,8 +232,10 @@ export class Pool implements World {
       s.pass.draw(stoneShader, { label: 'pool.duel', bind: { stones: this.duelBuf }, count: 6 * 8 * 8 * 6, instances: poolDuel().count, constants: { N: 8 }, cull: 'none', enabled: duel });
       this.garden.declare(s, duel);
       this.edge.declare(s, duel);
+      this.hero.declare(s, duel);
     } else if (s.phase === 'glow') {
       this.edge.declare(s, () => s.on() && arenaShown(this.id));
+      this.hero.declare(s, () => s.on() && arenaShown(this.id));
     }
   }
 

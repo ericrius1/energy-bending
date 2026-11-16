@@ -24,6 +24,17 @@ struct Vista { c: vec3f, a: f32, dist: f32 }
 
 fn vNoise(x: f32, row: f32) -> f32 { return vnoise2(vec2f(x, row)); }
 
+/** where the main view's lens places a pixel of the far world (worlds/light.wgsl worldFocus, report 24-sun-built): its
+ *  detail is a few pixels wide, and the lens's whole blur at infinity left it a soft band. Past L.z m (whole at L.w) it
+ *  is placed nearer the focus L.x, so its blur is L.y of what it was; its haze reads the true distance. `focus`: what
+ *  the air chose (translucent matter nearer than the opaque surface keeps it); `opaque`: the opaque distance */
+fn vistaFocus(focus: f32, opaque: f32, L: vec4f) -> f32 {
+  if (L.x <= 0.0 || focus < opaque * 0.98 || opaque <= L.z) { return focus; }
+  let k = mix(1.0, L.y, smoothstep(L.z, L.w, opaque));
+  // (the blur goes as |1 - F / D|: the D' with 1 - F / D' = k (1 - F / D))
+  return L.x / max(1.0 - k * (1.0 - L.x / opaque), 1e-3);
+}
+
 /** lay a layer over what is there (far to near): its colour c covering a */
 fn vOver(v: ptr<function, Vista>, c: vec3f, a: f32, dist: f32) {
   if (a <= 0.0) { return; }
@@ -81,10 +92,13 @@ fn vistaAt(d: vec3f, L: VistaLook) -> Vista {
     // ---------------------------------------------------------------- the terraced garden islands
     let raw = vistaIsle(az, s);
     let base = L.lift;
-    let hM = base + vistaTiers(raw);
+    // (report 24: now the lens leaves it sharp, the tiers' lips are crowns of trees, not a ruled line: the skyline and
+    // each wall's top wander by a tree's height)
+    let crown = vNoise(az * 420.0 + s * 9.0, 21.0);
+    let hM = base + vistaTiers(raw) + V_TIER * (0.1 + 0.4 * crown * crown) * step(0.0015, raw);
     let cM = clamp((hM - el) / px + 0.5, 0.0, 1.0) * step(0.0015, raw);
     if (cM > 0.0) {
-      let y = (el - base) / V_TIER;
+      let y = (el - base) / V_TIER + 0.18 * (vNoise(az * 380.0 + s * 3.0, 23.0) - 0.5);
       let fe = fract(y);
       let tier = floor(y);
       // a tier: its retaining wall of cream stone below (arcades in some, dark in their arches), its garden above

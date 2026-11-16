@@ -228,6 +228,7 @@ export interface Pool {
   look: Vec4;
   swell: Vec4;
   swellAt: Vec4;
+  lens: Vec4;
 }
 export interface VistaLook {
   sun: Vec3;
@@ -267,6 +268,7 @@ export interface Temple {
   shafts: Vec4;
   drops: ArrayLike<number> | Vec4[];
   dropFrame: Vec4;
+  lens: Vec4;
 }
 export interface FireLight {
   pos: Vec4;

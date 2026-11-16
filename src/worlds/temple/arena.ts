@@ -9,7 +9,7 @@ import { mulberry32 } from 'math/random';
 import type { Ledge, Wall } from '../../engine/camera';
 import { stagePlane } from '../stage';
 import { arenas, mirrorExits, floorWithDrops, mergeWalls, sides, type Arena, type Drop } from '../../duel/arena';
-import { layoutTemple, solidsOf, STAGE_Z, STONE_FLOATS, type Stone } from './layout';
+import { layoutTemple, lookZ, MATTER, solidsOf, STAGE_Z, STONE_FLOATS, type Stone } from './layout';
 import { tideHazard } from '../../duel/hazards';
 
 type V3 = [number, number, number];
@@ -32,10 +32,11 @@ function build(): TempleDuel {
   const r = () => mulberry32.sample(rng);
   const SZ = STAGE_Z;
   const stones: Stone[] = [];
-  const block = (at: V3, size: V3, more: Partial<Stone> = {}) => { stones.push({ kind: 'block', at, size, yaw: 0, tilt: 0, broken: 0, carve: 0, seed: r(), ...more }); };
+  // (report 24: every piece here is crafted: white ceramic and copper gone green unless it says woven)
+  const block = (at: V3, size: V3, more: Partial<Stone> = {}) => { stones.push({ kind: 'block', at, size, yaw: 0, tilt: 0, broken: 0, carve: 0, seed: r(), matter: MATTER.ceramic, ...more }); };
   const drum = (at: V3, rad: number, h: number, more: Partial<Stone> & { top?: number } = {}) => {
     const { top, ...rest } = more;
-    stones.push({ kind: 'drum', at, size: [rad, h, top ?? rad], yaw: r() * 6.283, tilt: 0, broken: 0, carve: 3, seed: r(), ...rest });
+    stones.push({ kind: 'drum', at, size: [rad, h, top ?? rad], yaw: r() * 6.283, tilt: 0, broken: 0, carve: 3, seed: r(), matter: MATTER.ceramic, ...rest });
   };
   /** a whole column from y0 to y1, as layout.ts builds them: a base, the fluted shaft, a capital */
   const column = (x: number, z: number, y0: number, y1: number, rad: number) => {
@@ -91,10 +92,13 @@ function build(): TempleDuel {
   // round the court, off the plane: more of the ruin to climb, kick off and stand on in 3D. In front (toward the lock's
   // camera) low things: drums fallen on their sides, a toppled lintel, a plinth, a stub of a pillar; at the sides two more
   // tall snapped columns and courses of a wall; behind, a block and steps by the great gate, a column snapped at 3 m
-  const lying = (x: number, z: number, rad: number, len: number, yaw: number) => drum([x, 0, z], rad, len, { tilt: 1, yaw, carve: 3 });
+  // (report 24: a drum lying on its side is a woven bolster bound in copper; a stack no taller than two metres a woven
+  // planter, its top planted; a taller one a ceramic column)
+  const lying = (x: number, z: number, rad: number, len: number, yaw: number) => drum([x, 0, z], rad, len, { tilt: 1, yaw, carve: 3, matter: MATTER.woven });
   const stack = (x: number, z: number, rad: number, heights: number[]) => {
     let y = 0;
-    heights.forEach((h, i) => { drum([x, y, z], rad * (1 - 0.01 * y), h, { carve: 3, broken: i === heights.length - 1 ? 0.06 : 0 }); y += h; });
+    const matter = heights.reduce((a, b) => a + b, 0) <= 2.0 ? MATTER.woven : MATTER.ceramic;
+    heights.forEach((h, i) => { drum([x, y, z], rad * (1 - 0.01 * y), h, { carve: 3, broken: i === heights.length - 1 ? 0.06 : 0, matter }); y += h; });
   };
   // (phase 5, the flow: report 18-flow. The same stones, moved off the court's floor to its rim, where each run of them
   // is a way up: the court in front of the stage is open floor to dance across (and the duel camera's side clear), and
@@ -138,7 +142,7 @@ function build(): TempleDuel {
   const blocks = stones.filter((st) => st.kind === 'block'), drums = stones.filter((st) => st.kind === 'drum');
   const all = [...blocks, ...drums];
   const data = new Float32Array(all.length * STONE_FLOATS);
-  all.forEach((st, i) => data.set([...st.at, st.yaw, ...st.size, st.kind === 'drum' ? 1 : 0, st.seed, st.broken, st.carve, st.tilt], i * STONE_FLOATS));
+  all.forEach((st, i) => data.set([...st.at, st.yaw, ...st.size, st.kind === 'drum' ? 1 : 0, st.seed, st.broken, lookZ(st), st.tilt], i * STONE_FLOATS));
   const arena: Arena = {
     world: 'temple',
     space: { center: [0, 0, -0.5], radius: 11, yKill: -2.2, yTop: 9.0 },

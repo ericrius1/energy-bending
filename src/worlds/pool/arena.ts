@@ -26,8 +26,12 @@ type V3 = [number, number, number];
 interface Rock { at: V3; size: V3; yaw: number; ice: boolean; round: number; seed: number; plan: number; look: number }
 
 /** what a piece is drawn as (stones.wgsl, phase 5): a low stone a glazed ceramic planter with a brass rim, a block a jump
- *  high terracotta with a band of glazed tile, a standing stone terracotta and brass, a raft woven fibre bound in brass */
-export const ROCK_LOOK = { planter: 0, block: 1, standing: 2, raft: 3 } as const;
+ *  high terracotta with a band of glazed tile, a raft woven fibre bound in brass; (report 24) a standing stone a column of
+ *  white glaze on a teal dado, a green-glazed whiplash up it, copper bands, its top planted; and the arch on the middle
+ *  stone the sun gate: its pillars such columns with copper capitals, its lintel a beam of copper gone green with a gold
+ *  whiplash, its capstone a lantern of stained glass in copper. Drawn only: the solids are the boxes they were */
+export const ROCK_LOOK = { planter: 0, block: 1, standing: 2, raft: 3, gatePillar: 4, beam: 5, lantern: 6 } as const;
+const LOOK_OF: Record<string, number> = { pillarL: ROCK_LOOK.gatePillar, pillarR: ROCK_LOOK.gatePillar, lintel: ROCK_LOOK.beam, cap: ROCK_LOOK.lantern };
 
 export const ROCK_FLOATS = 12;
 
@@ -59,9 +63,12 @@ function build(): PoolDuel {
   const rock = (id: string, x: number, z: number, w: number, d: number, y0: number, top: number, yaw = 0, ice = false, round = 0.12) => {
     // (the low pieces seen from above as round pads, not square tiles: their corners rounded off in the drawing by up to
     // 0.4 m, which leaves the box's corner 0.17 m out along its diagonal, where nobody stands; report 18)
-    const look = ice ? ROCK_LOOK.raft : top < 0.5 ? ROCK_LOOK.planter : top < 2.5 && y0 <= FOOT ? ROCK_LOOK.block : ROCK_LOOK.standing;
+    const look = LOOK_OF[id] ?? (ice ? ROCK_LOOK.raft : top < 0.5 ? ROCK_LOOK.planter : top < 2.5 && y0 <= FOOT ? ROCK_LOOK.block : ROCK_LOOK.standing);
     const small = Math.min(w, d) / 2;
-    const plan = look === ROCK_LOOK.raft || look === ROCK_LOOK.planter ? Math.min(0.4, small * 0.6) : look === ROCK_LOOK.block ? Math.min(0.24, small * 0.4) : round;
+    // (report 24: a standing stone and the gate's pillars round in plan as columns, up to 0.4 m off a corner like the
+    // planters: the box's corner left 0.17 m out along its diagonal)
+    const column = look === ROCK_LOOK.standing || look === ROCK_LOOK.gatePillar;
+    const plan = look === ROCK_LOOK.raft || look === ROCK_LOOK.planter || column ? Math.min(0.4, small * 0.6) : look === ROCK_LOOK.block ? Math.min(0.24, small * 0.4) : round;
     rocks.push({ at: [x, y0, z], size: [w, top - y0, d], yaw, ice, round, seed: r(), plan: Math.max(plan, round), look });
     const s = boxOn([x, y0, z], [w, top - y0, d], yaw);
     // (the floes ride the swell; the low stepping stones rock on it a little; the tall ones stand)

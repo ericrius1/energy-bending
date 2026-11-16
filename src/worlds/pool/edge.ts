@@ -9,6 +9,7 @@ import type { Kit } from '@ericrius1/weft';
 import { mulberry32 } from 'math/random';
 import edgeShader from './edge.wgsl';
 import type { ScenePass } from '../../engine/scene';
+import { POOL_HERO } from './hero';
 
 type V3 = [number, number, number];
 
@@ -69,11 +70,12 @@ function layout(coarse: boolean): Edge {
 
   // round the rest of the rim: trellis arches and fountains in turn, facing the water's middle; none in the pavilion's
   // sector
-  const pavA = Math.atan2(PAVILION[2], PAVILION[0]), n = coarse ? 12 : 18;
+  // (report 24: nor in the sun window's, hero.ts)
+  const pavA = Math.atan2(PAVILION[2], PAVILION[0]), heroA = Math.atan2(POOL_HERO[2], POOL_HERO[0]), n = coarse ? 12 : 18;
   for (let k = 0; k < n; k++) {
     const a = (k / n) * Math.PI * 2 + 0.08;
     const off = Math.abs(Math.atan2(Math.sin(a - pavA), Math.cos(a - pavA)));
-    if (off < 0.42) continue;
+    if (off < 0.42 || Math.abs(Math.atan2(Math.sin(a - heroA), Math.cos(a - heroA))) < 0.36) continue;
     const cx = Math.cos(a) * RING, cz = Math.sin(a) * RING, tx = -Math.sin(a), tz = Math.cos(a);
     if (k % 3 !== 1) {
       // an arch: two posts in their tubs, the round top in eight pieces, a vine up one post, over the top, down the other

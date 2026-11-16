@@ -157,6 +157,14 @@ fn worldAir(s0: vec4f, px: vec2i, d: vec3f) -> vec3f {
   return geodeAir(s, px, d) + answerLight(s.a, d);
 }
 
+/** where the main view's lens places a pixel (post/air.wgsl fs_main): as far as it is; the sun worlds bring their
+ *  painted far world toward the focus so it reads through the depth of field (vista.wgsl vistaFocus, report 24) */
+fn worldFocus(focus: f32, opaque: f32) -> f32 {
+  if (WORLD == 2u) { return vistaFocus(focus, opaque, worldLight.pool.lens); }
+  if (WORLD == 3u) { return vistaFocus(focus, opaque, worldLight.temple.lens); }
+  return focus;
+}
+
 /** Air is affine in colour: the added scattering cancels in Air(c,d)-Air(0,d). Only compute transmission:
  *  no light-shaft marches, trunk/leaf shadow tests, sky shading or lantern integrals for a term that cancels. */
 fn worldTransmission(c: vec3f, distance: f32, px: vec2i, d: vec3f) -> vec3f {
