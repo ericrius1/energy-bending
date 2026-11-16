@@ -48,7 +48,7 @@ interface SeatIn {
   ack: number;
   /** ticks an empty queue made the last input repeat; inputs folded away (a queue past its length); lost (a gap) */
   starved: number;
-  /** ticks in a row with no input (a page in a background tab sends none: past STILL_TICKS its body stands) */
+  /** ticks in a row with no input (a page in a background tab sends none: past DUEL_NET.STILL_TICKS its body stands) */
   dry: number;
   folded: number;
   lost: number;
@@ -63,9 +63,6 @@ interface ContactInner {
   tryCatch(k: number): { part: Link['part']; at: V3 } | null;
   pivot(h: Character, c: V3): V3;
 }
-
-/** an empty input queue repeats a seat's last input for this many ticks, then the body stands (no thumbs) */
-const STILL_TICKS = 15;
 
 /** a tick's output: its events, in order, as the clients get them; the slow state (JSON) when it changed */
 export interface TickOut { n: number; ev: DuelEvent[]; tc: ContactEvent[]; pe: PowerEvent[]; fx: PowerFx[]; st?: string; x?: DuelCrossing[] }
@@ -196,7 +193,7 @@ export class DuelAuthority {
     if (x) { S.last = x; S.ack = x.seq; S.dry = 0; return { x, fresh: true }; }
     if (this.present[k]) S.starved++;
     // (the last input repeated for a moment; a page that has gone quiet, its tab hidden, stands its body still)
-    return { x: ++S.dry > STILL_TICKS ? null : S.last, fresh: false };
+    return { x: ++S.dry > DUEL_NET.STILL_TICKS ? null : S.last, fresh: false };
   }
 
   /** one tick */
@@ -405,7 +402,7 @@ export class DuelAuthority {
     if (this.tail.tick !== this.tick) this.tail = { tick: this.tick, json: this.shared() };
     const ts = this.timeOf(this.tick);
     const bodies = [0, 1].map((k) => bodySnap(this.chars[k], k, ts, this.flagsOf(k)));
-    const json = seat == null ? this.tail.json : `{"k":${JSON.stringify(kitOf(this.chars[seat]))},"q":${this.seats[seat].queue.length},` + this.tail.json.slice(1);
+    const json = seat == null ? this.tail.json : `{"k":${JSON.stringify(kitOf(this.chars[seat]))},"q":${this.seats[seat].queue.length},"r":${this.seats[seat].dry},` + this.tail.json.slice(1);
     return encodeDuelSnap({ tick: this.tick, ts, ack: seat == null ? -1 : this.seats[seat].ack, bodies }, json);
   }
 
