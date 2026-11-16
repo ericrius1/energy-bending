@@ -227,7 +227,18 @@ function place() {
       // a crossing inside the shot's kept frames: the track after it, and the shot's end on its beats (more than one
       // crossing in a shot: each in turn)
       const sws = info?.track?.switches ?? [];
-      if (sws.some((w) => w.t < info.inTime)) log(`${s.id}: its page crossed into another world before its in-point: its music is not the film's there`);
+      const before = sws.filter((w) => w.t < info.inTime);
+      if (before.length) {
+        // (its page crossed before its in-point: its track there is the last crossing's, at the place its bridge put it.
+        // The film's music cuts to that place on the shot's cut, so the track under the shot is the one its page plays)
+        const w = before[before.length - 1], tr = knownTrack(w.id), B = w.bridge;
+        if (tr && B && s.n > 0) {
+          const F = (t) => at + (t - info.inTime);
+          SEGS[SEGS.length - 1].fade = 0.03;
+          SEGS.push({ tr, at: F(B.tB), from: at, beat0: B.nb, ramp: { dur: B.tC - B.tB, rB: B.rB, beats: B.beats } });
+          log(`${s.id}: its page crossed before its in-point (into ${w.id}, its beat ${B.nb}): the film's music cuts to that place on its cut`);
+        } else log(`${s.id}: its page crossed into another world before its in-point: its music is not the film's there`);
+      }
       for (const sw of sws.filter((w) => w.t >= info.inTime && w.t - info.inTime < s.nominal - 0.05)) {
         const tr = knownTrack(sw.id);
         if (!tr) continue;
@@ -440,18 +451,18 @@ function layTracks(T, out) {
   SEGS.forEach((g, k) => {
     const P = load(g.tr.source), frames = P.length / 2, spb = 60 / g.tr.bpm, next = SEGS[k + 1];
     const b0 = g.tr.loop ? g.tr.loop.startBar * 4 : Infinity, b1 = g.tr.loop ? g.tr.loop.endBar * 4 : Infinity, L = b1 - b0, xf = 0.03 / spb;
-    const fin = k ? (g.ramp ? 0.12 : 0.012) : 0, tEnd = next ? next.at + (g.fade ?? 1.2) : T;
+    const g0 = g.from ?? g.at, fin = k ? (g.from != null ? 0.012 : g.ramp ? 0.12 : 0.012) : 0, nAt = next ? next.from ?? next.at : T, tEnd = next ? nAt + (g.fade ?? 1.2) : T;
     const read = (x, c) => {
       const f = x * SR, i = Math.floor(f);
       if (i < 0 || i + 1 >= frames) return 0;
       const a = f - i;
       return P[i * 2 + c] * (1 - a) + P[i * 2 + 2 + c] * a;
     };
-    for (let i = Math.max(0, Math.floor(g.at * SR)); i < Math.min(N, Math.ceil(tEnd * SR)); i++) {
+    for (let i = Math.max(0, Math.floor(g0 * SR)); i < Math.min(N, Math.ceil(tEnd * SR)); i++) {
       const t = i / SR;
       let env = 1;
-      if (fin > 0 && t - g.at < fin) env *= Math.sin(((t - g.at) / fin) * Math.PI / 2);
-      if (next && t > next.at) env *= Math.cos(Math.min(1, (t - next.at) / (g.fade ?? 1.2)) * Math.PI / 2);
+      if (fin > 0 && t - g0 < fin) env *= Math.sin(((t - g0) / fin) * Math.PI / 2);
+      if (next && t > nAt) env *= Math.cos(Math.min(1, (t - nAt) / (g.fade ?? 1.2)) * Math.PI / 2);
       if (env <= 0) continue;
       const b = playedBeat(g, t);
       // (round the loop: past its end the place is that many loops back; just after a seam the file's own run past
@@ -573,7 +584,11 @@ if (opts.flash && TRACK) {
   const y = [...r.stdout.matchAll(/YAVG=([\d.]+)/g)].map((m) => Number(m[1]));
   const flashes = [];
   for (let i = 1; i < y.length; i++) if (y[i] > y[i - 1] * 1.6 && y[i] - y[i - 1] > 12) flashes.push(i);
-  const errs = flashes.map((i) => { const t = i / Q.fps, b = BEAT0 + t / SPB; return (b - Math.round(b)) * SPB * 1000; });
+  // (against the track laid there: after a crossing, the new one's beats)
+  const errs = flashes.map((i) => {
+    const t = i / Q.fps, g = [...SEGS].reverse().find((x) => (x.from ?? x.at) <= t + 1e-6) ?? SEGS[0], b = segBeat(g, t), spb = 60 / g.tr.bpm;
+    return (b - Math.round(b)) * spb * 1000;
+  });
   const abs = errs.map(Math.abs).sort((a, b) => a - b);
   const beats = Math.floor(T / SPB);
   // (per shot: a shot's flashes are the frames from its cut to the next)
