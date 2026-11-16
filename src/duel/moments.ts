@@ -53,7 +53,7 @@ export function lightFeet(data: Float32Array, ranges: readonly [number, number][
       const o = i * GLOW_FLOATS, I = data[o + 7];
       if (!(I >= LIT_MIN)) continue;
       const a: V3 = [data[o], data[o + 1], data[o + 2]], b: V3 = [data[o + 4], data[o + 5], data[o + 6]], r = data[o + 3], kind = data[o + 11];
-      const shape = kind % 4, flat = kind >= 4 && kind < 8;
+      const shape = (kind >= 8 ? kind & ~2 : kind) % 4, flat = kind >= 4 && kind < 8;
       if (flat) {
         // (a ring or a disc lying on the floor: its circle projected)
         const xs: number[] = [], ys: number[] = [];
@@ -104,8 +104,8 @@ export function coverOf(b: Box, feet: readonly Foot[]): number {
 
 /** how big a light is on screen (phase 6, report 20: the bloom's size): the box round its footprint, clipped to the
  *  screen (shares of its width and height), and the share of the screen under it (a 64 × 36 grid) */
-export function sizeOf(feet: readonly Foot[], W: number, H: number): { w: number; h: number; area: number; top: number } {
-  if (!feet.length) return { w: 0, h: 0, area: 0, top: 1 };
+export function sizeOf(feet: readonly Foot[], W: number, H: number): { w: number; h: number; area: number; top: number; left: number } {
+  if (!feet.length) return { w: 0, h: 0, area: 0, top: 1, left: 0 };
   let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
   const grow = (a: number, b: number, c: number, d: number) => { x0 = Math.min(x0, a); y0 = Math.min(y0, b); x1 = Math.max(x1, c); y1 = Math.max(y1, d); };
   for (const f of feet) {
@@ -121,7 +121,7 @@ export function sizeOf(feet: readonly Foot[], W: number, H: number): { w: number
     if (x < x0 || x > x1 || y < y0 || y > y1) continue;
     for (const f of feet) if (under(x, y, f)) { hit++; break; }
   }
-  return { w: (x1 - x0) / W, h: (y1 - y0) / H, area: hit / (64 * 36), top: y0 / H };
+  return { w: (x1 - x0) / W, h: (y1 - y0) / H, area: hit / (64 * 36), top: y0 / H, left: x0 / W };
 }
 
 /** the HUD's words and rings as feet */

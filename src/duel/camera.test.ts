@@ -307,4 +307,36 @@ test('the camera runs on real time: a hit-stop or a slow motion leaves it easing
 });
 
 
+test('a fused finale lifts the look to the sky and keeps the lifted body past the Pool stones (report 24)', () => {
+  const { arena, world } = nodeArena('pool');
+  const S = new Solids(world.solids ?? []), space = spaceOf(S, world.groundAt);
+  // the lift: the base standing, the flyer overhead with its flower's top over it (index.ts: keep 3), held two
+  // seconds; the camera with the finale's look up (sky 1) and without it, at every place on the stones' stage
+  const run = (sky: number) => {
+    let n = 0, up = 0, hid = 0, skyOpen = 0;
+    for (let x = -6; x <= 6; x += 1.5) for (let z = -5; z <= 5; z += 1.5) {
+      const g = world.groundAt(x, z);
+      if (g < -0.5 || S.inside([x, g + 1, z], 0.4)) continue;
+      const a = bodyAt([x, g, z]), fl = bodyAt([x + 0.4, g + 2.3, z], [0, 0, 0], true);
+      const b: CamBody = { ...fl, pts: [...fl.pts, [x + 0.4, g + 6.0, z]], keep: 3 };
+      const cam = new DuelCamera();
+      const I: CamInput = { bodies: [a, b], aspect: ASPECT, gravity: 40, space, near: 0.6, center: arena.space.center, room: 22, arena: 'pool', pad: 0.5, sky };
+      let pose = cam.update(1 / 60, I);
+      for (let i = 0; i < 120; i++) pose = cam.update(1 / 60, I);
+      n++;
+      const d = [pose.look[0] - pose.eye[0], pose.look[1] - pose.eye[1], pose.look[2] - pose.eye[2]], L = Math.hypot(d[0], d[1], d[2]);
+      if (d[1] / L > -0.02) up++;
+      if ([b.pts[0], b.pts[1], b.head].some((p) => space.blocked(pose.eye, short(pose.eye, p, 0.4)))) hid++;
+      const f = [d[0] / L, 0, d[2] / L], fl2 = Math.hypot(f[0], f[2]) || 1, e = pose.eye;
+      if (!space.blocked(e, [e[0] + (f[0] / fl2) * 13.7, e[1] + 2.8, e[2] + (f[2] / fl2) * 13.7])) skyOpen++;
+    }
+    return { n, up, hid, skyOpen };
+  };
+  const off = run(0), on = run(1);
+  assert(on.up >= on.n * 0.8, `with the look up, level or up in only ${on.up} of ${on.n}`);
+  assert(on.up > off.up, `the look up lifted no more than without (${on.up} against ${off.up})`);
+  assert(on.hid <= Math.max(1, off.hid), `the lifted body hidden more with the look up (${on.hid} against ${off.hid})`);
+  return `of ${on.n} places: looking level or up ${off.up} → ${on.up}; the lifted body behind a stone ${off.hid} → ${on.hid}; the sky over the flower open ${off.skyOpen} → ${on.skyOpen}`;
+});
+
 done();
