@@ -45,7 +45,9 @@ export async function installRecorder(page, { stepped = false } = {}) {
     // (stepped: the driver steps the page by hand and samples after each frame at its virtual time `vt`; the input
     // events are stamped with it too. Real time: requestAnimationFrame and the events' own times)
     const R = (window.__hr = { f: [], keys: [], ptr: [], on: true, worlds: [], t0: performance.now(), virtual: stepped, vt: 0 });
-    const ts = (e) => (R.virtual ? R.vt : e.timeStamp);
+    // (performance.now at the listener, not the event's own timeStamp: a key puppeteer dispatches carries a stamp on another
+    // clock, so a real-time run found none of its keys among its frames)
+    const ts = () => (R.virtual ? R.vt : performance.now());
     const wIdx = (id) => { let i = R.worlds.indexOf(id); if (i < 0) { i = R.worlds.length; R.worlds.push(id); } return i; };
     addEventListener('keydown', (e) => { if (!e.repeat) R.keys.push([ts(e), e.code, 1]); }, { capture: true });
     addEventListener('keyup', (e) => R.keys.push([ts(e), e.code, 0]), { capture: true });
