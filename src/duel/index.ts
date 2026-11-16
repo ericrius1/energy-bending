@@ -87,7 +87,7 @@ import type { Joined } from '../play';
 import { duelLobby } from '../play/menu';
 import { installHelp } from './help';
 import { startLesson } from './lesson';
-import { keepOut, gateCrossed, type GateShape } from '../portals/decor';
+import { keepOut, gateCrossed, decorOf, type GateShape } from '../portals/decor';
 
 type V3 = [number, number, number];
 
@@ -423,7 +423,11 @@ export async function startDuel(app: PlayApp, opts: { joined?: Joined } = {}) {
   // moment. The lock gets the same head room (CameraRig.apexG, headroom)
   const dcam = new DuelCamera();
   // (camspace.ts: World.solids with the powers' own, made again whenever one comes or goes)
-  const spaceNow = spaceFor((x, z) => world().groundAt(x, z)), camSpace = (): CamSpace | null => spaceNow(solids());
+  // (and the world's decor round its mirrors, portals/decor.ts: the temple's stained-glass screens, the geode's planters;
+  // not solid for the bodies, but the eye stood inside a screen at the court's edge; phase 7, report 24)
+  let camOf: { s: unknown; w: string; list: Solid[] } | null = null;
+  const camSolids = () => { const s = solids(); if (!camOf || camOf.s !== s || camOf.w !== W.id) camOf = { s, w: W.id, list: [...s, ...decorOf(W.id)] }; return camOf.list; };
+  const spaceNow = spaceFor((x, z) => world().groundAt(x, z)), camSpace = (): CamSpace | null => spaceNow(camSolids());
   const FRAMED = [JOINT.Hips, JOINT.Spine1, JOINT.LeftHand, JOINT.RightHand, JOINT.LeftToeBase, JOINT.RightToeBase];
   const camBody = (k: number): CamBody | null => {
     const d = dancer(k);
@@ -734,6 +738,8 @@ export async function startDuel(app: PlayApp, opts: { joined?: Joined } = {}) {
     /** the eye's clearance in the main view's world (decor.ts: its solids, decor, shell and gates' frames; m), and that
      *  world: the measure of the eye in the world's pieces (scripts/cross-measure.mjs) */
     eyeClear: () => { const id = app.main.world, p = cam.position; return { world: id, clear: keepOf(id).clear([p[0], p[1], p[2]]) }; },
+    /** (the keep-out itself, for looking into what the eye stood in) */
+    keepOf,
     /** the free camera (camera.ts): its choice, what it framed, how clear its eye stood */
     camera: dcam, camSpace,
     /** cast a seat's power now (slot 0 or 1; the stick as a world x, z), or the form: as its buttons would */
