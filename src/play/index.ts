@@ -547,14 +547,9 @@ export async function startJogo(app: PlayApp, mode: string, opts: { joined?: Joi
   // ---------------------------------------------------------------- the edge (edge.ts; report 24-newcomer): in open 3D
   // this page's bodies keep inside their world's play space (the duel's arena space, its ways out open), as the duel's
   // do: a run at the edge curves round it rather than through the balustrade and out past the glass
-  frame.tick('input', () => {
-    for (let k = 0; k < 2; k++) {
-      const c = seatCtl[k]?.character, d = seatDancer[k];
-      if (!c || !d || c.plane || (online && k !== room.session.seat)) continue;
-      const A = arenaFor(gates.worldOf(d));
-      if (A) softEdge(c, A);
-    }
-  }, 'jogo: the soft edge of the play space');
+  // (now kept by the dancers' own soft edge, src/dancer/play.ts via src/duel/edge.ts, a metre inside this one; report
+  // 24-feel. Two edges stacked turned bodies twice at the rim, so this page no longer adds its own.)
+  void softEdge; void arenaFor;
 
   // ---------------------------------------------------------------- the first view (opening.ts; report 24-newcomer)
   // as the dance begins (the first device joins) and as the bodies re-form at their spawns (the intro), the follow
