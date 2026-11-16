@@ -25,6 +25,10 @@ export interface Canopy {
   firstLantern: number;
 }
 
+/** the hero tree-house (phase 7): the bearing of the ring tree it stands on (rad, from +x; −z is behind the stage), its
+ *  porch's height and width (m) */
+export const HERO = { on: true, bearing: -1.97, y: 2.8, width: 1.7 };
+
 /** a trunk's radius at height y (forest.wgsl trunkRadius) */
 const radiusAt = (y: number, r: number, h: number) => {
   const u = Math.max(0, Math.min(1, y / h));
@@ -151,6 +155,26 @@ export function layoutCanopy(logs: Float32Array, trunks: number, ring: number, k
       if (b.tree === a.tree || ringDecks.includes(b)) continue;
       const g = Math.hypot(a.x - b.x, a.z - b.z) - a.r1 - b.r1;
       if (g > 2 && g < 10 && Math.abs(a.y - b.y) < 2.5 && r() < 0.5) { bridge(a, b); break; }
+    }
+  }
+  // the hero piece (phase 7, report 24-dusk-built): a tree-house at the clearing's edge, at body height, where the duel's
+  // camera looks (behind the stage, camera.ts ARENA_CAM.face): on the ring tree nearest HERO.bearing, a porch deck low
+  // round its far side with a round house on the flank that shows from the clearing, its lanterns, and a stair winding
+  // up from the meadow round the back of the trunk to the porch, lanterns on its posts. All of it round the side away
+  // from the clearing, outside the duel's space (the porch's ends and the stair's foot 11.8 m and more from its middle).
+  // Laid last, so nothing laid before it moves
+  if (HERO.on && ringIdx.length) {
+    const hb = HERO.bearing, off = (i: number) => Math.abs(Math.atan2(Math.sin(Math.atan2(tree(i).z, tree(i).x) - hb), Math.cos(Math.atan2(tree(i).z, tree(i).x) - hb)));
+    const i = ringIdx.reduce((a, b) => (off(b) < off(a) ? b : a));
+    const t = tree(i), y = HERO.y, c = at(t, y), away = Math.atan2(c[2], c[0]);
+    deck(i, y, HERO.width, true, 1.92, -1.5);
+    // the stair: from the meadow at the porch's right end, round behind the trunk, arriving on the porch near its middle
+    const foot = at(t, 0), a0 = away + 1.75, a1 = away + 0.15;
+    spans.push(foot[0], 0, foot[2], 0.95, y, 0, t.H, t.R, 1, (a1 - a0) / 6.2831853, a0, r());
+    // (lanterns on its posts, every third of the way up, on the outer rail)
+    for (const k of [0.15, 0.5, 0.85]) {
+      const a = a0 + (a1 - a0) * k, yy = y * k, rr = radiusAt(yy, t.R, t.H) * 0.98 + 0.95 + 0.04;
+      lamp([foot[0] + Math.cos(a) * rr, yy + 1.05, foot[2] + Math.sin(a) * rr], 0.1);
     }
   }
   const firstLantern = turns.length / TURN_FLOATS;

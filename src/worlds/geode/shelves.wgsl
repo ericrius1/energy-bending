@@ -170,8 +170,18 @@ fn toWorld(b: Blade, q: vec3f) -> vec3f {
   col += sunC * pow(sqrt(max(1.0 - ths * ths, 0.0)), 140.0) * 0.18 * (0.6 + 0.4 * fib) * out * (0.3 + 0.7 * max(dot(N, Hs), 0.0));
   // and the bevel along each long edge a narrow highlight of the room's light (a shape, not a line drawn on it)
   col += (studio(R) * 0.25 + sunC * 0.04) * edge * fres * 0.8;
-  // brass: a collar where it leaves the floor, the wall or its druse, set by the greenhouse's makers
-  if (i.look.z < -0.5 && i.size.x > 0.25) {
+  // the stone's pearl (phase 7, report 24): selenite is a milky crystal the light gets into, so its thin parts and its
+  // edges seen through glow a little with the room's warm light, and its faces carry a faint pearly sheen; it read as
+  // beige board before
+  if (i.look.z < -0.5) {
+    let thin = smoothstep(0.35, 0.0, min(ex, ey) + 0.15 * cloud);
+    let warmIn = (sunC * 0.05 + mix(vec3f(luma(amb)), amb, 0.5) * 0.25) * (0.55 + 0.45 * out);
+    col += mix(body, vec3f(1.0, 0.86, 0.66), 0.35) * warmIn * (0.5 + 0.9 * thin) * (0.6 + 0.6 * through);
+    col += geodeSpectrum(fract(cosV * 1.6 + faceH * 0.5 + cloud * 0.4)) * fres * 0.05 * L.sun.w * fib;
+  }
+  // brass: a collar where it leaves the floor, the wall or its druse, set by the greenhouse's makers (a standing beam's
+  // foot is a glazed socket now, phase 7: below)
+  if (i.look.z < -0.5 && i.size.x > 0.25 && i.pitch < 1.0) {
     let collar = smoothstep(0.08, 0.1, i.local.z) * smoothstep(0.3, 0.28, i.local.z);
     let ridge = 1.0 - smoothstep(0.0, 0.012, abs(i.local.z - 0.19));
     let brass = vec3f(0.95, 0.7, 0.34);
@@ -189,8 +199,11 @@ fn toWorld(b: Blade, q: vec3f) -> vec3f {
     let lightUp = (geodeAmbient(vec3f(0.0, 1.0, 0.0), 0.8) * 0.12 + key.col * 0.08 + GEO_SUN * 0.03 * L.sun.w);
     // (in cushions: thick in places, thin to the stone at their edges, never a felt over the whole top)
     let cushion = vnoise(i.wp * 2.3 + vec3f(seed * 9.0)) * 0.7 + vnoise(i.wp * 7.0) * 0.3;
-    let mossy = smoothstep(0.6, 0.9, up) * smoothstep(0.42, 0.62, cushion) * L.green;
-    var moss = GEO_MOSS * (0.35 + 0.9 * vnoise(i.wp * 18.0)) * (0.6 + 0.6 * cushion) * lightUp * 1.5;
+    // (phase 7: a planted top, the moss all over it in cushions of lighter and darker green, the stone showing only at
+    // a ragged edge; it was patches with the stone between, a camouflage print at the duel's distance)
+    let rim = smoothstep(0.0, 0.12, min(ex, select(ey, 1.0, i.pitch < 1.0)) + 0.06 * cushion);
+    let mossy = smoothstep(0.6, 0.9, up) * mix(smoothstep(0.3, 0.5, cushion), 1.0, rim) * L.green;
+    var moss = mix(GEO_MOSS, vec3f(0.34, 0.5, 0.14), smoothstep(0.45, 0.85, cushion) * 0.6) * (0.45 + 0.8 * vnoise(i.wp * 18.0)) * (0.6 + 0.6 * cushion) * lightUp * 1.6;
     // flowers: a few cells of a fine grid on the moss hold one, cream, coral or gold
     let fc = floor(i.wp.xz / 0.11);
     let fh = fract(sin(vec3f(dot(fc, vec2f(12.9898, 78.233)), dot(fc, vec2f(39.35, 11.13)), dot(fc, vec2f(73.1, 51.7))) + seed) * 43758.5453);
@@ -200,6 +213,57 @@ fn toWorld(b: Blade, q: vec3f) -> vec3f {
     col = mix(col, moss, mossy);
     // (the vines painted down the faces are gone since phase 5: the trailing plants are leaves of their own now,
     // geode/garden.wgsl, and painted they read as green streaks on a box)
+  }
+  // the makers' work on the play pieces (phase 7, report 24: the arenas' pieces of the bible's matter, not boxes). A
+  // standing beam stands in a socket of white glazed ceramic with a frieze of gold leaves on teal tile, a ring of brass
+  // over it, and is crowned under its planted top by a band of copper gone green between two brass beads. A shelf is
+  // bound across every 1.3 m by a strap of the same copper, brass at its edges
+  if (i.look.z < -0.5 && i.size.x > 0.25) {
+    let z = i.local.z;
+    let len = i.look.x;
+    let shine = studio(R) * 0.45 + geodeWallSoft(i.wp, R) * 2.5 + sunC * pow(max(dot(R, sunL), 0.0), 30.0) * 0.6;
+    let lightOn = geodeAmbient(N, 0.8) * 0.22 + key.col * diff * 0.06 + sunC * wrapS * 0.07;
+    let brass = vec3f(0.95, 0.7, 0.34);
+    let verd = vec3f(0.36, 0.7, 0.56);
+    let brassCol = shine * brass * (0.6 + 0.4 * fres) + brass * lightOn * 0.5;
+    // copper gone green: a matte patina, a little of the copper's warmth where it's rubbed, a soft sheen
+    let rub = smoothstep(0.55, 0.85, vnoise(i.wp * 14.0 + vec3f(seed * 5.0)));
+    let verdCol = mix(verd, vec3f(0.85, 0.5, 0.3), rub * 0.35) * (lightOn * 1.6 + 0.012) + shine * fres * 0.25;
+    if (i.pitch > 1.0) {
+      // (round the beam: across its width faces and along its depth faces, so the frieze runs on round its corners)
+      let u = i.local.x - i.local.y;
+      if (z < 0.5) {
+        let glaze = vec3f(0.95, 0.93, 0.87);
+        var cer = glaze * (lightOn * 1.25 + 0.01) + (studio(R) * 0.55 + geodeWallSoft(i.wp, R) * 2.2) * fres * 1.2;
+        cer += sunC * pow(max(dot(R, sunL), 0.0), 60.0) * 0.35;
+        // the frieze: teal tile between gold lines, a gold leaf (a vesica) every 22 cm
+        let fz = (z - 0.27) / 0.075;
+        let inBand = step(abs(fz), 1.0);
+        let c = fract(u / 0.22 + 0.5) - 0.5;
+        let leafD = max(length(vec2f(c + 0.26, fz * 0.32)), length(vec2f(c - 0.26, fz * 0.32))) - 0.36;
+        let leaf = smoothstep(0.02, -0.01, leafD) * inBand;
+        let lines = smoothstep(0.08, 0.0, abs(abs(fz) - 1.0)) ;
+        let tile = vec3f(0.18, 0.6, 0.62) * (lightOn * 1.3 + 0.008) + (studio(R) * 0.5 + geodeWallSoft(i.wp, R) * 2.0) * fres * 1.1;
+        cer = mix(cer, tile, inBand);
+        cer = mix(cer, brassCol * 1.1, clamp(leaf + lines, 0.0, 1.0));
+        // and a ring of brass where the stone rises out of it
+        let ring = smoothstep(0.43, 0.445, z);
+        col = mix(cer, brassCol, ring);
+      } else if (z < 0.53) {
+        col = brassCol;
+      }
+      // the crown: copper between brass beads, just under the planted top
+      let crown = z - (len - 0.2);
+      if (crown > 0.0 && crown < 0.15) {
+        let bead = smoothstep(0.02, 0.0, abs(crown - 0.012)) + smoothstep(0.02, 0.0, abs(crown - 0.138));
+        col = mix(verdCol, brassCol, clamp(bead, 0.0, 1.0));
+      }
+    } else if (z > 0.45 && z < len - 0.9) {
+      let s = fract((z - 0.45) / 1.3);
+      let strap = step(s, 0.075);
+      let edgeB = smoothstep(0.012, 0.0, abs(s - 0.0)) + smoothstep(0.012, 0.0, abs(s - 0.075));
+      col = mix(col, mix(verdCol, brassCol, clamp(edgeB * 1.5, 0.0, 1.0)), strap);
+    }
   }
   return vec4f(sightLit(col), dot(i.wp - frame.camPos, frame.camFwd));
 }

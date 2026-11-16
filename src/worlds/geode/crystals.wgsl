@@ -121,6 +121,14 @@ fn toWorld(b: Point, q: vec3f) -> vec3f {
   let breathe = 0.8 + 0.2 * sin(frame.time * (0.3 + 0.4 * fract(seed * 5.0)) + seed * 40.0);
   let glow = (0.15 + i.look.z) * L.cave.w * breathe;
   col += tc * glow * (0.04 + 0.5 * along * along) * through;
+  // (phase 7, report 24: a crystal in the greenhouse is coloured glass in the sun, not a dark stone: the sun through
+  // its body, deepest in its colour where it is seen through its length, and a little of the room's warm light inside)
+  // (a gem's colour, a little deeper than the stone's vein it grew from, so honey calcite reads as citrine and not as wood)
+  let gem = clamp(mix(vec3f(luma(tc)), tc, 1.5), vec3f(0.0), vec3f(1.2));
+  let sunL = -geodeSunDir();
+  let sunIn = (0.2 + 0.8 * max(-dot(N, sunL), 0.0)) * through * through;
+  col += gem * gem * GEO_SUN * L.sun.w * sunIn * 0.12 * (0.4 + 0.6 * along);
+  col += gem * smoothstep(0.12, 0.0, min(i.face.x, 1.0 - i.face.x)) * L.sun.w * 0.05 * (0.4 + 0.6 * along);
   // its edges, a line of that light (brighter toward the point), and the point itself
   let edge = smoothstep(0.1, 0.0, min(i.face.x, 1.0 - i.face.x));
   col += tc * edge * glow * (0.1 + 0.6 * along);

@@ -274,7 +274,7 @@ fn bridgeAt(S: Span, t: f32) -> vec3f { return mix(S.a.xyz, S.b.xyz, t) - vec3f(
     let top = S.b.x;
     let y = t * top;
     let ang = S.c.z + t * S.c.y * 6.2831853;
-    let rIn = trunkRadius(y, S.b.w, S.b.z) * 0.98;
+    let rIn = trunkRadius(S.a.y + y, S.b.w, S.b.z) * 0.98;
     let dir = vec3f(cos(ang), 0.0, sin(ang));
     if (part == 0u) {
       let x = f32(c.x);

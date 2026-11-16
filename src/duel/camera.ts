@@ -141,14 +141,17 @@ export function discCost(eye: V3, mid: V3, discs: readonly { at: V3; n: V3; r: n
  *  rad while the bodies float (both: all of it, one: half), so from a lower eye a body afloat reads as afloat and the
  *  water shows the sky (report 16-pool); `water` the surface's height, a body afloat with its root 0.6 m under it.
  *  Only the plain view moves: the higher views the clean eye rises to are as they were */
-export const ARENA_CAM: Record<string, { water?: number; waterLow?: number; face?: [number, number] }> = {
+export const ARENA_CAM: Record<string, { water?: number; waterLow?: number; face?: [number, number]; lift?: number }> = {
   // (phase 5, report 18-camera: `face` is the way (x, z on the ground) from the stage toward what the world stands round
   // it for the eye: the sun and the sky's glow, the landmarks at the stage's edge, the temple's colonnade and sea, the
   // geode's light wells (three of the four), the Pool's sunset shore. Every world's is behind the stage as the lock
   // looks (−z): of the two sides the pair can be seen from, the camera takes the one looking that way, other things
   // being equal: camworlds.ts landmarksOf)
   temple: { face: [0, -1] },
-  redwoods: { face: [0, -1] },
+  // (phase 7, report 24-dusk-built: `lift` (rad) raises every look the camera takes here by that much, the plain view,
+  // the choices over the pieces and the floor under them alike: the redwoods' canopy village stands 6.6 to 7.6 m up
+  // round the ring and was above the frame the duel keeps, report 23's first issue)
+  redwoods: { face: [0, -1], lift: 0.08 },
   geode: { face: [0, -1] },
   pool: { water: 0, waterLow: 0.04, face: [0, -1] },
 };
@@ -419,6 +422,8 @@ export class DuelCamera {
   private imps: (CamImpulse & { age: number; rise: number })[] = [];
   /** how far the plain view has come down over water now (rad: ARENA_CAM) */
   private low = 0;
+  /** the world's raise of every look (ARENA_CAM.lift, rad) */
+  private lift = 0;
   private impGain = 1;
   /** the breath (DUEL_CAM.breathe): how calm it is now (0 … 1) and how fast that moves, and the seconds since the last
    *  moment of contact */
@@ -537,7 +542,8 @@ export class DuelCamera {
       if (this.calm <= 0 || this.calm >= 1) this.calmV = 0;
     }
     const calm = this.calm * this.calm * (3 - 2 * this.calm);
-    const plain = Math.max(BR.lowest, P.pitches[0] - this.low - calm * BR.low), pitches = [plain, ...P.pitches.slice(1)];
+    const lift = (this.lift = AC?.lift ?? 0);
+    const plain = Math.max(BR.lowest - lift, P.pitches[0] - this.low - calm * BR.low - lift), pitches = [plain, ...P.pitches.slice(1).map((p) => p - lift)];
     // (a body fallen and reforming is not followed down: the other is framed alone till it is back)
     if (I.bodies.length === 2 && I.bodies.some((b) => b.away) && !I.bodies.every((b) => b.away)) {
       const here = I.bodies.find((b) => !b.away)!;
@@ -758,7 +764,7 @@ export class DuelCamera {
       }
       // (where no tilt up is clean, a dip under what hangs over the pair: the geode's high shelves)
       if (!found) for (const r of P.dips) {
-        const p = Math.max(P.minPitch, this.pitch + r), b = badBoth(p);
+        const p = Math.max((P.minPitch - this.lift), this.pitch + r), b = badBoth(p);
         if (b === 0) { riseWant = p - this.pitch; found = true; break; }
       }
     }
@@ -778,7 +784,7 @@ export class DuelCamera {
     // at the rise's own pace, up quickly and down slowly, where it used to jump in a frame, an 8° snap of the look down)
     const capWant = this.steep ? P.maxPitch : Math.max(P.softPitch, Math.min(P.maxPitch, this.pitch));
     this.cap = this.fresh ? capWant : capWant > this.cap ? Math.min(capWant, this.cap + 1.6 * dt) : Math.max(capWant, this.cap - P.riseDown[0] * dt);
-    const pitch = Math.max(P.minPitch, Math.min(this.cap, this.pitch + this.rise));
+    const pitch = Math.max((P.minPitch - this.lift), Math.min(this.cap, this.pitch + this.rise));
     // the hard pass: whatever the ease left out, the boom (then the lens) takes in from where the look point is now
     const need = boomFor(pts, look, this.yaw, pitch, this.fov, I.aspect, hard);
     if (need > this.dist) this.dist = Math.min(need, maxD * 1.25);

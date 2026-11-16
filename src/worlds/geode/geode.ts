@@ -23,6 +23,8 @@ import moteShader from './motes.wgsl';
 import shelfShader from './shelves.wgsl';
 import crystalShader from './crystals.wgsl';
 import gardenShader from './garden.wgsl';
+import screenShader from './screen.wgsl';
+import { layoutScreen, type Screen } from './screen';
 import { layoutGeodeGarden, type GeodeGarden } from './garden';
 import { layoutShelves, packBlades, solidsOfShelves } from './shelves';
 import { clearOf, type Solid } from '../solids';
@@ -145,6 +147,9 @@ export class Geode implements World {
   private garden: GeodeGarden;
   private plantBuf: ReturnType<WorldCtx['kit']['storage']>;
   private potBuf: ReturnType<WorldCtx['kit']['storage']>;
+  /** the hero piece (phase 7, screen.ts): the leaded-glass screen behind the stage */
+  private screen: Screen;
+  private screenBuf: ReturnType<WorldCtx['kit']['storage']>;
 
   constructor(ctx: WorldCtx) {
     const P = geodeParams;
@@ -169,7 +174,9 @@ export class Geode implements World {
     this.duelBlades = ctx.kit.storage({ label: 'geode.duel.shelves', data: duel.blades, usage: ['storage'] });
     this.duelPoints = ctx.kit.storage({ label: 'geode.duel.crystals', data: duel.points, usage: ['storage'] });
     const da = duel.arena;
-    this.garden = layoutGeodeGarden(duel.decor, P.caveRadius + 0.4, ctx.coarse, (x, z) => !inDrop(da.plane, da.drops!, x, z));
+    this.screen = layoutScreen();
+    this.screenBuf = ctx.kit.storage({ label: 'geode.screen', data: this.screen.panels, usage: ['storage'] });
+    this.garden = layoutGeodeGarden(duel.decor, P.caveRadius + 0.4, ctx.coarse, (x, z) => !inDrop(da.plane, da.drops!, x, z), this.screen);
     this.plantBuf = ctx.kit.storage({ label: 'geode.garden', data: this.garden.plants, usage: ['storage'] });
     this.potBuf = ctx.kit.storage({ label: 'geode.planters', data: this.garden.pots, usage: ['storage'] });
     this.high = shelves.high;
@@ -239,6 +246,7 @@ export class Geode implements World {
       // the planting (garden.wgsl): the planters under the great window and what grows in them, then the duel's ferns,
       // flowers and vines
       const G = this.garden, bind = { plants: this.plantBuf, pots: this.potBuf }, all = G.plants.length / 12;
+      s.pass.draw(screenShader, { label: 'geode.screen', bind: { panels: this.screenBuf }, count: 72, instances: this.screen.count, cull: 'none', enabled: () => s.on() && geodeParams.green > 0 });
       s.pass.draw(gardenShader, { label: 'geode.planters', vertex: 'vs_pot', fragment: 'fs_pot', bind, count: 20 * 9 * 6, instances: G.potCount, cull: 'none', enabled: () => s.on() && geodeParams.green > 0 });
       s.pass.draw(gardenShader, { label: 'geode.garden', bind, count: 8 * 6 + 6, instances: G.hubPlants, constants: { FIRST: 0 }, cull: 'none', enabled: () => s.on() && geodeParams.green > 0 });
       s.pass.draw(gardenShader, { label: 'geode.garden.duel', bind, count: 8 * 6 + 6, instances: all - G.hubPlants, constants: { FIRST: G.hubPlants }, cull: 'none', enabled: () => shown() && geodeParams.green > 0 });
