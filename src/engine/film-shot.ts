@@ -145,10 +145,11 @@ async function run(api: FilmApi, recorder: Recorder, shot: ShotSpec, plan: ShotP
   const inTimeOf = () => (prerollFrames + 1) * dt;
   /** the track beat on the film's grid start, `g` seconds after the in-point */
   const beatAtGrid = (g: number) => plan.track!.beatAtIn != null ? plan.track!.beatAtIn + g / spb : 4 * Math.max(0, Math.ceil((g - track!.downbeat) / barOf(track!) - 1e-9));
-  // a duel with its mirrors open (&mirrors=1): a crossing takes the new world's track from the next bar line, as in
-  // play (Music.retone), and info.json's `track.switches` says when (on the score's clock) and which: film.mjs lays it
+  // a duel with its mirrors open (&mirrors=1): a crossing takes the new world's track on the next beat, at a phrase of
+  // its body, the tempo bridged (sound.ts SetMusic.cross, Engine.crossTo), as in play, and info.json's `track.switches`
+  // says when (on the score's clock), which, and the bridge: film.mjs lays it
   const follow = shot.mode === 'duel' && new URLSearchParams(location.search).get('mirrors') === '1';
-  const switches: { t: number; tau: number; id: string; bpm: number }[] = [];
+  const switches: { t: number; tau: number; id: string; bpm: number; bridge?: Record<string, unknown> }[] = [];
   if (track) {
     M.trackFixed = !follow;
     M.engine.setTrack(track, true);
@@ -455,7 +456,13 @@ async function run(api: FilmApi, recorder: Recorder, shot: ShotSpec, plan: ShotP
     }
     if (track && follow && M.engine.track && M.engine.track.id !== (switches[switches.length - 1]?.id ?? track.id)) {
       const t = M.engine.trackAt as number;
-      switches.push({ t: +t.toFixed(5), tau: +(t - inTimeOf()).toFixed(5), id: M.engine.track.id, bpm: M.engine.track.bpm });
+      // (through a mirror the track comes in on a crossing's bridge (Engine.crossTo): on the next beat, at a phrase of
+      // its body, the tempo bent across; film.mjs lays it as the deck plays it, from these)
+      const Bx = M.engine.bridge as { to: { id: string }; from: { id: string } | null; tA: number; tB: number; tC: number; kA: number; kB: number; kC: number; rA: number; rB: number; nb: number; pos: number } | null;
+      const bridge = Bx && Bx.to.id === M.engine.track.id && Math.abs(Bx.tB - t) < 1e-6
+        ? { from: Bx.from?.id ?? null, tA: +Bx.tA.toFixed(5), tB: +Bx.tB.toFixed(5), tC: +Bx.tC.toFixed(5), beats: (Bx.kC - Bx.kB) / 4, rA: Bx.rA, rB: Bx.rB, nb: Bx.nb, pos: +Bx.pos.toFixed(5) }
+        : null;
+      switches.push({ t: +t.toFixed(5), tau: +(t - inTimeOf()).toFixed(5), id: M.engine.track.id, bpm: M.engine.track.bpm, ...(bridge ? { bridge } : {}) });
       console.log(`film: ${shot.id} the track is ${M.engine.track.id}'s from ${(t - inTimeOf()).toFixed(3)} s (a mirror crossed)`);
     }
     if (track && jogo && gridScore == null) {

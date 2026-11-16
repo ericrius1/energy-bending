@@ -583,7 +583,11 @@ export class Portals implements SceneLayer {
     const eye: V3 = [cam.position[0], cam.position[1], cam.position[2]];
     const may = !!P.fly || !!this.offset || (!rig.follow && rig.locked < 0.01);
     if (may && this.camWas && this.camWas.world === main.world) {
-      const c = this.crossed(this.camWas.p, eye, main.world, P.fly ? 0 : -0.1);
+      const c0 = this.crossed(this.camWas.p, eye, main.world, P.fly ? 0 : -0.1);
+      // (an eye on its way after its player goes only through the door into the player's world: a duel's way round a
+      // mirror's rim passed through the temple's gate to the geode and showed the geode for 2.7 s while the pair danced
+      // in the redwoods; report 23)
+      const c = c0 && this.offset && !P.fly && this.rigAt && c0.gate.partner?.world !== this.rigAt ? null : c0;
       if (c) { this.carryCamera(c.gate, c.u, c.v, c.front, f.t); cam.update(W, H); eye[0] = cam.position[0]; eye[1] = cam.position[1]; eye[2] = cam.position[2]; }
     }
     // (the last place it was strictly off every disc's plane: what the next crossing is measured from)
