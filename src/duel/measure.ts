@@ -165,7 +165,9 @@ for (const world of worlds) {
     let soon = 0, held = 0, sets = 0;
     for (const r of all) { if (r.crossings.length) sets++; for (let i = 1; i < r.crossings.length; i++) if (r.crossings[i].t - r.crossings[i - 1].t < 3) soon++; }
     for (const x of xs) { to[x.to] = (to[x.to] ?? 0) + 1; if (x.held) held++; }
-    Object.assign(line, { crossings: xs.length, crossingsPerSet: xs.length / nSets, setsCrossed: sets, crossedTo: to, crossedHeld: held, crossedSoon: soon });
+    const meant = xs.filter((x) => x.meant).length, three = all.filter((r) => r.crossings.length >= 3).length;
+    Object.assign(line, { crossings: xs.length, crossingsPerSet: xs.length / nSets, setsCrossed: sets, crossedTo: to, crossedHeld: held, crossedSoon: soon, crossedMeant: meant, setsCrossed3: three });
+    console.log(`  mirrors: ${meant} meant (a voyage); ${three} sets crossed three times or more`);
     console.log(`  mirrors: ${xs.length} crossings (${f2(xs.length / nSets)} a set, ${sets} of ${nSets} sets crossed), into ${Object.entries(to).map(([k, v]) => `${k} ${v}`).join(', ') || 'none'}; ${held} joined; ${soon} within 3 s of the one before`);
   }
   if (argv.includes('-v')) {

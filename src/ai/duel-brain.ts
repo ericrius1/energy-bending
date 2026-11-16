@@ -70,6 +70,8 @@ export interface DuelSight {
    *  right, its radius), or null; and the disc the pair just came out of, kept away from for a few seconds */
   voyage?: MirrorSight | null;
   cameOut?: MirrorSight | null;
+  /** every mirror of the world the pair is in (phase 7): kept out of the way of, but for the voyage's */
+  mirrors?: readonly MirrorSight[];
 }
 
 /** a mirror as a virtual player sees it */
@@ -309,6 +311,9 @@ export class DuelBrain implements Brain {
       const V = otherOut ? null : this.voyageGoal(me, o, D);
       if (V) { this.goal = V; return; }
       if (D.cameOut) [gx, gz] = this.awayFromDisc(D.cameOut, gx, gz);
+      // (and out of every other mirror's way: a crossing is the pair's voyage, not a stumble through a door they danced
+      // past; phase 7, report 24)
+      [gx, gz] = this.offDoors(D, me, gx, gz);
       // the hazard's places and the ice steps: a step to run up onto, the hum's column, a stone out of the water
       const place = otherOut ? null : this.placeFor(S, me, o, D, gx, gz);
       if (place) { this.goal = { ...place, s: 0 }; return; }
@@ -346,6 +351,56 @@ export class DuelBrain implements Brain {
     const x = V.at[0] + V.n[0] * d + V.right[0] * off, z = V.at[2] + V.n[2] * d + V.right[2] * off;
     this.count('voyage');
     return { x, y: groundOf(D, x, z, me.y, 2.5), z, s: 0, why: 'voyage' };
+  }
+
+  /** the mirrors not on the voyage */
+  private doors(D: DuelSight): readonly MirrorSight[] {
+    const V = D.voyage;
+    return (D.mirrors ?? []).filter((m) => !V || Math.hypot(m.at[0] - V.at[0], m.at[2] - V.at[2]) > 0.05);
+  }
+
+  /** a goal kept out of each mirror's lane (the strip in front of its disc and just behind it), and the way there kept
+   *  from passing through a disc: round it, by its nearer side */
+  private offDoors(D: DuelSight, me: Snap, x: number, z: number): [number, number] {
+    for (const m of this.doors(D)) {
+      const s = (x - m.at[0]) * m.n[0] + (z - m.at[2]) * m.n[2], a = (x - m.at[0]) * m.right[0] + (z - m.at[2]) * m.right[2];
+      if (Math.abs(a) < m.r + 1.2 && s > -1.5 && s < 2.4) {
+        // (in front: out along its face; behind it: out to its side)
+        if (s >= 0) { x += m.n[0] * (2.4 - s); z += m.n[2] * (2.4 - s); }
+        else { const k = (Math.sign(a) || 1) * (m.r + 1.2) - a; x += m.right[0] * k; z += m.right[2] * k; }
+      }
+      // (the way from here to there through the disc: to its side instead, a step in front of it)
+      const sm = (me.x - m.at[0]) * m.n[0] + (me.z - m.at[2]) * m.n[2], sg = (x - m.at[0]) * m.n[0] + (z - m.at[2]) * m.n[2];
+      if ((sm > 0) !== (sg > 0) && sm !== sg) {
+        const k = sm / (sm - sg), px = me.x + (x - me.x) * k - m.at[0], pz = me.z + (z - me.z) * k - m.at[2], a2 = px * m.right[0] + pz * m.right[2];
+        if (Math.abs(a2) < m.r + 0.6) {
+          const side = Math.sign(a2) || 1, off = side * (m.r + 1.3);
+          x = m.at[0] + m.right[0] * off + m.n[0] * Math.sign(sm) * 0.8; z = m.at[2] + m.right[2] * off + m.n[2] * Math.sign(sm) * 0.8;
+        }
+      }
+    }
+    return [x, z];
+  }
+
+  /** a fling's aim turned off any mirror (not the voyage's) it would send the other through within 6 m */
+  private flingOffDoors(D: DuelSight, from: ArrayLike<number>, aim: [number, number]): [number, number] {
+    const doors = this.doors(D);
+    if (!doors.length) return aim;
+    const l = Math.hypot(aim[0], aim[1]) || 1;
+    const through = (dx: number, dz: number) => doors.some((m) => {
+      const bx = from[0] + dx * 6, bz = from[2] + dz * 6;
+      const sa = (from[0] - m.at[0]) * m.n[0] + (from[2] - m.at[2]) * m.n[2], sb = (bx - m.at[0]) * m.n[0] + (bz - m.at[2]) * m.n[2];
+      if ((sa > 0) === (sb > 0)) return false;
+      const k = sa / (sa - sb), a = (from[0] + (bx - from[0]) * k - m.at[0]) * m.right[0] + (from[2] + (bz - from[2]) * k - m.at[2]) * m.right[2];
+      return Math.abs(a) < m.r + 0.8;
+    });
+    const ux = aim[0] / l, uz = aim[1] / l;
+    if (!through(ux, uz)) return aim;
+    for (const turn of [0.6, -0.6, 1.1, -1.1, 1.6, -1.6]) {
+      const c = Math.cos(turn), sn = Math.sin(turn), vx = ux * c - uz * sn, vz = ux * sn + uz * c;
+      if (!through(vx, vz)) return [vx * l, vz * l];
+    }
+    return aim;
   }
 
   /** a goal kept a few metres in front of the disc the pair just came out of (no dancing straight back through it) */
@@ -696,10 +751,10 @@ export class DuelBrain implements Brain {
     }
     if (D && !c.plane) {
       const hi = this.highPlace({ ...at, y: at.y - 0.5 }, D);
-      if (hi) return [hi[0] - O.root[0], hi[2] - O.root[2]];
-      if (this.rng.chance(this.K.showy)) { const w = this.wallNear3(at, D, 5); if (w) return [w[0] - O.root[0], w[2] - O.root[2]]; }
+      if (hi) return this.flingOffDoors(D, O.root, [hi[0] - O.root[0], hi[2] - O.root[2]]);
+      if (this.rng.chance(this.K.showy)) { const w = this.wallNear3(at, D, 5); if (w) return this.flingOffDoors(D, O.root, [w[0] - O.root[0], w[2] - O.root[2]]); }
       const C = D.space.center;
-      return [C[0] - O.root[0], C[2] - O.root[2]];
+      return this.flingOffDoors(D, O.root, [C[0] - O.root[0], C[2] - O.root[2]]);
     }
     // locked: in toward the stage's middle, or onto a ledge
     const pl = c.plane;
