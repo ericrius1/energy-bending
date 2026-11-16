@@ -160,7 +160,7 @@ async function playSet(q) {
     }
     const st = D.state.stats;
     for (const c of cross) {
-      c.how = c.X.how ?? null; c.meant = c.X.meant ?? null; c.why = c.X.why ?? null; c.wayKind = c.X.way ?? null; delete c.X;
+      c.how = c.X.how ?? null; c.meant = c.X.meant ?? null; c.why = c.X.why ?? null; c.wayKind = c.X.way ?? null; c.plan = c.X.plan ?? null; delete c.X;
       const tr = tracks.find((x) => x.type === 'track' && x.at >= c.t - 0.02 && x.at < c.t + 8);
       c.music = tr ? +(tr.t - c.t).toFixed(3) : null;
       c.musicType = tr?.type ?? null;
