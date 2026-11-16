@@ -60,7 +60,7 @@ import { POWER_BUTTONS } from '../input/gamepad';
 import type { WaterPasses } from '../matter/water/pool';
 import type { PlasmaPasses } from '../matter/plasma/plasma';
 import { Finale } from './finale';
-import { bloomFrame } from './bloom';
+import { bloomFade, bloomFrame } from './bloom';
 import { DuelCamera, type CamBody, type CamSpace } from './camera';
 import { Voyage, ThroughCam, approachOf, behindPose, blendPose, CROSS, type Disc } from './voyage';
 import { CrossFx } from './crossing-fx';
@@ -287,6 +287,9 @@ export async function startDuel(app: PlayApp, opts: { joined?: Joined } = {}) {
   const glows = new Glows();
   const draw = new GlowDraw(kit, glows);
   draw.declare(app.main.scene, () => true);
+  // (the fused finale's bloom drawn into the glow pass, laid over the world at its own distance by the air: report 24)
+  draw.declareLayer(app.main.glow, () => true);
+  draw.layer = () => fx.bloom;
   const cam = kit.camera;
   const ear = (p: V3) => {
     const dx = p[0] - cam.position[0], dy = p[1] - cam.position[1], dz = p[2] - cam.position[2], d = Math.hypot(dx, dy, dz) || 1;
@@ -433,6 +436,14 @@ export async function startDuel(app: PlayApp, opts: { joined?: Joined } = {}) {
     // times as much: report 20)
     return { pts: [...FRAMED.map(at), ...top], sight: [at(JOINT.Hips), at(JOINT.Spine1), ...(top.length && fx.heartNow ? [fx.heartNow] : [])], head: at(JOINT.HeadEnd), root: [c.root[0], c.root[1], c.root[2]], vel: [c.v[0], c.v[1], c.v[2]], air: !c.grounded, away: c.reforming, keep: top.length ? 3 : 1 };
   };
+  /** a fused finale lifts the camera's look to the sky (the aurora, the sun) as the lift rises, through the banner
+   *  while the bloom lasts (camera.ts CamInput.sky; report 24) */
+  const skyOf = () => {
+    const L = finale.look();
+    if (!L?.fused) return 0;
+    const u = Math.max(0, Math.min(1, L.u / 0.35));
+    return u * u * (3 - 2 * u) * bloomFade(L);
+  };
   rig.apexG = chars[0].phys.gravity;
   rig.headroom = 0.5;
   /** every crossing this page made: the set's seconds, the two worlds, how the main view went over (`through` the disc
@@ -503,7 +514,7 @@ export async function startDuel(app: PlayApp, opts: { joined?: Joined } = {}) {
     let pose = dcam.update(f.dt, {
       bodies: [a, b], aspect: w / Math.max(1, h), gravity: chars[0].phys.gravity, space: camSpace(), near: rig.sight.near,
       center: arena.space.center, room: arena.camera?.maxDist ?? arena.space.radius + 6, maxDist: arena.camera?.maxDist, pad: rig.framePad, arena: arena.world, you: you.favour() ?? undefined,
-      discs,
+      discs, sky: skyOf(),
     }) as { eye: V3; look: V3; fov: number };
     if (way) {
       const P = way.update(f.dt, pose, mid), X = wayRec;

@@ -164,10 +164,11 @@ fn glowAt(uv: vec2f) -> vec3f {
 
 /** the glow at this pixel as it should be laid over the scene `s`: fire's mirror copy bent by the waves, and light
  *  behind a body seen through it */
-fn glowSeen(g0: vec3f, s: vec4f, uv: vec2f, d: vec3f) -> vec3f {
+fn glowSeen(g0: vec3f, s: vec4f, uv: vec2f, d: vec3f, glowD: f32) -> vec3f {
   var g = g0;
   if (dot(g, g) <= 0.0) { return g; }
-  let lightD = lightNear(uv);
+  // (a light that says where it stands in the glow target's alpha, glowD: the duel's bloom, report 24)
+  let lightD = min(lightNear(uv), glowD);
   let along = max(dot(d, frame.camFwd), 1e-3);
   // on the water: a light whose distance is past the surface (or unknown) is the mirror copy
   if ((WORLD == 2u || WORLD == 3u) && airv.bend > 0.0) {
@@ -222,9 +223,13 @@ fn air(i: FullscreenOut) -> Air {
   var g = textureLoad(glow, clamp(vec2i(i.uv * vec2f(gd)), vec2i(0), gd - 1), 0);
   if (broken(vec4f(g.rgb, 0.0))) { g = vec4f(0.0, 0.0, 0.0, FAR_FOCUS); }
   // the nearest translucent matter dense enough to focus on: a glow's own distance (0: none), the focus textures
-  let near = min(select(g.a, FAR_FOCUS, broken1(g.a) || g.a <= 0.0 || g.a > FAR_FOCUS), focusNear(i.uv));
+  let glowD = select(g.a, FAR_FOCUS, broken1(g.a) || g.a <= 0.0 || g.a > FAR_FOCUS);
+  let near = min(glowD, focusNear(i.uv));
   let fd = min(s.a, near);
-  let gc = glowSeen(g.rgb, s, i.uv, d);
+  let gc0 = glowSeen(g.rgb, s, i.uv, d, glowD);
+  // (a fusion's flower is light standing in the air, not a surface the moment lights; its overlapping petals capped,
+  // the hue kept: worlds/answer.wgsl answerGlowSeen, report 24)
+  let gc = answerGlowSeen(gc0, min(s.a, near), d);
   var o: Air;
   o.opaque = s.a;
   // (through a live gate's disc the lens focuses as far as what is seen there; the air above fogs to the disc)
@@ -240,6 +245,13 @@ fn air(i: FullscreenOut) -> Air {
   // (behind a fusion's flower the world dims a little, never the glow: worlds/answer.wgsl answerVeil, report 20)
   let veil = answerVeil(s.a, d);
   if (veil < 1.0) { o.col -= (1.0 - veil) * (worldAir(s, px, d) - answerLight(s.a, d)); }
+  // (and the sun's beams come out from behind the flower, never over its petals, and its petals are laid over the
+  // world, not only added to it: what is behind them dimmed, their rose and fern kept. Report 24)
+  if (dot(gc, gc) > 0.0) {
+    o.col = max(o.col - answerShafts(s.a, d) * smoothstep(0.02, 0.22, max(gc.r, max(gc.g, gc.b))), vec3f(0.0));
+    let over = answerGlowOver(gc, min(s.a, near), d);
+    if (over > 0.0) { o.col = max(o.col - over * (o.col - gc), gc); }
+  }
   return o;
 }
 

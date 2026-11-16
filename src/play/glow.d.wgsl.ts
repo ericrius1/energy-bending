@@ -39,13 +39,14 @@ export interface Glow {
 export interface GlowLook {
   count: number;
   minPx: number;
-  pad0: number;
-  pad1: number;
+  skipLo: number;
+  skipHi: number;
 }
 export interface GOut {
   pos: Vec4;
   at: Vec4;
   col: Vec4;
+  dist: number;
 }
 
 declare const shader: Shader<{ Frame: Frame; Glow: Glow; GlowLook: GlowLook; GOut: GOut }, 'frame' | 'look' | 'glows' | 'samp_linear' | 'samp_repeat' | 'samp_nearest' | 'samp_shadow'>;

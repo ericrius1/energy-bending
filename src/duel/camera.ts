@@ -112,6 +112,9 @@ export interface CamInput {
    *  plane beside it, or seeing the pair through it, costs (the pair arrived to the eye inside the far mirror's ring
    *  looking at its disc, report 19) */
   discs?: readonly { at: V3; n: V3; r: number }[];
+  /** a fused finale's look up (0 … 1; phase 7, report 24): the plain view lifts to look `skyPitch` up and the higher
+   *  views come down with it, so the sky over the flower (the aurora, the sun) is in the frame, not the water */
+  sky?: number;
 }
 
 /** what a mirror costs an eye (DuelCamera's choice): standing inside its frame or near its middle, just behind it beside
@@ -178,6 +181,15 @@ export const DUEL_CAM = {
   /** the fallback's boom never shorter than this (m) */
   minPull: 4,
   maxPitch: 0.75,
+  /** a fused finale's plain view (rad: a little up), how far its higher views come down with it, and the most it
+   *  looks up then (CamInput.sky) */
+  skyPitch: -0.14, skyDown: 0.2, skyMin: -0.2,
+  /** and then: the turns it tries off side on go all the way round (rad, either way), a look past a piece to the sky
+   *  over the flower costs (`skyCost`, by the share of three rays `skyUp` rad over level, `skyFan` rad apart, that meet
+   *  a solid within `skyReach` m), and the fallback tilts down over the pieces no further than `skyCap` rad: the boom
+   *  comes in among them instead (report 23: the lift began behind a Pool post, the camera risen to look straight down
+   *  at the water over it) */
+  skyOffsets: [1.2, 1.5, 1.8], skyCost: 1.2, skyUp: 0.2, skyFan: 0.4, skyReach: 14, skyCap: 0.3,
   /** the look down it keeps under (rad, 35°): a players' view, not a security camera's. Past it (to maxPitch, 43°) only
    *  where neither a turn nor the boom coming in made the eye clean */
   softPitch: 0.61,
@@ -415,6 +427,10 @@ export class DuelCamera {
   private steep = false;
   private swingT = 0;
   private riseLow = 0;
+  /** the finale's look up last frame (CamInput.sky): its start asks the choice again at once */
+  private skyWas = 0;
+  /** the measure's switch (scripts/answer-cap.mjs `--sky 0`): 0 turns the finale's look up off */
+  skyScale = 1;
   /** the impulses under way (their age in seconds of real time), and how much of them the clean eye lets through */
   private imps: (CamImpulse & { age: number; rise: number })[] = [];
   /** how far the plain view has come down over water now (rad: ARENA_CAM) */
@@ -537,7 +553,9 @@ export class DuelCamera {
       if (this.calm <= 0 || this.calm >= 1) this.calmV = 0;
     }
     const calm = this.calm * this.calm * (3 - 2 * this.calm);
-    const plain = Math.max(BR.lowest, P.pitches[0] - this.low - calm * BR.low), pitches = [plain, ...P.pitches.slice(1)];
+    const sky = Math.max(0, Math.min(1, I.sky ?? 0)) * this.skyScale;
+    const plain0 = Math.max(BR.lowest, P.pitches[0] - this.low - calm * BR.low), plain = plain0 + (P.skyPitch - plain0) * sky;
+    const pitches = [plain, ...P.pitches.slice(1).map((p) => p - P.skyDown * sky)];
     // (a body fallen and reforming is not followed down: the other is framed alone till it is back)
     if (I.bodies.length === 2 && I.bodies.some((b) => b.away) && !I.bodies.every((b) => b.away)) {
       const here = I.bodies.find((b) => !b.away)!;
@@ -552,7 +570,7 @@ export class DuelCamera {
     const pts = this.pointsOf(I);
     this.framed = pts;
     // (breathing, the pair sits lower in a wider frame: the place over them in it)
-    const soft: Margins = { top: P.top + pad * 0.08 + calm * BR.top, bottom: P.bottom + pad * 0.06, side: P.side + pad * 0.06 + calm * BR.side };
+    const soft: Margins = { top: P.top + pad * 0.08 + calm * BR.top + sky * 0.04, bottom: P.bottom + pad * 0.06, side: P.side + pad * 0.06 + calm * BR.side };
     const hard: Margins = { top: P.hardTop, bottom: P.hardBottom, side: P.hardSide };
     // the side-on direction: square to the line between the two (eased; held while they stand on top of each other)
     const [A, B] = I.bodies;
@@ -625,6 +643,15 @@ export class DuelCamera {
       // (and never out through the world's shell: past the room by more than roomOver, in any direction)
       const out3 = Math.hypot(f.eye[0] - I.center[0], f.eye[1] - I.center[1], f.eye[2] - I.center[2]) - (I.room + P.roomOver);
       if (out3 > 0) s += K.inside + out3 * 2;
+      // (a fused finale: the sky over the flower seen past the pieces, CamInput.sky)
+      if (sky > 0 && I.space) {
+        let hit = 0;
+        for (const o of [-P.skyFan, 0, P.skyFan]) {
+          const y = yaw + o, c = Math.cos(P.skyUp) * P.skyReach, e = f.eye;
+          if (I.space.blocked(e, [e[0] - Math.sin(y) * c, e[1] + Math.sin(P.skyUp) * P.skyReach, e[2] - Math.cos(y) * c])) hit++;
+        }
+        s += P.skyCost * sky * (hit / 3);
+      }
       // (the mirrors: never inside one's frame, beside its back, or seeing the pair through it)
       if (I.discs) s += discCost(f.eye, mid, I.discs);
       // side on (with the turn toward behind seat 1) unless the pair is on top of each other; the lower view; the
@@ -643,11 +670,15 @@ export class DuelCamera {
     };
 
     this.wait -= dt;
+    // (a fused finale beginning: the choice asked again at once, and the turn twice as quick while it lasts, so a lift
+    // begun behind a stone is seen past it within a few tenths of a second, not most of the lift: report 23)
+    if (sky > 0 && this.skyWas <= 0) this.wait = 0;
+    this.skyWas = sky;
     if (this.fresh || this.wait <= 0) {
       this.wait = P.every;
       let best: Choice | null = null, n = 0;
       for (const base of [this.side, wrap(this.side + Math.PI)]) {
-        for (const o of P.offsets) for (const sg of o ? [1, -1] : [1]) for (let pi = 0; pi < pitches.length; pi++) for (const lens of P.lenses) {
+        for (const o of sky > 0 ? [...P.offsets, ...P.skyOffsets] : P.offsets) for (const sg of o ? [1, -1] : [1]) for (let pi = 0; pi < pitches.length; pi++) for (const lens of P.lenses) {
           const pitch = pitches[pi], yaw = wrap(base + o * sg), sc = score(yaw, pitch, base, lens);
           n++;
           if (!best || sc < best.score) best = { yaw, pitch, pi, lens, side: base, score: sc };
@@ -675,8 +706,9 @@ export class DuelCamera {
     else {
       const d = wrap(W.yaw - this.yaw);
       // (its speed capped, and never more than it can stop from in the turn left: it arrives without passing it)
-      const vWant = Math.sign(d) * Math.min(P.yawRate, Math.abs(d) * 2.5, Math.sqrt(2 * P.yawAccel * Math.abs(d)) * 0.8);
-      const dv = Math.max(-P.yawAccel * dt, Math.min(P.yawAccel * dt, vWant - this.yawV));
+      const fast = sky > 0 ? 2 : 1, yr = P.yawRate * fast, ya = P.yawAccel * fast;
+      const vWant = Math.sign(d) * Math.min(yr, Math.abs(d) * 2.5, Math.sqrt(2 * ya * Math.abs(d)) * 0.8);
+      const dv = Math.max(-ya * dt, Math.min(ya * dt, vWant - this.yawV));
       this.yawV += dv;
       this.yaw = wrap(this.yaw + this.yawV * dt);
       const dp = W.pitch - this.pitch;
@@ -749,7 +781,7 @@ export class DuelCamera {
     if (bad0 > 0) {
       // (the first tilt that is clean, under the soft ceiling unless last frame neither a turn nor the boom made it clean;
       // where none is, the least unclean, if it is clearly better)
-      const cap = this.steep ? P.maxPitch : P.softPitch;
+      const cap0 = this.steep ? P.maxPitch : P.softPitch, cap = cap0 + (P.skyCap - cap0) * sky;
       let best = bad0;
       for (const r of P.rises) {
         const p = Math.min(cap, this.pitch + r), b = badBoth(p);
@@ -768,17 +800,18 @@ export class DuelCamera {
     const keptBad = () => { const p = Math.min(this.steep ? P.maxPitch : P.softPitch, this.pitch + this.riseKeep); return bad(eyeAt(p, this.dist), p) > 0; };
     const away = Math.abs(riseWant) >= Math.abs(this.riseKeep) && riseWant * this.riseKeep >= 0;
     if (this.fresh || away || (riseWant !== this.riseKeep && keptBad())) { this.riseKeep = riseWant; this.riseLow = 0; }
-    else if ((this.riseLow += dt) >= P.riseHold) { this.riseKeep = riseWant; this.riseLow = 0; }
+    else if ((this.riseLow += dt) >= P.riseHold * (1 - 0.75 * sky)) { this.riseKeep = riseWant; this.riseLow = 0; }
     // (eased up quickly and down slowly; while the eye it gave last frame was unclean, quickly either way)
     // (away from the plain view quickly, back to it slowly; while the eye it gave last frame was unclean, quickly)
-    const dr = this.riseKeep - this.rise, quick = this.last.eyeBad > 0 || Math.abs(this.riseKeep) > Math.abs(this.rise) + 1e-4;
+    // (a fused finale's look up comes down off a rise as quickly as it went up: the sky is the point of it)
+    const dr = this.riseKeep - this.rise, quick = this.last.eyeBad > 0 || Math.abs(this.riseKeep) > Math.abs(this.rise) + 1e-4 || sky > 0.3;
     const rate = quick ? 1.6 : P.riseDown[0], kr = quick ? 8 : P.riseDown[1];
     this.rise = this.fresh ? this.riseKeep : this.rise + Math.max(-rate * dt, Math.min(rate * dt, dr * (1 - Math.exp(-dt * kr))));
     // (the ceiling: the soft one, or the steepest while nothing modest cleaned the eye; phase 5: it moves between them
     // at the rise's own pace, up quickly and down slowly, where it used to jump in a frame, an 8° snap of the look down)
-    const capWant = this.steep ? P.maxPitch : Math.max(P.softPitch, Math.min(P.maxPitch, this.pitch));
+    const capWant0 = this.steep ? P.maxPitch : Math.max(P.softPitch, Math.min(P.maxPitch, this.pitch)), capWant = capWant0 + (P.skyCap - capWant0) * sky;
     this.cap = this.fresh ? capWant : capWant > this.cap ? Math.min(capWant, this.cap + 1.6 * dt) : Math.max(capWant, this.cap - P.riseDown[0] * dt);
-    const pitch = Math.max(P.minPitch, Math.min(this.cap, this.pitch + this.rise));
+    const pitch = Math.max(P.minPitch + (P.skyMin - P.minPitch) * sky, Math.min(this.cap, this.pitch + this.rise));
     // the hard pass: whatever the ease left out, the boom (then the lens) takes in from where the look point is now
     const need = boomFor(pts, look, this.yaw, pitch, this.fov, I.aspect, hard);
     if (need > this.dist) this.dist = Math.min(need, maxD * 1.25);

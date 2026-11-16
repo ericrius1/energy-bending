@@ -82,6 +82,8 @@ export class DuelAnswer {
   lit: [number, number] | null = null;
   /** the measure's switch (scripts/answer-cap.mjs): the same frame drawn without the answer */
   off = false;
+  /** the measure's switch for the aurora alone (scripts/answer-cap.mjs: is it in the frame?) */
+  noAurora = false;
   /** every moment answered: the set's seconds, its tier, its peak */
   readonly log: { t: number; tier: number }[] = [];
 
@@ -137,18 +139,20 @@ export class DuelAnswer {
       };
     }
     this.now = a;
-    this.ctx.write?.(this.off ? NO_ANSWER : a);
+    this.ctx.write?.(this.off ? NO_ANSWER : this.noAurora ? { ...a, aurora: 0 } : a);
     // pollen and fireflies rising round the pair in a widening spiral (from MURMURATION, a few at CURRENT; a fusion's
     // through its duet), sun gold with the two seats' colours among them
     this.lit = null;
     const motes = this.off ? 0 : Math.round(ANSWER.MOTES * a.level * (a.tier >= 5 ? 1 : a.tier >= 3 ? 1 : a.tier === 2 ? 0.35 : 0));
     if (motes > 0) {
-      const g0 = G.count, c = a.at, ca = this.ctx.seat(0), cb = this.ctx.seat(1);
+      const g0 = G.count, c = a.at, ca = this.ctx.seat(0), cb = this.ctx.seat(1), accent: RGB = [a.col[0] * 1.6, a.col[1] * 1.6, a.col[2] * 1.6];
       for (let i = 0; i < motes; i++) {
         const life = 3.2 + 1.6 * hash(i * 1.9), v = ((this.t + hash(i * 4.7) * life) / life) % 1;
         const ang = i * 2.39996 + this.t * (0.5 + 0.4 * hash(i * 3.3)) + v * 2.2, r = 0.9 + (1.2 + 4.5 * hash(i * 2.1)) * Math.sqrt(v);
         const p: V3 = [c[0] + Math.cos(ang) * r, c[1] + 0.15 + v * (3 + 3 * hash(i * 5.9)), c[2] + Math.sin(ang) * r];
-        const col = i % 5 === 0 ? ca : i % 5 === 1 ? cb : GOLD, flick = 0.75 + 0.25 * Math.sin(this.t * 7 + i * 1.7);
+        // (phase 7, report 24: one colour accent a moment: a pair tier's motes its own colour among sun gold, a fusion's
+        // the two seats' as before)
+        const col = a.tier >= 5 ? (i % 5 === 0 ? ca : i % 5 === 1 ? cb : GOLD) : i % 3 === 0 ? accent : GOLD, flick = 0.75 + 0.25 * Math.sin(this.t * 7 + i * 1.7);
         G.dot(p, 0.03 + 0.02 * hash(i * 6.1), col, 1.6 * Math.sin(Math.PI * v) * flick * Math.min(1, a.level * 1.4), 'spark');
       }
       this.lit = [g0, G.count];

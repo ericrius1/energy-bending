@@ -42,8 +42,9 @@ export class Glows {
   /** a disc or ring lying on the floor round p */
   flat(p: V3, r: number, col: RGB, I = 1, shape: Shape = 'ring') { this.put(p, p, r, col, shape === 'ring' ? I * this.rings : I, SHAPE[shape] + 4); }
   /** a petal (or with `leaf` a pointed leaf) from its base a to its tip b, r its half width at its widest (m), turned
-   *  to the camera, or with `lying` lying across the floor (glow.wgsl kinds 8, 9, 12, 13: the finale's bloom) */
-  petal(a: V3, b: V3, r: number, col: RGB, I = 1, leaf = false, lying = false) { this.put(a, b, r, col, I, 8 + (leaf ? 1 : 0) + (lying ? 4 : 0)); }
+   *  to the camera, or with `lying` lying across the floor (glow.wgsl kinds 8, 9, 12, 13: the finale's bloom); `soft`: its gold
+   *  midrib, rim and heart faint (kind 10, 14) */
+  petal(a: V3, b: V3, r: number, col: RGB, I = 1, leaf = false, lying = false, soft = false) { this.put(a, b, r, col, I, 8 + (leaf ? 1 : 0) + (soft && !leaf ? 2 : 0) + (lying ? 4 : 0)); }
   /** a polyline of soft segments (flat xyz) */
   line(pts: ArrayLike<number>, r: number, col: RGB, I = 1) {
     for (let i = 3; i + 2 < pts.length; i += 3) this.put([pts[i - 3], pts[i - 2], pts[i - 1]], [pts[i], pts[i + 1], pts[i + 2]], r, col, I, 0);

@@ -10,12 +10,17 @@
 //   8 petal   a petal from a (its base) to b (its tip), r its half width: a narrow base swelling to a round tip, its
 //             colour lit toward the tip, a gold rim and midrib and a gold heart at the base (the finale's bloom)
 //   9 leaf    the same with a pointed tip (a leaf on a vine of light)
+//  10 petal   the same, its gold midrib, rim and heart faint, and where it is drawn into a view's glow pass (the
+//             duel's bloom: glow-draw.ts declareLayer) its own distance written where it stands, so the air lays it
+//             over the world there (post/air.wgsl; report 24: thirteen gold midribs from one heart read as white rays
+//             across the petals, and the petals, added into the scene, were fogged and lit as the sky behind them)
 // (+4 on a petal or a leaf, 12 and 13: lying across the floor instead of turned to the camera)
 #include "weft/frame"
 
 /** a: one end (xyz) and the radius (m); b: the other end and the intensity; c: colour and the shape (+4 flat) */
 struct Glow { a: vec4f, b: vec4f, c: vec4f }
-struct GlowLook { count: u32, minPx: f32, pad0: f32, pad1: f32 }
+/** count: instances drawn; skipLo … skipHi: a range of the list this draw leaves out (another draws it) */
+struct GlowLook { count: u32, minPx: f32, skipLo: f32, skipHi: f32 }
 
 @group(1) @binding(0) var<uniform> look: GlowLook;
 @group(1) @binding(1) var<storage, read> glows: array<Glow>;
@@ -25,6 +30,8 @@ struct GOut {
   // across the shape in units of its radius (x along, y across), the segment's length in radii, the shape
   @location(0) at: vec4f,
   @location(1) @interpolate(flat) col: vec4f,
+  /** the view distance (along the camera's forward) */
+  @location(2) dist: f32,
 }
 
 const CORNERS = array<vec2f, 6>(vec2f(-1.0, -1.0), vec2f(1.0, -1.0), vec2f(1.0, 1.0), vec2f(-1.0, -1.0), vec2f(1.0, 1.0), vec2f(-1.0, 1.0));
@@ -40,12 +47,12 @@ fn reachOf(shape: u32) -> f32 {
 @vertex fn vs(@builtin(vertex_index) vi: u32, @builtin(instance_index) ii: u32) -> GOut {
   var o: GOut;
   o.pos = vec4f(2.0, 2.0, 2.0, 1.0);
-  if (ii >= look.count) { return o; }
+  if (ii >= look.count || (f32(ii) >= look.skipLo && f32(ii) < look.skipHi)) { return o; }
   let g = glows[ii];
   let kind = u32(g.c.w + 0.5);
   // (a petal or a leaf is shape 4 or 5; one lying across the floor keeps its length's direction, its width level)
   let petal = kind >= 8u;
-  let shape = select(kind & 3u, 4u + (kind & 1u), petal);
+  let shape = select(kind & 3u, 4u + (kind & 1u) + (kind & 2u), petal);
   let flat = kind >= 4u && kind < 8u;
   let lying = petal && (kind & 4u) != 0u;
   let a = g.a.xyz;
@@ -83,6 +90,7 @@ fn reachOf(shape: u32) -> f32 {
     o.at = vec4f(along, c.y * R, len, f32(shape));
   }
   o.pos = frame.viewProj * vec4f(wp, 1.0);
+  o.dist = dot(wp - frame.camPos, frame.camFwd);
   o.col = vec4f(g.c.rgb, g.b.w * min(1.0, g.a.w / r));
   return o;
 }
@@ -108,6 +116,7 @@ fn petalW(t: f32, leaf: bool) -> f32 {
     // midrib fading toward the tip and a gold heart at the base; a faint glow round it
     let t = i.at.x / max(i.at.z, 1e-3);
     let w = petalW(t, shape == 5u);
+    let goldK = select(1.0, 0.25, shape == 6u);
     let e = select(abs(i.at.y) - w, 1.0 + abs(i.at.y), t < 0.0 || t > 1.0);
     let inside = smoothstep(aa * 1.5, -aa * 1.5, e);
     let tt = clamp(t, 0.0, 1.0);
@@ -117,8 +126,9 @@ fn petalW(t: f32, leaf: bool) -> f32 {
     let heart = inside * pow(1.0 - tt, 4.0) * 0.9;
     let halo = exp(-4.0 * max(e, 0.0)) * 0.07 * (1.0 - inside);
     let gold = vec3f(1.6, 1.18, 0.46);
-    let c = i.col.rgb * (body + halo) + gold * (rim * 0.85 + vein + heart);
-    return vec4f(c * i.col.a, 1e5);
+    let c = i.col.rgb * (body + halo) + gold * (rim * 0.85 + vein + heart) * goldK;
+    // (a laid-over petal says where it stands; in the scene pass the blend leaves the alpha as it was)
+    return vec4f(c * i.col.a, select(1e5, i.dist, shape == 6u && inside > 0.5));
   }
   if (shape == 0u) {
     v = exp(-2.4 * d * d) * 1.4 + exp(-1.1 * d) * 0.22;
