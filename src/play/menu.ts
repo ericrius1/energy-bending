@@ -447,8 +447,11 @@ export function duelLobby(o: DuelSeats): Lobby | null {
   const j = o.joined;
   if (j) {
     const n = hub.players.length;
-    if (j.device === 'keyboard') hub.key(j.code);
-    else if (j.device === 'gamepad') { const p = hub.join(hub.pads.source(j.index), 'gamepad'); if (p) p.slot = j.index; }
+    if (j.device === 'keyboard') {
+      hub.key(j.code);
+      // (the key went up while the duel was loading: let it go, report 24-newcomer)
+      if (j.held && !j.held()) (hub.players[n]?.source as { keyUp?(code: string): void } | undefined)?.keyUp?.(j.code);
+    } else if (j.device === 'gamepad') { const p = hub.join(hub.pads.source(j.index), 'gamepad'); if (p) p.slot = j.index; }
     if (hub.players.length === n) joinPointer(j.device === 'touch' ? { touch: true, id: j.id, x: j.x, y: j.y } : { touch: false, id: 0, x: 0, y: 0 });
   }
   return lobby;
