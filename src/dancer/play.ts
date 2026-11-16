@@ -84,8 +84,9 @@ export function testLedges(halfWidth: number): Ledge[] {
   ];
 }
 
-/** how much wider than the duel's space the dance's soft edge stands (m) */
-const DANCE_EDGE = 1;
+/** how much wider than the duel's space the dance's soft edge stands (m): a metre inside it, so the follow camera behind a body
+ *  running round the rim has room before the world's walls (report 24-feel) */
+const DANCE_EDGE = -1;
 const TEST_PLANE: StagePlane = { id: 'test', origin: [0, 0, 0], right: [1, 0, 0], halfWidth: 4, ground: 0, ledges: testLedges(4), spawns: [[-1.5, 0], [1.5, 0]] };
 
 /** ?play&arena=test: a duel test arena on a world's stage plane (where it stands and how the camera sees it), its floor

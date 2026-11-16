@@ -202,6 +202,8 @@ export const DUEL_CAM = {
   apexIn: 0.3,
   /** the boom's fastest way in out of a solid (m/s) */
   pullSnap: 14,
+  /** the boom's fastest change (m/s) */
+  boomRate: 18,
   /** what a choice costs: any sight line crossed by a solid, and more by the share crossed; the eye within the near
    *  distance of a solid, and less while within its margin; per radian off side on, of look down, of turn from the
    *  choice it has; the other side */
@@ -450,10 +452,10 @@ export class DuelCamera {
     this.wait = 0;
     const dx = eye[0] - look[0], dy = eye[1] - look[1], dz = eye[2] - look[2], d = Math.max(1e-3, Math.hypot(dx, dy, dz));
     for (let a = 0; a < 3; a++) this.look[a] = look[a];
-    this.dist = d; this.fov = fov;
+    this.dist = d; this.fov = fov; this.lastD = d;
     this.yaw = Math.atan2(dx, dz); this.pitch = Math.asin(Math.max(-1, Math.min(1, dy / d)));
   }
-  reset() { this.fresh = true; this.want = null; this.side = null; this.yawV = 0; this.imps.length = 0; this.riseKeep = 0; this.riseLow = 0; this.low = 0; this.calm = 0; this.calmV = 0; this.quiet = 0; }
+  reset() { this.lastD = 0; this.fresh = true; this.want = null; this.side = null; this.yawV = 0; this.imps.length = 0; this.riseKeep = 0; this.riseLow = 0; this.low = 0; this.calm = 0; this.calmV = 0; this.quiet = 0; }
 
   /** a moment of contact for the camera to feel (phase 3's juice: the feel calls `camera.impulse?.(…)`): for a moment
    *  the look point leans toward `at` and the boom eases in (or, for a fling, out), with a soft settle or sway, sized
@@ -513,6 +515,7 @@ export class DuelCamera {
    *  margins every frame: only the look ahead to the apex is eased) */
   private apexW: number[] = [];
   private ptsDt = 1;
+  private lastD = 0;
   pointsOf(I: CamInput) {
     const pts: V3[] = [];
     I.bodies.forEach((b, i) => {
@@ -833,6 +836,10 @@ export class DuelCamera {
       // (never in past what the widest lens needs to hold every body: the flyer in frame wins over the shell)
       D = Math.max(lo, Math.min(D, Math.max(2.5, boomFor(pts, look, this.yaw, pitch, P.widest, I.aspect, hard))));
     }
+    // (the boom moves at most P.boomRate m/s, either way: the hard pass, the shell and the pull each set it outright, and
+    // the eye jumped 1 to 5 m in a frame, a cut; report 24-feel. The lens below widens to hold the frame meanwhile)
+    if (!this.fresh && this.lastD > 0) D = Math.max(this.lastD - P.boomRate * dt, Math.min(this.lastD + P.boomRate * dt, D));
+    this.lastD = D;
     let fov = this.fov;
     if (boomFor(pts, look, this.yaw, pitch, fov, I.aspect, hard) > D) {
       let lo = fov, hi = P.widest;
