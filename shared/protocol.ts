@@ -387,6 +387,10 @@ export const DUEL_NET = {
   SNAP_HZ: 20,
   /** earlier inputs each input frame repeats */
   REDUNDANT: 3,
+  /** an empty input queue repeats a seat's last input (without its presses) for this many ticks, then the body stands
+   *  (no thumbs). A seat's snapshot says how many ticks it has been stepped so since its ack (`r`), so its page steps
+   *  them too (duel-client.ts reconcile) */
+  STILL_TICKS: 15,
   /** inputs waiting at the server for a seat, at most (past it the oldest are merged away: a client running fast) */
   QUEUE_MAX: 10,
   /** how far back the server judges a catch as the catcher saw it (ms), and how far the other may have gone since

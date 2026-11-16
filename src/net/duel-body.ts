@@ -151,9 +151,13 @@ export const KIT = [
   'grounded', 'dir', 'yaw', 'airJumps', 'coyote', 'fastFalling', 'jumpBuf', 'dropT', 'dashT', 'dashes', 'dashAge', 'dashCoolT',
   'dashBuf', 'dashUp', 'wallSide', 'wallRunT', 'wallCoyoteT', 'wallStickT', 'wallNear', 'wallLast', 'lockT', 'lockDir', 'landLagT',
   'reformT', 'blinkT', 'stagger', 'lastGroundY', 'groundY', 'time',
+  // (the flow's timers, report 18-flow: a flight given from outside (a fling's carry, contact.ts) and a vault hold the
+  // jump's cut off, and a glance turns a run along a face. The contact sets the flight at the server only: without it
+  // here a flung body's replay cut its rise every tick, 4.4 m/s in three ticks, report 22)
+  'flightT', 'vaultT', 'faceT',
 ] as const;
 const BOOL = new Set(['grounded', 'fastFalling']);
-const KIT_V: [string, number][] = [['dashV', 3], ['wallN', 2], ['wallNearN', 2], ['wallLastN', 2], ['lockN', 2]];
+const KIT_V: [string, number][] = [['dashV', 3], ['wallN', 2], ['wallNearN', 2], ['wallLastN', 2], ['lockN', 2], ['faceN', 2]];
 const r4 = (x: number) => Math.round(x * 1e4) / 1e4;
 export type Kit = (number | string | null)[];
 /** where a kit field sits in the array */
