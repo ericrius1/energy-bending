@@ -157,7 +157,8 @@ now carries the glimpse of the next world (above).
 - `npm run typecheck`: clean.
 - `node scripts/test-ts.mjs`: 31 of 31 files pass, with `voyage.test.ts`'s new case (a screen and another gate on the
   usual way round: the usual way meets them, -0.09 m and one gate crossed; the way chosen, "the other way, staged near"
-  of six tried, stands 0.56 m clear at least and crosses no other gate, and still goes through the disc).
+  of six tried, stands 0.56 m clear at least and crosses no other gate, and still goes through the disc; and a post on
+  the way's tail out to the duel camera's eye: the tail bent, 0.45 m off it, "round, staged near, bent" of 13 tried).
 - `node scripts/check-portals.mjs`: 10,037 checks pass.
 - check-limits, check-bindings, test-audio: not run (no shader, binding or audio change).
 - `npm run test:net` not run (the brief).
