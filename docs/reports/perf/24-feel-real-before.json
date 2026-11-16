@@ -1,0 +1,485 @@
+{
+ "label": "real-before",
+ "clock": "real",
+ "seed": 1,
+ "date": "2026-11-16T20:06:10.112Z",
+ "url": "http://localhost:5513/energybending/",
+ "runs": [
+  {
+   "style": "newcomer",
+   "world": "geode",
+   "seed": 1,
+   "seconds": 50,
+   "clock": "real",
+   "adapter": "nvidia blackwell",
+   "errors": [],
+   "measures": {
+    "frames": 2114,
+    "minutes": 0.76,
+    "frame": {
+     "gpuMs": 2.318126660218297,
+     "p50": 17.60000000000582,
+     "p95": 18.400000000001455,
+     "p99": 52.60000000000582,
+     "hitches": 26,
+     "hitchPerMin": 34.370318145765395,
+     "fps": 44.65938133427337
+    },
+    "cutAt": [
+     4.26,
+     13.87,
+     16,
+     39.87,
+     39.88,
+     39.9,
+     39.92,
+     39.94,
+     39.95,
+     39.97,
+     39.99,
+     40.01,
+     40.02,
+     40.04,
+     43.28
+    ],
+    "camera": {
+     "turnP50": 0.7419039445413282,
+     "turnP95": 91.65491358769312,
+     "turnAccP95": 591.8385099381785,
+     "jerkP95": 52570.45086267998,
+     "swingsPerMin": 6.609676566493345,
+     "cutsPerMin": 19.829029699480035,
+     "floorShare": 0.028599605522682446,
+     "sceneryShare": null,
+     "sceneryWhy": {},
+     "eyeJoltP95": 60.427998803769874
+    },
+    "body": {
+     "popsPerMin": 0,
+     "screenPopsPerMin": 13.21935313298669,
+     "screenAccP95": 5.367930583621628,
+     "offScreenShare": 0.022189349112426034,
+     "confusableShare": 0.002465483234714004
+    },
+    "move": {
+     "pushShare": 0.7480276134122288,
+     "stuckShare": 0.08767303889255108,
+     "stuckPerMin": 3.965805939896007,
+     "speedPushing": 3.4002853772532013,
+     "fastShare": 0.7963085036255768,
+     "stopsPerMin": 3.965805939896007
+    },
+    "response": {
+     "moveMs": 23.099999999998545,
+     "moveP90": 23.099999999998545,
+     "moveN": 1,
+     "moveMissed": 0,
+     "jumpMs": 111.29999999105894,
+     "jumpN": 6,
+     "jumpMissed": 2
+    },
+    "confusion": {
+     "nowhereShare": 0,
+     "wallPerMin": 3.965805939896007,
+     "lostSelfShare": 0.022189349112426034,
+     "confusableShare": 0.002465483234714004
+    },
+    "dance": {
+     "catches": 0,
+     "flings": 0,
+     "swings": 0,
+     "links": 0,
+     "perfect": 0,
+     "falls": 0,
+     "catchesPerMin": 0,
+     "flingsPerMin": 0
+    },
+    "crossings": {
+     "n": 0,
+     "through": 0,
+     "flash": 0,
+     "worlds": [
+      "geode"
+     ],
+     "ways": null
+    },
+    "magic": {
+     "perMin": 1.3219353132986689,
+     "juice": 0,
+     "tiers": 0,
+     "answers": 0,
+     "words": 0,
+     "jogo": 1
+    }
+   },
+   "score": {
+    "per": {
+     "frames p95 ms": 95,
+     "hitches /min": 0,
+     "camera turn p95 deg/s": 59,
+     "camera jerk p95": 99,
+     "camera swings /min": 83,
+     "camera cuts /min": 0,
+     "camera looking down (>28°)": 100,
+     "camera eye unclean": null,
+     "body pops /min": 100,
+     "body screen pops /min": 89,
+     "key to motion ms": 100,
+     "stuck pushing": 85,
+     "run stops /min": 80,
+     "momentum (fast share)": 100,
+     "going nowhere": 100,
+     "lost self (off screen)": 82,
+     "bodies confusable": 100,
+     "magic /min": 11
+    },
+    "groups": {
+     "smooth": 66,
+     "responsive": 91,
+     "clear": 96,
+     "magic": 11
+    },
+    "total": 66
+   },
+   "wall": 67
+  },
+  {
+   "style": "dancer",
+   "world": "temple",
+   "seed": 1,
+   "seconds": 45,
+   "clock": "real",
+   "adapter": "nvidia blackwell",
+   "errors": [],
+   "measures": {
+    "frames": 2294,
+    "minutes": 0.71,
+    "frame": {
+     "gpuMs": 1.7676021423669757,
+     "p50": 17.599999999998545,
+     "p95": 18.30000000000291,
+     "p99": 52.29999999999927,
+     "hitches": 45,
+     "hitchPerMin": 63.55288894956489,
+     "fps": 52.91366457726736
+    },
+    "cutAt": [
+     8.73,
+     9.33,
+     9.49,
+     9.65,
+     9.95,
+     10.6,
+     10.63,
+     12.22,
+     14.88,
+     28.93,
+     33.08,
+     34.49,
+     40.05,
+     42.55,
+     43.55
+    ],
+    "camera": {
+     "turnP50": 13.866506506972822,
+     "turnP95": 83.87417088823179,
+     "turnAccP95": 380.6193771045622,
+     "jerkP95": 24419.85008276899,
+     "swingsPerMin": 9.886004947710093,
+     "cutsPerMin": 21.18429631652163,
+     "floorShare": 0.020453534904401955,
+     "sceneryShare": 0.0773677189862161,
+     "sceneryWhy": {
+      "?": 0.077
+     },
+     "eyeJoltP95": 213.623878847863
+    },
+    "popAt": [
+     11.1,
+     11.12,
+     11.14,
+     11.16,
+     15.88,
+     25.24,
+     34.74,
+     34.75,
+     34.77,
+     34.79,
+     34.81
+    ],
+    "body": {
+     "popsPerMin": 15.535150632115862,
+     "screenPopsPerMin": 55.07917042295624,
+     "screenAccP95": 20.02642464383788,
+     "offScreenShare": 0,
+     "confusableShare": 0.036905291240551356
+    },
+    "move": {
+     "pushShare": 0.8239217429968875,
+     "stuckShare": 0.028602266594711278,
+     "stuckPerMin": 0,
+     "speedPushing": 6.398428004787858,
+     "fastShare": 0.8764166216945494,
+     "stopsPerMin": 5.649145684405768
+    },
+    "response": {
+     "moveMs": null,
+     "moveP90": null,
+     "moveN": 0,
+     "moveMissed": 0,
+     "jumpMs": null,
+     "jumpN": 0,
+     "jumpMissed": 0
+    },
+    "confusion": {
+     "nowhereShare": 0,
+     "wallPerMin": 0,
+     "lostSelfShare": 0,
+     "confusableShare": 0.036905291240551356
+    },
+    "dance": {
+     "catches": 1,
+     "flings": 1,
+     "swings": 4,
+     "links": 31,
+     "perfect": 14,
+     "falls": 0,
+     "catchesPerMin": 1.412286421101442,
+     "flingsPerMin": 1.412286421101442
+    },
+    "crossings": {
+     "n": 0,
+     "through": 0,
+     "flash": 0,
+     "worlds": [
+      "temple"
+     ],
+     "ways": {
+      "ways": 0,
+      "round": 0,
+      "aligned": 0,
+      "flashes": 0,
+      "aheadMax": 0.48139270496065334
+     }
+    },
+    "magic": {
+     "perMin": 14.12286421101442,
+     "juice": 10,
+     "tiers": 0,
+     "answers": 0,
+     "words": 1,
+     "jogo": 0
+    }
+   },
+   "score": {
+    "per": {
+     "frames p95 ms": 95,
+     "hitches /min": 0,
+     "camera turn p95 deg/s": 66,
+     "camera jerk p95": 100,
+     "camera swings /min": 75,
+     "camera cuts /min": 0,
+     "camera looking down (>28°)": 100,
+     "camera eye unclean": 100,
+     "body pops /min": 22,
+     "body screen pops /min": 33,
+     "key to motion ms": null,
+     "stuck pushing": 100,
+     "run stops /min": 72,
+     "momentum (fast share)": 100,
+     "going nowhere": 100,
+     "lost self (off screen)": 100,
+     "bodies confusable": 93,
+     "magic /min": 100
+    },
+    "groups": {
+     "smooth": 49,
+     "responsive": 91,
+     "clear": 99,
+     "magic": 100
+    },
+    "total": 85
+   },
+   "wall": 58
+  },
+  {
+   "style": "explorer",
+   "world": "temple",
+   "seed": 1,
+   "seconds": 80,
+   "clock": "real",
+   "adapter": "nvidia blackwell",
+   "errors": [],
+   "measures": {
+    "frames": 3988,
+    "minutes": 1.21,
+    "frame": {
+     "gpuMs": 2.543245122338703,
+     "p50": 17.599999999998545,
+     "p95": 18.299999999999272,
+     "p99": 18.80000000000291,
+     "hitches": 31,
+     "hitchPerMin": 25.670043335449503,
+     "fps": 55.01117888983963
+    },
+    "cutAt": [
+     10.47,
+     12.86,
+     14.84,
+     15.04,
+     17.9,
+     20.51,
+     23.93,
+     24.33,
+     26.21,
+     27.18,
+     30.13,
+     31.77,
+     35.7,
+     36.55,
+     37.34,
+     37.99,
+     38.8,
+     39.31,
+     40.19,
+     40.96,
+     42.26,
+     43.48,
+     46.8,
+     48.18,
+     49.41,
+     49.89,
+     52.26,
+     53.81,
+     55.41,
+     58.89,
+     59.76,
+     62.79,
+     63.49,
+     65.96,
+     66.97,
+     67.91,
+     68.21,
+     69.07,
+     70.37,
+     77.82
+    ],
+    "camera": {
+     "turnP50": 26.94033008067737,
+     "turnP95": 116.49752289981582,
+     "turnAccP95": 946.4531462236342,
+     "jerkP95": 107706.01627350878,
+     "swingsPerMin": 14.905186452841646,
+     "cutsPerMin": 33.12263656187032,
+     "floorShare": 0.1923752194632556,
+     "sceneryShare": 0.2633559066967645,
+     "sceneryWhy": {
+      "?": 0.263
+     },
+     "eyeJoltP95": 196.8989508710082
+    },
+    "popAt": [
+     17.05,
+     25.81,
+     67.39
+    ],
+    "body": {
+     "popsPerMin": 2.4841977421402746,
+     "screenPopsPerMin": 76.18206409230174,
+     "screenAccP95": 19.478873486279046,
+     "offScreenShare": 0.07348883872585904,
+     "confusableShare": 0.009781790820165538
+    },
+    "move": {
+     "pushShare": 0.7760220717331326,
+     "stuckShare": 0.0746606334841629,
+     "stuckPerMin": 1.6561318280935162,
+     "speedPushing": 4.343285531541464,
+     "fastShare": 0.535229476405947,
+     "stopsPerMin": 6.624527312374065
+    },
+    "response": {
+     "moveMs": null,
+     "moveP90": null,
+     "moveN": 0,
+     "moveMissed": 0,
+     "jumpMs": null,
+     "jumpN": 0,
+     "jumpMissed": 0
+    },
+    "confusion": {
+     "nowhereShare": 0,
+     "wallPerMin": 1.6561318280935162,
+     "lostSelfShare": 0.07348883872585904,
+     "confusableShare": 0.009781790820165538
+    },
+    "dance": {
+     "catches": 0,
+     "flings": 0,
+     "swings": 0,
+     "links": 8,
+     "perfect": 3,
+     "falls": 0,
+     "catchesPerMin": 0,
+     "flingsPerMin": 0
+    },
+    "crossings": {
+     "n": 2,
+     "through": 2,
+     "flash": 0,
+     "worlds": [
+      "temple",
+      "redwoods",
+      "pool"
+     ],
+     "ways": {
+      "ways": 2,
+      "round": 2,
+      "aligned": 0,
+      "flashes": 0,
+      "aheadMax": 0.4934708517086593
+     }
+    },
+    "magic": {
+     "perMin": 9.10872505451434,
+     "juice": 11,
+     "tiers": 0,
+     "answers": 0,
+     "words": 1,
+     "jogo": 0
+    }
+   },
+   "score": {
+    "per": {
+     "frames p95 ms": 95,
+     "hitches /min": 14,
+     "camera turn p95 deg/s": 38,
+     "camera jerk p95": 84,
+     "camera swings /min": 63,
+     "camera cuts /min": 0,
+     "camera looking down (>28°)": 59,
+     "camera eye unclean": 75,
+     "body pops /min": 88,
+     "body screen pops /min": 5,
+     "key to motion ms": null,
+     "stuck pushing": 89,
+     "run stops /min": 67,
+     "momentum (fast share)": 61,
+     "going nowhere": 100,
+     "lost self (off screen)": 39,
+     "bodies confusable": 100,
+     "magic /min": 76
+    },
+    "groups": {
+     "smooth": 48,
+     "responsive": 72,
+     "clear": 75,
+     "magic": 76
+    },
+    "total": 68
+   },
+   "wall": 95
+  }
+ ],
+ "total": 73
+}

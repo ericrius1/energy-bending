@@ -9,14 +9,17 @@ import { Buttons, makeIntent, radialDeadzone, hasDOM, type Intent, type IntentSo
 
 /** a button a touch page draws: its name (what press() takes), whether it is held (not tapped), free mode only, the
  *  duel's scheme only */
-export interface TouchButton { name: string; label: string; hold?: boolean; freeOnly?: boolean; duelOnly?: boolean }
+export interface TouchButton { name: string; label: string; hold?: boolean; freeOnly?: boolean; duelOnly?: boolean;
+  /** the jogo's only (the duel has no merge to hold and nothing to use: report 24-feel, a phone's duel had 13 buttons
+   *  down the right edge, over the second player's HUD); and its name in the duel, where the strike is the grab */
+  jogoOnly?: boolean; duelLabel?: string }
 
 export const TOUCH_BUTTONS: TouchButton[] = [
-  { name: 'jump', label: 'jump' }, { name: 'strike', label: 'strike' }, { name: 'kick', label: 'kick' }, { name: 'spin', label: 'spin' },
+  { name: 'jump', label: 'jump' }, { name: 'strike', label: 'strike', duelLabel: 'grab' }, { name: 'kick', label: 'kick' }, { name: 'spin', label: 'spin' },
   { name: 'dash', label: 'dash', duelOnly: true },
   { name: 'power1', label: 'power 1', duelOnly: true }, { name: 'power2', label: 'power 2', duelOnly: true },
-  { name: 'dodge', label: 'dodge', hold: true }, { name: 'form', label: 'form' }, { name: 'merge', label: 'merge', hold: true },
-  { name: 'lock', label: 'lock' }, { name: 'interact', label: 'use' }, { name: 'hand', label: 'hand', hold: true, freeOnly: true },
+  { name: 'dodge', label: 'dodge', hold: true }, { name: 'form', label: 'form' }, { name: 'merge', label: 'merge', hold: true, jogoOnly: true },
+  { name: 'lock', label: 'lock' }, { name: 'interact', label: 'use', jogoOnly: true }, { name: 'hand', label: 'hand', hold: true, freeOnly: true },
 ];
 
 interface Rect { left: number; top: number; width: number; height: number }
