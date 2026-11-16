@@ -29,6 +29,8 @@ struct Pool {
   swell: vec4f,     // the duel's swell now (hazards.ts): xy its way (x, z), z the crest's place along it from its
                     // centre (m), w its height now (m; 0: none)
   swellAt: vec4f,   // xy: the swell's centre (x, z), z: its half width (m), w: -
+  lens: vec4f,      // where the main view's lens places the far world (vista.wgsl vistaFocus; report 24): x the focus
+                    // (m, 0: as far as it is), y the share of its blur it keeps, z from (m), w whole at (m)
 }
 
 /** the sun in direction d: its face, the glow round it, and how much of d it covers (a) */

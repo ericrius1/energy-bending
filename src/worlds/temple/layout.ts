@@ -17,7 +17,17 @@ type V3 = [number, number, number];
  *  (the middle of its foot). broken: how ragged its top is (m); carve: 0 plain, 1 a band of egg-and-dart under its top,
  *  2 a carved panel (a frame, a roundel, an inscription), 3 fluted; open: no top face (the platform, whose top is the
  *  floor the backdrop draws); far: out in the sea beyond the court (drawn in less detail) */
-export interface Stone { kind: 'block' | 'drum'; at: V3; size: V3; yaw: number; tilt: number; broken: number; carve: number; open?: boolean; far?: boolean; seed: number }
+export interface Stone { kind: 'block' | 'drum'; at: V3; size: V3; yaw: number; tilt: number; broken: number; carve: number; open?: boolean; far?: boolean; seed: number;
+  /** what it is made of (MATTER): the court's honey stone unless it is a piece the dancers play on (report 24) */
+  matter?: number }
+
+/** what a stone is made of (stones.wgsl): the court's weathered honey stone; a play piece of white glazed ceramic with
+ *  copper gone green and an inlaid whiplash vine, its top planted; or of woven fibre bound in copper, planted on top
+ *  (report 24-sun-built: the arena's pieces made of the art bible's matter, not drums and blocks). Drawn only: a
+ *  crafted piece stands whole (no ragged top), its solid unchanged */
+export const MATTER = { stone: 0, ceramic: 1, woven: 2 } as const;
+/** the floats' code for a stone's carving, no-top and matter (stones.wgsl look.z) */
+export const lookZ = (s: Stone) => s.carve + (s.open ? 8 : 0) + (s.matter ?? 0) * 16;
 
 /** the floats a stone is to stones.wgsl (struct Stone): at.xyz yaw; size.xyz kind; seed broken carve tilt (+ open) */
 export const STONE_FLOATS = 12;
@@ -81,21 +91,23 @@ export function layoutTemple(o: { coarse: boolean; seed?: number }): TempleLayou
     { id: 'lintel', x0: lintel.x0, x1: lintel.x1, y: lintel.top, thick: lintel.thick },
   ];
   // the two broken pillars: fluted drums snapped off a little ragged at the rim (their tops are flat where you stand)
-  drum([stumpL, 0, SZ], stumpR, stumpH, { broken: 0.05, yaw: 0.4 });
-  drum([stumpRx, 0, SZ], stumpR, stumpH, { broken: 0.05, yaw: 2.1 });
+  // (report 24: the stage's pieces are crafted: white ceramic and copper gone green, planted on top)
+  const craft = { matter: MATTER.ceramic };
+  drum([stumpL, 0, SZ], stumpR, stumpH, { broken: 0.05, yaw: 0.4, ...craft });
+  drum([stumpRx, 0, SZ], stumpR, stumpH, { broken: 0.05, yaw: 2.1, ...craft });
   tops.push([stumpL - stumpR, stumpL + stumpR, SZ - stumpR, SZ + stumpR, stumpH], [stumpRx - stumpR, stumpRx + stumpR, SZ - stumpR, SZ + stumpR, stumpH]);
   // the altar: a carved block under an overhanging slab
-  block([0, 0, SZ], [altarW - 0.3, altarTop - 0.16, 1.1], { carve: 2 });
-  block([0, altarTop - 0.16, SZ], [altarW, 0.16, 1.32], { carve: 1 });
+  block([0, 0, SZ], [altarW - 0.3, altarTop - 0.16, 1.1], { carve: 2, ...craft });
+  block([0, altarTop - 0.16, SZ], [altarW, 0.16, 1.32], { carve: 1, ...craft });
   tops.push([-altarW / 2, altarW / 2, SZ - 0.66, SZ + 0.66, altarTop]);
   // the lintel on two columns just behind the stage (their fronts clear of it), its front edge over the stage
   const lz = (lintel.z0 + lintel.z1) / 2, colZ = lintel.z0 + 0.6;
   for (const x of [lintel.x0 + 0.55, lintel.x1 - 0.55]) {
-    block([x, 0, colZ], [0.95, 0.2, 0.95]);
-    column(x, colZ, 0.2, lintel.top - lintel.thick - 0.25, 0.35);
-    block([x, lintel.top - lintel.thick - 0.25, colZ], [0.95, 0.25, 0.95], { carve: 1 });
+    block([x, 0, colZ], [0.95, 0.2, 0.95], craft);
+    column(x, colZ, 0.2, lintel.top - lintel.thick - 0.25, 0.35, craft);
+    block([x, lintel.top - lintel.thick - 0.25, colZ], [0.95, 0.25, 0.95], { carve: 1, ...craft });
   }
-  block([(lintel.x0 + lintel.x1) / 2, lintel.top - lintel.thick, lz], [lintel.x1 - lintel.x0, lintel.thick, lintel.z1 - lintel.z0], { carve: 1 });
+  block([(lintel.x0 + lintel.x1) / 2, lintel.top - lintel.thick, lz], [lintel.x1 - lintel.x0, lintel.thick, lintel.z1 - lintel.z0], { carve: 1, ...craft });
 
   // ---------------------------------------------------------------- the court
   // the platform under the floor (its sides go down into the sea; its top is the backdrop's floor)
@@ -247,6 +259,6 @@ export function packStones(stones: Stone[]) {
   const farDrums = stones.filter((s) => s.kind === 'drum' && s.far);
   const all = [...blocks, ...drums, ...farDrums];
   const out = new Float32Array(all.length * STONE_FLOATS);
-  all.forEach((s, i) => out.set([...s.at, s.yaw, ...s.size, s.kind === 'drum' ? 1 : 0, s.seed, s.broken, s.carve + (s.open ? 8 : 0), s.tilt], i * STONE_FLOATS));
+  all.forEach((s, i) => out.set([...s.at, s.yaw, ...s.size, s.kind === 'drum' ? 1 : 0, s.seed, s.broken, lookZ(s), s.tilt], i * STONE_FLOATS));
   return { data: out, blocks: blocks.length, drums: drums.length, farDrums: farDrums.length };
 }

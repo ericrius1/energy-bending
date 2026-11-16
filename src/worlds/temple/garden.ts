@@ -7,7 +7,7 @@
 // and flowers round the columns, and the stained-glass screens at the court's edge (the temple's landmark).
 import { mulberry32 } from 'math/random';
 import type { Stone } from './layout';
-import { STAGE_Z } from './layout';
+import { MATTER, STAGE_Z } from './layout';
 
 type V3 = [number, number, number];
 
@@ -92,7 +92,7 @@ export function layoutGarden(court: readonly Stone[], coarse: boolean, duelStone
   // (its `has`, `reach` and `wind` from the stone's seed, the same numbers), above the spring tide's reach
   const vines = (stones: readonly Stone[]) => {
     for (const s of stones) {
-      if (s.kind !== 'drum' || s.far || s.tilt || s.carve !== 3 || s.size[1] < 1.0) continue;
+      if (s.kind !== 'drum' || s.far || s.tilt || s.carve !== 3 || s.size[1] < 1.0 || s.matter === MATTER.woven) continue;
       const fr = (x: number) => x - Math.floor(x);
       if (fr(s.seed * 3.17) > 0.7) continue;
       const reach = 2.2 + 4.0 * fr(s.seed * 7.31);

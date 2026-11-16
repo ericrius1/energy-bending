@@ -7,6 +7,9 @@
 // before and an after are the same seeded duel at the same second, not the same frame.
 //   node scripts/sun-cap.mjs <outdir> --url http://127.0.0.1:<port>/energybending/ --world temple [--dress fire,water]
 //     [--seed 3] [--at 6,18,30] [--size 1280x720] [--wide] [--timings] [--prefix name] [--set JSON] [--open]
+//     [--hero x,y,z[;x,y,z]] (report 24: how often each point, a hero piece's middle and top, is inside the duel camera's
+//     frame, sampled every quarter second while stepping; a point counts when it projects inside the frame in front of
+//     the eye, whether or not something stands in front of it)
 import { writeFileSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { launch, adapterName } from './lib/browser.mjs';
@@ -53,12 +56,30 @@ const grab = async (name) => {
 };
 
 let t = 0;
+const heroPts = arg('hero', '') ? arg('hero', '').split(';').map((p) => p.split(',').map(Number)) : [];
+const heroSeen = heroPts.map(() => 0);
+let heroN = 0;
 const stepTo = async (s) => {
   let n = Math.round((s - t) * 60);
-  while (n > 0) { const k = Math.min(n, 60); await page.evaluate((k) => { window.bend.music.filmClock += k / 60; return window.bend.step(k); }, k); n -= k; }
+  while (n > 0) {
+    const k = Math.min(n, heroPts.length ? 15 : 60);
+    const seen = await page.evaluate((k, P) => {
+      window.bend.music.filmClock += k / 60; window.bend.step(k);
+      const m = window.bend.kit.camera.viewProj;
+      return P.map(([x, y, z]) => {
+        const w = m[3] * x + m[7] * y + m[11] * z + m[15];
+        if (w <= 1e-3) return false;
+        const px = (m[0] * x + m[4] * y + m[8] * z + m[12]) / w, py = (m[1] * x + m[5] * y + m[9] * z + m[13]) / w;
+        return Math.abs(px) < 1 && Math.abs(py) < 1;
+      });
+    }, k, heroPts);
+    if (heroPts.length) { heroN++; seen.forEach((v, i) => { if (v) heroSeen[i]++; }); }
+    n -= k;
+  }
   t = s;
 };
 for (const s of at) { await stepTo(s); await grab(`${prefix}-${String(s).padStart(2, '0')}s`); }
+if (heroPts.length) heroPts.forEach((p, i) => console.log(`hero point ${p.join(',')}: in the frame ${(100 * heroSeen[i] / Math.max(heroN, 1)).toFixed(0)} % of ${heroN} samples`));
 
 if (argv.includes('--timings')) {
   const T = await page.evaluate(async () => {

@@ -76,7 +76,7 @@ struct VOut {
   // (a flat top stays flat where a body stands: the radius only rounds its rim)
   var lp = inner + n * r;
   // a little unevenness on a stone's sides, none on its top (the glaze and the weave are smooth)
-  if ((s.look.w > 0.5 && s.look.w < 2.5) && n.y < 0.7) {
+  if ((s.look.w > 0.5 && s.look.w < 1.5) && n.y < 0.7) {
     let w = vnoise(lp * 2.3 + s.look.x * 17.0) - 0.5;
     lp += n * w * 0.05;
   }
@@ -96,6 +96,8 @@ struct VOut {
   if (sightDrop(i.wp, i.pos.xy)) { discard; }   // the near fade (worlds/fade.ts)
   var N = normalize(i.n);
   let V = normalize(frame.camPos - i.wp);
+  // (a pixel's size on the piece, in uniform control flow: the crafted pieces' edges are a pixel soft)
+  let pxw = max(length(fwidth(i.wp)), 0.002);
   let seed = i.info.x;
   let look = u32(i.info.w + 0.5);
   let cosV = max(dot(N, V), 0.0);
@@ -168,11 +170,76 @@ struct VOut {
     N = normalize(N + T * (select(fract(u), fract(v), over) - 0.5) * 0.5 * woven);
     metal = (1.0 - smoothstep(0.025, 0.05, abs(fract(along * 0.9) - 0.5))) * side * step(0.0, i.wp.y);
     metal = max(metal, top * smoothstep(0.035, 0.02, inward));
+  } else if (look != 1u) {
+    // (report 24) a standing stone, the gate's pillars: a column of white glaze over a dado of deep teal majolica that
+    // rises out of the water to an edge of lotus scallops, a green-glazed whiplash with broad leaves winding up it, a
+    // copper band under its top (the gate's pillars a copper capital); its top planted inside a copper rim (beds.wgsl
+    // plants its edge). The gate's lintel a beam of copper gone green, a gold whiplash along it; its capstone a lantern of
+    // stained glass in a copper frame (lit through below)
+    let body = vec3f(0.7, 0.68, 0.62) * (0.96 + 0.08 * vnoise(i.wp * 7.0 + seed));
+    let perim = 3.14159265 * (i.shape.x + i.shape.y);
+    let verd = mix(vec3f(0.12, 0.4, 0.32), vec3f(0.28, 0.58, 0.46), vnoise(i.wp * 13.0 + seed)) * (0.9 + 0.2 * vnoise(i.wp * 41.0));
+    let rimTop = top * smoothstep(0.09, 0.07, inward);
+    let aa = max(pxw, 0.004);
+    var copper = 0.0;
+    var gold = 0.0;
+    if (look == 2u || look == 4u) {
+      let scal = 0.5 + 0.08 * (1.0 - pow(abs(fract(along / 0.32) * 2.0 - 1.0), 1.6));
+      let dado = smoothstep(scal + aa, scal - aa, i.wp.y) * (1.0 - top);
+      albedo = mix(body, vec3f(0.035, 0.24, 0.24) * (0.9 + 0.2 * vnoise(i.wp * 6.0)), dado);
+      gold = smoothstep(0.012 + aa, 0.012, abs(i.wp.y - scal - 0.014)) * side;
+      // the whiplash: two stems winding up, a broad leaf off them every 0.4 m
+      var leafG = 0.0;
+      var edgeL = 0.0;
+      for (var m = 0; m < 2; m++) {
+        let fm = f32(m);
+        let ac = seed * perim + fm * perim * 0.5 + 0.35 * sin(i.wp.y * 1.5 + seed * 3.0 + fm) + 0.15 * sin(i.wp.y * 3.7 + fm * 2.0);
+        var dm = along - ac;
+        dm = dm - perim * round(dm / perim);
+        let w = 0.022 + 0.01 * sin(i.wp.y * 2.3 + fm);
+        leafG = max(leafG, 1.0 - smoothstep(w, w + aa, abs(dm)));
+        edgeL = max(edgeL, 1.0 - smoothstep(0.006, 0.006 + aa, abs(abs(dm) - w - 0.006)));
+        let k = floor(i.wp.y / 0.4 + fm * 0.5);
+        let sd = select(-1.0, 1.0, (i32(k) & 1) == 0);
+        let ly = (i.wp.y - (k + 0.5 - fm * 0.5) * 0.4) / 0.17;
+        let lx = (dm - sd * 0.075) / 0.06;
+        let lq = vec2f(lx * cos(0.7 * sd) - ly * sin(0.7 * sd), lx * sin(0.7 * sd) + ly * cos(0.7 * sd));
+        let lf = abs(lq.x) + lq.y * lq.y * 0.9;
+        leafG = max(leafG, 1.0 - smoothstep(1.0, 1.0 + aa / 0.06, lf));
+        edgeL = max(edgeL, (1.0 - smoothstep(0.1, 0.1 + aa / 0.03, abs(lf - 1.1))) * step(abs(lq.y), 1.05));
+      }
+      let onShaft = side * step(scal + 0.04, i.wp.y) * step(0.12, dTop);
+      albedo = mix(albedo, mix(vec3f(0.05, 0.26, 0.1), vec3f(0.2, 0.46, 0.12), vnoise(i.wp * 9.0 + seed)), leafG * onShaft);
+      gold = max(gold, edgeL * onShaft * (1.0 - leafG));
+      copper = side * smoothstep(select(0.09, 0.32, look == 4u) + aa, select(0.09, 0.32, look == 4u), dTop);
+      // (a capital's lotus petals: their edges rubbed bright)
+      if (look == 4u) { gold = max(gold, copper * smoothstep(0.012 + aa, 0.012, abs(dTop - (0.06 + 0.2 * pow(abs(fract(along / 0.18) * 2.0 - 1.0), 1.4))))); }
+      glaze = (1.0 - top) * (1.0 - copper) * (1.0 - gold);
+    } else if (look == 5u) {
+      // the beam: copper gone green, a gold whiplash along its faces (a slow wave and arches hanging from it)
+      albedo = verd;
+      copper = 1.0 - top;
+      let wave = 0.14 + 0.03 * sin(along * 2.2);
+      let arch = wave + 0.18 * pow(abs(sin(along * 1.1)), 1.5);
+      gold = max(1.0 - smoothstep(0.012, 0.012 + aa, abs(dTop - wave)), (1.0 - smoothstep(0.01, 0.01 + aa, abs(dTop - arch))) * step(dTop, 0.4)) * side;
+      gold = max(gold, side * smoothstep(0.03 + aa, 0.03, dTop));
+    } else {
+      // the lantern: on each side a pane of stained glass (a lotus in lead), a copper frame round it
+      copper = 1.0 - top;
+    }
+    albedo = mix(albedo, verd, copper);
+    metal = gold;
+    // a top: moss inside a copper rim
+    albedo = mix(albedo, mossCol, top * (1.0 - rimTop));
+    albedo = mix(albedo, verd, rimTop);
+    metal *= 1.0 - top;
+    glaze *= 1.0 - top;
   } else {
     // terracotta: warm, in layers and grains, darker and wet toward the water
     let n1 = vnoise(i.wp * vec3f(2.2, 6.0, 2.2) + seed * 11.0);
     let n2 = vnoise(i.wp * 9.0 + seed * 3.0);
-    albedo = mix(vec3f(0.17, 0.075, 0.045), vec3f(0.24, 0.115, 0.065), n1) * (0.85 + 0.3 * n2);
+    // (report 24: a warmer, lighter fired clay, so a block reads as terracotta in the low sun, not a dark post)
+    albedo = mix(vec3f(0.3, 0.12, 0.06), vec3f(0.42, 0.19, 0.1), n1) * (0.85 + 0.3 * n2);
     albedo *= 1.0 - 0.35 * wet;
     albedo = mix(albedo, vec3f(0.06, 0.12, 0.04), smoothstep(0.16, 0.0, abs(i.wp.y - 0.04)) * smoothstep(0.3, 0.6, n2 + 0.2));
     // moss over the top and spilling a little down the sides
@@ -229,6 +296,45 @@ struct VOut {
   }
   // the brass: the sky and the sun mirrored in warm metal
   col = mix(col, poolBrass(N, V, env, amb, kd), metal);
+  // (report 24) the lantern's panes: on each side a lotus of stained glass in lead, coral petals round a gold sun on
+  // sky teal, lit through by the low sun behind it and by a warm light of its own, the sky in its face
+  if (look == 6u && side > 0.5) {
+    let L = i.local;
+    let xFace = abs(L.x) > abs(L.z);
+    let hw = select(i.shape.x, i.shape.y, xFace);
+    let hh = i.info.z * 0.5;
+    let fu = select(L.x, L.z, xFace) * hw;
+    let fv = L.y * hh;
+    let pane = step(abs(fu), hw - 0.1) * step(abs(fv), hh - 0.12);
+    if (pane > 0.5) {
+      let R = min(hw, hh) - 0.12;
+      let q = vec2f(fu, fv) / R;
+      let r = length(q);
+      let a = atan2(q.y, q.x);
+      let px = pxw / R;
+      let s = fract(a * 8.0 / 6.2831853) - 0.5;
+      var gc = mix(vec3f(0.03, 0.38, 0.5), vec3f(0.3, 0.7, 0.78), smoothstep(0.3, 1.4, r));
+      var lead = smoothstep(px * 1.6, px * 0.4, abs(r - 1.0)) + smoothstep(px * 1.6, px * 0.4, abs(r - 0.3));
+      let half = 0.4 * sin(3.1415927 * clamp((r - 0.3) / 0.68, 0.0, 1.0));
+      if (r < 0.3) { gc = vec3f(1.0, 0.55, 0.06); }
+      else if (r < 1.0 && abs(s) < half) {
+        gc = mix(vec3f(0.95, 0.22, 0.2), vec3f(1.0, 0.55, 0.55), r);
+        lead = max(lead, smoothstep(px * 1.6 / max(r * 0.785, 0.05), 0.0, half - abs(s)));
+      } else if (r >= 1.0) {
+        // (the corners: sun rays of gold glass between teal)
+        let ray = fract(a * 12.0 / 6.2831853) - 0.5;
+        gc = mix(gc, vec3f(1.0, 0.78, 0.3), smoothstep(0.12, 0.04, abs(ray)));
+        lead = max(lead, smoothstep(px * 1.4 / max(r * 0.52, 0.05), 0.0, abs(abs(ray) - 0.12)));
+      }
+      let Ks = worldLight.pool.key.xyz;
+      let sunL = worldLight.pool.keyCol.rgb * worldLight.pool.key.w;
+      let back = pow(max(dot(-V, Ks), 0.0), 3.0) * 1.6 + max(-dot(N, Ks), 0.0) * 0.6 + 0.45;
+      var glass = gc * (sunL * back * 0.7 + amb * 0.5);
+      glass = glass * (1.0 - fres * 0.7) + env * fres * 0.7;
+      glass = mix(glass, vec3f(0.05, 0.04, 0.03) + sunL * vec3f(0.05, 0.035, 0.015), clamp(lead, 0.0, 1.0));
+      col = glass;
+    }
+  }
   // the sun behind the stage round every silhouette
   let rimL = pow(1.0 - cosV, 4.0) * max(dot(-V, worldLight.pool.glowDir.xyz) * 0.5 + 0.5, 0.0);
   col += worldLight.pool.glow.rgb * worldLight.pool.glow.w * rimL * 0.25;

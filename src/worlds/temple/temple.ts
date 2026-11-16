@@ -29,6 +29,9 @@ import { clearOf, type Solid } from '../solids';
 import { JOINT } from '../../skeleton/rig';
 import { arenaShown, dropsUniform, inDrop } from '../../duel/arena';
 import { templeDuel } from './arena';
+import { VistaFocus } from '../vista-focus';
+import { templeHero } from './hero';
+import type { SunHero } from '../sun-hero';
 import { tideAt, tidePhase, waterFloor } from '../../duel/hazards';
 
 export const templeParams = defineParams('temple', {
@@ -153,6 +156,10 @@ export class Temple implements World {
   private u: LightSlot<TempleU>;
   private waves: Ripples;
   private seen = -1;
+  /** where the lens places the far world (vista-focus.ts, report 24) */
+  private vistaFocus = new VistaFocus();
+  /** the sun fountain past the court's back edge (hero.ts, report 24), drawn while the duel's arena is shown */
+  private hero: SunHero;
   private packed: ReturnType<typeof packStones>;
   private buf: ReturnType<Kit['storage']>;
   /** what hangs in the air (garden.ts): the court's, then the duel arena's */
@@ -185,6 +192,7 @@ export class Temple implements World {
     this.buf = kit.storage({ label: 'temple.stones', data: this.packed.data, usage: ['storage'] });
     this.garden = layoutGarden(this.layout.stones, coarse, duel.stones);
     this.gardenBuf = kit.storage({ label: 'temple.garden', data: this.garden.data, usage: ['storage'] });
+    this.hero = templeHero(kit, coarse);
     this.u = lightSlot(kit, 'temple');
     this.waves = new Ripples(kit, frame, {
       label: 'temple', cells: coarse ? 160 : 288, cell: coarse ? 0.09 : 0.055,
@@ -287,7 +295,7 @@ export class Temple implements World {
     // the duel arena's drops in the court (empty unless it is shown)
     const duel = templeDuel(), drops = dropsUniform(duel.arena.plane, duel.arena.drops!, arenaShown(this.id));
     this.march[0] = Math.max(6, Math.round((this.ctx.coarse ? 12 : 22) * quality().reflections));
-    this.u.set({ ...v, march: this.march, drops: drops.rects, dropFrame: drops.frame });
+    this.u.set({ ...v, march: this.march, drops: drops.rects, dropFrame: drops.frame, lens: this.vistaFocus.update(f, this.id) });
   }
 
   declareScene(s: ScenePass) {
@@ -328,10 +336,13 @@ export class Temple implements World {
       pass.draw(gardenShader, { label: 'temple.vines.duel', vertex: 'vs_vine', bind: { hangs: this.gardenBuf }, count: VL * 6, instances: G.duelVines, constants: { FIRST: v0 + G.courtVines, VLEAVES: VL }, cull: 'none', enabled: () => shown() && G.duelVines > 0 });
       // the stained-glass screens at the court's edge: the temple's landmark (garden.ts)
       pass.draw(gardenShader, { label: 'temple.screens', vertex: 'vs_screen', bind: { hangs: this.gardenBuf }, count: 6, instances: G.screens, constants: { FIRST: v0 + G.courtVines + G.duelVines }, cull: 'none', enabled: on });
+      // the sun fountain at the bodies' height past the court's back edge (hero.ts, report 24)
+      this.hero.declare(s, shown);
     } else if (s.phase === 'glow') {
       // the fountains' jets at the channels' corners
       const per = coarse ? 80 : 160;
       pass.draw(fountainShader, { label: 'temple.fountains', count: 6, instances: 4 * per, constants: { PER: per }, blend: 'add', depthWrite: false, cull: 'none', enabled: on });
+      this.hero.declare(s, () => on() && arenaShown(this.id));
 
     }
   }

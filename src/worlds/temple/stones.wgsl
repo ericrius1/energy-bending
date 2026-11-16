@@ -22,7 +22,8 @@
 struct Stone {
   at: vec4f,     // the middle of its foot; w: its turn about up
   size: vec4f,   // block: width, height, depth; drum: radius at its foot, height, radius at its top; w: 0 block, 1 drum
-  look: vec4f,   // x: seed, y: how ragged its top (m), z: carving (+ 8: no top face), w: 1 lying on its side
+  look: vec4f,   // x: seed, y: how ragged its top (m), z: carving (+ 8: no top face; + 16 × its matter: 0 the court's
+                 // honey stone, 1 white glazed ceramic and copper gone green, 2 woven fibre: layout.ts MATTER), w: 1 lying
 }
 
 @group(1) @binding(0) var<storage, read> stones: array<Stone>;
@@ -43,7 +44,13 @@ struct VOut {
   @location(2) local: vec3f,
   @location(3) @interpolate(flat) info: vec4f,   // seed, carving, part (block: its face 0 to 5; drum: 0 side, 1 an end), height
   @location(4) @interpolate(flat) shape: vec4f,  // x: 1 a drum; block: y half width, z half depth, w how ragged; drum: y radius, z how ragged, w lying
+  @location(5) @interpolate(flat) mat: f32,      // its matter (layout.ts MATTER): 0 stone, 1 ceramic and copper, 2 woven
 }
+
+/** a stone's matter (look.z / 16) and whether it has no top face (look.z's 8) */
+fn matterOf(s: Stone) -> u32 { return u32(s.look.z) / 16u; }
+/** how ragged a stone's top is: a crafted piece (report 24) stands whole, its top flat to its rim as its solid is */
+fn raggedOf(s: Stone) -> f32 { return select(s.look.y, 0.0, matterOf(s) > 0u); }
 
 /** how far a broken top is pushed down at angle a, u of the way out from the middle (0 … 1) */
 fn jag(seed: f32, a: f32, u: f32, broken: f32) -> f32 {
@@ -73,7 +80,7 @@ fn turn(s: Stone, v: vec3f) -> vec3f {
   let quad = k / 6u;
   let cr = array<vec2f, 6>(vec2f(0.0, 0.0), vec2f(1.0, 0.0), vec2f(1.0, 1.0), vec2f(0.0, 0.0), vec2f(1.0, 1.0), vec2f(0.0, 1.0))[k % 6u];
   let g = (vec2f(f32(quad % N), f32(quad / N)) + cr) / f32(N) * 2.0 - 1.0;
-  let carve = u32(s.look.z);
+  let carve = u32(s.look.z) % 16u;
   // an open block (the platform) has no top (the backdrop's floor is its top) and no foot either: the backdrop writes no
   // depth, so anything drawn under the floor would show through it
   if ((face == 2u || face == 3u) && carve >= 8u) { o.pos = vec4f(2.0, 2.0, 2.0, 1.0); return o; }
@@ -93,14 +100,15 @@ fn turn(s: Stone, v: vec3f) -> vec3f {
   // a broken top: pushed down by the same function of where it is on every face
   let u = max(abs(p.x), abs(p.z));
   let a = atan2(p.z, p.x) * 1.3 + p.x * 2.0;
-  q.y -= jag(s.look.x, a, u, s.look.y) * smoothstep(0.0, 1.0, (q.y / max(s.size.y, 1e-3)));
+  q.y -= jag(s.look.x, a, u, raggedOf(s)) * smoothstep(0.0, 1.0, (q.y / max(s.size.y, 1e-3)));
   let wp = place(s, q);
   o.pos = frame.viewProj * vec4f(wp, 1.0);
   o.wp = wp;
   o.n = turn(s, n);
   o.local = q;
   o.info = vec4f(s.look.x, f32(carve % 8u), f32(face), s.size.y);
-  o.shape = vec4f(select(0.0, 2.0, carve >= 8u), half.x, half.z, s.look.y);
+  o.shape = vec4f(select(0.0, 2.0, carve >= 8u), half.x, half.z, raggedOf(s));
+  o.mat = f32(matterOf(s));
   return o;
 }
 
@@ -140,8 +148,9 @@ fn fluteDepth(a: f32) -> f32 {
   // which part this quad is (one normal for all its corners): the foot, the side or the top
   var part = 1u;
   if (ringQ < CAPR) { part = 0u; } else if (ringQ >= top0) { part = 2u; }
-  let j = jag(s.look.x, a, rf, s.look.y);
-  if (ring >= top0) { y = H - j; } else if (ring > CAPR) { y = y * (H - jag(s.look.x, a, 1.0, s.look.y)) / H; }
+  let rag = raggedOf(s);
+  let j = jag(s.look.x, a, rf, rag);
+  if (ring >= top0) { y = H - j; } else if (ring > CAPR) { y = y * (H - jag(s.look.x, a, 1.0, rag)) / H; }
   let u = clamp(y / max(H, 1e-3), 0.0, 1.0);
   var R = drumR(R0, Rt, u, H);
   // the flutes in the mesh where there are sides enough (six a flute), on the side and round the rim of each end
@@ -161,7 +170,8 @@ fn fluteDepth(a: f32) -> f32 {
   o.n = turn(s, n);
   o.local = vec3f(a, y, rf);
   o.info = vec4f(s.look.x, f32(carve), select(1.0, 0.0, part == 1u), H);
-  o.shape = vec4f(1.0, R0, s.look.y, s.look.w);
+  o.shape = vec4f(1.0, R0, rag, s.look.w);
+  o.mat = f32(matterOf(s));
   return o;
 }
 
@@ -419,13 +429,189 @@ fn carving(kind: f32, u: f32, v: f32, hw: f32, height: f32, seed: f32) -> f32 {
     metal = 1.0 - patina;
   }
   albedo = mix(albedo, metalCol * 0.4, collar);
+  // ---------------------------------------------------------------- the craft (report 24-sun-built)
+  // the arena's play pieces are made things, not ruins: white glazed ceramic with copper gone green and an inlaid
+  // whiplash vine (mat 1), or woven fibre bound in copper (mat 2), each with its top planted. Same shapes and solids
+  let mat = u32(i.mat + 0.5);
+  if (mat > 0u) {
+    let n0 = normalize(i.n);
+    let isDrum = i.shape.x > 0.5 && i.shape.x < 1.5;
+    let onSide = isDrum && i.info.z < 0.5;
+    // (a top a body stands on: planted; a lying drum's upper side keeps only a little moss)
+    let up = smoothstep(0.6, 0.9, n0.y) * select(1.0, 0.0, isDrum && i.shape.w > 0.5);
+    // the planting: a mounded lawn of moss, small flowers in it (cream, coral, gold, rose)
+    let mossN = vnoise(wp * 2.3 + seed * 5.0) * 0.6 + vnoise(wp * 8.0) * 0.4;
+    var moss = mix(vec3f(0.035, 0.09, 0.02), vec3f(0.16, 0.3, 0.06), mossN) * (0.8 + 0.4 * vnoise(wp * 23.0));
+    let fcell = vec2i(floor(wp.xz * 10.0));
+    let fh = hash2i(fcell + vec2i(i32(seed * 97.0), 7));
+    let fo = vec2f(hash2i(fcell + vec2i(3, 1)), hash2i(fcell + vec2i(5, 2))) - 0.5;
+    let fd = length(fract(wp.xz * 10.0) - 0.5 - fo * 0.5);
+    var fcol = vec3f(1.0, 0.95, 0.84);
+    if (fh > 0.96) { fcol = vec3f(1.0, 0.5, 0.42); } else if (fh > 0.92) { fcol = vec3f(1.0, 0.78, 0.28); } else if (fh > 0.88) { fcol = vec3f(0.98, 0.55, 0.7); }
+    moss = mix(moss, fcol, step(0.8, fh) * smoothstep(0.2, 0.11, fd));
+    // the copper: rubbed warm here and there, verdigris everywhere else
+    let patinaN = vnoise(wp * 7.0 + seed * 4.0) * 0.6 + n1 * 0.4;
+    let verd = mix(vec3f(0.13, 0.42, 0.34), vec3f(0.3, 0.62, 0.5), vnoise(wp * 19.0)) * (0.9 + 0.2 * grain);
+    var copper = 0.0;
+    var inlay = 0.0;
+    var leafInlay = 0.0;
+    var rim = 0.0;
+    if (mat == 1u) {
+      // white glaze over the body, a fine crackle in it
+      let craq = smoothstep(0.03, 0.0, abs(vnoise(wp * 11.0 + seed) - 0.5)) * 0.08;
+      var body = vec3f(0.72, 0.7, 0.64) * (0.97 + 0.06 * grain) * (1.0 - craq);
+      shine = 1.0;
+      if (onSide) {
+        let a = i.local.x;
+        let R = i.shape.y;
+        let H = i.info.w;
+        let yj = i.local.y;
+        if (kind > 2.5) {
+          // a fluted shaft: a copper band at each joint, at its foot and under its top
+          let dh = 0.9 + 0.25 * fract(seed * 7.7);
+          let jf = fract(yj / dh);
+          copper = smoothstep(0.05, 0.038, min(jf, 1.0 - jf) * dh) * step(1.6, H) * step(0.3, yj) * step(yj, H - 0.2);
+          copper = clamp(max(copper, smoothstep(0.075, 0.06, yj) + smoothstep(0.075, 0.06, H - yj)), 0.0, 1.0);
+          // the whiplash: two stems winding up the shaft, swelling and easing, a broad leaf off them every 0.4 m, one
+          // side and the other; glazed green, a gold line round them (big enough to read from the duel's camera)
+          var edgeL = 0.0;
+          for (var m = 0; m < 2; m++) {
+            let fm = f32(m);
+            let ph = seed * 6.2831853 + fm * 3.14159265;
+            let ac = ph + 0.55 * sin(wp.y * 1.5 + seed * 3.0 + fm) + 0.25 * sin(wp.y * 3.7 + fm * 2.0);
+            var da = a - ac;
+            da = da - 6.2831853 * round(da / 6.2831853);
+            let dm = da * R;
+            let w = 0.022 + 0.01 * sin(wp.y * 2.3 + fm);
+            let aa = max(foot, 0.004);
+            leafInlay = max(leafInlay, 1.0 - smoothstep(w, w + aa, abs(dm)));
+            edgeL = max(edgeL, 1.0 - smoothstep(0.006, 0.006 + aa, abs(abs(dm) - w - 0.006)));
+            let k = floor(wp.y / 0.4 + fm * 0.5);
+            let side = select(-1.0, 1.0, (i32(k) & 1) == 0);
+            let ly = (wp.y - (k + 0.5 - fm * 0.5) * 0.4) / 0.17;
+            let lx = (dm - side * 0.075) / 0.06;
+            let lq = vec2f(lx * cos(0.7 * side) - ly * sin(0.7 * side), lx * sin(0.7 * side) + ly * cos(0.7 * side));
+            // (a leaf: pointed at both ends, two arcs)
+            let lf = abs(lq.x) + lq.y * lq.y * 0.9;
+            leafInlay = max(leafInlay, 1.0 - smoothstep(1.0, 1.0 + aa / 0.06, lf));
+            edgeL = max(edgeL, (1.0 - smoothstep(0.1, 0.1 + aa / 0.03, abs(lf - 1.1))) * step(abs(lq.y), 1.05));
+          }
+          // (low on the shaft a dado of deep teal majolica, its top edge in lotus scallops, a gold line on it)
+          let scal = 0.82 + 0.08 * (1.0 - pow(abs(fract(a * 10.0 / 6.2831853) * 2.0 - 1.0), 1.6));
+          let dado = smoothstep(scal + 0.005, scal - 0.005, wp.y);
+          body = mix(body, vec3f(0.035, 0.24, 0.24) * (0.9 + 0.2 * vnoise(wp * 6.0)), dado);
+          inlay = max(edgeL * (1.0 - dado), smoothstep(0.012, 0.004, abs(wp.y - scal - 0.012)));
+          inlay *= step(0.07, yj) * step(yj, H - 0.07) * (1.0 - copper);
+          leafInlay *= step(0.07, yj) * step(yj, H - 0.07) * (1.0 - copper) * (1.0 - dado);
+        } else {
+          // a capital or a base: copper gone green; in lotus petals, their edges rubbed bright
+          let u = clamp(yj / max(H, 1e-3), 0.0, 1.0);
+          let pa = fract(a * 8.0 / 6.2831853) * 2.0 - 1.0;
+          let petal = (1.0 - pa * pa) * (0.6 + 0.4 * u);
+          copper = 1.0;
+          groove = max(groove, (1.0 - petal) * 0.4);
+          rim = smoothstep(0.05, 0.0, abs(petal - (1.0 - u) * 0.9));
+        }
+      } else if (!isDrum) {
+        // a block: big tiles of white glaze in a running bond, a band of teal and gold tile under its top, a copper
+        // coping along its top edge, a gold whiplash inlaid along its faces
+        let face = u32(i.info.z);
+        let L = i.local;
+        let hx = i.shape.y;
+        let hz = i.shape.z;
+        let H = i.info.w;
+        if (face != 2u && face != 3u) {
+          let u = select(L.x, L.z, face < 2u);
+          let dTop = H - L.y;
+          let row = floor(L.y / 0.3);
+          let tu = (u + select(0.0, 0.3, (i32(row) & 1) == 1)) / 0.6;
+          let tj = min(min(fract(tu), 1.0 - fract(tu)) * 0.6, min(fract(L.y / 0.3), 1.0 - fract(L.y / 0.3)) * 0.3);
+          body *= 1.0 - 0.25 * smoothstep(0.008, 0.002, tj);
+          copper = smoothstep(0.065, 0.05, dTop);
+          let band = smoothstep(0.075, 0.085, dTop) * smoothstep(0.23, 0.22, dTop) * step(0.5, H);
+          let bv = (dTop - 0.08) / 0.075;
+          let bu = u / 0.15 + select(0.0, 0.5, fract(bv) > 0.5);
+          let bf = vec2f(fract(bu) - 0.5, fract(bv) - 0.5);
+          let bj = 1.0 - smoothstep(0.4, 0.46, max(abs(bf.x), abs(bf.y)));
+          let bh = hash2i(vec2i(i32(floor(bu)), i32(floor(bv))) + vec2i(i32(seed * 50.0), 0));
+          let tile = mix(mix(vec3f(0.03, 0.3, 0.3), vec3f(0.95, 0.72, 0.3), step(0.62, bh)), vec3f(0.62, 0.46, 0.2), 1.0 - bj);
+          body = mix(body, tile, band * (1.0 - copper));
+          // (a carved band's egg-and-dart glazed teal in the hollows, gold on the crowns)
+          if (kind > 0.5 && kind < 1.5) {
+            body = mix(body, mix(vec3f(0.06, 0.36, 0.33), vec3f(0.95, 0.75, 0.35), smoothstep(0.2, 0.7, relief)), smoothstep(0.05, 0.2, abs(relief)) * (1.0 - copper));
+          }
+          let wave = 0.3 + 0.05 * sin(u * 2.4 + seed * 7.0);
+          let archL = wave + 0.28 * pow(abs(sin(u * 1.2 + seed)), 1.5);
+          inlay = max(1.0 - smoothstep(0.01, 0.018, abs(dTop - wave)), (1.0 - smoothstep(0.009, 0.016, abs(dTop - archL))) * step(dTop, 0.62));
+          inlay *= step(0.85, H) * step(0.24, dTop) * step(dTop, H - 0.1) * step(kind, 1.5);
+        } else if (face == 2u) {
+          // its top: a copper coping round a bed of moss
+          rim = smoothstep(0.1, 0.085, min(hx - abs(L.x), hz - abs(L.z)));
+        }
+      } else {
+        // a drum's end: its top a bed of moss inside a copper rim
+        rim = smoothstep(0.86, 0.9, i.local.z);
+      }
+      albedo = body;
+      albedo = mix(albedo, mix(vec3f(0.05, 0.26, 0.1), vec3f(0.2, 0.46, 0.12), vnoise(wp * 9.0 + seed)), leafInlay);
+      let rub = smoothstep(0.55, 0.75, patinaN) * 0.6 + rim * 0.3;
+      albedo = mix(albedo, verd, copper * (1.0 - rub));
+      metal = max(copper * rub, inlay);
+      metalCol = select(vec3f(0.95, 0.7, 0.32), vec3f(0.92, 0.52, 0.32), inlay < copper);
+      shine = shine * (1.0 - copper) * (1.0 - inlay);
+      // a top: planted inside its rim
+      let bed = up * (1.0 - rim);
+      albedo = mix(albedo, moss, bed);
+      albedo = mix(albedo, verd, up * rim * 0.7);
+      metal *= 1.0 - bed;
+      shine *= 1.0 - bed;
+    } else {
+      // woven fibre: reed strands over and under, honey to straw, bound with copper at the foot, the middle and the
+      // top; the top planted inside a woven rim
+      var u = (i.local.x + i.local.z) * 9.0;
+      var v = i.local.y * 9.0;
+      if (onSide) {
+        u = i.local.x * i.shape.y * 9.0;
+      } else if (isDrum) {
+        // (an end: coiled round and round)
+        u = i.local.z * i.shape.y * 18.0;
+        v = i.local.x * 3.0;
+      }
+      let over = (i32(floor(u)) + i32(floor(v))) % 2 == 0;
+      let strand = select(sin(fract(v) * 3.1415927), sin(fract(u) * 3.1415927), over);
+      albedo = mix(vec3f(0.5, 0.34, 0.13), vec3f(0.8, 0.62, 0.3), vnoise(wp * 4.0 + seed)) * (0.6 + 0.4 * strand);
+      let T = normalize(cross(n0, vec3f(0.0, 1.0, 0.0)) + vec3f(1e-4, 0.0, 0.0));
+      N = normalize(N + T * (select(fract(u), fract(v), over) - 0.5) * 0.45);
+      groove = max(groove, (1.0 - strand) * 0.5);
+      if (onSide) {
+        let H = i.info.w;
+        let yj = i.local.y;
+        if (i.shape.w > 0.5) { copper = smoothstep(0.08, 0.06, yj) + smoothstep(0.08, 0.06, H - yj); }
+        else { copper = smoothstep(0.06, 0.045, yj) + smoothstep(0.06, 0.045, abs(yj - H * 0.5)) + smoothstep(0.06, 0.045, H - yj); }
+        copper = clamp(copper, 0.0, 1.0);
+      }
+      rim = select(0.0, smoothstep(0.84, 0.88, i.local.z), isDrum && !onSide);
+      albedo = mix(albedo, verd, copper * 0.8);
+      metal = copper * 0.2;
+      metalCol = vec3f(0.92, 0.52, 0.32);
+      shine = 0.0;
+      let bed = up * (1.0 - rim);
+      // (a lying bolster: moss in patches along its upper side)
+      let mossPatch = select(0.0, smoothstep(0.75, 0.95, n0.y) * smoothstep(0.45, 0.7, mossN), isDrum && i.shape.w > 0.5);
+      albedo = mix(albedo, moss, max(bed, mossPatch));
+      metal *= 1.0 - max(bed, mossPatch);
+    }
+    // the tide on it: weed only below the low water, darker wet
+    albedo = mix(albedo, vec3f(0.03, 0.045, 0.025), weed * 0.5);
+    albedo *= 1.0 - 0.25 * wet;
+  }
   // the garden: vines climbing the columns (two leafy stems wound round each shaft, up to a height of its own) and
   // draping over the high blocks' faces from their tops (the lintels, the architraves), flowers in them: coral, rose,
   // cream and gold. Only above the highest tide (salt kills them) and never on a top where a body lands
   var leaf = 0.0;
   var bloom = vec4f(0.0);
   let vineAmt = worldLight.temple.horizon.w;
-  if (vineAmt > 0.0 && wp.y > hi + 0.15 && abs(normalize(i.n).y) < 0.75) {
+  if (vineAmt > 0.0 && wp.y > hi + 0.15 && abs(normalize(i.n).y) < 0.75 && mat < 2u) {
     if (i.shape.x > 0.5 && i.shape.x < 1.5 && i.info.z < 0.5) {
       // a drum's side: its stems wind up it; not every column has one
       // (report 18: only the woody stems now, a thin line; the leaves and flowers are cards round them, garden.wgsl

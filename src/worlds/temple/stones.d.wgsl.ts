@@ -110,6 +110,7 @@ export interface Pool {
   look: Vec4;
   swell: Vec4;
   swellAt: Vec4;
+  lens: Vec4;
 }
 export interface VistaLook {
   sun: Vec3;
@@ -149,6 +150,7 @@ export interface Temple {
   shafts: Vec4;
   drops: ArrayLike<number> | Vec4[];
   dropFrame: Vec4;
+  lens: Vec4;
 }
 export interface FireLight {
   pos: Vec4;
@@ -212,6 +214,7 @@ export interface VOut {
   local: Vec3;
   info: Vec4;
   shape: Vec4;
+  mat: number;
 }
 
 declare const shader: Shader<{ Frame: Frame; Geode: Geode; Forest: Forest; Pool: Pool; VistaLook: VistaLook; Vista: Vista; Temple: Temple; FireLight: FireLight; FireLights: FireLights; Answer: Answer; WorldLight: WorldLight; SightBody: SightBody; SightPiece: SightPiece; Sight: Sight; KeyLight: KeyLight; Stone: Stone; VOut: VOut }, 'frame' | 'worldLight' | 'stones' | 'poolWaves' | 'templeWaves' | 'samp_linear' | 'samp_repeat' | 'samp_nearest' | 'samp_shadow'>;

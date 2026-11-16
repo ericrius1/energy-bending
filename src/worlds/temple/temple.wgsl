@@ -41,6 +41,8 @@ struct Temple {
                              // screens, w: the sun's shafts' haze in the air toward it
   drops: array<vec4f, 2>,   // the duel arena's drops in the court (worlds/drops.wgsl): s0, t0, s1, t1 on its plane
   dropFrame: vec4f,         // that plane: its origin's x, z, its right's x, z
+  lens: vec4f,              // where the main view's lens places the far world (vista.wgsl vistaFocus; report 24): x the
+                            // focus (m, 0: as far as it is), y the share of its blur it keeps, z from (m), w whole at (m)
 }
 
 #include "../vista"

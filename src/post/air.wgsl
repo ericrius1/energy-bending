@@ -276,6 +276,6 @@ struct MainOut { @location(0) col: vec4f, @location(1) focus: vec4f }
   let a = air(i);
   var o: MainOut;
   o.col = vec4f(a.col, a.opaque);
-  o.focus = vec4f(min(a.focus, 60000.0), 0.0, 0.0, 1.0);
+  o.focus = vec4f(min(worldFocus(a.focus, a.opaque), 60000.0), 0.0, 0.0, 1.0);
   return o;
 }

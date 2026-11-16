@@ -96,7 +96,8 @@ function bedsOf(coarse: boolean): number[] {
   const D = poolDuel(), pieces = D.arena.pieces!, out: number[] = [];
   for (let i = 0; i < D.count; i++) {
     const o = i * ROCK_FLOATS, look = D.data[o + 11];
-    if (look === ROCK_LOOK.standing) continue;
+    // (report 24: the standing stones' and the gate's tops are planted too; the pillars' tops are under the lintel)
+    if (look === ROCK_LOOK.gatePillar) continue;
     const x = D.data[o], z = D.data[o + 2], yaw = D.data[o + 3], hx = D.data[o + 4] / 2, hz = D.data[o + 6] / 2;
     const top = D.data[o + 1] + D.data[o + 5], rp = Math.min(D.data[o + 10], Math.min(hx, hz) * 0.95);
     const cx = hx - rp, cz = hz - rp;
