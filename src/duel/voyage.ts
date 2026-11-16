@@ -42,6 +42,8 @@ export const CROSS = {
 const dot = (a: ArrayLike<number>, b: ArrayLike<number>) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
 const smooth = (x: number) => { const k = Math.max(0, Math.min(1, x)); return k * k * (3 - 2 * k); };
 const smoother = (x: number) => { const k = Math.max(0, Math.min(1, x)); return k * k * k * (k * (k * 6 - 15) + 10); };
+/** eased, but never at rest between its ends: the way's two moves join under way (no stop at the staging point; phase 7) */
+const going = (x: number) => { const k = Math.max(0, Math.min(1, x)); return 0.45 * k + 0.55 * smoother(k); };
 const lerp = (a: number, b: number, k: number) => a + (b - a) * k;
 const lerp3 = (a: ArrayLike<number>, b: ArrayLike<number>, k: number): V3 => [lerp(a[0], b[0], k), lerp(a[1], b[1], k), lerp(a[2], b[2], k)];
 
@@ -208,16 +210,16 @@ export const WAY = {
   /** the eye keeps this far off any solid, decor piece or frame (the near plane, a little air) */
   clear: 0.45,
   /** the swing round: its shortest (s, for no turn; plus `turnS` for a half turn), and its fastest along its arc (m/s) */
-  roundMin: 0.35, turnS: 0.35, roundSpeed: 5.6,
+  roundMin: 0.35, turnS: 0.35, roundSpeed: 7,
   /** a swing round stops this far short of the disc's axis (rad) */
   slant: 0.55,
   /** the way through: its shortest and longest (s), and how fast along its length (m/s) */
-  throughMin: 1.1, throughMax: 2.2, throughSpeed: 5.5,
+  throughMin: 1.0, throughMax: 2.0, throughSpeed: 6.8,
 };
 
 /** one way round onto the axis: which way round (to ±π), how far out it keeps beside the plane, where it stages, and
  *  whether it goes straight there (an eye already on the near side of the plane) */
-interface WayPlan { phi1: number; rim: number; S: V3; /** S on the axis (its height and depth) */ A: V3; direct: boolean; T1: number; cost: number; name: string }
+interface WayPlan { /** straight on from where the eye is (aligned) */ go?: boolean; phi1: number; rim: number; S: V3; /** S on the axis (its height and depth) */ A: V3; direct: boolean; T1: number; cost: number; name: string }
 
 /** the camera's way through the disc after the pair (in the new world's coordinates: the rig was carried with them, and
  *  the view is drawn from the old world until the eye comes through the far disc). Two moves, each eased with no step
@@ -279,13 +281,16 @@ export class ThroughCam {
     // (a swing round stops short of the axis, WAY.slant off it: the way through then comes in at a slant and still
     // crosses near the disc's middle, a third of a turn sooner)
     const slant = aligned || direct ? 0 : WAY.slant, phiEnd = Math.sign(phi1) * (Math.PI - slant);
-    const S: V3 = slant ? [Math.sin(phiEnd) * -A[2], A[1], Math.cos(phiEnd) * -A[2]] : A;
+    // (an eye already in behind the pair on the axis, the swing in done: no staging stop, the way through goes on from
+    // where it is, already moving after them; phase 7)
+    const go = aligned && !S0 && !direct;
+    const S: V3 = go ? [...this.e0] as V3 : slant ? [Math.sin(phiEnd) * -A[2], A[1], Math.cos(phiEnd) * -A[2]] : A;
     const turn = Math.abs(phiEnd - this.phi0);
     // (the swing's length by how far round it goes and how far in)
     const arc = direct ? Math.hypot(this.e0[0] - S[0], this.e0[1] - S[1], this.e0[2] - S[2])
       : Math.hypot(((this.rho0 - A[2]) / 2) * (aligned ? 0 : turn), this.rho0 + A[2], this.y0 - S[1]);
-    const T1 = Math.max(aligned ? 0.25 : WAY.roundMin + WAY.turnS * Math.min(1, (direct ? 0.5 : turn) / Math.PI), arc / WAY.roundSpeed);
-    return { phi1: phiEnd, rim, S, A, direct, T1, cost: 0, name };
+    const T1 = go ? 0 : Math.max(aligned ? 0.25 : WAY.roundMin + WAY.turnS * Math.min(1, (direct ? 0.5 : turn) / Math.PI), arc / WAY.roundSpeed);
+    return { phi1: phiEnd, rim, S, A, direct, T1, cost: 0, name, go };
   }
 
   private local(p: ArrayLike<number>): V3 { const r: V3 = [p[0] - this.disc.at[0], p[1] - this.disc.at[1], p[2] - this.disc.at[2]]; return [dot(r, this.X), dot(r, this.Y), dot(r, this.Z)]; }
@@ -369,7 +374,7 @@ export class ThroughCam {
     const discLook = this.world([0, S[1] * 0.4, 0.8]);
     // 1. round onto the axis behind the disc (or settle there, or straight there)
     if (this.t < P.T1) {
-      const u = smoother(this.t / P.T1);
+      const u = going(this.t / P.T1);
       // (looking at the disc: the pair is seen through it, live)
       return { eye: this.world(this.roundAt(P, u)), look: this.eased(lerp3(discLook, pair, 0.35 * u)) };
     }
@@ -380,7 +385,8 @@ export class ThroughCam {
     // plane outside the disc; the camera then goes on from where the way ends, `from`)
     this.clamped = Er[2] < 1.6 - 1e-6;
     if (this.T2 < 0) this.T2 = Math.max(WAY.throughMin, Math.min(WAY.throughMax, 0.4 + (Math.hypot(E[0] - S[0], E[1] - S[1], E[2] - S[2]) + 1.2) / WAY.throughSpeed));
-    const u = smoother((this.t - P.T1) / this.T2);
+    // (under way from its first frame: the eye was following the pair, or coming round onto the axis)
+    const u = going((this.t - P.T1) / this.T2);
     const l = this.throughAt(P, u, E);
     if (!this.through && l[2] > 0) this.through = true;
     // (the look point runs on ahead of the eye along the axis, never behind it: an eye past a fixed point in front of the
