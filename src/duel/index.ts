@@ -87,6 +87,7 @@ import type { Joined } from '../play';
 import { duelLobby } from '../play/menu';
 import { installHelp } from './help';
 import { startLesson } from './lesson';
+import { keepOut, type GateShape } from '../portals/decor';
 
 type V3 = [number, number, number];
 
@@ -439,7 +440,7 @@ export async function startDuel(app: PlayApp, opts: { joined?: Joined } = {}) {
    *  behind the pair, or cut under the mirror's `flash`, the rare fallback: a locked camera, or a way through that
    *  didn't come through), whether the pair meant it (a voyage, crossing.ts), the disc they came out of, and the
    *  music's time */
-  const crossings: { d: number; from: string; to: string; how?: 'through' | 'flash' | 'late' | 'stayed'; meant: boolean; out: string; t: number; why?: string }[] = [];
+  const crossings: { d: number; from: string; to: string; how?: 'through' | 'flash' | 'late' | 'stayed'; meant: boolean; out: string; t: number; why?: string; way?: 'round' | 'aligned' }[] = [];
   /** the disc the pair came out of, for a few seconds after (`t`): a body brought through held lands behind it, still
    *  reaching through (Portals.bring), and is kept from crossing while it is still there. With a fixed 1.5 s, a body
    *  not yet out in front was carried back, and its partner after it: a pair went back and forth a second and a half
@@ -452,6 +453,15 @@ export async function startDuel(app: PlayApp, opts: { joined?: Joined } = {}) {
   let ahead = 0, aheadOn: { d: Disc; side: number } | null = null;
   /** the camera's measures (bend.duel.crossCam): the ways through, those that went round the disc first, the flashes */
   const crossCam = { ways: 0, round: 0, aligned: 0, flashes: 0, aheadMax: 0 };
+  /** a world's gates as the keep-out sees them, and its keep-out (decor.ts), remade when its solids change */
+  const gateShapes = (id: string): (GateShape & { to?: string })[] => [...app.gates.gates.values()].filter((g) => g.world === id).map((g) => ({ id: g.id, at: g.at, n: g.n, right: g.right, up: g.up, r: g.radius, to: g.partner?.world }));
+  const keeps = new Map<string, ReturnType<typeof keepOut> & { solids: unknown; n: number }>();
+  const keepOf = (id: string) => {
+    const s = app.worldOf(id).solids, n = gateShapes(id).length;
+    let k = keeps.get(id);
+    if (!k || k.solids !== s || k.n !== n) { k = { ...keepOut(id, s, gateShapes(id)), solids: s, n }; keeps.set(id, k); }
+    return k;
+  };
   frame.tick('camera', (f: FrameCtx) => {
     if (behind) {
       const B = behind;
@@ -493,6 +503,7 @@ export async function startDuel(app: PlayApp, opts: { joined?: Joined } = {}) {
         wayRec = rec;
         crossCam.ways++;
         if (way.how.aligned) crossCam.aligned++; else crossCam.round++;
+        rec.way = way.how.aligned ? 'aligned' : 'round';
         dcam.reset();
       } else if (app.main.world !== W.id && app.gates.rigWorld === W.id) {
         app.gates.arrive(); app.gates.flash(W.id);
@@ -700,6 +711,9 @@ export async function startDuel(app: PlayApp, opts: { joined?: Joined } = {}) {
     /** the crossings through the mirrors so far (the set's seconds, from, to, how the view went over, meant, the disc
      *  come out of, the music's time), the pair's voyages (crossing.ts) and the camera's ways through */
     crossings, voyage, crossCam,
+    /** the eye's clearance in the main view's world (decor.ts: its solids, decor, shell and gates' frames; m), and that
+     *  world: the measure of the eye in the world's pieces (scripts/cross-measure.mjs) */
+    eyeClear: () => { const id = app.main.world, p = cam.position; return { world: id, clear: keepOf(id).clear([p[0], p[1], p[2]]) }; },
     /** the free camera (camera.ts): its choice, what it framed, how clear its eye stood */
     camera: dcam, camSpace,
     /** cast a seat's power now (slot 0 or 1; the stick as a world x, z), or the form: as its buttons would */
