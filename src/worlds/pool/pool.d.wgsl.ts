@@ -20,6 +20,7 @@ export interface Pool {
   look: Vec4;
   swell: Vec4;
   swellAt: Vec4;
+  lens: Vec4;
 }
 export interface VistaLook {
   sun: Vec3;
