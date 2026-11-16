@@ -522,7 +522,6 @@ export async function startDuel(app: PlayApp, opts: { joined?: Joined } = {}) {
         crossCam.ways++;
         if (way.how.aligned) crossCam.aligned++; else crossCam.round++;
         rec.way = way.how.aligned ? 'aligned' : 'round';
-        rec.plan = way.how.plan;
         dcam.reset();
       } else if (app.main.world !== W.id && app.gates.rigWorld === W.id) {
         app.gates.arrive(); app.gates.flash(W.id);
@@ -537,6 +536,8 @@ export async function startDuel(app: PlayApp, opts: { joined?: Joined } = {}) {
     }) as { eye: V3; look: V3; fov: number };
     if (way) {
       const P = way.update(f.dt, pose, mid), X = wayRec;
+      // (the way it chose, on its first frame)
+      if (X && !X.plan) X.plan = way.how.plan;
       // (the main view went over as the eye came through the old disc: Portals.carryCamera)
       if (X && !X.how && app.main.world === W.id) X.how = 'through';
       // the rare fallback: the way didn't bring the eye through (a lock, or it ran out): a cut under the mirror's light

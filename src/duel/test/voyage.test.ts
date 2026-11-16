@@ -92,6 +92,26 @@ test('the way through keeps out of the world\'s pieces and every other gate (pha
   return `usual ${a.minClear.toFixed(2)} m / ${a.gates} gates; chosen "${b.W.how.plan}" (of ${b.W.how.tried}) ${b.minClear.toFixed(2)} m / ${b.gates} gates`;
 });
 
+test('the way through bends its tail round a post between the disc and the duel camera\'s eye (phase 7)', () => {
+  const e0: V3 = [0.2, 1.9, -3.5], pair: V3 = [0.4, 1.0, 2.2], cam = { eye: [5.5, 1.6, 4.5] as V3, look: [0.4, 1.3, 2.5] as V3 };
+  // (where the usual tail passes, out in front of the disc: find it, and stand a post there)
+  const probe = new ThroughCam(D, 1, e0, [pair[0], pair[1] + 0.3, pair[2]]);
+  let mid: V3 | null = null;
+  for (let i = 0; i < 600 && !probe.done; i++) { const P = probe.update(1 / 60, cam, pair); if (!mid && P.eye[2] > 3) mid = P.eye; }
+  const post: Solid = { kind: 'capsule', a: [mid![0], 0, mid![2]], b: [mid![0], 3.2, mid![2]], r: 0.3 };
+  const clear = (p: V3) => distTo(post, p);
+  const W = new ThroughCam(D, 1, e0, [pair[0], pair[1] + 0.3, pair[2]], { clear: (p) => clear(p), gate: () => false });
+  let min = Infinity, through = false, prev: V3 = [...e0];
+  for (let i = 0; i < 600 && !W.done; i++) {
+    const P = W.update(1 / 60, cam, pair);
+    if (Math.hypot(P.eye[0] - cam.eye[0], P.eye[2] - cam.eye[2]) > 0.5) min = Math.min(min, clear(P.eye));
+    if (side(prev) <= 0 && side(P.eye) > 0 && across(P.eye) < D.r) through = true;
+    prev = P.eye;
+  }
+  assert(through && min > 0.1, `round the post (${min.toFixed(2)} m at the nearest), through the disc ${through}: "${W.how.plan}"`);
+  return `"${W.how.plan}" of ${W.how.tried}, ${min.toFixed(2)} m off the post`;
+});
+
 test('the approach: the disc the pair runs at, and the voyage\'s disc', () => {
   const A = approachOf([0.2, 1, 3], [0, 0, -3], [D], null);
   assert(A && A.disc.id === 'm' && A.side === 1 && A.w > 0.3, `running at it: ${JSON.stringify(A)}`);

@@ -219,7 +219,7 @@ export const WAY = {
 
 /** one way round onto the axis: which way round (to ±π), how far out it keeps beside the plane, where it stages, and
  *  whether it goes straight there (an eye already on the near side of the plane) */
-interface WayPlan { /** straight on from where the eye is (aligned) */ go?: boolean; phi1: number; rim: number; S: V3; /** S on the axis (its height and depth) */ A: V3; direct: boolean; T1: number; cost: number; name: string }
+interface WayPlan { /** straight on from where the eye is (aligned) */ go?: boolean; phi1: number; rim: number; S: V3; /** S on the axis (its height and depth) */ A: V3; direct: boolean; T1: number; cost: number; name: string; /** the way through's tail bent aside (its second inner point moved, in the disc's frame) */ bend?: V3 }
 
 /** the camera's way through the disc after the pair (in the new world's coordinates: the rig was carried with them, and
  *  the view is drawn from the old world until the eye comes through the far disc). Two moves, each eased with no step
@@ -310,7 +310,7 @@ export class ThroughCam {
 
   /** the eye on the way through at `u` (0 … 1), in the disc's frame, toward the duel camera's eye `E` */
   private throughAt(P: WayPlan, u: number, E: V3): V3 {
-    const S = P.S, P1: V3 = [0, S[1], 0], P2: V3 = [0, S[1], Math.max(1.4, -0.8 * S[2])];
+    const S = P.S, bd = P.bend ?? [0, 0, 0], P1: V3 = [0, S[1], 0], P2: V3 = [bd[0], S[1] + bd[1], Math.max(1.4, -0.8 * S[2])];
     const a = (1 - u) ** 3, b = 3 * u * (1 - u) ** 2, c = 3 * u * u * (1 - u), d = u ** 3;
     const l: V3 = [0, 0, 0];
     for (let i = 0; i < 3; i++) l[i] = a * S[i] + b * P1[i] + c * P2[i] + d * E[i];
@@ -328,8 +328,7 @@ export class ThroughCam {
       const l = this.throughAt(P, smoother(i / 24), E);
       if (l[2] > 0) past = true;
       pts.push([this.world(l), !past]);
-      // (well past the disc the way is nearly the duel camera's own, which keeps its eye clear)
-      if (l[2] > 2.5) break;
+      // (on to its end: the duel camera's eye is clear, but the curve there from the disc can pass a post; phase 7)
     }
     let cost = 0, prev: V3 | null = null, prevOld = true;
     for (const [p, old] of pts) {
@@ -360,6 +359,17 @@ export class ThroughCam {
       }
       for (const c of cands.slice(1)) c.cost = this.judge(c, E);
       cands.sort((a, b) => a.cost - b.cost);
+      // (still something in the way, most often on the way's tail from the disc out to the duel camera's eye: the tail
+      // bent aside or over it)
+      const B = cands[0];
+      if (B.cost > B.T1 * 0.02 + 0.02) {
+        for (const bend of [[1.2, 0, 0], [-1.2, 0, 0], [0, 0.9, 0], [1.2, 0.6, 0], [-1.2, 0.6, 0]] as V3[]) {
+          const c: WayPlan = { ...B, bend, name: `${B.name}, bent`, cost: 0 };
+          c.cost = this.judge(c, E);
+          cands.push(c);
+        }
+        cands.sort((a, b) => a.cost - b.cost);
+      }
     }
     this.plan = cands[0];
     Object.assign(this.how, { plan: this.plan.name, cost: +this.plan.cost.toFixed(3), tried: cands.length });
