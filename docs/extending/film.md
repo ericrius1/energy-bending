@@ -11,6 +11,8 @@ films/<name>.json          the timeline
 scripts/film.mjs           the renderer: takes, cache, lock, score, encodes, contact sheets
 scripts/film-serve.mjs     the server to render from (Vite without hot reload: restart it after changing code)
 scripts/film-seams.mjs     the seam check (takes against one take, a take rendered alone)
+scripts/front-cap.mjs      the front page as a clip, its DOM over the canvas (a film's frames never hold the DOM)
+scripts/newcomer-cap.mjs   the same, with a key pressed and a first-timer's walk through a mirror (report 25)
 scripts/film-cut.mjs       the older path (a cut of src/engine/film.ts: --cut short|showcase|dream|forest|jogo)
 src/engine/film-shot.ts    the page side of a shot: set-up, cues, the frames, pauses, the score
 src/engine/filmcam.ts      the film camera: keys, splines, eases, lag and lead, framing, handheld, focus, modes
