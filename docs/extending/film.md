@@ -136,11 +136,15 @@ one set). Camera keys don't change the dance; a `rate` or `rig` cue does, from w
 
 **Through the mirrors.** A duel shot keeps its world's gates shut unless it asks: `"query": { "mirrors": 1 }` leaves
 them open as play does, so the pair can dance through a mirror mid-shot (the camera through the disc behind them, or
-the cut under the mirror's light: the light is DOM, so a film shows a plain cut). The page then takes the new world's
-track from the next bar line, as play does, and `info.json` says when (`track.switches`, on the score's clock) and
-what crossed (`duel.crossings`, with `how`: `through` or `flash`); the film's music goes on in that track from that bar
-line (the first fading over 1.2 s), and the later shots are on its grid and tempo (their `beats` in its tempo). Pick a
-set with no crossing before the in-point (film.mjs says so when there is one). The mirrors' plaques are painted into the
+the cut under the mirror's light: the light is DOM, so a film shows a plain cut). The page then crosses the music as
+play does (phase 6, `SetMusic.cross`): the new world's track on the next beat, at a phrase of its body whose energy
+matches, the tempo bent across over a bar and a half, the crossing's chime on that beat in the shot's score; and
+`info.json` says when (`track.switches`, on the score's clock, each with its `bridge`: `tA`, `tB`, `tC`, `rA`, `rB`,
+`nb`) and what crossed (`duel.crossings`, with `how`: `through`, `flash` or `stayed`). film.mjs lays the tracks as the
+page's deck plays them (`layTracks`: the old one bent toward the new tempo and faded over 0.75 s, the new one from its
+beat `nb`, eased onto its own tempo, round its loop as the deck goes round it), and the later shots are on the new
+track's grid and tempo (their `beats` in its tempo). A shot can hold more than one crossing. Pick a set with no
+crossing before the in-point (film.mjs says so when there is one). The mirrors' plaques are painted into the
 frames (`Hud.under`). The YOU tell is off in a film (no seat is the page's); `{ "at": -9, "js": "bend.duel.you.seats =
 [0]" }` shows a seat as the player's (films/duel-5.json).
 

@@ -489,7 +489,10 @@ export class SetMusic {
    *  same track */
   cross(world: string, energy: number, nowMs: number) {
     const M = this.music, E = M.engine, to = trackFor(world), from = E.track;
-    if (!this.on || !to || !from || from.id === to.id || !E.crossTo) return null;
+    // (a film whose mirrors are open, its track not fixed, crosses as play does: the clock bends and the chime plays in
+    // its score, and film.mjs lays the two tracks from the bridge info.json records; report 23)
+    const film = this.film && !M.trackFixed && !E.clock.sync;
+    if (!(this.on || film) || !to || !from || from.id === to.id || !E.crossTo) return null;
     const t = M.now();
     const bar = entryBar(from, trackBar(from, E.clock.beatAt(t) - E.trackBeat0), to, energy);
     const B = E.crossTo(to, bar);

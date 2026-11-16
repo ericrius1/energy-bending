@@ -181,8 +181,26 @@ const infoOf = (s) => {
 // takes that world's track from the next bar line, as play does, and its info says when (`track.switches`). The film's
 // music then goes on in that track, its bar 1 on that bar line: the later shots are on its grid and tempo, and the
 // sound lays the first track until the switch, fading it over 1.2 s as the page's deck does, the new one from there)
-/** the film's tracks in order: each with the film time it starts (`at`) and its beat there (`beat0`) */
+/** the film's tracks in order: each with the film time it starts (`at`) and its beat there (`beat0`), and when it came
+ *  in on a crossing's bridge (phase 6: `ramp`, its tempo eased from `rB` of its own onto its own over `dur` s, `beats`
+ *  of the clock's) and was bent out by the next one's (`bend`: its rate from 1 at film time `tA` to `rA` at `tB`, then
+ *  faded over 0.75 s), as the page's deck plays them (src/audio/deck.ts) */
 let SEGS = [];
+/** a track's beat (since its bar 1) at film time T */
+const segBeat = (g, T) => {
+  const spb = 60 / g.tr.bpm, u = T - g.at, R = g.ramp;
+  if (!R) return g.beat0 + u / spb;
+  if (u < R.dur) return g.beat0 + (R.rB * u + (0.5 * (1 - R.rB) * u * u) / R.dur) / spb;
+  return g.beat0 + R.beats + (u - R.dur) / spb;
+};
+/** the film time a track reaches beat b */
+const segTime = (g, b) => {
+  const spb = 60 / g.tr.bpm, R = g.ramp, x = (b - g.beat0) * spb;
+  if (!R) return g.at + x;
+  if (b - g.beat0 >= R.beats) return g.at + R.dur + (b - g.beat0 - R.beats) * spb;
+  const a = (0.5 * (1 - R.rB)) / R.dur;   // a u² + rB u = x
+  return g.at + (Math.abs(a) < 1e-9 ? x / R.rB : (-R.rB + Math.sqrt(R.rB * R.rB + 4 * a * x)) / (2 * a));
+};
 function place() {
   let at = 0, beat0 = null;
   SEGS = TRACK ? [{ tr: TRACK, at: 0, beat0: null }] : [];
@@ -196,7 +214,7 @@ function place() {
     }
     s.frames = Math.round(s.seconds * Q.fps);
     s.takes = Math.max(1, Math.ceil(s.frames / takeFrames));
-    s.track = seg ? { id: seg.tr.page, beatAtIn: s.n === 0 ? FROM : seg.beat0 == null ? null : +(seg.beat0 + (at - seg.at) / spb).toFixed(4), ...(seg.tr.page === seg.tr.id ? {} : { bpm: seg.tr.bpm }) } : null;
+    s.track = seg ? { id: seg.tr.page, beatAtIn: s.n === 0 ? FROM : seg.beat0 == null ? null : +segBeat(seg, at).toFixed(4), ...(seg.tr.page === seg.tr.id ? {} : { bpm: seg.tr.bpm }) } : null;
     s.dir = join(OUT, 'cache', Q.label, `${NAME}-${s.id}-${opts.variant ? `${opts.variant}-` : ''}${shotKey(s)}`);
     s.takePath = (k) => join(s.dir, `take-${String(k).padStart(3, '0')}.mkv`);
     s.at = at;
@@ -206,15 +224,23 @@ function place() {
       if (s.n === 0) { beat0 = info?.track?.trackBeatAtIn ?? null; seg.beat0 = beat0; }
       const bIn = s.n === 0 ? beat0 : s.track.beatAtIn;
       if (bIn != null) len = (Math.round(bIn + s.nominal / spb) - bIn) * spb;
-      // a crossing inside the shot's kept frames: the track after it, and the shot's end on its beats
+      // a crossing inside the shot's kept frames: the track after it, and the shot's end on its beats (more than one
+      // crossing in a shot: each in turn)
       const sws = info?.track?.switches ?? [];
       if (sws.some((w) => w.t < info.inTime)) log(`${s.id}: its page crossed into another world before its in-point: its music is not the film's there`);
-      const sw = sws.find((w) => w.t >= info.inTime && w.t - info.inTime < s.nominal - 0.05);
-      const tr = sw ? knownTrack(sw.id) : null;
-      if (sw && tr) {
-        const fat = at + (sw.t - info.inTime), spb2 = 60 / tr.bpm;
-        SEGS.push({ tr, at: fat, beat0: 0 });
-        len = fat + Math.max(1, Math.round((at + s.nominal - fat) / spb2)) * spb2 - at;
+      for (const sw of sws.filter((w) => w.t >= info.inTime && w.t - info.inTime < s.nominal - 0.05)) {
+        const tr = knownTrack(sw.id);
+        if (!tr) continue;
+        const F = (t) => at + (t - info.inTime), prev = SEGS[SEGS.length - 1], B = sw.bridge;
+        // (on a crossing's bridge: the new track from its beat `nb` on the next beat, eased onto its tempo; the old one
+        // bent toward it from the crossing and faded over 0.75 s. Before phase 6, or a page without the bridge: the new
+        // track's bar 1 on the bar line, the old one faded over 1.2 s)
+        if (B) { prev.bend = { tA: F(B.tA), tB: F(B.tB), rA: B.rA }; prev.fade = 0.75; }
+        else prev.fade = 1.2;
+        const g = B ? { tr, at: F(B.tB), beat0: B.nb, ramp: { dur: B.tC - B.tB, rB: B.rB, beats: B.beats } } : { tr, at: F(sw.t), beat0: 0 };
+        SEGS.push(g);
+        const b1 = Math.max(Math.ceil(segBeat(g, g.at) + 1e-6), Math.round(segBeat(g, at + s.nominal)));
+        len = segTime(g, b1) - at;
       }
     }
     s.keep = Math.min(s.frames, Math.round((at + len) * Q.fps) - Math.round(at * Q.fps));
@@ -388,6 +414,64 @@ chrome?.kill();
 log(`rendered in ${renderS.toFixed(0)} s; lock holds: ${holds.map((h) => h.s.toFixed(0)).join(', ') || 'none'} s (longest ${Math.max(0, ...holds.map((h) => h.s)).toFixed(1)} s)`);
 if (opts['no-encode'] || opts['only-take'] != null) process.exit(0);
 
+// ---------------------------------------------------------------- the film's tracks, laid as the deck plays them
+/** a track's beat at film time T, its bend out (the next one's bridge) included: the rate from 1 at tA to rA at tB,
+ *  linear in time as the deck ramps it, then rA */
+function playedBeat(g, T) {
+  const D = g.bend;
+  if (!D || T <= D.tA) return segBeat(g, T);
+  const spb = 60 / g.tr.bpm, len = Math.max(1e-3, D.tB - D.tA), u = Math.min(T, D.tB) - D.tA;
+  return segBeat(g, D.tA) + (u + (0.5 * (D.rA - 1) * u * u) / len + Math.max(0, T - D.tB) * D.rA) / spb;
+}
+/** every track of the film into one stereo float WAV at 48 kHz, T s long: each read at its place (linear interpolation:
+ *  a bent rate shifts the pitch, as the deck's playbackRate does), round its loop (crossfaded 30 ms at the seam, as the
+ *  deck hands over), in with an equal-power fade (12 ms; 0.12 s on a bridge) and out over its `fade` */
+function layTracks(T, out) {
+  const SR = 48000, N = Math.ceil(T * SR) + 1, mix = new Float32Array(N * 2), pcm = new Map();
+  const load = (src) => {
+    if (!pcm.has(src)) {
+      const r = spawnSync(FFMPEG, ['-v', 'error', '-i', src, '-f', 'f32le', '-ac', '2', '-ar', String(SR), '-'], { maxBuffer: 1 << 30 });
+      if (r.status) fail(`couldn't read ${src}`);
+      const b = r.stdout;
+      pcm.set(src, new Float32Array(b.buffer.slice(b.byteOffset, b.byteOffset + b.length)));
+    }
+    return pcm.get(src);
+  };
+  SEGS.forEach((g, k) => {
+    const P = load(g.tr.source), frames = P.length / 2, spb = 60 / g.tr.bpm, next = SEGS[k + 1];
+    const b0 = g.tr.loop ? g.tr.loop.startBar * 4 : Infinity, b1 = g.tr.loop ? g.tr.loop.endBar * 4 : Infinity, L = b1 - b0, xf = 0.03 / spb;
+    const fin = k ? (g.ramp ? 0.12 : 0.012) : 0, tEnd = next ? next.at + (g.fade ?? 1.2) : T;
+    const read = (x, c) => {
+      const f = x * SR, i = Math.floor(f);
+      if (i < 0 || i + 1 >= frames) return 0;
+      const a = f - i;
+      return P[i * 2 + c] * (1 - a) + P[i * 2 + 2 + c] * a;
+    };
+    for (let i = Math.max(0, Math.floor(g.at * SR)); i < Math.min(N, Math.ceil(tEnd * SR)); i++) {
+      const t = i / SR;
+      let env = 1;
+      if (fin > 0 && t - g.at < fin) env *= Math.sin(((t - g.at) / fin) * Math.PI / 2);
+      if (next && t > next.at) env *= Math.cos(Math.min(1, (t - next.at) / (g.fade ?? 1.2)) * Math.PI / 2);
+      if (env <= 0) continue;
+      const b = playedBeat(g, t);
+      // (round the loop: past its end the place is that many loops back; just after a seam the file's own run past
+      // the loop's end fades out as its start fades in)
+      const n = b >= b1 ? Math.floor((b - b0) / L) : 0, bw = b - n * L;
+      const w = n > 0 && bw - b0 < xf ? (bw - b0) / xf : 1;
+      for (let c = 0; c < 2; c++) {
+        let v = read(g.tr.downbeat + bw * spb, c) * Math.sin(w * Math.PI / 2);
+        if (w < 1) v += read(g.tr.downbeat + (bw + L) * spb, c) * Math.cos(w * Math.PI / 2);
+        mix[i * 2 + c] += v * env;
+      }
+    }
+  });
+  const h = Buffer.alloc(44), bytes = mix.length * 4;
+  h.write('RIFF', 0); h.writeUInt32LE(36 + bytes, 4); h.write('WAVE', 8); h.write('fmt ', 12); h.writeUInt32LE(16, 16);
+  h.writeUInt16LE(3, 20); h.writeUInt16LE(2, 22); h.writeUInt32LE(SR, 24); h.writeUInt32LE(SR * 8, 28); h.writeUInt16LE(8, 32); h.writeUInt16LE(32, 34);
+  h.write('data', 36); h.writeUInt32LE(bytes, 40);
+  writeFileSync(out, Buffer.concat([h, Buffer.from(mix.buffer)]));
+}
+
 // ---------------------------------------------------------------- join and encode (no lock held)
 const ff = (args) => new Promise((ok, no) => spawn(FFMPEG, ['-y', '-hide_banner', '-loglevel', 'error', ...args], { stdio: 'inherit' }).on('close', (c) => (c ? no(new Error(`ffmpeg ${c}: ${args.join(' ')}`)) : ok())));
 const work = join(OUT, 'work', `${NAME}-${Q.label}`);
@@ -434,22 +518,18 @@ if (TRACK) {
   // output's 0.72: here the track is at its own level, so the scores are lifted by 1 / 0.72), then a limiter at -1 dB
   if (BEAT0 == null) fail('the first shot has no track beat in its info.json: render it again');
   const under = film.audio?.score ?? 1, gain = (film.audio?.gain ?? 1).toFixed(3);
-  // (each of the film's tracks from where it starts: the first from the track's beat BEAT0 at the film's first frame,
-  // a later one from its bar 1 on the switch's bar line, fading in over 12 ms; each before it fades out over 1.2 s)
-  const tparts = SEGS.map((g, k) => {
-    const n = ains.length / 2 + k, spb = 60 / g.tr.bpm, p0 = g.tr.downbeat + (k ? 0 : BEAT0) * spb;
-    const next = SEGS[k + 1];
-    const head = p0 >= 0 ? `atrim=start=${p0.toFixed(5)},asetpts=PTS-STARTPTS` : `adelay=${Math.round(-p0 * 1000)}:all=1`;
-    const tail = next ? `,afade=t=out:st=${(next.at - g.at).toFixed(4)}:d=1.2,atrim=duration=${(next.at - g.at + 1.2).toFixed(4)}` : '';
-    const inn = k ? `,afade=t=in:st=0:d=0.012,adelay=${Math.round(g.at * 1000)}:all=1` : '';
-    return `[${n}:a]${head},aformat=sample_rates=48000:channel_layouts=stereo${tail}${inn},volume=${gain}[tr${k}]`;
-  });
-  const trackPart = `${tparts.join(';')};${SEGS.length > 1 ? `${SEGS.map((_, k) => `[tr${k}]`).join('')}amix=inputs=${SEGS.length}:normalize=0:dropout_transition=0[tr]` : '[tr0]anull[tr]'}`;
+  // (each of the film's tracks from where it starts, laid here as the page's deck plays them: the first from the track's
+  // beat BEAT0 at the film's first frame; one that came in on a crossing's bridge from its beat there, bent and eased
+  // onto its tempo, the one before bent toward it and faded over 0.75 s; each round its loop as the deck goes round it)
+  const tracksWav = join(work, 'tracks.wav');
+  layTracks(T, tracksWav);
+  const n = ains.length / 2;
+  const trackPart = `[${n}:a]aformat=sample_rates=48000:channel_layouts=stereo,volume=${gain}[tr]`;
   const mixIn = parts.length ? `${parts.join(';')};${parts.map((_, n) => `[a${n}]`).join('')}amix=inputs=${parts.length}:normalize=0:dropout_transition=0,volume=${(under / 0.72).toFixed(4)}[sc];` : '';
   const graph = `${mixIn}${trackPart};${parts.length ? '[tr][sc]amix=inputs=2:normalize=0:dropout_transition=0,' : '[tr]'}alimiter=limit=0.891:level=false:latency=1,atrim=duration=${T.toFixed(4)}[a]`;
-  if (SEGS.length > 1) log(`the film's tracks: ${SEGS.map((g) => `${g.tr.id} from ${g.at.toFixed(3)} s`).join(', ')}`);
-  await ff([...ains, ...SEGS.flatMap((g) => ['-i', g.tr.source]), '-filter_complex', graph, '-map', '[a]', '-c:a', 'pcm_s16le', '-ar', '48000', score]);
-  if (TRACK.loop && TRACK.downbeat + (BEAT0 + T / SPB) * SPB > TRACK.loop.end) log(`(the film runs past the track's loop: the page's chords follow the loop, the file plays on)`);
+  if (SEGS.length > 1) log(`the film's tracks: ${SEGS.map((g) => `${g.tr.id} from ${g.at.toFixed(3)} s (its beat ${g.beat0.toFixed(2)}${g.ramp ? `, in at ${(g.ramp.rB * 100).toFixed(1)} % of its tempo, eased over ${g.ramp.dur.toFixed(2)} s` : ''}${g.bend ? `; bent to ${(g.bend.rA * 100).toFixed(1)} % from ${g.bend.tA.toFixed(3)} s` : ''})`).join(', ')}`);
+  await ff([...ains, '-i', tracksWav, '-filter_complex', graph, '-map', '[a]', '-c:a', 'pcm_s16le', '-ar', '48000', score]);
+  if (TRACK.loop && TRACK.downbeat + (BEAT0 + T / SPB) * SPB > TRACK.loop.end) log(`(the film runs past the track's loop: it goes round it, as the deck does)`);
 } else if (parts.length) await ff([...ains, '-filter_complex', `${parts.join(';')};${parts.map((_, n) => `[a${n}]`).join('')}amix=inputs=${parts.length}:normalize=0:dropout_transition=0,atrim=duration=${T.toFixed(4)}[a]`, '-map', '[a]', '-c:a', 'pcm_s16le', '-ar', '48000', score]);
 else await ff(['-f', 'lavfi', '-i', `anullsrc=r=48000:cl=stereo`, '-t', T.toFixed(3), score]);
 
