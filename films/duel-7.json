@@ -1,0 +1,60 @@
+{
+  "name": "duel-7",
+  "title": "The duel's phase 7 film (the fourth solarpunk pass, the worlds built): a newcomer's first seconds from the front page (scripts/newcomer-cap.mjs, laid before this: 'press any key to dance', the petal and 'you' over the body that will be theirs, one key, the dance's YOU tell, a walk to the Tide Temple's mirror and through it), then the contact dance in 3D as a player sees it (the duel's own camera, the HUD on, two virtual players, rose fire the player against fern water). The geode's leaded-glass screen behind the pair; one shot with no cut at the mirror to the Tide Temple, its light and motes breathing out of the glass, CURRENT, through the disc behind the pair into the temple at golden hour, the temple's track on the beat; the temple's ceramic columns and the sun-fountain pavilion; the Pool's ceramic columns and its moon gate; the redwoods at dusk, the tree-house and the canopy village lit, glowing lichen and fireflies; a fused finale in the temple, the camera looking up to the sky, the rose-and-fern bloom and the garland. Scored by the geode's track from bar 57, the temple's after the crossing (scripts/film.mjs lays them as the page's deck plays them); the last shot's page had crossed and come back before its in-point, so the film's music cuts to its place in the temple's track on its cut.",
+  "audio": { "track": "geode", "from": 57 },
+  "size": "1280x720",
+  "fps": 60,
+  "fadeIn": 0.3,
+  "fadeOut": 1.4,
+  "defaults": { "mode": "duel", "from": "start", "hud": true, "query": { "keys": "left,right", "mirrors": 1 }, "set": { "redwoods": { "hour": 19.2, "dayGoes": false } } },
+  "shots": [
+    {
+      "id": "geode-screen",
+      "note": "the geode's greenhouse, the leaded-glass screen's three arched panels (the sun flower, the lilies) behind the pair at the back of the room; FLARE, swings (seed 2, the geode's track)",
+      "world": "geode",
+      "cast": [{ "dress": "fire", "style": "lead", "skill": 0.85 }, { "dress": "water", "style": "flyer", "skill": 0.85 }],
+      "seed": 2, "preroll": 16.6, "beats": 5,
+      "cues": [{ "at": -9, "js": "bend.duel.you.seats = [0]" }]
+    },
+    {
+      "id": "flow",
+      "note": "the same set, no cut: the pair dancing at the mirror to the Tide Temple, its light and motes breathing out of the glass; CURRENT x36 and through it (meant: a voyage), the camera round onto the disc's axis and through behind them, the temple's track on the next beat; out on the temple's tiles at golden hour",
+      "world": "geode",
+      "cast": [{ "dress": "fire", "style": "lead", "skill": 0.85 }, { "dress": "water", "style": "flyer", "skill": 0.85 }],
+      "seed": 2, "preroll": 31.0, "beats": 14,
+      "cues": [{ "at": -9, "js": "bend.duel.you.seats = [0]" }]
+    },
+    {
+      "id": "temple",
+      "note": "the Tide Temple at high tide, golden hour (a set begun there, seed 1, on the temple's track): white ceramic columns on teal majolica with the green whiplash, planted tops, the sun-fountain pavilion's dome at the court's back, WHIP, CURRENT x36",
+      "world": "temple",
+      "cast": [{ "dress": "fire", "style": "lead", "skill": 0.85 }, { "dress": "water", "style": "flyer", "skill": 0.85 }],
+      "seed": 1, "preroll": 13.8, "beats": 5,
+      "cues": [{ "at": -9, "js": "bend.duel.you.seats = [0]" }]
+    },
+    {
+      "id": "pool",
+      "note": "the Still Pool (seed 3, a set that never crossed): its ceramic columns with the vine, planted blocks, and the moon gate's stained-glass rose (a gold sun in coral lotus petals) behind the pair",
+      "world": "pool",
+      "cast": [{ "dress": "fire", "style": "lead", "skill": 0.85 }, { "dress": "water", "style": "flyer", "skill": 0.85 }],
+      "seed": 3, "preroll": 48.0, "beats": 5,
+      "cues": [{ "at": -9, "js": "bend.duel.you.seats = [0]" }]
+    },
+    {
+      "id": "redwoods",
+      "note": "the redwoods at dusk (19.2 h; seed 10): the canopy village's houses lit amber among the trunks, lanterns, glowing lichen and flowers, fireflies; AIR CATCH, SWING, PERFECT",
+      "world": "redwoods",
+      "cast": [{ "dress": "fire", "style": "lead", "skill": 0.85 }, { "dress": "water", "style": "flyer", "skill": 0.85 }],
+      "seed": 10, "preroll": 13.6, "beats": 5,
+      "cues": [{ "at": -9, "js": "bend.duel.you.seats = [0]" }]
+    },
+    {
+      "id": "finale",
+      "note": "a fused finale in the temple (seed 10: a set that went to the Pool and came back): MERGE, FINALE, the lift, the camera looking up 8 degrees to the sky (camera.ts CamInput.sky), the bloom in rose and fern with the sun's beams behind it; the garland, P2 FLYER TAKES THE SET",
+      "world": "temple",
+      "cast": [{ "dress": "fire", "style": "lead", "skill": 0.85 }, { "dress": "water", "style": "flyer", "skill": 0.85 }],
+      "seed": 10, "preroll": 62.6, "beats": 9,
+      "cues": [{ "at": -9, "js": "bend.duel.you.seats = [0]" }]
+    }
+  ]
+}
