@@ -100,6 +100,8 @@ export const CLIENT = {
   /** at most this many ticks the server stepped without an input of this seat's are stepped again here (more: a stall,
    *  the server's state taken as it is) */
   REP_MAX: 6,
+  /** at most this many ticks without input found between two acks are stepped again (more: a stall, corrected) */
+  GAP_MAX: 15,
 };
 
 /** a tick's events as the page plays them (`local`: this page's own catch, felt before the server says so) */
@@ -161,6 +163,8 @@ export class DuelClient {
   /** ticks the server stepped past the last ack without an input (the snapshot's `r`), and that ack's prediction */
   private ackRep = 0;
   private ackHist: Hist | null = null;
+  /** the body as the server had it at the last ack's snapshot (the start of a gap: regap) */
+  private base: Hist | null = null;
   /** the tick of the snapshot that told the link, and the last tick the server's events ended one */
   private linkAt = -1;
   private linkEnd = -1;
@@ -233,6 +237,8 @@ export class DuelClient {
      *  wave): not this page's to predict */
     errAfter: [] as number[],
     corrections: 0, cuts: 0, replayed: 0,
+    /** the times ticks without input between two acks were stepped again (regap) */
+    regaps: 0,
     /** crossings: this seat's predicted (and how many the server then made too), brought along by the other's (heard
      *  from the server), predictions put back (the server didn't cross), changes of the shown world and those that went
      *  straight back within 1.5 s (a flip-flop), and the prediction's error at the acks within a second of a crossing */
@@ -349,6 +355,7 @@ export class DuelClient {
 
   /** one tick of this seat's body, as the server will step it (`at`: the server time it will be stepped at) */
   private predict(x: DuelInput, at: number, h: Hist | null, rep?: { n: number; T: number }): Hist {
+    // (`rep`: stepped on tick rep.T; rep.n > 0, the server's n-th tick in a row without a new input, repeating x)
     // (the server tick this input will be stepped on: the last ack's tick and the inputs since. Its time is the beat the
     // server steps it on: the estimate from the queue (`at`) ran two ticks early, report 22)
     const T = rep ? rep.T : this.ack >= 0 ? this.ackTick + (x.seq - this.ack) : this.serverTick();
@@ -356,7 +363,7 @@ export class DuelClient {
     const c = this.pred!, k = this.seat!, beat = this.beat(at), bpm = this.music.bpm;
     // (a tick the server stepped with no input of this seat's to take: the last repeated without its presses, and past
     // DUEL_NET.STILL_TICKS none, as duel-authority.ts `take` does)
-    let it = rep ? (rep.n > DUEL_NET.STILL_TICKS ? makeIntent() : intentOf(x, false)) : intentOf(x, true);
+    let it = rep?.n ? (rep.n > DUEL_NET.STILL_TICKS ? makeIntent() : intentOf(x, false)) : intentOf(x, true);
     const frozen = this.frozenAt(T);
     if (frozen) it = makeIntent();
     // (only the server's link: a catch felt here and not yet confirmed changes nothing of the body, so a denied one
@@ -403,7 +410,7 @@ export class DuelClient {
     const rec: Hist = h ?? { x, save: {}, root: [0, 0, 0], v: [0, 0, 0], at, grounded: false, world: '', judge: this.cross.save() };
     rec.save = saveChar(c); rec.root = [c.root[0], c.root[1], c.root[2]]; rec.v = [c.v[0], c.v[1], c.v[2]]; rec.grounded = c.grounded;
     rec.world = this.predWorld; rec.judge = this.cross.save();
-    if (!h && !rep) this.hist.set(x.seq, rec);
+    if (!h && !rep?.n) this.hist.set(x.seq, rec);
     return rec;
   }
 
@@ -694,15 +701,20 @@ export class DuelClient {
     // (the same input again, with more ticks the server stepped without one since: put right again from there)
     const again = ack === this.ack && rep > this.ackRep && !!this.ackHist;
     if (ack < this.ack || (ack === this.ack && !again)) return;
-    this.ack = ack; this.ackTick = sTick; this.ackRep = rep;
+    // (ticks the server stepped without an input between the last ack and this one, beyond those it told of then: the
+    // queue ran dry after the last and the inputs since came late. Those ticks came right after the last, and the
+    // inputs since were stepped that much later: they are stepped again so, from the server's state then)
     const c = this.pred!;
+    const wasWorld = this.predWorld, Mb = this.move(wasWorld, Ws);
+    const before: V3 = Mb ? Mb.pt(c.root) : [c.root[0], c.root[1], c.root[2]];
+    const gap = again || !this.base || this.ack < 0 ? 0 : (sTick - rep) - (this.ackTick - this.ackRep) - (ack - this.ack) - this.ackRep;
+    if (gap > 0) this.regap(gap, ack, Ws);
+    this.ack = ack; this.ackTick = sTick; this.ackRep = rep;
     const wasFollow = this.follow;
     this.follow = !!(B.flags & (DUEL_FLAG.CARRIED | DUEL_FLAG.HELD | DUEL_FLAG.HOLDING));
     const h0 = again ? this.ackHist : this.hist.get(ack);
     for (const s of [...this.hist.keys()]) if (s < ack) this.hist.delete(s);
     this.ackHist = h0 ?? null;
-    const wasWorld = this.predWorld, Mb = this.move(wasWorld, Ws);
-    const before: V3 = Mb ? Mb.pt(c.root) : [c.root[0], c.root[1], c.root[2]];
     // (the server ran out of this seat's inputs after it applied `ack` and stepped `rep` ticks more without one: the
     // prediction for `ack` stepped those ticks too, as the server did, before it is compared. Its inputs since will be
     // stepped that much later, which the ack's tick (the snapshot's) already says)
@@ -715,6 +727,7 @@ export class DuelClient {
       if (K) setKit(c, K); else { c.root = [...B.root]; c.v = [...B.v]; }
       this.setPredWorld(Ws); this.cross.forget();
       this.hist.delete(ack);
+      this.base = null;
       return;
     }
     // (in another world than predicted: compared where the gate puts it)
@@ -747,7 +760,7 @@ export class DuelClient {
     this.hist.delete(ack);
     const otherWorld = h.world !== Ws;
     // (after the repeats the body stands as they left it, not as predicted: put back and stepped again in any case)
-    if (rep === 0 && e <= CLIENT.EPS && ev <= CLIENT.EPS_V && !kitOff && !this.follow && !otherWorld) return;
+    if (rep === 0 && gap <= 0 && e <= CLIENT.EPS && ev <= CLIENT.EPS_V && !kitOff && !this.follow && !otherWorld) { this.base = h; return; }
     // corrected: back to the server's state at that input, the inputs since stepped again (in the server's world)
     // (a state saved in another world carried into the server's first: its pose, its move under way, its walls)
     loadChar(c, otherWorld && Mh ? this.carried(h.save, Mh) : h.save);
@@ -764,6 +777,8 @@ export class DuelClient {
       const X = this.xs[this.xs.length - 1];
       if (X && X.to === Ws) this.cross.after({ partner: X.partner, held: X.held });
     }
+    // (the server's state at the ack, the start of the next gap if there is one)
+    this.base = { x: h.x, save: saveChar(c), root: [c.root[0], c.root[1], c.root[2]], v: [c.v[0], c.v[1], c.v[2]], at: 0, grounded: c.grounded, world: this.predWorld, judge: this.cross.save() };
     this.replaying = true;
     const later = [...this.hist.values()].sort((a, b) => a.x.seq - b.x.seq);
     for (const r of later) this.predict(r.x, r.at, r);
@@ -774,6 +789,24 @@ export class DuelClient {
     const d: V3 = [before[0] - c.root[0], before[1] - c.root[1], before[2] - c.root[2]];
     if (Math.hypot(d[0], d[1], d[2]) > CLIENT.CUT) { this.offset = [0, 0, 0]; this.stats.cuts++; }
     else for (let a = 0; a < 3; a++) this.offset[a] += d[a];
+  }
+
+  /** `gap` ticks the server stepped without an input after the last ack (this.ack, its state `base`), before the inputs up
+   *  to `ack`: the predictions for those inputs stepped again from the base, the repeats first, each on its own tick */
+  private regap(gap: number, ack: number, Ws: string) {
+    const B = this.base!, c = this.pred!, list: Hist[] = [];
+    for (let q = this.ack + 1; q <= ack; q++) { const r = this.hist.get(q); if (!r || r.world !== Ws) return; list.push(r); }
+    if (gap > CLIENT.GAP_MAX || B.world !== Ws) return;
+    loadChar(c, B.save);
+    c.root = [...B.root]; c.v = [...B.v];
+    this.cross.load(B.judge);
+    this.setPredWorld(B.world);
+    this.replaying = true;
+    const t0 = this.ackTick;
+    for (let i = 1; i <= gap; i++) this.predict(B.x, 0, null, { n: this.ackRep + i, T: t0 + i });
+    for (const r of list) this.predict(r.x, 0, r, { n: 0, T: t0 + gap + (r.x.seq - this.ack) });
+    this.replaying = false;
+    this.stats.regaps++;
   }
 
   /** the prediction for input `h` carried on by `n` ticks the server stepped without a new input (ending at tick
@@ -864,7 +897,7 @@ export class DuelClient {
       inKBs: +(this.stats.bytesIn / 1024 / s).toFixed(2), outKBs: +(this.stats.bytesOut / 1024 / s).toFixed(2), devKBs: +(this.stats.devBytes / 1024 / s).toFixed(2),
       errAfter: { n: this.stats.errAfter.length, maxMm: +(1000 * Math.max(0, ...this.stats.errAfter)).toFixed(0) },
       err: { n: e.length, rmsMm: +(1000 * Math.sqrt(e.reduce((a, b) => a + b * b, 0) / Math.max(1, e.length))).toFixed(1), p50Mm: +(1000 * q(0.5)).toFixed(1), p95Mm: +(1000 * q(0.95)).toFixed(1), maxMm: +(1000 * (e[e.length - 1] ?? 0)).toFixed(1) },
-      corrections: this.stats.corrections, perSecond: +(this.stats.corrections / s).toFixed(2), cuts: this.stats.cuts, replayed: this.stats.replayed,
+      corrections: this.stats.corrections, perSecond: +(this.stats.corrections / s).toFixed(2), cuts: this.stats.cuts, replayed: this.stats.replayed, regaps: this.stats.regaps,
       catches: { felt: this.stats.caught, confirmed: this.stats.confirmed, mutual: this.stats.mutual, denied: this.stats.denied },
       crossings: (() => {
         const x = [...this.stats.errX].sort((a, b) => a - b), qx = (p: number) => x[Math.min(x.length - 1, Math.floor(p * x.length))] ?? 0;
@@ -881,7 +914,7 @@ export class DuelClient {
   resetStats() {
     const S = this.stats;
     this.worst = [];
-    Object.assign(S, { snaps: 0, bytesIn: 0, bytesOut: 0, devBytes: 0, ticks: 0, err: [], errAfter: [], corrections: 0, cuts: 0, replayed: 0, caught: 0, confirmed: 0, denied: 0, mutual: 0, followTicks: 0, crossPred: 0, crossOk: 0, crossBrought: 0, crossBack: 0, shown: 0, flips: 0, errX: [], since: performance.now() });
+    Object.assign(S, { snaps: 0, bytesIn: 0, bytesOut: 0, devBytes: 0, ticks: 0, err: [], errAfter: [], corrections: 0, cuts: 0, replayed: 0, caught: 0, confirmed: 0, denied: 0, mutual: 0, followTicks: 0, regaps: 0, crossPred: 0, crossOk: 0, crossBrought: 0, crossBack: 0, shown: 0, flips: 0, errX: [], since: performance.now() });
   }
 }
 

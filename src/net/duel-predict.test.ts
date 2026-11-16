@@ -6,7 +6,8 @@
 //   - a flung body's flight (Character.flightT, set by the contact at the server only) in the kit
 //   - the beat, the other's place (lookAt) and the frozen count-in or reform, on the tick the server steps the input
 //   - a hold the holder lets go of ends on that tick
-//   - ticks the server stepped without an input (a page that stalled) stepped again here
+//   - ticks the server stepped without an input (a page that stalled) stepped again here, those it told of at a snapshot
+//     (`r`) and those found between two acks (regap)
 import { test, assert, done } from '../dancer/test/check';
 import { DuelAuthority, duelWorld } from './duel-authority';
 import { DuelClient } from './duel-client';
@@ -86,11 +87,11 @@ test('virtual players at 80 ms round trip, seed 31: the same (p95 under 20 mm)',
   for (const r of reports) assert(r.err.n > 50 && r.err.p95Mm < 20, `page ${r.seat}: ${line(r)}`);
   return reports.map((r) => `page ${r.seat} ${line(r)}`).join('; ');
 });
-test('a page that stalls 12 frames every 3 s: the ticks the server stepped without its inputs are stepped again (p95 under 20 mm)', () => {
+test('a page that stalls 12 frames every 3 s: the ticks the server stepped without its inputs are stepped again (p95 under 20 mm, max under 150)', () => {
   const { A, reports } = play(61, 0, 18, 12);
   const starved = A.stats().seats[0].starved;
   assert(starved > 30, `the server starved seat 1 (${starved} ticks)`);
-  for (const r of reports) assert(r.err.n > 50 && r.err.p95Mm < 20, `page ${r.seat}: ${line(r)}`);
+  for (const r of reports) assert(r.err.n > 50 && r.err.p95Mm < 20 && r.err.maxMm < 150, `page ${r.seat}: ${line(r)}`);
   return `${starved} ticks starved; ` + reports.map((r) => `page ${r.seat} ${line(r)}`).join('; ');
 });
 
