@@ -6,6 +6,7 @@
 import { mulberry32 } from 'math/random';
 import type { GeodeDuel } from './arena';
 import { HUB_GATES } from './gates';
+import type { Screen } from './screen';
 
 type V3 = [number, number, number];
 
@@ -27,7 +28,7 @@ export interface GeodeGarden {
 }
 
 /** `open(x, z)`: whether the duel's floor is there (not one of its drops) */
-export function layoutGeodeGarden(duel: GeodeDuel['decor'], wallR: number, coarse: boolean, open: (x: number, z: number) => boolean = () => true): GeodeGarden {
+export function layoutGeodeGarden(duel: GeodeDuel['decor'], wallR: number, coarse: boolean, open: (x: number, z: number) => boolean = () => true, screen?: Screen): GeodeGarden {
   const rng = mulberry32.create(97);
   const r = () => mulberry32.sample(rng);
   const plants: number[] = [], pots: number[] = [];
@@ -75,7 +76,10 @@ export function layoutGeodeGarden(duel: GeodeDuel['decor'], wallR: number, coars
   const ringR = wallR - 1.2;
   for (let k = 0; k <= GW_N; k++) {
     const s = (k - GW_N / 2) * GW_BAY, b = GW_MID + s / ringR;
-    potAt(b, ringR, 0.42 + 0.06 * r(), 0.62 + 0.1 * r());
+    // (phase 7: none behind the glass screen, screen.ts; the dice thrown all the same, so the rest stay as they were)
+    const R = 0.42 + 0.06 * r(), H = 0.62 + 0.1 * r();
+    if (screen && b > screen.span[0] && b < screen.span[1]) continue;
+    potAt(b, ringR, R, H);
   }
   // the hanging gardens (phase 6): planters hung round the room's edge over the water channel, outside the duel's
   // space, each on a vine-wrapped chain from the vault, ferns over its rim and long vines trailing from it; clear of the
@@ -98,6 +102,19 @@ export function layoutGeodeGarden(duel: GeodeDuel['decor'], wallR: number, coars
     // its chain: a vine from the vault down to its rim (the vault's height there: the wall's ellipsoid)
     const vy = wallR * 1.45 * Math.sqrt(Math.max(0, 1 - (rr / wallR) ** 2));
     vine([at[0], vy, at[2]], Math.max(0.5, vy - y - H));
+  }
+  // the glass screen's troughs (phase 7, screen.ts): ferns along each, flowers between them, a broad leaf at the ends
+  // and vines over the front lip; laid with their own dice, after the rest, so nothing laid before moves
+  if (screen) {
+    const rs = mulberry32.create(131), q = () => mulberry32.sample(rs);
+    for (const t of screen.troughs) {
+      const along: V3 = [Math.cos(t.yaw), 0, -Math.sin(t.yaw)], fwd: V3 = [Math.sin(t.yaw), 0, Math.cos(t.yaw)];
+      const at = (u: number, v: number): V3 => [t.top[0] + along[0] * u + fwd[0] * v, t.top[1], t.top[2] + along[2] * u + fwd[2] * v];
+      for (const u of [-0.32, 0.32]) fern(at(u * t.len, 0.1), 0.55 + 0.15 * q(), coarse ? 4 : 7);
+      flowers(at(0, 0.12), 0.18, coarse ? 2 : 4, Math.floor(q() * 4), 0.4);
+      leaves(at(-0.45 * t.len, 0.05), 0.45, 2);
+      for (let k = 0; k < 3; k++) vine(at((q() - 0.5) * t.len, t.depth / 2 + 0.01), 0.2 + 0.25 * q());
+    }
   }
   const hubPlants = plants.length / PLANT_FLOATS;
 
@@ -136,6 +153,15 @@ export function layoutGeodeGarden(duel: GeodeDuel['decor'], wallR: number, coars
       if (r() < 0.5) fern(at, 0.35 + 0.15 * r(), coarse ? 3 : 5);
       else flowers(at, 0.18, 2, Math.floor(r() * 4), 0.25);
     }
+  }
+  // (phase 7, report 24: the beams' tops planted, a clump of ferns and a few flowers on each wide enough to hold them;
+  // with their own dice, after the rest, so nothing laid before moves)
+  const rb = mulberry32.create(173), qb = () => mulberry32.sample(rb);
+  for (const b of duel.beams) {
+    if (b.w < 0.7) continue;
+    const at: V3 = [b.x + (qb() - 0.5) * 0.2, b.top, b.z + (qb() - 0.5) * 0.2];
+    fern(at, 0.42 + 0.12 * qb(), coarse ? 4 : 6);
+    if (qb() < 0.7) flowers(at, 0.22, coarse ? 2 : 3, Math.floor(qb() * 4), 0.28);
   }
   return { plants: new Float32Array(plants), pots: new Float32Array(pots), hubPlants, potCount: pots.length / POT_FLOATS };
 }

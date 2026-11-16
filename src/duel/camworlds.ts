@@ -4,7 +4,8 @@
 import { nodeArena } from './sim';
 import { inDrop, type Arena } from './arena';
 import type { WorldLike } from './fallback';
-import { layoutWoods, solidsOfWoods } from '../worlds/redwoods/layout';
+import { layoutWoods, solidsOfWoods, RING } from '../worlds/redwoods/layout';
+import { layoutCanopy, TURN_FLOATS } from '../worlds/redwoods/canopy';
 import { HANG, HANG_FLOATS, layoutGarden } from '../worlds/redwoods/garden';
 import { layoutStage, liftLanterns, solidsOfStage } from '../worlds/redwoods/stage';
 import { redwoodsDuel } from '../worlds/redwoods/arena';
@@ -80,7 +81,20 @@ export function landmarksOf(id: string): { name: string; pts: P3[] }[] {
       const a: P3 = [G.data[o], G.data[o + 1], G.data[o + 2]], b: P3 = [G.data[o + 12], G.data[o + 13], G.data[o + 14]], sag = G.data[o + 15];
       for (const t of [0.25, 0.5, 0.75]) pts.push([a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t - 4 * sag * t * (1 - t) - 0.2, a[2] + (b[2] - a[2]) * t]);
     }
-    return [{ name: 'bunting', pts }, edge];
+    // (phase 7, report 24-dusk-built: the canopy village round the ring, canopy.ts: each house's wall at its windows and
+    // each ring deck's two ends, the parts of a deck that show from the clearing; and the tree-house at the clearing's
+    // edge, the hero piece, at its porch)
+    const C = layoutCanopy(woods.logs, woods.near + woods.far, RING, () => true, false), village: P3[] = [];
+    for (let i = 0; i < C.firstLantern; i++) {
+      const o = i * TURN_FLOATS, x = C.turns[o], y = C.turns[o + 1], z = C.turns[o + 2], k = Math.round(C.turns[o + 7]);
+      if (Math.hypot(x - c[0], z - c[2]) > R + 6) continue;
+      if (k === 2) village.push([x, y + 1.2, z]);
+      else if (k === 0 && C.turns[o + 5] > 0) {
+        const away = Math.atan2(z, x), r1 = C.turns[o + 4];
+        for (const s of [-1, 1]) village.push([x + Math.cos(away + s * 1.6) * r1, y + 0.5, z + Math.sin(away + s * 1.6) * r1]);
+      }
+    }
+    return [{ name: 'bunting', pts }, { name: 'village', pts: village }, edge];
   }
   if (id === 'pool') return [{ name: 'shore sky', pts: far(1.6) }, edge];
   return [edge];

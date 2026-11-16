@@ -336,5 +336,14 @@ fn light(o: ptr<function, FOut>, albedo: vec3f, wp: vec3f, n: vec3f, ao: f32) {
   var c = col + key * (diff + through) + worldLight.forest.keyCol.rgb * worldLight.forest.key.w * sheen * length(key) * 0.5;
   // (and glow, opened, as the answer's light passes: report 20)
   c *= 1.0 + 1.8 * answerGlow(1u, i.wp) * select(0.0, 1.0, i.part >= 2u);
+  // after dusk the small flowers glow (phase 7, report 24-dusk-built: the woods' bioluminescence in the meadow, where
+  // the duel's camera looks): the forget-me-nots sky blue, the sorrel and the starflowers a pale mint, from their petals
+  // and eyes, each breathing in its own time, so the meadow under the pair is a field of soft points of light
+  let dusk = worldLight.forest.horizon.w;
+  if (dusk > 0.01 && (i.part == 2u || i.part == 3u) && (i.kind == 0u || i.kind == 2u || i.kind >= 6u)) {
+    let breathe = 0.6 + 0.4 * sin(worldLight.forest.clock.x * (0.6 + 0.3 * fract(i.wp.x * 7.3)) + i.wp.x * 3.1 + i.wp.z * 2.3);
+    let glowC = select(vec3f(0.55, 1.0, 0.82), vec3f(0.4, 0.75, 1.0), i.kind == 2u);
+    c += glowC * dusk * breathe * select(0.9, 1.4, i.part == 3u);
+  }
   return vec4f(c, dot(i.wp - frame.camPos, frame.camFwd));
 }

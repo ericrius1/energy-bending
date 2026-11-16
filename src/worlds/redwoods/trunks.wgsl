@@ -332,6 +332,21 @@ fn bark(i: VOut) -> vec4f {
     let lowGlow = smoothstep(2.2, 0.0, y) * (1.0 - i.limb * (1.0 - i.stageP));
     let breathe = 0.6 + 0.4 * sin(worldLight.forest.clock.x * 0.7 + i.seed * 40.0 + i.wp.x * 1.3);
     col += vec3f(0.25, 1.0, 0.6) * pts * (0.25 + lowGlow) * dusk * breathe * 0.35;
+    // (phase 7, report 24-dusk-built) the play pieces glow most: the moss on a bough's or a log's back lit softly
+    // through its cushions, and on their flanks rosettes of glowing lichen, a pale ring round a brighter heart, so at
+    // dusk what a body can stand on reads by its own light and the meadow's pieces are the woods' lanterns
+    if (i.stageP > 0.5) {
+      let cush = smoothstep(0.5, 0.8, vnoise(i.wp * 3.1) * 0.6 + vnoise(i.wp * 11.0) * 0.4);
+      let up = smoothstep(0.35, 0.85, N0.y);
+      col += vec3f(0.22, 0.95, 0.62) * up * cush * dusk * breathe * 0.16;
+      let cell = floor(i.wp * 3.0);
+      let h = hash3(cell + vec3f(i.seed * 13.0));
+      let ctr = cell + vec3f(0.5) + (vec3f(hash3(cell + 1.7), hash3(cell + 3.1), hash3(cell + 5.3)) - 0.5) * 0.5;
+      let d = length((i.wp * 3.0 - ctr) - N0 * dot(i.wp * 3.0 - ctr, N0)) / 3.0;
+      let rr = 0.03 + 0.035 * hash3(cell + 9.1);
+      let ros = step(0.86, h) * smoothstep(0.45, 0.7, vnoise(i.wp * 1.7 + vec3f(4.0))) * (smoothstep(rr, rr * 0.7, d) * 0.35 + smoothstep(rr * 0.35, 0.0, d)) * (1.0 - up * 0.7);
+      col += mix(vec3f(0.35, 0.95, 0.85), vec3f(0.6, 1.0, 0.7), hash3(cell + 2.2)) * ros * dusk * breathe * 0.5;
+    }
   }
   // high up, the trunk goes into the dark of the canopy
   col *= mix(1.0, 0.18, smoothstep(worldLight.forest.keyCol.w * 0.45, worldLight.forest.keyCol.w * 0.9, y));
