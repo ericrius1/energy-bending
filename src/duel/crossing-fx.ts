@@ -151,10 +151,18 @@ export class Glimpses {
       const breathe = 0.85 + 0.15 * Math.sin(this.t * 1.3 + at[0]);
       for (const [o, r, k] of [[1.1, 1.5, 0.5], [2.6, 2.6, 0.22]] as const) {
         const p = W([0, 0, o]), g = this.ground(p[0], p[2]);
-        glows.flat([p[0], g + 0.03, p[2]], r, col, k * I * breathe, 'soft');
+        // (on the floor, or on the water over it where the door stands in water: the disc's foot)
+        glows.flat([p[0], Math.max(g, at[1] - 1.35) + 0.03, p[2]], r, col, k * I * breathe, 'soft');
       }
       // a soft halo in the air just out of the glass, the far world's light in this one's air
       glows.dot(W([0, 0, 0.5]), D.r * 1.1, col, 0.1 * I * breathe);
+      // a soft shaft of its light rising over the door, seen from across the arena (where the next world is, before its
+      // glass is in reach), fading upward
+      const top = W([0, D.r + 0.6, 0.3]);
+      for (let j = 0; j < 4; j++) {
+        const a: V3 = [top[0], top[1] + j * 1.4, top[2]], b: V3 = [top[0], top[1] + (j + 1) * 1.4, top[2]];
+        glows.seg(a, b, 0.32 + 0.12 * j, col, 0.16 * I * breathe * (1 - j / 4.5) * near(a));
+      }
       // the far world's air drifting out
       let ms = this.motes.get(D.id);
       if (!ms) { ms = []; this.motes.set(D.id, ms); }
@@ -175,13 +183,15 @@ export class Glimpses {
         const g = this.ground(p[0], p[2]);
         if (p[1] < g + 0.08) p[1] = g + 0.08;
         const blink = B.blink ? 1 - B.blink * (0.5 + 0.5 * Math.sin(this.t * (2 + 3 * rnd(s + 5)) + s * 3)) : 1;
+        // (a mote stays a few pixels across however far off: bigger with the eye's distance)
+        const far = eye ? Math.max(1, Math.hypot(p[0] - eye[0], p[1] - eye[1], p[2] - eye[2]) / 6) : 1;
         const k = smooth(u / 0.12) * (1 - smooth((u - 0.7) / 0.3)) * blink * near(p) * I;
         if (k < 0.01) continue;
         const c = B.cols[Math.floor(rnd(s + 6) * B.cols.length)];
         if (B.petal && rnd(s + 7) < 0.6) {
           const ang = this.t * (1 + 2 * rnd(s + 8)) + s, L = B.size * 2.2;
-          glows.petal(p, [p[0] + Math.cos(ang) * L, p[1] + Math.sin(ang) * L, p[2] + Math.sin(ang * 0.7) * L * 0.5], B.size, c, 0.8 * k);
-        } else glows.dot(p, B.size * (B.shape === 'spark' ? 1 : 1.4), c, 1.3 * k, B.shape);
+          glows.petal(p, [p[0] + Math.cos(ang) * L * far, p[1] + Math.sin(ang) * L * far, p[2] + Math.sin(ang * 0.7) * L * far * 0.5], B.size * far, c, 0.8 * k);
+        } else glows.dot(p, B.size * far * (B.shape === 'spark' ? 1 : 1.4), c, 1.3 * k, B.shape);
       }
     }
     // (doors no longer here: their motes go)
