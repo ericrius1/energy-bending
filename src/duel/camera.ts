@@ -117,12 +117,25 @@ export interface CamInput {
   sky?: number;
 }
 
+/** what a mirror's ring standing in the frame costs (at its biggest: a quarter of the frame's height or more) */
+export const DISC_IN_FRAME = 0.9;
+
 /** what a mirror costs an eye (DuelCamera's choice): standing inside its frame or near its middle, just behind it beside
  *  the disc, and the pair seen through it (`mid`: the pair's middle) */
-export function discCost(eye: V3, mid: V3, discs: readonly { at: V3; n: V3; r: number }[] | undefined) {
+export function discCost(eye: V3, mid: V3, discs: readonly { at: V3; n: V3; r: number }[] | undefined, lens?: { back: V3; fov: number; aspect: number }) {
   if (!discs) return 0;
   let s = 0;
   for (const d of discs) {
+    // (phase 7, report 24: its ring in the frame at all, by how big it stands there; the flowing world, not a corridor of
+    // doors. A little: the pair comes first)
+    if (lens) {
+      const vx = d.at[0] - eye[0], vy = d.at[1] - eye[1], vz = d.at[2] - eye[2], dist = Math.hypot(vx, vy, vz);
+      const ahead = -(vx * lens.back[0] + vy * lens.back[1] + vz * lens.back[2]);
+      if (ahead > 0.3 && dist < 16) {
+        const half = Math.tan((lens.fov * Math.PI) / 360) * 1.15, off = Math.sqrt(Math.max(0, dist * dist - ahead * ahead)) / ahead;
+        if (off < half * Math.max(1, lens.aspect)) s += DISC_IN_FRAME * Math.min(1, (d.r + 0.4) / dist / 0.25) * (1 - smooth01((off / half - 0.6) / 0.6));
+      }
+    }
     const rx = eye[0] - d.at[0], ry = eye[1] - d.at[1], rz = eye[2] - d.at[2], z = rx * d.n[0] + ry * d.n[1] + rz * d.n[2];
     const lat = Math.hypot(rx - d.n[0] * z, ry - d.n[1] * z, rz - d.n[2] * z), R = d.r + 0.5;
     // (in or right by its frame: the brass and glass fill the lens)
@@ -678,7 +691,7 @@ export class DuelCamera {
         s += P.skyCost * sky * (hit / 3);
       }
       // (the mirrors: never inside one's frame, beside its back, or seeing the pair through it)
-      if (I.discs) s += discCost(f.eye, mid, I.discs);
+      if (I.discs) s += discCost(f.eye, mid, I.discs, { back: axes(yaw, pitch).back, fov: f.fov, aspect: I.aspect });
       // side on (with the turn toward behind seat 1) unless the pair is on top of each other; the lower view; the
       // lens unwidened; little turn from what it is heading for; the other side only for a real gain
       const ideal = base + behindBy * Math.sign(wrap(behind - base));

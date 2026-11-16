@@ -22,7 +22,8 @@ import { DuelHud, type HudSeat } from './hud-state';
 import type { Solid } from '../worlds/solids';
 import { DuelPowers, noPower, type PowerInput } from './powers';
 import { DuelHazards } from './hazards';
-import { CrossJudge, crossPair, nodeWorld, type DuelCross } from './crossing';
+import { CrossJudge, crossPair, nodeWorld, duelDoors, type DuelCross } from './crossing';
+import { Voyage, type Disc } from './voyage';
 
 export interface DuelSimOptions {
   arena: Arena;
@@ -51,6 +52,8 @@ export interface DuelSimOptions {
    *  along, the set going on in the new world's arena with its solids and hazard (default off: the measures stay in one
    *  world; on, `crossings` counts them) */
   mirrors?: boolean;
+  /** with the mirrors: the pair's voyages, as the page runs them (voyage.ts), seeded (default 5, the page's) */
+  voyageSeed?: number;
   each?: (f: { t: number; beat: number; match: DuelMatch; powers: DuelPowers | null; bodies: readonly Character[]; intents: Intent[]; events: DuelEvent[] }) => void;
 }
 
@@ -91,7 +94,7 @@ export interface DuelSimResult {
   /** the hazards: each one's rides (how many, seconds), seconds the bodies spent in water; null: none */
   hazards: { rides: Record<string, { n: number; s: number }>; waterS: number } | null;
   /** the crossings through the mirrors (`mirrors`): when (s), and the crossing (crossing.ts DuelCross) */
-  crossings: ({ t: number } & DuelCross)[];
+  crossings: ({ t: number; meant?: boolean } & DuelCross)[];
   /** the world the duel ended in */
   world: string;
 }
@@ -130,6 +133,10 @@ export function simulateDuel(o: DuelSimOptions): DuelSimResult {
   // the mirrors: the duel goes into another world as the pair dances through one (crossing.ts), its arena, solids and
   // hazard taken, the set going on
   const judge = o.mirrors ? new CrossJudge() : null;
+  // (and the pair's voyages, as the page runs them for its virtual players: voyage.ts)
+  const doors = judge ? duelDoors() : null, voyage = judge ? new Voyage(o.voyageSeed ?? 5) : null;
+  const discsIn = (id: string): Disc[] => doors ? [...doors.gates.values()].filter((g) => g.world === id && g.partner)
+    .map((g) => ({ id: g.id, at: [g.at[0], g.at[1], g.at[2]], n: [g.n[0], g.n[1], g.n[2]], right: [g.right[0], g.right[1], g.right[2]], up: [g.up[0], g.up[1], g.up[2]], r: g.radius, to: g.partner!.world })) : [];
   const hazardTotals = { rides: {} as Record<string, { n: number; s: number }>, waterS: 0 };
   const banked = (h: DuelHazards | null) => {
     if (!h?.on) return;
@@ -158,6 +165,7 @@ export function simulateDuel(o: DuelSimOptions): DuelSimResult {
       yKill: A.space.yKill, space: A.space, spawns: A.spawns, solids, groundAt: terrain.groundAt,
       ...(powers ? { powers: powers.sight(), bends: powers.liveSight() } : {}),
       hazard: hazards?.sight() ?? null,
+      ...(voyage ? { voyage: voyage.plan?.disc ?? null, cameOut: voyage.cameOut?.disc ?? null, mirrors: discsIn(W.id) } : {}),
     };
   };
   const brains = typeof o.brains === 'function' ? o.brains(sight) : o.brains;
@@ -207,7 +215,17 @@ export function simulateDuel(o: DuelSimOptions): DuelSimResult {
     hazards?.step(beat, gdt * 1000);
     if (judge) {
       const x = crossPair(chars, W.id, judge, gdt, match.contact.link);
-      if (x) { res.crossings.push({ t: +t.toFixed(3), ...x }); moveTo(x.to); }
+      const pt = (now - match.state.playFrom) / 1000;
+      if (voyage) {
+        for (const e of ev) if (e.k === 'set') voyage.reset();
+        const r0 = chars[0].root, r1 = chars[1].root;
+        voyage.step(gdt, { playT: pt, left: ((o.setMs ?? 60000) - (now - match.state.playFrom)) / 1000, play: match.state.phase === 'play', energy: match.state.energy, joined: !!match.contact.link, mid: [(r0[0] + r1[0]) / 2, (r0[1] + r1[1]) / 2, (r0[2] + r1[2]) / 2], discs: discsIn(W.id) });
+      }
+      if (x) {
+        const out = voyage ? discsIn(x.to).find((d) => d.id === x.partner) ?? null : null, meant = voyage ? voyage.crossed(pt, x.gate, out) : false;
+        res.crossings.push({ t: +t.toFixed(3), ...x, meant });
+        moveTo(x.to);
+      }
     }
     if (match.state.phase === 'play') res.play += gdt;
     const L = match.contact.link;

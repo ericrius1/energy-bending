@@ -27,9 +27,12 @@ export const CROSS = {
   quietStart: 12, quietEnd: 12,
   /** after a crossing: no new voyage for this long (s), and the pair keep away from the disc they came out of for
    *  `settle` s (the brains' goals at least `settleDist` m in front of it) */
-  grace: 18, settle: 3.5, settleDist: 3.2,
+  grace: 30, settle: 6, settleDist: 4,
   /** a voyage's chance a second while the pair is in flow (the shared energy at least `flow`), and its longest (s) */
-  rate: 1 / 22, flow: 0.3, longest: 11,
+  rate: 1 / 8, flow: 0.4, longest: 11,
+  /** (phase 7, report 24: a crossing is an event, not a habit) at most this many voyages made a set, none before this
+   *  share of the set has been played (its height, not its warm-up) */
+  perSet: 1, from: 0.35,
   /** a voyage is set for a mirror within this far of the pair (m) */
   reach: 13,
   /** each seat crosses back no sooner than this after its crossing (s): free, held */
@@ -39,6 +42,8 @@ export const CROSS = {
 const dot = (a: ArrayLike<number>, b: ArrayLike<number>) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
 const smooth = (x: number) => { const k = Math.max(0, Math.min(1, x)); return k * k * (3 - 2 * k); };
 const smoother = (x: number) => { const k = Math.max(0, Math.min(1, x)); return k * k * k * (k * (k * 6 - 15) + 10); };
+/** eased, but never at rest between its ends: the way's two moves join under way (no stop at the staging point; phase 7) */
+const going = (x: number) => { const k = Math.max(0, Math.min(1, x)); return 0.45 * k + 0.55 * smoother(k); };
 const lerp = (a: number, b: number, k: number) => a + (b - a) * k;
 const lerp3 = (a: ArrayLike<number>, b: ArrayLike<number>, k: number): V3 => [lerp(a[0], b[0], k), lerp(a[1], b[1], k), lerp(a[2], b[2], k)];
 
@@ -97,7 +102,8 @@ export class Voyage {
       if (!I.play || I.playT > P.until || I.left < CROSS.quietEnd * 0.5 || !I.discs.some((d) => d.id === P.disc.id)) { this.plan = null; this.counts.lapsed++; this.calm = I.playT + 6; }
       return this.plan;
     }
-    if (!I.play || I.playT < Math.max(CROSS.quietStart, this.calm) || I.left < CROSS.quietEnd || !I.discs.length) return null;
+    if (!I.play || I.playT < Math.max(CROSS.quietStart, this.calm, CROSS.from * (I.playT + I.left)) || I.left < CROSS.quietEnd || !I.discs.length) return null;
+    if (this.madeSet >= CROSS.perSet) return null;
     if (I.energy < CROSS.flow && !I.joined) return null;
     if (this.next() >= CROSS.rate * dt) return null;
     // the nearest mirror the pair can see from where they are (in front of it, within reach)
@@ -116,7 +122,7 @@ export class Voyage {
    *  the grace begins */
   crossed(playT: number, through: string, out: Disc | null) {
     const meant = !!this.plan && this.plan.disc.id === through;
-    if (meant) this.counts.made++;
+    if (meant) { this.counts.made++; this.madeSet++; }
     this.plan = null;
     this.calm = playT + CROSS.grace;
     this.cameOut = out ? { disc: out, until: playT + CROSS.settle } : null;
@@ -124,7 +130,9 @@ export class Voyage {
   }
 
   /** a new set (the count-in): nothing planned */
-  reset() { this.plan = null; this.cameOut = null; this.calm = 0; }
+  reset() { this.plan = null; this.cameOut = null; this.calm = 0; this.madeSet = 0; }
+  /** voyages made this set */
+  private madeSet = 0;
 }
 
 /** a goal (x, z) kept at least `CROSS.settleDist` in front of the disc the pair came out of, pushed out along its face */
@@ -139,21 +147,22 @@ export function awayFrom(d: Disc, x: number, z: number): [number, number] {
 export interface Approach { disc: Disc; /** which side the pair is on (1: its face) */ side: number; /** s to the plane */ eta: number; /** 0 … 1 how sure */ w: number }
 
 /** the disc the pair is heading for: within `ahead` s of its plane at the speed they go, passing inside its radius
- *  (and a margin); or, on a voyage, the voyage's disc once they are within 7 m of it */
-export function approachOf(mid: ArrayLike<number>, vel: ArrayLike<number>, discs: readonly Disc[], voyage: Disc | null, ahead = 1.4): Approach | null {
+ *  (and a margin); or, on a voyage, the voyage's disc once they are within 9 m of it (phase 7: 2 s and 9 m, were 1.4 s
+ *  and 7 m, so the eye is in behind them before they reach it and the swing round is rare) */
+export function approachOf(mid: ArrayLike<number>, vel: ArrayLike<number>, discs: readonly Disc[], voyage: Disc | null, ahead = 2.0): Approach | null {
   let best: Approach | null = null;
   for (const d of discs) {
     const rel: V3 = [mid[0] - d.at[0], mid[1] - d.at[1], mid[2] - d.at[2]], s = dot(rel, d.n), side = s >= 0 ? 1 : -1;
     const toward = -dot(vel, d.n) * side, across = Math.abs(dot(rel, d.right));
     let w = 0, eta = Infinity;
-    if (toward > 0.6) {
+    if (toward > 0.5) {
       eta = Math.abs(s) / toward;
       const at = across + dot(vel, d.right) * eta * Math.sign(dot(rel, d.right) || 1);
       if (eta < ahead && Math.abs(at) < d.r + 1.2) w = smooth((ahead - eta) / (ahead * 0.6)) * (Math.abs(at) < d.r + 0.3 ? 1 : 1 - (Math.abs(at) - d.r - 0.3) / 0.9);
     }
     if (voyage && voyage.id === d.id && side > 0) {
       const dist = Math.hypot(rel[0], rel[2]);
-      w = Math.max(w, smooth((7 - dist) / 3.5) * (across < d.r + 2.5 ? 1 : 0.4));
+      w = Math.max(w, smooth((9 - dist) / 4) * (across < d.r + 2.5 ? 1 : 0.4));
       if (!Number.isFinite(eta)) eta = dist / 2.5;
     }
     if (w > 0.02 && (!best || w > best.w)) best = { disc: d, side, eta, w };
@@ -186,90 +195,209 @@ export function blendPose(a: { eye: V3; look: V3 }, b: { eye: V3; look: V3 }, k:
 }
 
 // ---------------------------------------------------------------- the way through
+/** what the way through can ask of the worlds it passes: how clear a point of it stands (m from the nearest solid,
+ *  decor piece or gate's frame: portals/decor.ts), and whether a step of it passes through any gate but this door. Both
+ *  in the new world's coordinates (the way's own); `old`: the eye hasn't come through yet, so the point is in the old
+ *  world, seen back through the door (the caller maps it) */
+export interface WaySpace {
+  clear(p: V3, old: boolean): number;
+  gate(a: V3, b: V3, old: boolean): boolean;
+}
+
+/** the way's tunables (phase 7, report 24): how clear of the world's pieces the eye keeps (m), how fast the swing round
+ *  and the way through go */
+export const WAY = {
+  /** the eye keeps this far off any solid, decor piece or frame (the near plane, a little air) */
+  clear: 0.45,
+  /** the swing round: its shortest (s, for no turn; plus `turnS` for a half turn), and its fastest along its arc (m/s) */
+  roundMin: 0.35, turnS: 0.35, roundSpeed: 7,
+  /** a swing round stops this far short of the disc's axis (rad) */
+  slant: 0.55,
+  /** the way through: its shortest and longest (s), and how fast along its length (m/s) */
+  throughMin: 1.0, throughMax: 2.0, throughSpeed: 6.8,
+};
+
+/** one way round onto the axis: which way round (to ±π), how far out it keeps beside the plane, where it stages, and
+ *  whether it goes straight there (an eye already on the near side of the plane) */
+interface WayPlan { /** straight on from where the eye is (aligned) */ go?: boolean; phi1: number; rim: number; S: V3; /** S on the axis (its height and depth) */ A: V3; direct: boolean; T1: number; cost: number; name: string; /** the way through's tail bent aside (its second inner point moved, in the disc's frame) */ bend?: V3 }
+
 /** the camera's way through the disc after the pair (in the new world's coordinates: the rig was carried with them, and
  *  the view is drawn from the old world until the eye comes through the far disc). Two moves, each eased with no step
  *  in speed:
  *    1. round: an eye beside the disc (it stood past the old mirror's plane, beside it) swings round the disc's rim,
  *       outside its frame, onto its axis behind it, looking at the disc (the pair seen through it); an eye already
- *       behind the disc and near its axis only settles onto it;
- *    2. through: from there one curve (a quadratic Bézier) through the disc near its middle and on round onto the
- *       duel camera's own pose of the pair, the look point eased from the disc to the duel camera's. The duel camera
- *       keeps framing the pair the whole time, so the curve ends exactly where it is (no `from`, no snap).
+ *       behind the disc and near its axis only settles onto it; an eye on the near side may go straight there;
+ *    2. through: from there one curve (a cubic Bézier) through the disc near its middle and on round onto the duel
+ *       camera's own pose of the pair, the look point eased from the disc to the duel camera's. The duel camera keeps
+ *       framing the pair the whole time, so the curve ends exactly where it is (no `from`, no snap).
+ *  With a `space` (phase 7, report 24) the way is chosen on its first frame among a few (round either way, wider of the
+ *  rim, staged nearer or higher, straight), each tried along its whole length against the worlds' solids, decor and
+ *  frames and against crossing any other gate; the usual one unless something stands in it, else the clearest.
  *  `update` returns the pose, and `done` once the eye is the duel camera's again */
 export class ThroughCam {
   t = 0;
   done = false;
   /** the eye crossed the disc's plane inside it (the main view went over) */
   through = false;
-  private T1: number;
   private T2 = -1;
-  private phi0: number; private phi1: number; private rho0: number; private y0: number;
-  private S: V3 = [0, 0, 0];
+  private phi0: number; private rho0: number; private y0: number;
+  private e0: V3; private lk0: V3;
+  private plan: WayPlan;
   /** where the eye looked as the way began (the look eases from it over the first 0.4 s: no snap of the view) */
   private look0: V3;
   /** the disc's own frame: x right, y up, z out of its face on the pair's side */
   private X: V3; private Y: V3; private Z: V3;
-  /** how the swing round went: 'aligned' (the eye was behind the disc already), or round by `turn` rad */
-  readonly how: { aligned: boolean; turn: number };
+  /** how the swing round went: 'aligned' (the eye was behind the disc already), or round by `turn` rad; and the way
+   *  chosen (its name, its cost: 0 when clear all along, how many were tried) */
+  readonly how: { aligned: boolean; turn: number; plan?: string; cost?: number; tried?: number };
 
-  constructor(readonly disc: Disc, side: number, eye0: ArrayLike<number>, look0: ArrayLike<number>) {
+  constructor(readonly disc: Disc, side: number, eye0: ArrayLike<number>, look0: ArrayLike<number>, readonly space?: WaySpace) {
     const d = disc;
     this.X = [d.right[0] * side, d.right[1] * side, d.right[2] * side];
     this.Y = [...d.up] as V3;
     this.Z = [d.n[0] * side, d.n[1] * side, d.n[2] * side];
     const e = this.local(eye0), lk = this.local(look0);
+    this.e0 = e; this.lk0 = lk;
     this.look0 = [look0[0], look0[1], look0[2]];
     this.rho0 = Math.hypot(e[0], e[2]);
     this.phi0 = Math.atan2(e[0], e[2]);
     // behind the disc (its far side from the pair: z < 0) on its axis: |φ| = π; round by the nearer way
-    this.phi1 = this.phi0 >= 0 ? Math.PI : -Math.PI;
-    const turn = Math.abs(this.phi1 - this.phi0);
+    const phi1 = this.phi0 >= 0 ? Math.PI : -Math.PI;
+    const turn = Math.abs(phi1 - this.phi0);
     // (behind it already, and the line to the pair passes well inside the disc: just settle)
     const z0 = e[2], k = z0 < -0.2 && lk[2] > 0 ? -z0 / (lk[2] - z0) : 1, hx = e[0] + (lk[0] - e[0]) * k, hy = e[1] + (lk[1] - e[1]) * k;
     const aligned = z0 < -0.2 && Math.hypot(hx, hy) < d.r * 0.6;
     this.how = { aligned, turn };
     this.y0 = e[1];
-    // the staging point: on the axis behind the disc, 1.5 … 2.6 m back (an eye already behind it keeps its distance, to
-    // 3.2 m), at the disc's middle or a little over
-    this.S = [0, Math.max(-0.35, Math.min(0.45, lk[1] * 0.5 + 0.15)), -Math.max(1.5, Math.min(aligned ? 3.2 : 2.6, aligned ? -z0 : this.rho0 * 0.6))];
-    // (the swing's length by how far round it goes and how far in: about 8 m/s at the fastest)
-    const arc = Math.hypot(((this.rho0 - this.S[2]) / 2) * (aligned ? 0 : turn), this.rho0 + this.S[2], this.y0 - this.S[1]);
-    this.T1 = Math.max(aligned ? 0.25 : 0.5 + 0.5 * Math.min(1, turn / Math.PI), arc / 5.5);
+    this.plan = this.makePlan(phi1, d.r + 0.9, null, false, 'round');
+  }
+
+  /** a plan: round to `phi1` (keeping `rim` m out beside the plane) or straight, staged at `S0` (null: the usual) */
+  private makePlan(phi1: number, rim: number, S0: V3 | null, direct: boolean, name: string): WayPlan {
+    const aligned = this.how.aligned, z0 = this.e0[2], lk = this.lk0;
+    // the staging point: on the axis behind the disc, 1.5 … 2 m back (an eye already behind it keeps its distance, to
+    // 2.6 m), at the disc's middle or a little over
+    const A: V3 = S0 ?? [0, Math.max(-0.35, Math.min(0.45, lk[1] * 0.5 + 0.15)), -Math.max(1.5, Math.min(aligned ? 2.6 : 2.0, aligned ? -z0 : this.rho0 * 0.5))];
+    // (a swing round stops short of the axis, WAY.slant off it: the way through then comes in at a slant and still
+    // crosses near the disc's middle, a third of a turn sooner)
+    const slant = aligned || direct ? 0 : WAY.slant, phiEnd = Math.sign(phi1) * (Math.PI - slant);
+    // (an eye already in behind the pair on the axis, the swing in done: no staging stop, the way through goes on from
+    // where it is, already moving after them; phase 7)
+    const go = aligned && !S0 && !direct;
+    const S: V3 = go ? [...this.e0] as V3 : slant ? [Math.sin(phiEnd) * -A[2], A[1], Math.cos(phiEnd) * -A[2]] : A;
+    const turn = Math.abs(phiEnd - this.phi0);
+    // (the swing's length by how far round it goes and how far in)
+    const arc = direct ? Math.hypot(this.e0[0] - S[0], this.e0[1] - S[1], this.e0[2] - S[2])
+      : Math.hypot(((this.rho0 - A[2]) / 2) * (aligned ? 0 : turn), this.rho0 + A[2], this.y0 - S[1]);
+    const T1 = go ? 0 : Math.max(aligned ? 0.25 : WAY.roundMin + WAY.turnS * Math.min(1, (direct ? 0.5 : turn) / Math.PI), arc / WAY.roundSpeed);
+    return { phi1: phiEnd, rim, S, A, direct, T1, cost: 0, name, go };
   }
 
   private local(p: ArrayLike<number>): V3 { const r: V3 = [p[0] - this.disc.at[0], p[1] - this.disc.at[1], p[2] - this.disc.at[2]]; return [dot(r, this.X), dot(r, this.Y), dot(r, this.Z)]; }
   private world(l: ArrayLike<number>): V3 { const a = this.disc.at, X = this.X, Y = this.Y, Z = this.Z; return [a[0] + X[0] * l[0] + Y[0] * l[1] + Z[0] * l[2], a[1] + X[1] * l[0] + Y[1] * l[1] + Z[1] * l[2], a[2] + X[2] * l[0] + Y[2] * l[1] + Z[2] * l[2]]; }
 
-  /** the pose this frame, given the duel camera's own pose of the pair now (`cam`) and the pair's middle */
-  update(dt: number, cam: { eye: V3; look: V3 }, pair: V3): { eye: V3; look: V3 } {
-    this.t += dt;
-    const S = this.S, R = this.disc.r;
-    const discLook = this.world([0, S[1] * 0.4, 0.8]);
-    // 1. round onto the axis behind the disc (or settle there)
-    if (this.t < this.T1) {
-      const u = smoother(this.t / this.T1);
-      const phi = lerp(this.phi0, this.phi1, u);
-      let rho = lerp(this.rho0, -S[2], u);
-      // (outside the frame while beside the plane: the rim and its brass, with a margin)
-      const beside = 1 - smooth((Math.abs(Math.cos(phi)) - 0.25) / 0.45);
-      rho = Math.max(rho, (R + 0.9) * beside);
-      const l: V3 = [Math.sin(phi) * rho, lerp(this.y0, S[1], u), Math.cos(phi) * rho];
-      // (looking at the disc: the pair is seen through it, live)
-      return { eye: this.world(l), look: this.eased(lerp3(discLook, pair, 0.35 * u)) };
-    }
-    // 2. through the disc and round onto the duel camera's pose (its length set once, by how far there is to go: about
-    // 8 m/s at the fastest). A cubic Bézier whose two inner points lie on the disc's axis, one in its plane: the curve
-    // crosses the plane within a few centimetres of the middle wherever it ends. Its end is the duel camera's eye, kept
-    // out in front of the disc (`clamped`: a pose the duel camera chose behind the disc or beside its back would take
-    // the curve back across the plane outside the disc; the camera then goes on from where the way ends, `from`)
-    const Er = this.local(cam.eye), E: V3 = [Er[0], Er[1], Math.max(1.6, Er[2])];
-    this.clamped = Er[2] < 1.6 - 1e-6;
-    if (this.T2 < 0) this.T2 = Math.max(1.3, Math.min(2.6, 0.5 + (Math.hypot(E[0] - S[0], E[1] - S[1], E[2] - S[2]) + 1.2) / 5));
-    const u = smoother((this.t - this.T1) / this.T2);
-    const P1: V3 = [0, S[1], 0], P2: V3 = [0, S[1], Math.max(1.4, -0.8 * S[2])];
+  /** the eye on the round at `u` (0 … 1), in the disc's frame */
+  private roundAt(P: WayPlan, u: number): V3 {
+    const S = P.S;
+    if (P.direct) return lerp3(this.e0, S, u);
+    const phi = lerp(this.phi0, P.phi1, u);
+    let rho = lerp(this.rho0, Math.hypot(S[0], S[2]), u);
+    // (outside the frame while beside the plane: the rim and its brass, with a margin)
+    const beside = 1 - smooth((Math.abs(Math.cos(phi)) - 0.25) / 0.45);
+    rho = Math.max(rho, P.rim * beside);
+    return [Math.sin(phi) * rho, lerp(this.y0, S[1], u), Math.cos(phi) * rho];
+  }
+
+  /** the eye on the way through at `u` (0 … 1), in the disc's frame, toward the duel camera's eye `E` */
+  private throughAt(P: WayPlan, u: number, E: V3): V3 {
+    const S = P.S, bd = P.bend ?? [0, 0, 0], P1: V3 = [0, S[1], 0], P2: V3 = [bd[0], S[1] + bd[1], Math.max(1.4, -0.8 * S[2])];
     const a = (1 - u) ** 3, b = 3 * u * (1 - u) ** 2, c = 3 * u * u * (1 - u), d = u ** 3;
     const l: V3 = [0, 0, 0];
     for (let i = 0; i < 3; i++) l[i] = a * S[i] + b * P1[i] + c * P2[i] + d * E[i];
+    return l;
+  }
+
+  /** how bad a plan is: the eye's shortfall of clearance along it (squared, summed over its samples, and 1 for each
+   *  sample inside something), 100 for a step through any other gate, and a little for its length */
+  private judge(P: WayPlan, E: V3) {
+    const sp = this.space!;
+    const pts: [V3, boolean][] = [];
+    for (let i = 0; i <= 24; i++) pts.push([this.world(this.roundAt(P, smoother(i / 24))), true]);
+    let past = false;
+    for (let i = 1; i <= 24; i++) {
+      const l = this.throughAt(P, smoother(i / 24), E);
+      if (l[2] > 0) past = true;
+      pts.push([this.world(l), !past]);
+      // (on to its end: the duel camera's eye is clear, but the curve there from the disc can pass a post; phase 7)
+    }
+    let cost = 0, prev: V3 | null = null, prevOld = true;
+    for (const [p, old] of pts) {
+      const c = sp.clear(p, old);
+      if (c < WAY.clear) cost += (WAY.clear - c) ** 2 * 4 + (c < 0 ? 1 : 0);
+      if (prev && old === prevOld && sp.gate(prev, p, old)) cost += 100;
+      prev = p; prevOld = old;
+    }
+    return cost + P.T1 * 0.02;
+  }
+
+  /** the way, chosen on its first frame (the duel camera's pose known): the usual one, unless something stands in it */
+  private choose(E: V3) {
+    if (!this.space) return;
+    const P0 = this.plan, S = P0.A, other = P0.phi1 > 0 ? -Math.PI : Math.PI, R = this.disc.r;
+    const cands: WayPlan[] = [P0];
+    P0.cost = this.judge(P0, E);
+    if (P0.cost > P0.T1 * 0.02 + 0.02) {
+      const S2: V3 = [0, S[1], Math.min(-1.2, S[2] * 0.6)], S3: V3 = [0, Math.min(0.8, S[1] + 0.5), S[2]];
+      cands.push(this.makePlan(P0.phi1, R + 1.4, null, false, 'round wide'));
+      cands.push(this.makePlan(other, R + 0.9, null, false, 'round the other way'));
+      cands.push(this.makePlan(P0.phi1, R + 0.9, S2, false, 'round, staged near'));
+      cands.push(this.makePlan(other, R + 0.9, S2, false, 'the other way, staged near'));
+      cands.push(this.makePlan(P0.phi1, R + 0.9, S3, false, 'round, staged high'));
+      if (this.e0[2] < -0.2) {
+        cands.push(this.makePlan(P0.phi1, R + 0.9, null, true, 'straight'));
+        cands.push(this.makePlan(P0.phi1, R + 0.9, S2, true, 'straight, staged near'));
+      }
+      for (const c of cands.slice(1)) c.cost = this.judge(c, E);
+      cands.sort((a, b) => a.cost - b.cost);
+      // (still something in the way, most often on the way's tail from the disc out to the duel camera's eye: the tail
+      // bent aside or over it)
+      const B = cands[0];
+      if (B.cost > B.T1 * 0.02 + 0.02) {
+        for (const bend of [[1.2, 0, 0], [-1.2, 0, 0], [0, 0.9, 0], [1.2, 0.6, 0], [-1.2, 0.6, 0]] as V3[]) {
+          const c: WayPlan = { ...B, bend, name: `${B.name}, bent`, cost: 0 };
+          c.cost = this.judge(c, E);
+          cands.push(c);
+        }
+        cands.sort((a, b) => a.cost - b.cost);
+      }
+    }
+    this.plan = cands[0];
+    Object.assign(this.how, { plan: this.plan.name, cost: +this.plan.cost.toFixed(3), tried: cands.length });
+  }
+
+  /** the pose this frame, given the duel camera's own pose of the pair now (`cam`) and the pair's middle */
+  update(dt: number, cam: { eye: V3; look: V3 }, pair: V3): { eye: V3; look: V3 } {
+    const Er = this.local(cam.eye), E: V3 = [Er[0], Er[1], Math.max(1.6, Er[2])];
+    if (this.t === 0) this.choose(E);
+    this.t += dt;
+    const P = this.plan, S = P.S;
+    const discLook = this.world([0, S[1] * 0.4, 0.8]);
+    // 1. round onto the axis behind the disc (or settle there, or straight there)
+    if (this.t < P.T1) {
+      const u = going(this.t / P.T1);
+      // (looking at the disc: the pair is seen through it, live)
+      return { eye: this.world(this.roundAt(P, u)), look: this.eased(lerp3(discLook, pair, 0.35 * u)) };
+    }
+    // 2. through the disc and round onto the duel camera's pose (its length set once, by how far there is to go). A cubic
+    // Bézier whose two inner points lie on the disc's axis, one in its plane: the curve crosses the plane within a few
+    // centimetres of the middle wherever it ends. Its end is the duel camera's eye, kept out in front of the disc
+    // (`clamped`: a pose the duel camera chose behind the disc or beside its back would take the curve back across the
+    // plane outside the disc; the camera then goes on from where the way ends, `from`)
+    this.clamped = Er[2] < 1.6 - 1e-6;
+    if (this.T2 < 0) this.T2 = Math.max(WAY.throughMin, Math.min(WAY.throughMax, 0.4 + (Math.hypot(E[0] - S[0], E[1] - S[1], E[2] - S[2]) + 1.2) / WAY.throughSpeed));
+    // (under way from its first frame: the eye was following the pair, or coming round onto the axis)
+    const u = going((this.t - P.T1) / this.T2);
+    const l = this.throughAt(P, u, E);
     if (!this.through && l[2] > 0) this.through = true;
     // (the look point runs on ahead of the eye along the axis, never behind it: an eye past a fixed point in front of the
     // disc turned round and looked back at the disc it had just come through)

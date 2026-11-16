@@ -51,7 +51,7 @@ async function playSet(q) {
     let seenEv = null, nC = 0, fused = null;
     let watch = null; // the crossing whose arrival the camera is being watched for
     const cam = k.camera;
-    const look = (g) => {
+    const look = (g, reach = 8) => {
       // the share of a 16 × 9 grid of rays through the lens meeting the gate's disc (and its frame: radius + 0.45 m)
       // within 8 m, and the eye's distance to its middle
       const p = cam.position, f = cam.forward, r = cam.right, u = cam.up, fov = (B.rig.fov ?? 46) * Math.PI / 180;
@@ -67,9 +67,9 @@ async function playSet(q) {
         if (Math.abs(dn) < 1e-6) continue;
         const s = ((g.at[0] - p[0]) * n[0] + (g.at[1] - p[1]) * n[1] + (g.at[2] - p[2]) * n[2]) / dn;
         // (the disc in front of the eye, not the glass it is passing through this frame)
-        if (s * Math.hypot(...d) < 0.3 || s > 8) continue;
+        if (s * Math.hypot(...d) < 0.3 || s * Math.hypot(...d) > reach) continue;
         const L = Math.hypot(...d), q = [p[0] + d[0] * s - g.at[0], p[1] + d[1] * s - g.at[1], p[2] + d[2] * s - g.at[2]];
-        if (Math.hypot(...q) < R && s * L < 8) hit++;
+        if (Math.hypot(...q) < R && s * L < reach) hit++;
       }
       return { share: hit / all, dist: dE };
     };
@@ -83,9 +83,42 @@ async function playSet(q) {
       return best;
     };
     let bpmPrev = E.clock.bpm;
+    // (phase 7, report 24) the eye in the world's pieces (decor.ts: its solids, decor, shell and gates' frames), a mirror's
+    // ring in the frame, and how long before a crossing its door was in sight (the disc, or its spill of light where drawn)
+    const eyeT = { frames: 0, inside: 0, near: 0, ring: 0, ringBig: 0, way: 0, wayInside: 0, wayNear: 0, minClear: Infinity };
+    const seen = []; // per play frame: the main world's gates on screen (disc, or its glimpse), and the pair's distance to each
+    const onScreen = (pt, reach) => {
+      const p = cam.position, f = cam.forward, r = cam.right, u = cam.up, fov = (B.rig.fov ?? 46) * Math.PI / 180;
+      const d = [pt[0] - p[0], pt[1] - p[1], pt[2] - p[2]], z = d[0] * f[0] + d[1] * f[1] + d[2] * f[2];
+      if (z < 0.3 || Math.hypot(...d) > reach) return false;
+      const ty = Math.tan(fov / 2), x = (d[0] * r[0] + d[1] * r[1] + d[2] * r[2]) / z, y = (d[0] * u[0] + d[1] * u[1] + d[2] * u[2]) / z;
+      return Math.abs(x) < ty * aspect && Math.abs(y) < ty;
+    };
     for (let i = 0; i < 6600; i++) {
       await B.step(1);
       const t = M.filmClock, s = D.state;
+      if (s.phase === 'play') {
+        const Ey = D.eyeClear ? D.eyeClear() : null;
+        eyeT.frames++;
+        if (Ey) { if (Ey.clear < 0) eyeT.inside++; if (Ey.clear < 0.3) eyeT.near++; eyeT.minClear = Math.min(eyeT.minClear, Ey.clear); }
+        const wayOn = watch && (watch.arrive == null || t - watch.arrive < 0.6);
+        if (wayOn) { eyeT.way++; if (Ey && Ey.clear < 0) eyeT.wayInside++; if (Ey && Ey.clear < 0.3) eyeT.wayNear++; }
+        const mw = Ey?.world ?? G.rigWorld;
+        let ring = 0;
+        const a0 = D.match.chars[0].root, b0 = D.match.chars[1].root, pm = [(a0[0] + b0[0]) / 2, (a0[1] + b0[1]) / 2, (a0[2] + b0[2]) / 2];
+        const vis = {};
+        for (const g of G.gates.values()) {
+          if (g.world !== mw || !g.partner || g.open < 0.5) continue;
+          const L = look(g, 40);
+          ring = Math.max(ring, L.share);
+          const spill = D.glimpse?.on ? onScreen([g.at[0] + g.n[0] * 2, g.at[1] - 0.3, g.at[2] + g.n[2] * 2], D.glimpse.reach ?? 30) : false;
+          if (L.share > 0 || spill) vis[g.id] = +Math.hypot(pm[0] - g.at[0], pm[2] - g.at[2]).toFixed(1);
+        }
+        if (ring >= 0.02) eyeT.ring++;
+        if (ring >= 0.1) eyeT.ringBig++;
+        seen.push({ t, vis });
+        if (seen.length > 60 * 40) seen.shift();
+      }
       // the engine's track changes
       const ev = E.events;
       for (let j = ev.length - 1; j >= 0 && ev[j] !== seenEv; j--) if (ev[j].type === 'track' || ev[j].type === 'bridge') tracks.push({ t: ev[j].t, id: ev[j].id ?? ev[j].to ?? null, type: ev[j].type, at: t });
@@ -98,6 +131,17 @@ async function playSet(q) {
         const X = D.crossings[nC++];
         const a = D.match.chars[0].root, b = D.match.chars[1].root, mid = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2, (a[2] + b[2]) / 2];
         const c = { d: X.d, from: X.from, to: X.to, t, frame: i, bpm0: bpmPrev, bpmStep: 0, bpmMin: bpm, bpmMax: bpm, gate: (X.out ? G.gates.get(X.out) : outGate(X.to, X.from, mid))?.id ?? null, arrive: null, looking: 0, near: 0, inRing: 0, X };
+        // (the door they went in at: the out disc's partner; in sight continuously (gaps under half a second) before)
+        const inId = c.gate ? G.gates.get(c.gate)?.partner?.id : null;
+        c.inGate = inId ?? null; c.seenFor = 0; c.seenFrom = null;
+        if (inId) {
+          let gap = 0, first = null;
+          for (let j = seen.length - 1; j >= 0; j--) {
+            const v = seen[j].vis[inId];
+            if (v != null) { gap = 0; first = { t: seen[j].t, dist: v }; } else if ((gap += 1 / 60) > 0.5) break;
+          }
+          if (first) { c.seenFor = +(t - first.t).toFixed(2); c.seenFrom = first.dist; }
+        }
         cross.push(c);
         watch = c;
       }
@@ -116,12 +160,13 @@ async function playSet(q) {
     }
     const st = D.state.stats;
     for (const c of cross) {
-      c.how = c.X.how ?? null; c.meant = c.X.meant ?? null; c.why = c.X.why ?? null; delete c.X;
+      c.how = c.X.how ?? null; c.meant = c.X.meant ?? null; c.why = c.X.why ?? null; c.wayKind = c.X.way ?? null; c.plan = c.X.plan ?? null; delete c.X;
       const tr = tracks.find((x) => x.type === 'track' && x.at >= c.t - 0.02 && x.at < c.t + 8);
       c.music = tr ? +(tr.t - c.t).toFixed(3) : null;
       c.musicType = tr?.type ?? null;
     }
-    return { fused, catches: st.catches + st.aerials, aerials: st.aerials, setMs: D.match.o.setMs, cross, tracks: tracks.length };
+    for (const c of cross) c.round = c.arrive != null ? +(c.arrive - c.t).toFixed(3) : null;
+    return { fused, catches: st.catches + st.aerials, aerials: st.aerials, setMs: D.match.o.setMs, cross, tracks: tracks.length, eye: eyeT };
   }, W / H);
 }
 
@@ -137,7 +182,7 @@ for (const world of worlds) {
     }
     Object.assign(row, { world, seed, dress, styles, wall: +((Date.now() - t0) / 1000).toFixed(1) });
     all.push(row);
-    console.log(`${world} #${r + 1} seed ${seed}: ${row.fused ? 'FUSED' : 'no'} catches ${row.catches} (${row.aerials} air) crossings ${row.cross.length}: ${row.cross.map((c) => `${c.d}s ${c.from}>${c.to} ${c.how ?? '?'}${c.meant ? ' meant' : ''} music ${c.music ?? '-'} look ${c.looking}`).join(' | ')} (${row.wall}s)`);
+    console.log(`${world} #${r + 1} seed ${seed}: ${row.fused ? 'FUSED' : 'no'} catches ${row.catches} (${row.aerials} air) crossings ${row.cross.length}: ${row.cross.map((c) => `${c.d}s ${c.from}>${c.to} ${c.how ?? '?'}${c.meant ? ' meant' : ''} music ${c.music ?? '-'} look ${c.looking} round ${c.round ?? '-'} seen ${c.seenFor}s@${c.seenFrom ?? '-'}m`).join(' | ')} eye in ${row.eye.inside}/${row.eye.frames} (way ${row.eye.wayInside}/${row.eye.way}) ring ${(row.eye.ring / Math.max(1, row.eye.frames)).toFixed(2)} (${row.wall}s)`);
   }
 }
 // the summary
@@ -152,6 +197,14 @@ const summary = {
   crossings: n, setsCrossed: all.filter((r) => r.cross.length).length, how, meant: C.filter((c) => c.meant).length, backWithin3s: back,
   musicDelayMedian: med(C.map((c) => c.music)), musicDelayMax: C.reduce((a, c) => Math.max(a, c.music ?? 0), 0),
   bpmStepMax: +C.reduce((a, c) => Math.max(a, c.bpmStep), 0).toFixed(2), bpmStepMedian: med(C.map((c) => +c.bpmStep.toFixed(2))),
+  setsCrossed3: all.filter((r) => r.cross.length >= 3).length, perSet: +(n / Math.max(1, all.length)).toFixed(2),
+  roundMedian: med(C.map((c) => c.round)), roundP90: (() => { const x = C.map((c) => c.round).filter((v) => v != null).sort((a, b) => a - b); return x.length ? x[Math.floor(x.length * 0.9)] : null; })(),
+  roundOver16: C.filter((c) => c.round != null && c.round >= 1.6).length, roundKnown: C.filter((c) => c.round != null).length,
+  eyeFrames: all.reduce((a, r) => a + r.eye.frames, 0), eyeInside: all.reduce((a, r) => a + r.eye.inside, 0), eyeNear: all.reduce((a, r) => a + r.eye.near, 0),
+  wayFrames: all.reduce((a, r) => a + r.eye.way, 0), wayInside: all.reduce((a, r) => a + r.eye.wayInside, 0), wayNear: all.reduce((a, r) => a + r.eye.wayNear, 0),
+  ringShare: +(all.reduce((a, r) => a + r.eye.ring, 0) / Math.max(1, all.reduce((a, r) => a + r.eye.frames, 0))).toFixed(3),
+  ringBigShare: +(all.reduce((a, r) => a + r.eye.ringBig, 0) / Math.max(1, all.reduce((a, r) => a + r.eye.frames, 0))).toFixed(3),
+  seenForMedian: med(C.map((c) => c.seenFor)), seenFromMedian: med(C.map((c) => c.seenFrom)),
   lookingFramesMean: n ? +(C.reduce((a, c) => a + c.looking, 0) / n).toFixed(1) : 0, lookingFramesMedian: med(C.map((c) => c.looking)), lookingAny: C.filter((c) => c.looking > 0).length, inRingMean: n ? +(C.reduce((a, c) => a + c.inRing, 0) / n).toFixed(1) : 0, nearMean: n ? +(C.reduce((a, c) => a + c.near, 0) / n).toFixed(1) : 0,
 };
 console.log(JSON.stringify(summary));
