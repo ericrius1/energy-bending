@@ -47,6 +47,10 @@ type V3 = [number, number, number];
 /** the body's physics: times in seconds, distances in metres (a dancer about 1.6 m), speeds per second. The
  *  prototype's numbers times 6.38 (its world unit in metres), then tuned: a full jump 2 m, the air jump 1.5 m more,
  *  a run 4 m/s */
+/** how long a landing's give takes to come in (s): three frames */
+const LAND_IN = 0.05;
+/** how fast a standing body climbs a rise in the ground taller than a step (m/s) */
+const STEP_RISE = 7;
 export const PHYS = defineParams('dancer', {
   /** collision height above the root, and half the body's width (for walls and solid ledges) */
   bodyH: 1.55,
@@ -313,7 +317,7 @@ export class Character {
   staggerDur = 0;
   reformT = -1;
   blinkT = 0;
-  landK = 0; airW = 0; runW = 0; crouchW = 0; runPhase = 0;
+  landK = 0; landTo = 0; airW = 0; runW = 0; crouchW = 0; runPhase = 0;
   energy = 0;
   lastGroundY = 0;
   camW = 0;
@@ -411,7 +415,7 @@ export class Character {
     this.jumpBuf = 0; this.btnBuf = null; this.dropT = 0; this.dropId = null;
     this._resetKit();
     this.move = null; this.stagger = 0; this.staggerDur = 0; this.reformT = -1; this.blinkT = 0;
-    this.landK = 0; this.airW = 0; this.runW = 0; this.crouchW = 0; this.runPhase = 0; this.awayT = 0;
+    this.landK = 0; this.landTo = 0; this.airW = 0; this.runW = 0; this.crouchW = 0; this.runPhase = 0; this.awayT = 0;
     this.blockStart = -1; this.aimW = 0; this.aimPos = null; this.aimVel = [0, 0, 0];
     this.cam = null; this.camW = 0; this.camLegW = 0;
     this.fadeT = 1; this.fadeDur = 0.1; this._srcKey = 'loco';
@@ -681,7 +685,10 @@ export class Character {
     this.blinkT = Math.max(0, this.blinkT - h);
     this.dashBuf = Math.max(0, this.dashBuf - h); this.dashCoolT = Math.max(0, this.dashCoolT - h);
     this.wallCoyoteT = Math.max(0, this.wallCoyoteT - h); this.lockT = Math.max(0, this.lockT - h); this.flightT = Math.max(0, this.flightT - h); this.vaultT = Math.max(0, this.vaultT - h); this.faceT = Math.max(0, this.faceT - h); this.landLagT = Math.max(0, this.landLagT - h);
-    this.landK = Math.max(0, this.landK - h / this.phys.landSquash);
+    // (the landing's give comes in over landIn s and goes over landSquash: phase 7, report 24-feel; it came in whole the
+    // frame the feet touched, the hips dropping 20 cm in one frame at every fast landing, a pop on screen)
+    if (this.landTo > this.landK) { this.landK = Math.min(this.landTo, this.landK + h / LAND_IN); if (this.landK >= this.landTo) this.landTo = 0; }
+    else { this.landTo = 0; this.landK = Math.max(0, this.landK - h / this.phys.landSquash); }
     if (this.easeS || this.easeN) {
       const k = Math.exp(-h / this.phys.lockEase);
       this.easeS = Math.abs(this.easeS * k) < 1e-4 ? 0 : this.easeS * k;
@@ -1232,6 +1239,9 @@ export class Character {
     let landed: number | null = null;
     if (this.grounded) {
       if (y - g0 > 0.25) { this.grounded = false; this.coyote = P.coyote; vy = 0; if (m) m.off = true; }
+      // (a rise in the ground more than a step (a pool's rim, a terrace in the world's own ground) is climbed at STEP_RISE
+      // m/s, where it used to be stood on in one substep: a 1.4 m pop up at the geode's sunken floor; report 24-feel)
+      else if (g0 - y > P.stepUp) { y = Math.min(g0, y + STEP_RISE * h); vy = 0; }
       else { y = g0; vy = 0; }
     }
     if (!this.grounded) {
@@ -1349,7 +1359,7 @@ export class Character {
       this.v[0] *= P.dashEndMul; this.v[2] *= P.dashEndMul;
     }
     if (-vy > P.landHuge) this.landLagT = P.landLag;
-    this.landK = clamp(-vy / (1.4 * 6.38), 0.25, 1);
+    this.landTo = clamp(-vy / (1.4 * 6.38), 0.25, 1);
     if (this.move && this.move.air) this._endMove();
     if (this.move) this.move.off = true;
     this.events.push({ type: 'land', x: this.root[0], y: this.root[1], z: this.root[2], impact: -vy });

@@ -14,6 +14,8 @@
 // of its own, locked from the start: the world's first stage plane (where it stands, its lens) with two blocks whose
 // four faces are walls, the plane's ends, a shaft between the left end and the tall block, and a few platforms; a 2D
 // overlay draws it over the canvas (#arena-overlay), since no world draws it. The duel's own arenas are src/duel's.
+import { arenaFor } from '../duel/arena';
+import { softEdge } from '../duel/edge';
 import type { Kit } from '@ericrius1/weft';
 import type { Show } from './show';
 import { planePoint, type CameraRig, type StagePlane, type Ledge, type Wall } from '../engine/camera';
@@ -82,6 +84,8 @@ export function testLedges(halfWidth: number): Ledge[] {
   ];
 }
 
+/** how much wider than the duel's space the dance's soft edge stands (m) */
+const DANCE_EDGE = 1;
 const TEST_PLANE: StagePlane = { id: 'test', origin: [0, 0, 0], right: [1, 0, 0], halfWidth: 4, ground: 0, ledges: testLedges(4), spawns: [[-1.5, 0], [1.5, 0]] };
 
 /** ?play&arena=test: a duel test arena on a world's stage plane (where it stands and how the camera sees it), its floor
@@ -195,6 +199,7 @@ export async function playDemo(ctx: PlayCtx): Promise<PlayHandle> {
   const ice = show.kinds.find((k) => k.id === 'ice' || k.id === 'water') as WaterPasses | undefined;
   const iceLedges = (plane: StagePlane | null): Ledge[] => (ice && plane && (!ice.setIce.world || ice.setIce.world === ctx.world().id) ? flatSteps(ice.setIce.ledgesIn(plane)) : []);
   const controllers: IntentController[] = [];
+  const edges: (() => void)[] = [];
   const dancers: Dancer[] = [];
   // the duel's movement (&duel), on a test arena of its own (&arena=test)
   const q = new URLSearchParams(location.search);
@@ -213,6 +218,9 @@ export async function playDemo(ctx: PlayCtx): Promise<PlayHandle> {
     c.character.extraLedges = () => iceLedges(c.character.plane);
     c.character.yaw = seat ? -Math.PI / 2 : Math.PI / 2;
     if (lockedPlane) c.setPlane(lockedPlane);
+    // (free, outside the duel, whose match keeps its own: the world's arena's soft edge, a little wider, so a dance in
+    // open 3D curves round the world's rim instead of walking out through its glass; report 24-feel)
+    edges.push(() => { if (duel || c.character.plane) return; const A = arenaFor(home().id); if (A) softEdge(c.character, A, A.space.radius + DANCE_EDGE); });
     controllers.push(c);
     dancer = new Dancer(`player.${seat}`, c, gemsLoadout(seat ? playParams.suiteTwo : playParams.suiteOne));
     dancers.push(dancer);
@@ -290,6 +298,7 @@ export async function playDemo(ctx: PlayCtx): Promise<PlayHandle> {
 
   // ---------------------------------------------------------------- each frame
   frame.tick('input', () => hub.poll(), 'play: devices joining');
+  frame.tick('travel', () => { for (const e of edges) e(); }, 'play: the soft edge of each world (free, the dance)');
   frame.tick('camera', (f) => {
     // a lock asked for by a player (Tab, V, the View button), or by the rig (l, bend.lock, ?lock)
     if (controllers.some((c) => c.intent.lock)) rig.lock(rig.mode === 'locked' ? null : planeOf());

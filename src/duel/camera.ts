@@ -198,6 +198,10 @@ export const DUEL_CAM = {
   yawRate: 1.8, yawAccel: 6, pitchRate: 0.9,
   /** an apex is framed this far ahead at most (s), from at most this speed up (m/s: a launch is 16) */
   apexAhead: 0.8, apexMaxV: 20,
+  /** the apex eased into the frame over this long (s; report 24-feel) */
+  apexIn: 0.3,
+  /** the boom's fastest way in out of a solid (m/s) */
+  pullSnap: 14,
   /** what a choice costs: any sight line crossed by a solid, and more by the share crossed; the eye within the near
    *  distance of a solid, and less while within its margin; per radian off side on, of look down, of turn from the
    *  choice it has; the other side */
@@ -233,6 +237,9 @@ export const DUEL_CAM = {
   /** and eases back down at most this fast (rad/s), approaching at this rate (1/s; phase 5: 3, was 1.5, whose long
    *  tail kept the eye tilted up in four frames of five) */
   riseDown: [0.5, 3],
+  /** the rise up (and either way while the eye is unclean): its top rate (rad/s) and its ease (1/s; report 24-feel:
+   *  1.1, was 1.6, the look down swung at up to 100°/s; cam-sim: its p99 rate 7 to 12 % lower, the eye as clean) */
+  riseUp: [1.1, 8],
   /** the eye never stands further than this past the room from the arena's middle (m, any direction) */
   roomOver: 1.2,
 };
@@ -500,16 +507,24 @@ export class DuelCamera {
   }
 
   /** the points framed: every body's, and where a rising body's head will peak */
+  /** per body, how far the framed apex has come out from the head (0 … 1): phase 7 (report 24-feel) eases it out over
+   *  `apexIn` s, where it used to appear whole the frame a body left the ground, and the hard pass then threw the boom
+   *  back 2 to 4 m and the lens open 10° in one frame at every launch (the real head and hands still hold the hard
+   *  margins every frame: only the look ahead to the apex is eased) */
+  private apexW: number[] = [];
+  private ptsDt = 1;
   pointsOf(I: CamInput) {
     const pts: V3[] = [];
-    for (const b of I.bodies) {
+    I.bodies.forEach((b, i) => {
       for (const p of b.pts) pts.push(p);
       pts.push([b.head[0], b.head[1] + 0.12, b.head[2]]);
-      if (b.air) {
-        const A = apexOf(b.head, b.vel, I.gravity);
-        if (A) pts.push([A[0], A[1] + 0.12, A[2]]);
-      }
-    }
+      const A = b.air ? apexOf(b.head, b.vel, I.gravity) : null;
+      if (A) {
+        const w = (this.apexW[i] = this.fresh ? 1 : Math.min(1, (this.apexW[i] ?? 0) + this.ptsDt / DUEL_CAM.apexIn));
+        const k = w * w * (3 - 2 * w);
+        pts.push([b.head[0] + (A[0] - b.head[0]) * k, b.head[1] + 0.12 + (A[1] - b.head[1]) * k, b.head[2] + (A[2] - b.head[2]) * k]);
+      } else this.apexW[i] = 0;
+    });
     return pts;
   }
 
@@ -549,6 +564,7 @@ export class DuelCamera {
       for (const b of I.bodies) { c[0] += b.root[0] / I.bodies.length; c[1] += b.root[1] / I.bodies.length; c[2] += b.root[2] / I.bodies.length; }
       I = { ...I, space: I.space.local(c, Math.min(P.maxDist, I.maxDist ?? Infinity, I.room + P.roomOver) * 1.25 + 3) ?? I.space };
     }
+    this.ptsDt = dt;
     const pts = this.pointsOf(I);
     this.framed = pts;
     // (breathing, the pair sits lower in a wider frame: the place over them in it)
@@ -772,7 +788,7 @@ export class DuelCamera {
     // (eased up quickly and down slowly; while the eye it gave last frame was unclean, quickly either way)
     // (away from the plain view quickly, back to it slowly; while the eye it gave last frame was unclean, quickly)
     const dr = this.riseKeep - this.rise, quick = this.last.eyeBad > 0 || Math.abs(this.riseKeep) > Math.abs(this.rise) + 1e-4;
-    const rate = quick ? 1.6 : P.riseDown[0], kr = quick ? 8 : P.riseDown[1];
+    const rate = quick ? P.riseUp[0] : P.riseDown[0], kr = quick ? P.riseUp[1] : P.riseDown[1];
     this.rise = this.fresh ? this.riseKeep : this.rise + Math.max(-rate * dt, Math.min(rate * dt, dr * (1 - Math.exp(-dt * kr))));
     // (the ceiling: the soft one, or the steepest while nothing modest cleaned the eye; phase 5: it moves between them
     // at the rise's own pace, up quickly and down slowly, where it used to jump in a frame, an 8° snap of the look down)
@@ -806,7 +822,9 @@ export class DuelCamera {
     // (cluttered with no clean tilt, turn or boom: next frame the tilt may go steeper, up to maxPitch)
     this.steep = cluttered && pullWant === 1 && !found;
     this.pull = this.fresh ? pullWant : this.pull + (pullWant - this.pull) * (1 - Math.exp(-dt * (pullWant < this.pull ? 14 : 1.5)));
-    if (sp && pullWant < this.pull && sp.clear(eyeAt(pitch, D0 * this.pull)) < I.near + 0.15) this.pull = pullWant;
+    // (inside a solid's near distance: in at once, as fast as P.pullSnap m/s; phase 7, report 24-feel: it was one frame,
+    // a 2 m jump of the eye that read as a cut, where the near fade already dissolves what the eye passes through)
+    if (sp && pullWant < this.pull && sp.clear(eyeAt(pitch, D0 * this.pull)) < I.near + 0.15) this.pull = Math.max(pullWant, this.pull - (P.pullSnap * dt) / Math.max(1, D0));
     let D = D0 * this.pull;
     // (and never out through the shell: the boom shortened to stay inside the room, the lens widening from there)
     if (outOf(eyeAt(pitch, D)) > 0 && outOf(look) < 0) {

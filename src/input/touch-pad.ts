@@ -9,10 +9,13 @@ export class TouchPad {
   private knob = document.createElement('div');
   private freeOnly: HTMLElement[] = [];
   private duelOnly: HTMLElement[] = [];
+  private jogoOnly: HTMLElement[] = [];
+  private labelled: [HTMLElement, string, string][] = [];
+  private col: HTMLElement | null = null;
 
   constructor(private src: TouchSource, canvas: HTMLElement) {
     Object.assign(this.root.style, { position: 'fixed', inset: '0', pointerEvents: 'none', zIndex: '5', font: '12px system-ui, sans-serif', userSelect: 'none', webkitUserSelect: 'none' });
-    const col = document.createElement('div');
+    const col = (this.col = document.createElement('div'));
     Object.assign(col.style, { position: 'absolute', right: 'max(12px, env(safe-area-inset-right))', bottom: 'max(12px, env(safe-area-inset-bottom))', display: 'grid', gridTemplateColumns: 'repeat(2, 64px)', gap: '8px', pointerEvents: 'auto' });
     for (const b of src.buttons) {
       const el = document.createElement('button');
@@ -25,6 +28,8 @@ export class TouchPad {
       el.addEventListener('pointercancel', up);
       if (b.freeOnly) this.freeOnly.push(el);
       if (b.duelOnly) this.duelOnly.push(el);
+      if (b.jogoOnly) this.jogoOnly.push(el);
+      if (b.duelLabel) this.labelled.push([el, b.label, b.duelLabel]);
       col.append(el);
     }
     for (const [el, size] of [[this.ring, 120], [this.knob, 48]] as const) {
@@ -45,7 +50,13 @@ export class TouchPad {
       Object.assign(this.knob.style, { left: `${s.ox + dx * k}px`, top: `${s.oy + dy * k}px` });
     }
     for (const el of this.freeOnly) el.style.visibility = this.src.mode === 'free' ? 'visible' : 'hidden';
-    for (const el of this.duelOnly) el.style.display = this.src.scheme === 'duel' ? '' : 'none';
+    const duel = this.src.scheme === 'duel';
+    for (const el of this.duelOnly) el.style.display = duel ? '' : 'none';
+    for (const el of this.jogoOnly) el.style.display = duel ? 'none' : '';
+    for (const [el, a, b] of this.labelled) { const t = duel ? b : a; if (el.textContent !== t) el.textContent = t; }
+    // (a short screen, a phone held sideways: three columns, so the buttons stay under the HUD's top corners)
+    const cols = innerHeight < 520 ? 3 : 2;
+    if (this.col && this.col.dataset.cols !== String(cols)) { this.col.dataset.cols = String(cols); this.col.style.gridTemplateColumns = `repeat(${cols}, 64px)`; }
   }
 
   remove() { this.root.remove(); }
