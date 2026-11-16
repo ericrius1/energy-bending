@@ -25,9 +25,10 @@ import type { Music } from '../../audio/music';
 import { budget, deviceClass } from '../../engine/perf';
 import { setParams } from '../../engine/params';
 import { moveFocus } from '../../play/menu';
+import { keysOf } from '../../input/keyboard';
 
 type Bend = Record<string, any> & { show: Show; music: Music };
-type Device = { device: 'keyboard'; code: string } | { device: 'touch'; id: number; x: number; y: number } | { device: 'mouse' } | { device: 'gamepad'; index: number } | null;
+type Device = { device: 'keyboard'; code: string; held?: () => boolean } | { device: 'touch'; id: number; x: number; y: number } | { device: 'mouse' } | { device: 'gamepad'; index: number } | null;
 type Pick = { game: 'dance' | 'duel'; mode: string };
 
 const IDLE_S = 3.2;
@@ -36,6 +37,18 @@ const TEACH_S = 60;
 const VEIL_MS = 380;
 /** keys that never begin a game: the browser's, focus moving round the menu, main.ts's fullscreen, the card's ? */
 const QUIET = new Set(['Tab', 'Shift', 'Control', 'Alt', 'Meta', 'CapsLock', 'Escape', 'ContextMenu', 'f', 'F', '?']);
+/** the keys a first press joins the keyboard by: the solo layout's (W A S D, J K L …) and the arrows (the right half).
+ *  Any other key (Enter, space, a letter no layout has) joins the solo layout with the mouse, the one-player keyboard:
+ *  before, Enter joined the right half (it is its form key), and the W a newcomer pressed next joined the left half as
+ *  a second player, who took the partner's body (report 24-newcomer) */
+const SOLO_KEYS = keysOf('solo'), ARROWS = new Set(['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight']);
+/** the keys down now (the key that began a game may have gone up while it loaded: it is let go then) */
+const keysDown = new Set<string>();
+if (typeof document !== 'undefined') {
+  addEventListener('keydown', (e) => keysDown.add(e.code), { capture: true });
+  addEventListener('keyup', (e) => keysDown.delete(e.code), { capture: true });
+  addEventListener('blur', () => keysDown.clear());
+}
 
 if (typeof document !== 'undefined' && isFront()) void install();
 
@@ -110,7 +123,8 @@ async function install() {
     // (space would also shatter the show: main.ts's key; the game is beginning instead)
     e.preventDefault();
     e.stopImmediatePropagation();
-    void begin(p, e.key === ' ' ? { device: 'mouse' } : { device: 'keyboard', code: e.code });
+    const code = e.code;
+    void begin(p, SOLO_KEYS.has(code) || ARROWS.has(code) ? { device: 'keyboard', code, held: () => keysDown.has(code) } : { device: 'mouse' });
   }, { capture: true });
   // a tap on the dancers (a drag still turns the camera and plays with the matter)
   let down: { x: number; y: number; t: number } | null = null;

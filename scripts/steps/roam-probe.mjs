@@ -5,7 +5,8 @@
 // `mouse(x, y)`, `tap(x, y)`, `log(...)`. --lib FILE is prepended to the script (scripts/steps/roam-lib.js: a
 // first-timer steering with real keys to a mirror).
 //   node scripts/steps/roam-probe.mjs <query> <script.js> [--lib scripts/steps/roam-lib.js]
-//        [--url http://localhost:5481/energybending/] [--out shots/roam] [--phone] [--size 640x360]
+//        [--url http://localhost:5481/energybending/] [--out shots/roam] [--phone] [--touch] [--size 640x360]
+// (--touch: a touch screen at the desktop size; `touch('start' | 'move' | 'end', x, y)` holds a finger down)
 import { readFileSync, mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { launch, adapterName } from '../lib/browser.mjs';
@@ -16,7 +17,7 @@ const URL0 = opt('url', 'http://localhost:5481/energybending/'), OUT = opt('out'
 const [SW, SH] = (opt('size', '1280x720')).split('x').map(Number);
 mkdirSync(OUT, { recursive: true });
 const PHONE = argv.includes('--phone');
-const vp = PHONE ? { width: 375, height: 812, deviceScaleFactor: 2, isMobile: true, hasTouch: true } : { width: SW, height: SH, deviceScaleFactor: 1 };
+const vp = PHONE ? { width: 375, height: 812, deviceScaleFactor: 2, isMobile: true, hasTouch: true } : { width: SW, height: SH, deviceScaleFactor: 1, hasTouch: argv.includes('--touch') };
 const browser = await launch({ width: SW, height: SH });
 try {
   const page = await browser.newPage();
@@ -51,6 +52,13 @@ try {
   await page.exposeFunction('__click', async (sel) => { await page.click(sel); });
   await page.exposeFunction('__mouse', async (x, y) => { await page.mouse.move(x, y); });
   await page.exposeFunction('__tap', async (x, y) => { await page.touchscreen.tap(x, y); });
-  const r = await page.evaluate(`(async () => { const bend = window.bend; const step = (n) => bend.step(n); const shot = window.__shot, grab = async (name) => window.__save(name, await bend.grab('image/jpeg', 0.82)), key = window.__key, click = window.__click, mouse = window.__mouse, tap = window.__tap; const log = (...a) => console.log('[roam]', ...a.map((x) => typeof x === 'string' ? x : JSON.stringify(x))); ${SCRIPT} })()`);
+  // (a held touch: 'start' at x, y; 'move' to x, y; 'end')
+  let th = null;
+  await page.exposeFunction('__touch', async (k, x, y) => {
+    if (k === 'start') th = await page.touchscreen.touchStart(x, y);
+    else if (k === 'move') await th?.move(x, y);
+    else { await th?.end(); th = null; }
+  });
+  const r = await page.evaluate(`(async () => { const bend = window.bend; const step = (n) => bend.step(n); const shot = window.__shot, grab = async (name) => window.__save(name, await bend.grab('image/jpeg', 0.82)), key = window.__key, click = window.__click, mouse = window.__mouse, tap = window.__tap, touch = window.__touch; const log = (...a) => console.log('[roam]', ...a.map((x) => typeof x === 'string' ? x : JSON.stringify(x))); ${SCRIPT} })()`);
   console.log(JSON.stringify(r, null, 1));
 } finally { await browser.close(); }

@@ -60,6 +60,14 @@ import { jogoParams } from './params';
 import { Lobby, Waiting, showFront, escapeToFront, hrefOf } from './menu';
 import { roomServer } from '../net/where';
 import { roam } from './roam';
+import { frontYou } from './front-you';
+import { YouTags } from './you-tag';
+import { YouTell, YOU } from '../duel/you';
+import { screenOf } from '../hud/state';
+import { clearTurn } from './opening';
+import { softEdge } from './edge';
+import { arenaFor } from '../duel/arena';
+import { cameraParams } from '../engine/camera';
 
 type V3 = [number, number, number];
 
@@ -117,11 +125,14 @@ export async function registerPlay(app: PlayApp) {
     const demo = ['play', 'net', 'landmarks', 'wander', 'film', 'gates', 'fly', 'nomenu', 'pip', 'you', 'lock', 'roda', 'teach', 'npcs', 'perf', 'perfgroup'].some((k) => q.has(k));
     if (!demo && typeof document !== 'undefined') {
       showFront(q);
+      // which body will be yours and what to press (front-you.ts: the YOU tell on the show's first dancer, the word)
+      const fy = frontYou({ kit: app.kit, frame: app.frame, scene: app.main.scene, body: () => app.show.dancers[0] ?? null, ground: (x, z) => app.worldOf(app.main.world).groundAt(x, z) });
       // (the front's fading, and beginning a jogo from a key or a tap, are the hub's: worlds/geode/front.ts)
       // beginning in this page: the jogo with this page's parts, in the world the query names, the device that began it
       // joined to seat 1 at once
       const front = {
         begin: async (m: 'same' | 'partner' | 'duel', query: URLSearchParams, joined?: Joined) => {
+          fy.stop();
           const w = query.get('world');
           if (w && w !== app.main.world) await app.setWorld?.(w);
           // the duel (src/duel), seat 1 the device that began it: the same parts, the duel's own lobby and lesson
@@ -138,7 +149,7 @@ export async function registerPlay(app: PlayApp) {
 
 /** the device whose press began a jogo or a duel (the front's key, tap, click or a gamepad's button), joined to seat 1
  *  as it starts */
-export type Joined = { device: 'keyboard'; code: string } | { device: 'touch'; id: number; x: number; y: number } | { device: 'mouse' } | { device: 'gamepad'; index: number };
+export type Joined = { device: 'keyboard'; code: string; held?: () => boolean } | { device: 'touch'; id: number; x: number; y: number } | { device: 'mouse' } | { device: 'gamepad'; index: number };
 
 export async function startJogo(app: PlayApp, mode: string, opts: { joined?: Joined } = {}) {
   const { kit, frame, show, rig, gates, music, field, query: q } = app;
@@ -292,9 +303,13 @@ export async function startJogo(app: PlayApp, mode: string, opts: { joined?: Joi
     glows, locked: () => rig.locked, beat: beatNow,
     hidden: () => Math.max(fusion.weight, travelling ? 1 : 0),
   });
+  let fresh = !!opts.joined;
   const flow = new Flow(bodies, {
-    glows, sfx, now: () => room.now(), rise: (s) => show.rise(s),
-    respawn: (_s, c) => c.spawn(), plane: () => play.plane(),
+    glows, sfx, now: () => room.now(),
+    // (the first count-in of a dance begun by the front's press: the bodies already stand at their spawns, and the
+    // player's first steps are kept rather than undone by a re-form that holds them for a second: report 24-newcomer)
+    rise: (s) => { if (fresh) { fresh = false; return; } show.rise(s); },
+    respawn: (_s, c) => { if (!fresh) c.spawn(); }, plane: () => play.plane(),
   });
 
   // the characters stand on the pieces too (set ice's tops, the crystal ledges), on the locked stage
@@ -403,13 +418,19 @@ export async function startJogo(app: PlayApp, mode: string, opts: { joined?: Joi
     };
     lobby = new Lobby(mode === 'partner', (_seat, e) => joinPointer({ touch: e.pointerType !== 'mouse', id: e.pointerId, x: e.clientX, y: e.clientY }));
     lobby.seat(1, 'bot');
+    // (the room starts 1.6 s after the first device joins, on the frames' clock: a capture stepped by hand starts it on
+    // the same frame every time)
+    let startIn = Infinity;
+    frame.tick('input', (f: FrameCtx) => { if (!started && (startIn -= f.dt) <= 0) void start(); }, 'jogo: starts a moment after the first device joins');
     const was = play.hub.onJoin;
     play.hub.onJoin = (p) => {
       was?.(p);
       lobby?.seat(p.index, p.device);
       // (the join is a key's or a touch's own handler: the sound starts inside the gesture, or a browser keeps it
       // suspended until the next one)
-      if (p.index === 0 && !started) { if (!music.live) music.start(show.program.key); app.wake(); setTimeout(() => void start(), 1600); }
+      // (begun by the front's press: the room starts at once, so the bodies re-form at their spawns before the player
+      // is off, not under them a second and a half later: report 24-newcomer)
+      if (p.index === 0 && !started) { if (!music.live) music.start(show.program.key); app.wake(); startIn = opts.joined ? 0.2 : 1.6; }
       if (p.index === 1) music.players.add(play.dancers[1].id);
     };
     // the device whose press began this jogo (the front's key, tap or click) joins seat 1 now: one press starts and
@@ -417,7 +438,12 @@ export async function startJogo(app: PlayApp, mode: string, opts: { joined?: Joi
     const j = opts.joined, hub = play.hub;
     if (j) {
       const n = hub.players.length;
-      if (j.device === 'keyboard') hub.key(j.code);
+      if (j.device === 'keyboard') {
+        hub.key(j.code);
+        // (the key that began it went up while the game was loading: let it go, or the body walks off on its own until
+        // the room starts and puts it back, report 24-newcomer)
+        if (j.held && !j.held()) (hub.players[n]?.source as { keyUp?(code: string): void } | undefined)?.keyUp?.(j.code);
+      }
       else if (j.device === 'gamepad') { const p = hub.join(hub.pads.source(j.index), 'gamepad'); if (p) p.slot = j.index; }
       if (hub.players.length === n) joinPointer(j.device === 'touch' ? { touch: true, id: j.id, x: j.x, y: j.y } : { touch: false, id: 0, x: 0, y: 0 });
     }
@@ -481,6 +507,7 @@ export async function startJogo(app: PlayApp, mode: string, opts: { joined?: Joi
       if (e.k === 'set') pieces.lay(e.piece);
       else if (e.k === 'unset') { if (e.how === 'melt') { const p = room.session.pieces.get(e.id); pieces.melt(e.id, p?.melt ?? room.now()); } else pieces.unlay(e.id, e.how === 'shatter'); }
     }
+    if (ev.some((e) => e.k === 'phase' && e.phase === 'intro')) openSoon(2);
     feel.update(f.dt, ev);
     fusion.update(f.dt);
     hud.update(f.dt, room.state, ev);
@@ -511,7 +538,97 @@ export async function startJogo(app: PlayApp, mode: string, opts: { joined?: Joi
   });
 
   // the pair roams: through a mirror or a gate together, the main view after them, the way said (roam.ts)
-  const roaming = roam({ gates, rig, main: app.main, frame, all: () => show.dancers, seats: seatDancer, local: (s) => !online || s === room.session.seat, started: () => started });
+  const roaming = roam({
+    gates, rig, main: app.main, frame, all: () => show.dancers, seats: seatDancer, local: (s) => !online || s === room.session.seat, started: () => started,
+    lead: () => { const c = seatCtl[0]?.character; return c ? { yaw: c.yaw, v: c.v } : null; },
+    aspect: () => { const [w, h] = kit.size.render; return w / Math.max(1, h); },
+  });
+
+  // ---------------------------------------------------------------- the edge (edge.ts; report 24-newcomer): in open 3D
+  // this page's bodies keep inside their world's play space (the duel's arena space, its ways out open), as the duel's
+  // do: a run at the edge curves round it rather than through the balustrade and out past the glass
+  frame.tick('input', () => {
+    for (let k = 0; k < 2; k++) {
+      const c = seatCtl[k]?.character, d = seatDancer[k];
+      if (!c || !d || c.plane || (online && k !== room.session.seat)) continue;
+      const A = arenaFor(gates.worldOf(d));
+      if (A) softEdge(c, A);
+    }
+  }, 'jogo: the soft edge of the play space');
+
+  // ---------------------------------------------------------------- the first view (opening.ts; report 24-newcomer)
+  // as the dance begins (the first device joins) and as the bodies re-form at their spawns (the intro), the follow
+  // camera turns to the nearest turn whose view of the pair is clear of the world's slabs and planters, eased there
+  let openIn = -1, openYaw: number | null = null, openT = 0;
+  const opening: { t: number; from: number; to: number; blocked: number }[] = [];
+  const openSoon = (frames: number) => { if (!scripted && !app.film) openIn = frames; };
+  frame.tick('camera', (f: FrameCtx) => {
+    if (openIn > 0 && --openIn === 0 && rig.follow && rig.solids && rig.mode !== 'locked') {
+      const F = rig.follow, [w, h] = kit.size.render;
+      const T: V3 = [F.x, F.y, F.z], dist = cameraParams.followDist + Math.min(F.spread, 5) * 0.45;
+      const r = clearTurn(rig.solids, T, rig.yaw, cameraParams.followPitch, dist, cameraParams.followFov, w / Math.max(1, h), world().room);
+      opening.push({ t: +(kit.frameIndex / 60).toFixed(2), from: +rig.yaw.toFixed(2), to: +r.yaw.toFixed(2), blocked: r.blocked });
+      if (r.yaw !== rig.yaw) { openYaw = r.yaw; openT = 0; }
+    }
+    if (openYaw != null) {
+      // (eased over about half a second; the player's own look input takes it at once)
+      openT += f.dt;
+      if (rig.lookIdle < 0.05 || openT > 1.2 || rig.mode === 'locked') openYaw = null;
+      else {
+        const d = Math.atan2(Math.sin(openYaw - rig.yaw), Math.cos(openYaw - rig.yaw));
+        rig.yaw += d * (1 - Math.exp(-f.dt * 7));
+        if (Math.abs(d) < 0.01) openYaw = null;
+      }
+    }
+  }, 'jogo: the first view clear of the world pieces');
+
+  // ---------------------------------------------------------------- which one is you (src/duel/you.ts; report 24-newcomer)
+  // the duel's tell on the page's own seats (a local room's seats a device plays, online this page's seat; none in a
+  // film or a script): its opening as the first device joins (the front's press: the same petal the front showed over
+  // this body) and again each time the view comes into a new world, a small petal over the head and a ring at the feet
+  // all through; the page's tag over the petal in the opening ("you", or two at one screen each seat's device)
+  const sourceName = (k: number) => (seatCtl[k]?.source as { name?: string } | undefined)?.name ?? null;
+  const human = (k: number) => /^(keyboard|touch|gamepad|camera)/.test(sourceName(k) ?? '');
+  const pressedNow = (it: IntentController['intent'] | undefined) => !!it && (Math.hypot(it.moveX, it.moveZ) > 0.3 || it.jump || it.punch || it.kick || it.spin || it.dodge || it.form || it.dash);
+  const headOf = (k: number): V3 | null => {
+    const d = seatDancer[k];
+    if (!d || gates.worldOf(d) !== app.main.world) return null;
+    return jointOf(d, JOINT.HeadEnd);
+  };
+  const you = new YouTell({
+    glows, head: headOf, root: (k) => bodies[k].root() as V3, ground: (x, z) => world().groundAt(x, z),
+    eye: () => [cam.position[0], cam.position[1], cam.position[2]],
+    pressed: (k) => pressedNow(seatCtl[k]?.intent), away: () => fusion.weight, device: sourceName,
+  }, () => (app.film || scripted ? [] : online ? (room.session.seat != null && room.state?.phase !== undefined ? [room.session.seat] : []) : [0, 1].filter(human)));
+  const youTags = new YouTags();
+  let youWorld = app.main.world, youBeat = Infinity, youBegun = false;
+  if (online) { you.set(); youBegun = true; }
+  const wasJoin = play.hub.onJoin;
+  play.hub.onJoin = (p) => { wasJoin?.(p); if (p.index === 0 && !youBegun) { youBegun = true; you.set(); openSoon(2); } };
+  if (!online && play.hub.players.some((p) => p.index === 0) && !youBegun) { youBegun = true; you.set(); openSoon(2); }
+  frame.tick('travel', (f: FrameCtx) => {
+    if (!youBegun) return;
+    // (into a new world: the opening again, the shorter one)
+    if (app.main.world !== youWorld) { youWorld = app.main.world; you.set(); }
+    // (a ring rises up you on each beat of the opening, as the count-in's do)
+    const b = Math.floor(f.beat.beats);
+    if (you.intro() > 0.05 && b !== youBeat && Number.isFinite(youBeat)) you.count();
+    youBeat = b;
+    you.update(f.dt);
+  }, "jogo: which one is you (the tell on the page's own seats)");
+  frame.tick('post', () => {
+    const own = you.own(), I = you.intro();
+    for (let k = 0; k < 2; k++) {
+      const h = own.includes(k) ? you.hud(k) : undefined, head = h ? headOf(k) : null;
+      if (!h || !head) { youTags.place(k, 0, 0, 0, ''); continue; }
+      // (over the petal's tip: its size as the tell draws it, kept on screen)
+      const e = cam.position, dist = Math.hypot(head[0] - e[0], head[1] - e[1], head[2] - e[2]);
+      const M = YOU.marker, sc = Math.max(M.scale[0], Math.min(M.scale[1], dist / M.ref)), big = 1 + (M.intro - 1) * I;
+      const p = screenOf(cam.viewProj, [head[0], head[1] + (M.over * (0.6 + 0.4 * big) + M.len * big + 0.08) * sc, head[2]]);
+      const two = own.length > 1;
+      youTags.place(k, p[0], p[1], Math.max(I, you.pulse(k)), two ? h.label : 'you', two ? h.sub : undefined);
+    }
+  }, 'jogo: the tag over your petal');
 
   frame.tick('camera', (f) => {
     if (!started) return;
@@ -548,7 +665,8 @@ export async function startJogo(app: PlayApp, mode: string, opts: { joined?: Joi
       phase: room.state?.phase, tension: room.state?.tension, streak: room.state?.streak, flow: room.state?.flow, form: room.state?.form,
       axe: room.state?.axe, fusion: fusion.stats(), feel: feel.stats(), pieces: pieces.stats(), glows: glows.count, travelling,
       seats: [0, 1].map((s) => ({ el: bodies[s].element(), root: bodies[s].root().map((v) => +v.toFixed(2)), world: seatDancer[s] ? gates.worldOf(seatDancer[s]!) : null })),
-      crossings: roaming.log, world: app.main.world, side: rig.mode === 'locked',
+      crossings: roaming.log, ways: roaming.counts, opening, you: you.own(), world: app.main.world, side: rig.mode === 'locked',
+      devices: seatCtl.map((c) => (c?.source as { name?: string } | undefined)?.name ?? null),
       script: runner ? { fired: (runner as ScriptRunner).fired, done: (runner as ScriptRunner).done } : null,
     }),
     start,
