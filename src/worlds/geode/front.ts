@@ -35,8 +35,8 @@ const IDLE_S = 3.2;
 const TAUGHT = 'energybending.taught';
 const TEACH_S = 60;
 const VEIL_MS = 380;
-/** keys that never begin a game: the browser's, focus moving round the menu, main.ts's fullscreen, the card's ? */
-const QUIET = new Set(['Tab', 'Shift', 'Control', 'Alt', 'Meta', 'CapsLock', 'Escape', 'ContextMenu', 'f', 'F', '?']);
+/** keys that never begin a game: the browser's, focus moving round the menu, main.ts's fullscreen, the legend's ? and / */
+const QUIET = new Set(['Tab', 'Shift', 'Control', 'Alt', 'Meta', 'CapsLock', 'Escape', 'ContextMenu', 'f', 'F', '?', '/']);
 /** the keys a first press joins the keyboard by: the solo layout's (W A S D, J K L …) and the arrows (the right half).
  *  Any other key (Enter, space, a letter no layout has) joins the solo layout with the mouse, the one-player keyboard:
  *  before, Enter joined the right half (it is its form key), and the W a newcomer pressed next joined the left half as
@@ -113,7 +113,6 @@ async function install() {
   addEventListener('keydown', (e) => {
     if (begun || e.repeat || e.ctrlKey || e.metaKey || e.altKey || /^F\d+$/.test(e.key)) return;
     if ((e.target as HTMLElement)?.closest?.('input, select, textarea, .dh')) return;
-    if (e.key === '?') { e.preventDefault(); void import('../../duel/help').then((m) => m.toggleHelp(m.guessDev(), pick(root).game === 'duel' ? show.dress.slice(0, 2) : [])); return; }
     if (QUIET.has(e.key)) return;
     const inMenu = !!(e.target as HTMLElement)?.closest?.('.jg-front');
     // (in the strip the arrows walk it: menu.ts; away from it they are the right half of the keyboard and begin)

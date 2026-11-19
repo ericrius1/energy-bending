@@ -68,6 +68,7 @@ import { clearTurn } from './opening';
 import { softEdge } from './edge';
 import { arenaFor } from '../duel/arena';
 import { cameraParams } from '../engine/camera';
+import { installHelp } from '../duel/help';
 
 type V3 = [number, number, number];
 
@@ -124,7 +125,15 @@ export async function registerPlay(app: PlayApp) {
     // the plain page: the front of the game over the show (never in a film, or with any of the debug demos)
     const demo = ['play', 'net', 'landmarks', 'wander', 'film', 'gates', 'fly', 'nomenu', 'pip', 'you', 'lock', 'roda', 'teach', 'npcs', 'perf', 'perfgroup'].some((k) => q.has(k));
     if (!demo && typeof document !== 'undefined') {
-      showFront(q);
+      const frontRoot = showFront(q);
+      // always-visible toggleable controls legend icon on the front screen too (stays even when bottom strip fades)
+      if (!app.film) installHelp({
+        frame: app.frame,
+        game: () => (frontRoot.dataset.game === 'duel' ? 'duel' : 'dance'),
+        device: () => null,
+        matters: () => app.show.dress.slice(0, 2),
+        allowModeSwitch: true,
+      });
       // which body will be yours and what to press (front-you.ts: the YOU tell on the show's first dancer, the word)
       const fy = frontYou({ kit: app.kit, frame: app.frame, scene: app.main.scene, body: () => app.show.dancers[0] ?? null, ground: (x, z) => app.worldOf(app.main.world).groundAt(x, z) });
       // (the front's fading, and beginning a jogo from a key or a tap, are the hub's: worlds/geode/front.ts)
@@ -173,6 +182,8 @@ export async function startJogo(app: PlayApp, mode: string, opts: { joined?: Joi
     // each seat walks on its own world's ground (the gates': a dancer crossing a gate stands on the far world's floor,
     // not the main view's), as ?play's dancers do
     worldOf: (d) => app.worldOf(gates.worldOf(d)),
+    // only 2-player local ('same') splits the keyboard; in partner/online modes arrows orbit the 3D camera
+    allowSplit: mode === 'same',
   });
   escapeToFront();
 
@@ -639,6 +650,18 @@ export async function startJogo(app: PlayApp, mode: string, opts: { joined?: Joi
   }, 'jogo: the fusion stands back; online, the pose out');
 
   frame.tick('post', () => draw.upload(), 'jogo: its glows to the GPU');
+
+  // always-visible toggleable control legend for Dance / Jogo (hidden only in films/scripts)
+  if (!app.film && !scripted) {
+    installHelp({
+      frame, game: 'dance',
+      device: () => sourceName(online ? (room.session.seat ?? 0) : 0),
+      matters: () => [],
+      split: () => seatCtl.some((c) => (c?.source as { name?: string } | undefined)?.name === 'keyboard-right'),
+      locked: () => rig.mode === 'locked',
+      toggleView: () => play.toggleLock(),
+    });
+  }
 
   // ---------------------------------------------------------------- the hooks (bend.jogo)
   const api = {

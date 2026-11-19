@@ -22,6 +22,9 @@ export interface Player {
 export interface HubOptions {
   /** most players (2: a jogo) */
   max?: number;
+  /** allow splitting one keyboard into left + right halves for two local players (false in 1-player modes so arrows
+   *  orbit the 3D camera instead of kicking out the AI partner and disabling the mouse) */
+  allowSplit?: boolean;
   /** where keys and touches come from (null: nowhere, for tests) */
   target?: EventTarget | null;
   /** the canvas: touches on it and the mouse for the solo layout */
@@ -41,6 +44,7 @@ export class InputHub {
   onChange: ((p: Player) => void) | null = null;
   readonly pads: GamepadHub;
   private max: number;
+  private allowSplit: boolean;
   private _scheme: Scheme = 'jogo';
   /** what the buttons mean for every device seated now and later: the jogo's or the duel's (input/intent.ts Scheme) */
   get scheme() { return this._scheme; }
@@ -49,6 +53,7 @@ export class InputHub {
 
   constructor(private o: HubOptions = {}) {
     this.max = o.max ?? 2;
+    this.allowSplit = o.allowSplit ?? this.max > 1;
     this.pads = new GamepadHub({ getPads: o.getPads, target: o.target === null ? null : undefined });
     if (hasDOM && o.target !== null) {
       const t = o.target ?? window;
@@ -72,6 +77,7 @@ export class InputHub {
       target: this.o.target === null ? null : undefined, mouseTarget: this.o.canvas ?? null,
       dancerScreen: this.o.dancerScreen ? () => this.o.dancerScreen!(player) : undefined,
       facing: this.o.facing ? () => this.o.facing!(player) : undefined,
+      camArrows: layout === 'solo' && !this.allowSplit,
     };
     const k = new KeyboardSource(layout, opts);
     k.scheme = this._scheme;
@@ -85,13 +91,13 @@ export class InputHub {
     if (!solo && !right) return;
     if (!kb.length) {
       if (this.full) return;
-      const layout: KeyLayout = right ? 'right' : 'solo';
+      const layout: KeyLayout = right && this.allowSplit ? 'right' : 'solo';
       const src = this.keyboard(layout, this.players.length);
       this.add(src, 'keyboard', layout);
       src.keyDown(code);
       return;
     }
-    if (kb.length === 1) {
+    if (kb.length === 1 && this.allowSplit) {
       const p = kb[0];
       // someone else on the other half of the keyboard: split it
       const other = (p.slot === 'right' && solo && !RIGHT.has(code)) || ((p.slot === 'solo' || p.slot === 'left') && right);

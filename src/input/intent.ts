@@ -39,6 +39,9 @@ export interface Intent {
   power2?: boolean;
   aimX: number; aimY: number; aimActive: boolean;
   camX: number; camY: number;
+  /** free-camera wheel zoom delta (+ out, - in) and recenter edge (R) */
+  camZoom?: number;
+  camReset?: boolean;
   lock: boolean; interact: boolean;
   dodgeHeld: boolean; punchHeld: boolean;
   auDir?: number;
@@ -74,7 +77,7 @@ export function makeIntent(): Intent {
   };
 }
 
-export const EDGES = ['jump', 'punch', 'kick', 'spin', 'dodge', 'dash', 'form', 'lock', 'interact', 'power1', 'power2'] as const;
+export const EDGES = ['jump', 'punch', 'kick', 'spin', 'dodge', 'dash', 'form', 'lock', 'interact', 'power1', 'power2', 'camReset'] as const;
 export const HELDS = ['jumpHeld', 'merge', 'dodgeHeld', 'punchHeld', 'aimActive'] as const;
 const AXES = ['moveX', 'moveY', 'moveZ', 'camX', 'camY'] as const;
 
@@ -83,6 +86,7 @@ export function mergeIntents(a: Intent, b: Intent): Intent {
   const o = makeIntent();
   const big = (x: number, y: number) => (Math.abs(x) >= Math.abs(y) ? x : y);
   for (const k of AXES) o[k] = big(a[k] || 0, b[k] || 0);
+  if (a.camZoom || b.camZoom) o.camZoom = (a.camZoom || 0) + (b.camZoom || 0);
   for (const k of [...EDGES, ...HELDS]) o[k] = !!(a[k] || b[k]);
   const src = b.aimActive && !a.aimActive ? b : a;
   o.aimX = src.aimX; o.aimY = src.aimY;

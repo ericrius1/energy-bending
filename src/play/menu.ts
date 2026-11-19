@@ -169,7 +169,7 @@ export function showFront(query: URLSearchParams, open: (href: string) => void =
   const kept = keptSide();
   const sideOf = (g: Game) => (query.has('free') ? false : query.has('lock') ? true : kept[g]);
   const lockOf: Record<Game, boolean> = { dance: sideOf('dance'), duel: sideOf('duel') };
-  const modeOf: Record<Game, Mode> = { dance: 'same', duel: 'partner' };
+  const modeOf: Record<Game, Mode> = { dance: 'partner', duel: 'partner' };
   const c: Choice = { game, mode: modeOf[game], world, dress: lastDress(), lock: lockOf[game] };
   const root = el('div', 'jg jg-front');
   root.dataset.game = game;
@@ -256,7 +256,9 @@ export function showFront(query: URLSearchParams, open: (href: string) => void =
   );
   friend.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.stopPropagation(); net.querySelector<HTMLButtonElement>('.jg-join')!.click(); } });
   const foot = el('div', 'jg-row jg-foot');
-  const helpBtn = button('jg-help', GLYPHS.help, 'how to play', () => { void import('../duel/help').then((m) => m.toggleHelp(m.guessDev(), c.game === 'duel' ? c.dress : [])); });
+  const helpBtn = button('jg-help', GLYPHS.help, 'how to play', () => {
+    void import('../duel/help').then((m) => m.toggleHelp(m.guessDev(), c.game === 'duel' ? c.dress : [], undefined, { game: c.game ?? 'dance', allowModeSwitch: true }));
+  });
   const lockBtn = button('jg-lock', GLYPHS.free, '3D', () => {
     c.lock = !c.lock; kept[c.game ?? 'dance'] = c.lock; keepSide(kept);
     paint(); onChoose?.({ kind: 'lock', value: c.lock });

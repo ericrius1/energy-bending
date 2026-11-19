@@ -2,17 +2,20 @@
 // every action, and the keys it shows are the ones the duel's scheme listens to (input/keyboard.ts LAYOUTS, the HUD's
 // POWER_KEYS, input/gamepad.ts POWER_BUTTONS), so the card and the lesson can't drift from the game.
 import { test, assert, done } from '../../dancer/test/check';
-import { KEYS, devOf, type Action, type Dev } from '../help';
+import { KEYS, DANCE_KEYS, devOf, type Action, type Dev } from '../help';
 import { LAYOUTS, POWER_KEYS } from '../../input/keyboard';
 import { POWER_BUTTONS } from '../../input/gamepad';
 
 const ACTS: Action[] = ['move', 'jump', 'catch', 'dash', 'kick', 'spin', 'dodge', 'power1', 'power2', 'form', 'view', 'help'];
 /** a key code as the card writes it */
-const shown = (code: string) => code.replace(/^Key/, '').replace(/^Shift(Left|Right)$/, 'Shift').replace('Comma', ',').replace('Period', '.').replace('Slash', '/')
+const shown = (code: string) => code.replace(/^Key/, '').replace(/^Digit/, '').replace(/^Shift(Left|Right)$/, 'Shift').replace('Comma', ',').replace('Period', '.').replace('Slash', '/')
   .replace('Semicolon', ';').replace('Quote', "'").replace('BracketLeft', '[').replace('BracketRight', ']').replace(/^Enter$/, 'Enter');
 
-test('every device has a key for every action', () => {
+test('every device has a key for every action (duel and dance)', () => {
   for (const d of Object.keys(KEYS) as Dev[]) for (const a of ACTS) assert(KEYS[d][a], `${d} ${a}`);
+  for (const d of Object.keys(DANCE_KEYS) as Dev[]) {
+    for (const [k, v] of Object.entries(DANCE_KEYS[d])) assert(v, `dance ${d} ${k}`);
+  }
 });
 test('the keyboard halves: the keys the duel listens to', () => {
   for (const d of ['solo', 'left', 'right'] as const) {

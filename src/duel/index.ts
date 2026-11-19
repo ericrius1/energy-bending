@@ -109,7 +109,13 @@ class SeatGate implements IntentSource {
   update(dt: number): Intent {
     const it = this.inner ? this.inner.update(dt) : makeIntent();
     this.pressed = pressedOf(it);
-    if (this.held()) { const o = makeIntent(); o.source = it.source; this.contact = noInput(); this.power = noPower(); return o; }
+    if (this.held()) {
+      const o = makeIntent(); o.source = it.source;
+      // camera controls always stay responsive even while the body is held (count-in, reforming, finale)
+      o.camX = it.camX; o.camY = it.camY; o.camZoom = it.camZoom; o.camReset = it.camReset; o.lock = it.lock;
+      this.contact = noInput(); this.power = noPower();
+      return o;
+    }
     const p1 = !!it.power1, p2 = !!it.power2, form = !!it.form;
     it.form = false; it.merge = false; it.interact = false;
     this.contact = this.split(it);
@@ -173,12 +179,14 @@ export async function startDuel(app: PlayApp, opts: { joined?: Joined } = {}) {
   show.dress = [dress[0] ?? 'fire', dress[1] ?? dress[0] ?? 'water'];
 
   // ---------------------------------------------------------------- the bodies (dancer/play.ts: devices, the lock)
+  const allowSplit = !q.has('net') && (q.get('p1') ?? 'human') === 'human' && (q.get('p2') ?? 'bot') === 'human';
   const { playDemo } = await import('../dancer/play');
   const play = await playDemo({
     show, rig, frame, kit, canvas: app.canvas, world, motion: app.motion, travel: app.travel, coarse: app.coarse, wake: app.wake,
     seen: (d) => app.gates.seen(app.gates.rigWorld, [d]).joints[0] ?? null,
     worldOf: (d) => app.worldOf(app.gates.worldOf(d)),
     stage: () => plane,
+    allowSplit,
   });
   play.addPlayer(new BotSource(null, 'waiting'));
   const ctl = play.controllers as IntentController[];
@@ -503,8 +511,11 @@ export async function startDuel(app: PlayApp, opts: { joined?: Joined } = {}) {
     }
     const a = camBody(0), b = camBody(1);
     if (!a || !b) { rig.pose = null; return; }
-    // (the player turning the camera by hand: the right stick or the mouse, in the free view)
-    if (rig.mode !== 'locked' && rig.lookIdle === 0 && !way) dcam.hold(rig.yaw);
+    // (the player turning or recentering the camera by hand: right-drag, arrows, right stick, or R)
+    if (rig.mode !== 'locked' && !way) {
+      if (ctl[0]?.intent.camReset) { dcam.recenter(); rig.zoom = 1; }
+      else if (rig.lookIdle === 0) dcam.hold(rig.yaw, rig.pitch);
+    }
     const [w, h] = kit.size.render;
     const discs = keep ? undefined : discsOf(W.id);
     const mid: V3 = [(a.root[0] + b.root[0]) / 2, (a.root[1] + b.root[1]) / 2 + 1, (a.root[2] + b.root[2]) / 2];
@@ -543,7 +554,7 @@ export async function startDuel(app: PlayApp, opts: { joined?: Joined } = {}) {
     let pose = dcam.update(f.dt, {
       bodies: [a, b], aspect: w / Math.max(1, h), gravity: chars[0].phys.gravity, space: camSpace(), near: rig.sight.near,
       center: arena.space.center, room: arena.camera?.maxDist ?? arena.space.radius + 6, maxDist: arena.camera?.maxDist, pad: rig.framePad, arena: arena.world, you: you.favour() ?? undefined,
-      discs, sky: skyOf(),
+      discs, sky: skyOf(), zoom: rig.zoom,
     }) as { eye: V3; look: V3; fov: number };
     if (way) {
       const P = way.update(f.dt, pose, mid), X = wayRec;
@@ -815,9 +826,17 @@ export async function startDuel(app: PlayApp, opts: { joined?: Joined } = {}) {
       powers: { flow: powers.rules.seats.map((s) => +s.flow.toFixed(2)), form: [0, 1].map((k) => +powers.hud(k).form.toFixed(2)), casts: powers.rules.seats.map((s) => s.casts), forms: powers.rules.seats.map((s) => s.forms), reactions: { ...powers.rules.reactions }, live: powers.live.map((L) => L.kind), felt: { ...powers.felt } },
     }),
   };
-  // the first duel's lesson (lesson.ts, once) and the controls card (help.ts: ?, F1, Start, the ? chip)
+  // the first duel's lesson (lesson.ts, once) and the always-visible toggleable controls legend (help.ts: ?, /, F1, Start)
   const lesson = startLesson({ frame, duel: api, query: q, film: app.film, humanSeats, bot: (k) => !!brains[k], device: (k) => gates[k].inner?.name ?? null, root: (k) => chars[k].root, held: (k) => match.contact.held(k), joined: (k) => match.contact.held(k) || match.contact.holding(k) });
-  if (!app.film) installHelp({ frame, device: () => gates[humanSeats[0] ?? 0].inner?.name ?? null, matters: () => powers.rules.seats.map((s) => s.matter), lesson, split: () => gates.some((g) => g.inner?.name === 'keyboard-right') });
+  if (!app.film) installHelp({
+    frame, game: 'duel',
+    device: () => gates[humanSeats[0] ?? 0].inner?.name ?? null,
+    matters: () => powers.rules.seats.map((s) => s.matter),
+    lesson,
+    split: () => gates.some((g) => g.inner?.name === 'keyboard-right'),
+    locked: () => rig.mode === 'locked',
+    toggleView: () => play.toggleLock(),
+  });
   // Esc (with no card or lesson open to close first): back to the front and its world picker, as the jogo's Esc does
   if (!app.film) addEventListener('keydown', (e) => { if (e.key === 'Escape' && !e.defaultPrevented && started) location.assign(location.pathname); });
   Object.assign(api, { lesson });

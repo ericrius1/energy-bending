@@ -207,47 +207,90 @@
       .jg-lobby-duel { bottom: max(calc(19vh + 10px), env(safe-area-inset-bottom)); }
       @media (max-width: 759px), (max-height: 479px) { .jg-lobby-duel { bottom: auto; top: 30vh; gap: 10px; } .jg-lobby-duel .jg-card { padding: 10px 12px; } }
 
-      /* the duel's controls card (src/duel/help.ts): a pane of honey glass in gold leading, a sprig at its corner, the
-         title in the display face, the keys as cream keycaps (the HUD's) */
-      .dh { position: fixed; inset: 0; z-index: 8; display: grid; place-items: center; background: rgba(11, 9, 6, 0.38); opacity: 0; transition: opacity 0.22s; color: var(--eb-cream);
-        font: 500 14px/1.35 var(--eb-body); letter-spacing: 0.01em; user-select: none; -webkit-user-select: none; }
+      /* the toggleable control legend (src/duel/help.ts): non-blocking honey-glass card anchored above the always-visible
+         corner pill, in the HUD's look (gold leading, cream keycaps, display title) */
+      .dh { --hu: clamp(0.8px, min(calc(100vw / 1280), calc(100vh / 720)), 2.4px); position: fixed; z-index: 8;
+        right: max(16px, calc(var(--hu) * 20)); bottom: calc(max(16px, calc(var(--hu) * 20)) + 46px);
+        pointer-events: none; opacity: 0; transition: opacity 0.2s ease; color: var(--eb-cream);
+        font: 500 13px/1.35 var(--eb-body); letter-spacing: 0.01em; user-select: none; -webkit-user-select: none; }
       .dh.in { opacity: 1; }
-      .dh-card { position: relative; width: min(560px, calc(100vw - 32px)); max-height: calc(100vh - 32px); overflow: auto; box-sizing: border-box; padding: 14px 20px 16px; border-radius: 22px;
-        background: linear-gradient(180deg, rgba(255, 226, 168, 0.12), rgba(255, 226, 168, 0.02) 30%), linear-gradient(rgba(40, 30, 15, 0.9), rgba(20, 15, 8, 0.92));
-        box-shadow: var(--eb-lead), 0 12px 44px rgba(8, 5, 1, 0.5); backdrop-filter: var(--eb-blur); -webkit-backdrop-filter: var(--eb-blur); transform: translateY(6px); transition: transform 0.22s; }
-      .dh-card::before { content: ''; position: absolute; left: 6px; top: 4px; width: 76px; height: 38px; background: var(--eb-sprig) left top / contain no-repeat; transform: scaleY(-1); opacity: 0.55; pointer-events: none; }
+      .dh-card { position: relative; pointer-events: auto; display: flex; flex-direction: column;
+        width: min(440px, calc(100vw - 28px)); max-height: min(82vh, calc(100vh - 82px)); box-sizing: border-box;
+        padding: 11px 15px 10px; border-radius: 20px;
+        background: linear-gradient(180deg, rgba(255, 226, 168, 0.13), rgba(255, 226, 168, 0.02) 28%), linear-gradient(rgba(36, 27, 14, 0.92), rgba(18, 13, 7, 0.94));
+        box-shadow: var(--eb-lead), 0 14px 44px rgba(8, 5, 1, 0.58); backdrop-filter: var(--eb-blur); -webkit-backdrop-filter: var(--eb-blur);
+        transform: translateY(8px) scale(0.985); transform-origin: bottom right; transition: transform 0.2s ease; }
+      .dh-card::before { content: ''; position: absolute; left: 6px; top: 4px; width: 64px; height: 32px; background: var(--eb-sprig) left top / contain no-repeat; transform: scaleY(-1); opacity: 0.5; pointer-events: none; }
       .dh.in .dh-card { transform: none; }
-      .dh-head { display: flex; justify-content: space-between; align-items: center; padding-left: 58px; }
-      .dh-head span { font: italic 500 22px/1.1 var(--eb-display); color: var(--eb-sun-hi); letter-spacing: 0.01em; }
-      .dh-close { appearance: none; border: 0; background: none; color: inherit; font: 400 24px/1 var(--eb-body); cursor: pointer; opacity: 0.7; padding: 0 4px; }
+      .dh-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding-left: 48px; flex: none; }
+      .dh-title { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+      .dh-title > span:first-child { font: italic 500 20px/1.1 var(--eb-display); color: var(--eb-sun-hi); letter-spacing: 0.01em; }
+      .dh-badge { font: 700 10.5px/1 var(--eb-body); text-transform: uppercase; letter-spacing: 0.08em; padding: 3px 8px; border-radius: 999px;
+        color: var(--eb-sun-hi); background: rgba(255, 200, 97, 0.14); box-shadow: inset 0 0 0 1px rgba(255, 200, 97, 0.4); }
+      .dh-modes { display: inline-flex; padding: 2px; border-radius: 999px; background: rgba(14, 10, 4, 0.45); box-shadow: inset 0 0 0 1px rgba(222, 180, 104, 0.28); }
+      .dh-mode { appearance: none; border: 0; background: none; color: var(--eb-parchment); font: 700 11px/1 var(--eb-body); padding: 4px 9px; border-radius: 999px; cursor: pointer; opacity: 0.7; }
+      .dh-mode.on { opacity: 1; color: #2b1e0b; background: linear-gradient(var(--eb-sun-hi), var(--eb-sun)); }
+      .dh-view { appearance: none; border: 0; cursor: pointer; font: 700 11px/1 var(--eb-body); letter-spacing: 0.03em; padding: 4px 9px; border-radius: 999px;
+        color: var(--eb-cream); background: rgba(255, 214, 140, 0.1); box-shadow: inset 0 0 0 1px rgba(222, 180, 104, 0.42); }
+      .dh-view:hover, .dh-view:focus-visible { background: rgba(255, 200, 97, 0.22); color: var(--eb-sun-hi); outline: none; }
+      .dh-close { appearance: none; border: 0; background: none; color: inherit; font: 400 22px/1 var(--eb-body); cursor: pointer; opacity: 0.7; padding: 0 4px; }
       .dh-close:hover { opacity: 1; color: var(--eb-sun); }
-      .dh-tabs { display: flex; gap: 5px; flex-wrap: wrap; margin: 12px 0 8px; }
-      .dh-tab { appearance: none; border: 0; box-shadow: inset 0 0 0 1px rgba(222, 180, 104, 0.25); background: none; color: inherit; font: inherit; font-size: 13px; font-weight: 600; padding: 5px 12px; border-radius: 13px; cursor: pointer; opacity: 0.7; }
-      .dh-tab.on { opacity: 1; color: var(--eb-sun-hi); background: rgba(255, 200, 97, 0.14); box-shadow: inset 0 0 0 1px rgba(255, 200, 97, 0.6); }
+      .dh-tabs { display: flex; gap: 5px; flex-wrap: wrap; margin: 8px 0 6px; flex: none; }
+      .dh-tab { appearance: none; border: 0; box-shadow: inset 0 0 0 1px rgba(222, 180, 104, 0.25); background: none; color: inherit; font: inherit; font-size: 12px; font-weight: 700; padding: 3.5px 10px; border-radius: 999px; cursor: pointer; opacity: 0.7; }
+      .dh-tab.on { opacity: 1; color: var(--eb-sun-hi); background: rgba(255, 200, 97, 0.16); box-shadow: inset 0 0 0 1px rgba(255, 200, 97, 0.65); }
       .dh-tab:focus-visible, .dh-close:focus-visible { outline: 1px solid rgba(255, 214, 140, 0.7); }
-      .dh-page[hidden] { display: none; }
+      .dh-scroll { overflow-y: auto; overscroll-behavior: contain; padding-right: 2px; }
       .dh-keys { width: 100%; border-collapse: collapse; }
-      .dh-keys td, .dh-keys th { padding: 3px 4px; vertical-align: middle; }
-      .dh-keys tr + tr td { border-top: 1px solid rgba(222, 180, 104, 0.08); }
-      .dh-keys th { font-weight: 700; font-size: 12px; color: var(--eb-parchment); opacity: 0.75; text-align: left; }
+      .dh-keys td, .dh-keys th { padding: 2.5px 4px; vertical-align: middle; }
+      .dh-keys tr:not(.dh-sec) + tr:not(.dh-sec) td { border-top: 1px solid rgba(222, 180, 104, 0.08); }
+      .dh-keys tr.dh-sec td { padding: 6px 4px 2px; font: 800 10px/1 var(--eb-body); text-transform: uppercase; letter-spacing: 0.1em; color: var(--eb-sun); opacity: 0.9; }
+      .dh-keys tr.dh-sec:first-child td { padding-top: 2px; }
+      .dh-keys th { font-weight: 700; font-size: 11px; color: var(--eb-parchment); opacity: 0.75; text-align: right; }
       .dh-keys td:first-child { color: var(--eb-parchment); }
-      .dh-keys td + td { white-space: nowrap; width: 1%; padding-left: 14px; }
-      .dh kbd, .dl kbd { display: inline-block; min-width: 1.25em; text-align: center; padding: 1px 7px; border-radius: 7px; border: 0;
+      .dh-keys td + td { white-space: nowrap; width: 1%; padding-left: 12px; text-align: right; }
+      .dh-dim { opacity: 0.4; }
+      .dh kbd, .dl kbd, .dh-chip kbd { display: inline-block; min-width: 1.35em; text-align: center; padding: 1px 6px; border-radius: 6px; border: 0;
         background: linear-gradient(var(--eb-cream), #efe2c2); color: #2b1e0b; box-shadow: 0 0 0 1px rgba(224, 154, 58, 0.85), 0 1.5px 0 rgba(14, 10, 4, 0.45);
-        font: 800 13px/1.45 var(--eb-body); letter-spacing: 0.02em; }
-      .dh small kbd { background: rgba(230, 215, 184, 0.16); color: var(--eb-parchment); box-shadow: inset 0 0 0 1px rgba(222, 180, 104, 0.45); font-weight: 700; }
-      .dh-powers { display: grid; gap: 6px; margin-top: 10px; padding-top: 10px; border-top: 1px solid rgba(222, 180, 104, 0.25); font-size: 13px; }
-      .dh-powers > div { display: grid; grid-template-columns: 64px 1fr; row-gap: 2px; }
-      .dh-powers b { grid-row: span 2; font: italic 500 16px/1.2 var(--eb-display); color: var(--eb-sun-hi); text-transform: lowercase; }
+        font: 800 11.5px/1.4 var(--eb-body); letter-spacing: 0.02em; }
+      .dh small kbd { background: rgba(230, 215, 184, 0.14); color: var(--eb-parchment); box-shadow: inset 0 0 0 1px rgba(222, 180, 104, 0.4); font-weight: 700; }
+      .dh-powers { display: grid; gap: 5px; margin-top: 9px; padding-top: 8px; border-top: 1px solid rgba(222, 180, 104, 0.22); font-size: 12px; }
+      .dh-powers > div { display: grid; grid-template-columns: 56px 1fr; row-gap: 2px; }
+      .dh-powers b { grid-row: span 2; font: italic 500 15px/1.2 var(--eb-display); color: var(--eb-sun-hi); text-transform: lowercase; }
       .dh-powers span { color: var(--eb-cream); opacity: 0.9; }
-      .dh-powers i { font-style: normal; display: inline-grid; place-items: center; width: 16px; height: 16px; border-radius: 50%; margin-right: 5px; font-size: 10px; font-weight: 800;
+      .dh-powers i { font-style: normal; display: inline-grid; place-items: center; width: 15px; height: 15px; border-radius: 50%; margin-right: 5px; font-size: 10px; font-weight: 800;
         color: var(--eb-sun-hi); box-shadow: inset 0 0 0 1px rgba(222, 180, 104, 0.6); }
-      .dh-note { margin: 10px 0 0; font: italic 400 14px/1.4 var(--eb-display); color: var(--eb-parchment); opacity: 0.85; }
-      .dh-chip { --hu: clamp(0.8px, min(calc(100vw / 1280), calc(100vh / 720)), 2.4px); position: fixed; z-index: 4; right: calc(var(--hu) * 22); bottom: calc(var(--hu) * 22); width: 28px; height: 28px; border-radius: 50%;
-        appearance: none; border: 0; background: var(--eb-glass-bg); box-shadow: var(--eb-lead); color: var(--eb-sun-hi); font: italic 600 16px/1 var(--eb-display); cursor: pointer; opacity: 0.6; padding: 0;
-        backdrop-filter: var(--eb-blur); -webkit-backdrop-filter: var(--eb-blur); }
-      .dh-chip:hover, .dh-chip:focus-visible { opacity: 0.95; outline: none; }
-      @media (max-width: 759px), (max-height: 479px) { .dh-chip { --cu: clamp(0.78px, calc(min(100vw, 100vh) / 390), 1.3px); right: auto; bottom: auto; left: 50%; transform: translateX(-50%); top: calc(var(--cu) * 68); width: 22px; height: 22px; font-size: 13px; } }
+      .dh-note { margin: 8px 0 0; font: italic 400 13px/1.35 var(--eb-display); color: var(--eb-parchment); opacity: 0.85; flex: none; }
+      .dh-foot { display: flex; justify-content: space-between; gap: 8px; margin-top: 8px; padding-top: 7px; border-top: 1px solid rgba(222, 180, 104, 0.16);
+        font-size: 11px; color: var(--eb-parchment); opacity: 0.78; flex: none; }
+      .dh-foot kbd { font-size: 10.5px; padding: 0 5px; }
+      /* always-visible collapsed/toggle pill showing controls icon + key to press */
+      .dh-chip { --hu: clamp(0.8px, min(calc(100vw / 1280), calc(100vh / 720)), 2.4px); position: fixed; z-index: 9;
+        right: max(16px, calc(var(--hu) * 20)); bottom: max(16px, calc(var(--hu) * 20));
+        display: inline-flex; align-items: center; gap: 7px; height: 36px; padding: 0 10px 0 11px; border-radius: 999px;
+        appearance: none; border: 0; background: var(--eb-glass-bg); box-shadow: var(--eb-lead), 0 6px 24px rgba(8, 5, 1, 0.42);
+        color: var(--eb-parchment); font: 700 12px/1 var(--eb-body); letter-spacing: 0.03em; cursor: pointer; opacity: 0.86;
+        backdrop-filter: var(--eb-blur); -webkit-backdrop-filter: var(--eb-blur);
+        transition: opacity 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease, color 0.2s ease; }
+      .dh-chip svg { width: 18px; height: 18px; color: var(--eb-sun-hi); flex: none; }
+      .dh-chip:hover, .dh-chip:focus-visible { opacity: 1; color: var(--eb-cream); outline: none; transform: translateY(-1px); }
+      .dh-chip.open { opacity: 1; color: var(--eb-sun-hi);
+        box-shadow: 0 0 0 1.5px var(--eb-sun), 0 0 0 3px rgba(14, 10, 4, 0.32), inset 0 0 0 1px rgba(255, 240, 205, 0.18), 0 0 22px rgba(255, 190, 90, 0.28); }
+      .dh-chip kbd { font-size: 11px; padding: 1px 6px; min-width: 1.4em; }
+      @media (hover: none) and (pointer: coarse) { .dh-chip kbd { display: none; } .dh-chip { padding: 0 12px; } }
+      @media (max-width: 759px), (max-height: 479px) {
+        .dh-chip { --cu: clamp(0.78px, calc(min(100vw, 100vh) / 390), 1.3px); right: auto; bottom: auto; left: 50%; transform: translateX(-50%); top: calc(var(--cu) * 72); height: 30px; padding: 0 10px; font-size: 11px; }
+        .dh-chip:hover, .dh-chip:focus-visible { transform: translateX(-50%); }
+        .dh { --cu: clamp(0.78px, calc(min(100vw, 100vh) / 390), 1.3px); right: auto; bottom: auto; left: 50%; top: calc(var(--cu) * 110); transform: translateX(-50%); }
+        .dh-card { transform-origin: top center; max-height: calc(100vh - 130px); }
+      }
+      /* brief camera / view mode toast */
+      .eb-cam-toast { --hu: clamp(0.8px, min(calc(100vw / 1280), calc(100vh / 720)), 2.4px); position: fixed; z-index: 7; left: 50%;
+        top: max(18px, calc(var(--hu) * 96)); transform: translate(-50%, -6px); pointer-events: none;
+        padding: 6px 14px; border-radius: 999px; font: 700 12.5px/1.2 var(--eb-body); letter-spacing: 0.03em; color: var(--eb-cream);
+        background: linear-gradient(180deg, rgba(52, 40, 22, 0.78), rgba(18, 14, 8, 0.72));
+        box-shadow: var(--eb-lead), 0 6px 24px rgba(8, 5, 1, 0.45); backdrop-filter: var(--eb-blur); -webkit-backdrop-filter: var(--eb-blur);
+        opacity: 0; transition: opacity 0.25s ease, transform 0.25s ease; white-space: nowrap; }
+      .eb-cam-toast.on { opacity: 0.96; transform: translate(-50%, 0); }
 
       /* the first duel's lesson (src/duel/lesson.ts): one calm prompt in the lower left corner, clear of the bodies the
          camera frames in the middle and of the beat (on a small screen, under the panels), on honey glass; what to do in

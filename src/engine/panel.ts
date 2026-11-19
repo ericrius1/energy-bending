@@ -29,7 +29,7 @@ export class Panel {
     document.body.append(this.el);
     addEventListener('keydown', (e) => {
       if ((e.target as HTMLElement)?.closest?.('input, select, textarea')) return;
-      if (e.key === '/') { this.el.hidden = !this.el.hidden; e.preventDefault(); }
+      if (e.key === '/' && (e.altKey || e.ctrlKey)) { this.el.hidden = !this.el.hidden; e.preventDefault(); }
     });
   }
 

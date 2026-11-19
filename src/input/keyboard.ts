@@ -19,18 +19,18 @@ import { makeIntent, nowMs, hasDOM, type Intent, type IntentSource, type InputMo
 export type KeyLayout = 'solo' | 'left' | 'right';
 interface Layout {
   left: string[]; right: string[]; jump: string[]; down: string[]; punch: string[]; kick: string[]; spin: string[];
-  dodge: string[]; form: string[]; merge: string[]; lock: string[]; interact: string[];
+  dodge: string[]; form: string[]; merge: string[]; lock: string[]; interact: string[]; camReset?: string[];
   fwd: string[]; back: string[]; freeJump: string[]; freeDown: string[]; walk: string[]; mouse: boolean;
   /** the duel's scheme: these replace the jogo's kick, spin and dodge; `up` holds the stick up; the two powers */
   duel: { dash: string[]; kick: string[]; spin: string[]; dodge: string[]; up: string[]; power1: string[]; power2: string[] };
 }
 export const LAYOUTS: Record<KeyLayout, Layout> = {
-  solo: { left: ['KeyA'], right: ['KeyD'], jump: ['KeyW', 'Space'], down: ['KeyS'], punch: ['KeyJ'], kick: ['KeyK'], spin: ['KeyL'],
-    dodge: ['ShiftLeft', 'ShiftRight'], form: ['KeyE'], merge: ['KeyF'], lock: ['KeyV', 'Tab'], interact: ['KeyG'],
+  solo: { left: ['KeyA'], right: ['KeyD'], jump: ['KeyW', 'Space'], down: ['KeyS'], punch: ['KeyJ'], kick: ['KeyK'], spin: ['KeyL', 'KeyX'],
+    dodge: ['ShiftLeft', 'ShiftRight'], form: ['KeyE'], merge: ['KeyF'], lock: ['KeyV', 'Tab'], interact: ['KeyG'], camReset: ['KeyR'],
     fwd: ['KeyW'], back: ['KeyS'], freeJump: ['Space'], freeDown: ['KeyC'], walk: ['KeyQ'], mouse: true,
-    duel: { dash: ['ShiftLeft', 'ShiftRight', 'KeyK'], kick: ['KeyL'], spin: ['KeyI'], dodge: ['KeyO'], up: ['KeyW'], power1: ['KeyU'], power2: ['KeyH'] } },
+    duel: { dash: ['ShiftLeft', 'ShiftRight', 'KeyK'], kick: ['KeyL'], spin: ['KeyF', 'KeyI'], dodge: ['KeyX', 'KeyO'], up: ['KeyW'], power1: ['Digit1', 'KeyU'], power2: ['Digit2', 'KeyH'] } },
   left: { left: ['KeyA'], right: ['KeyD'], jump: ['KeyW', 'Space'], down: ['KeyS'], punch: ['KeyJ'], kick: ['KeyK'], spin: ['KeyL'],
-    dodge: ['ShiftLeft'], form: ['KeyE'], merge: ['KeyF'], lock: ['KeyV', 'Tab'], interact: ['KeyG'],
+    dodge: ['ShiftLeft'], form: ['KeyE'], merge: ['KeyF'], lock: ['KeyV', 'Tab'], interact: ['KeyG'], camReset: ['KeyR'],
     fwd: ['KeyW'], back: ['KeyS'], freeJump: ['Space'], freeDown: ['KeyC'], walk: ['KeyQ'], mouse: false,
     duel: { dash: ['ShiftLeft', 'KeyK'], kick: ['KeyL'], spin: ['KeyI'], dodge: ['KeyO'], up: ['KeyW'], power1: ['KeyU'], power2: ['KeyH'] } },
   right: { left: ['ArrowLeft'], right: ['ArrowRight'], jump: ['ArrowUp'], down: ['ArrowDown'], punch: ['Comma'], kick: ['Period'], spin: ['Slash'],
@@ -39,7 +39,7 @@ export const LAYOUTS: Record<KeyLayout, Layout> = {
     duel: { dash: ['ShiftRight', 'Period'], kick: ['Slash'], spin: ['Semicolon'], dodge: ['Quote'], up: ['ArrowUp'], power1: ['KeyP'], power2: ['BracketLeft'] } },
 };
 /** the keys a layout's powers and power form are on, as the HUD names them */
-export const POWER_KEYS: Record<KeyLayout, [string, string, string]> = { solo: ['U', 'H', 'E'], left: ['U', 'H', 'E'], right: ['P', '[', '↵'] };
+export const POWER_KEYS: Record<KeyLayout, [string, string, string]> = { solo: ['1', '2', 'E'], left: ['U', 'H', 'E'], right: ['P', '[', '↵'] };
 /** every key a layout listens to (either scheme's) */
 export const keysOf = (layout: KeyLayout) => { const L = LAYOUTS[layout]; return new Set([...Object.values(L), ...Object.values(L.duel)].filter(Array.isArray).flat() as string[]); };
 
@@ -51,8 +51,12 @@ export interface KeyboardOptions {
   dancerScreen?: () => { x: number; y: number; reach: number } | null;
   /** +1 | -1: which way the dancer faces on screen (left/right layouts aim along it) */
   facing?: () => number;
+  /** in 1-player mode (no split keyboard): arrow keys smoothly orbit the 3D camera */
+  camArrows?: boolean;
   preventDefault?: boolean;
 }
+
+const CAM_ARROWS = ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'];
 
 export class KeyboardSource implements IntentSource {
   readonly name: string;
@@ -61,7 +65,7 @@ export class KeyboardSource implements IntentSource {
   readonly L: Layout;
   private keys = new Set<string>();
   private edgeKeys = new Set<string>();
-  private mouse = { x: 0, y: 0, t: -1e9, inside: true, down: new Set<number>(), dx: 0, dy: 0 };
+  private mouse = { x: 0, y: 0, t: -1e9, inside: true, down: new Set<number>(), dx: 0, dy: 0, wheel: 0, altDrag: false, rDown: null as { x: number; y: number; t: number; moved: number } | null };
   private lastDir: number;
   private mine: Set<string>;
   private handlers: [EventTarget, string, EventListener][] = [];
@@ -72,24 +76,32 @@ export class KeyboardSource implements IntentSource {
     this.name = 'keyboard-' + layout;
     this.lastDir = layout === 'right' ? -1 : 1;
     this.mine = keysOf(layout);
+    if (opts.camArrows && layout === 'solo') for (const c of CAM_ARROWS) this.mine.add(c);
     if (hasDOM && opts.target !== null) this.attach(opts.target || window, opts.mouseTarget || null);
   }
   attach(target: EventTarget, mouseTarget: EventTarget | null) {
-    const on = (el: EventTarget, ev: string, fn: (e: any) => void) => { el.addEventListener(ev, fn); this.handlers.push([el, ev, fn]); };
+    const on = (el: EventTarget, ev: string, fn: (e: any) => void, opts?: AddEventListenerOptions) => { el.addEventListener(ev, fn, opts); this.handlers.push([el, ev, fn]); };
     on(target, 'keydown', (e: KeyboardEvent) => {
       if ((e.target as HTMLElement)?.closest?.('input, select, textarea')) return;
+      if (e.metaKey || e.ctrlKey) return;
       if (this.mine.has(e.code)) { if (this.opts.preventDefault !== false) e.preventDefault(); if (!e.repeat) this.keyDown(e.code); }
     });
     on(target, 'keyup', (e: KeyboardEvent) => { if (this.mine.has(e.code)) this.keyUp(e.code); });
-    on(target, 'blur', () => { this.keys.clear(); this.mouse.down.clear(); });
+    on(target, 'blur', () => { this.keys.clear(); this.mouse.down.clear(); this.mouse.altDrag = false; this.mouse.rDown = null; this.mouse.wheel = 0; });
     if (this.L.mouse) {
       const mt = mouseTarget || target;
       on(mt, 'pointermove', (e: PointerEvent) => { if (e.pointerType === 'mouse') this.mouseMove(e.clientX, e.clientY); });
-      on(mt, 'pointerdown', (e: PointerEvent) => { if (e.pointerType === 'mouse') { this.mouseMove(e.clientX, e.clientY); this.mouseDown(e.button); } });
+      on(mt, 'pointerdown', (e: PointerEvent) => { if (e.pointerType === 'mouse') { this.mouseMove(e.clientX, e.clientY); this.mouseDown(e.button, e.altKey); } });
       on(mt, 'pointerup', (e: PointerEvent) => { if (e.pointerType === 'mouse') this.mouseUp(e.button); });
       on(mt, 'pointerleave', () => { this.mouse.inside = false; });
       on(mt, 'pointerenter', () => { this.mouse.inside = true; });
       on(mt, 'contextmenu', (e: Event) => e.preventDefault());
+      on(mt, 'wheel', (e: WheelEvent) => {
+        if (this.mode !== 'free') return;
+        e.preventDefault();
+        const dy = e.deltaY * (e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? 400 : 1);
+        this.mouse.wheel += dy * (e.ctrlKey ? 0.012 : 0.0016);
+      }, { passive: false });
     }
   }
   detach() { for (const [el, ev, fn] of this.handlers) el.removeEventListener(ev, fn); this.handlers = []; }
@@ -97,11 +109,31 @@ export class KeyboardSource implements IntentSource {
   keyUp(code: string) { this.keys.delete(code); }
   mouseMove(x: number, y: number) {
     const m = this.mouse;
-    if (m.down.has(2)) { m.dx += x - m.x; m.dy += y - m.y; }
+    const dx = x - m.x, dy = y - m.y;
+    const camDrag = m.down.has(2) || m.down.has(1) || m.altDrag;
+    if (camDrag) { m.dx += dx; m.dy += dy; }
+    if (m.rDown) m.rDown.moved += Math.abs(dx) + Math.abs(dy);
     m.x = x; m.y = y; m.t = nowMs(); m.inside = true;
   }
-  mouseDown(b: number) { this.mouse.down.add(b); if (b === 0) { this.edgeKeys.add('Mouse0'); this.keys.add('Mouse0'); } }
-  mouseUp(b: number) { this.mouse.down.delete(b); if (b === 0) this.keys.delete('Mouse0'); }
+  mouseDown(b: number, altKey = false) {
+    const m = this.mouse;
+    m.down.add(b);
+    if (b === 0) {
+      if (altKey && this.mode === 'free') { m.altDrag = true; return; }
+      this.edgeKeys.add('Mouse0'); this.keys.add('Mouse0');
+    } else if (b === 2) {
+      m.rDown = { x: m.x, y: m.y, t: nowMs(), moved: 0 };
+    }
+  }
+  mouseUp(b: number) {
+    const m = this.mouse;
+    m.down.delete(b);
+    if (b === 0) { m.altDrag = false; this.keys.delete('Mouse0'); }
+    else if (b === 2) {
+      if (m.rDown && m.rDown.moved <= 6 && nowMs() - m.rDown.t < 240) this.edgeKeys.add('Mouse2Tap');
+      m.rDown = null;
+    }
+  }
 
   update(dt = 1 / 60): Intent {
     const L = this.L, any = (list: string[]) => list.some((k) => this.keys.has(k)), edge = (list: string[]) => list.some((k) => this.edgeKeys.has(k));
@@ -120,23 +152,33 @@ export class KeyboardSource implements IntentSource {
     }
     if (D && !free && !o.moveY && any(D.up)) o.moveY = 1;
     const punchKeys = L.mouse ? [...L.punch, 'Mouse0'] : L.punch;
+    const kickKeys = L.mouse ? [...(D ? D.kick : L.kick), 'Mouse2Tap'] : (D ? D.kick : L.kick);
     o.punch = edge(punchKeys); o.punchHeld = any(punchKeys);
-    o.kick = edge(D ? D.kick : L.kick); o.spin = edge(D ? D.spin : L.spin);
+    o.kick = edge(kickKeys); o.spin = edge(D ? D.spin : L.spin);
     o.dodge = edge(D ? D.dodge : L.dodge); o.dodgeHeld = any(D ? D.dodge : L.dodge);
     if (D) { o.dash = edge(D.dash); o.power1 = edge(D.power1); o.power2 = edge(D.power2); }
     o.form = edge(L.form); o.merge = any(L.merge);
     o.lock = edge(L.lock); o.interact = edge(L.interact);
+    if (L.camReset && edge(L.camReset)) o.camReset = true;
     const d = L.mouse && this.opts.dancerScreen ? this.opts.dancerScreen() : null;
     if (L.mouse) {
       const m = this.mouse;
+      const camDrag = m.down.has(2) || m.down.has(1) || m.altDrag;
       if (d && d.reach > 0) {
         let ax = (m.x - d.x) / d.reach, ay = -(m.y - d.y) / d.reach;
         const l = Math.hypot(ax, ay); if (l > 1) { ax /= l; ay /= l; }
         o.aimX = ax; o.aimY = ay;
-        o.aimActive = m.inside && nowMs() - m.t < 3000 && !(free && m.down.has(2));
+        o.aimActive = m.inside && nowMs() - m.t < 3000 && !(free && camDrag);
       }
-      if (free && m.down.has(2) && dt > 0) { o.camX = m.dx / dt / 700; o.camY = -m.dy / dt / 700; }
-      m.dx = 0; m.dy = 0;
+      if (free && camDrag && dt > 0) { o.camX = m.dx / dt / 500; o.camY = -m.dy / dt / 500; }
+      if (free && m.wheel) o.camZoom = m.wheel;
+      m.dx = 0; m.dy = 0; m.wheel = 0;
+    }
+    if (free && this.opts.camArrows && this.layout === 'solo') {
+      const ax = (this.keys.has('ArrowRight') ? 1 : 0) - (this.keys.has('ArrowLeft') ? 1 : 0);
+      const ay = (this.keys.has('ArrowUp') ? 1 : 0) - (this.keys.has('ArrowDown') ? 1 : 0);
+      if (ax) o.camX += ax * 0.85;
+      if (ay) o.camY += ay * 0.65;
     }
     if (!o.aimActive && !(d && d.reach > 0)) {
       const f = this.opts.facing ? this.opts.facing() : this.lastDir;

@@ -115,6 +115,8 @@ export interface CamInput {
   /** a fused finale's look up (0 … 1; phase 7, report 24): the plain view lifts to look `skyPitch` up and the higher
    *  views come down with it, so the sky over the flower (the aurora, the sun) is in the frame, not the water */
   sky?: number;
+  /** player zoom multiplier (scroll wheel, ~0.75 … 1.45; default 1) */
+  zoom?: number;
 }
 
 /** what a mirror's ring standing in the frame costs (at its biggest: a quarter of the frame's height or more) */
@@ -441,6 +443,8 @@ export class DuelCamera {
   /** the side-on direction (rad), eased while the pair is far enough apart to have one */
   private side: number | null = null;
   private wait = 0;
+  private manualT = 0;
+  private manualPitch: number | null = null;
   private fresh = true;
   /** the fallback's tilt up over the pieces (rad) and the boom's share it keeps (1: all of it) */
   private rise = 0;
@@ -489,7 +493,7 @@ export class DuelCamera {
     this.dist = d; this.fov = fov; this.lastD = d;
     this.yaw = Math.atan2(dx, dz); this.pitch = Math.asin(Math.max(-1, Math.min(1, dy / d)));
   }
-  reset() { this.lastD = 0; this.fresh = true; this.want = null; this.side = null; this.yawV = 0; this.imps.length = 0; this.riseKeep = 0; this.riseLow = 0; this.low = 0; this.calm = 0; this.calmV = 0; this.quiet = 0; }
+  reset() { this.lastD = 0; this.fresh = true; this.want = null; this.side = null; this.yawV = 0; this.manualT = 0; this.manualPitch = null; this.imps.length = 0; this.riseKeep = 0; this.riseLow = 0; this.low = 0; this.calm = 0; this.calmV = 0; this.quiet = 0; }
 
   /** a moment of contact for the camera to feel (phase 3's juice: the feel calls `camera.impulse?.(…)`): for a moment
    *  the look point leans toward `at` and the boom eases in (or, for a fling, out), with a soft settle or sway, sized
@@ -536,10 +540,19 @@ export class DuelCamera {
     return { lean, push, on: this.imps.length > 0 };
   }
 
-  /** the player turned the camera by hand: take that yaw, and hold it a moment */
-  hold(yaw: number) {
-    this.yaw = yaw; this.yawV = 0; this.wait = 1;
-    if (this.want) this.want.yaw = yaw;
+  /** the player turned the camera by hand: take that yaw (and pitch if given) and hold it smoothly before easing back */
+  hold(yaw: number, pitch?: number) {
+    this.yaw = yaw; this.yawV = 0; this.manualT = 3.5; this.wait = 3.5;
+    if (pitch !== undefined) {
+      const p = Math.max(DUEL_CAM.minPitch, Math.min(DUEL_CAM.softPitch, pitch));
+      this.pitch = p;
+      this.manualPitch = p;
+    }
+    if (this.want) { this.want.yaw = yaw; if (this.manualPitch != null) this.want.pitch = this.manualPitch; }
+  }
+  /** release any manual camera hold and smoothly return to ideal framing */
+  recenter() {
+    this.manualT = 0; this.manualPitch = null; this.want = null; this.wait = 0; this.yawV = 0;
   }
 
   /** the points framed: every body's, and where a rising body's head will peak */
@@ -634,12 +647,14 @@ export class DuelCamera {
       const dy = b.vel[1] * t - 0.5 * g * t * t;
       for (const p of [b.pts[0], b.head]) ahead.push([p[0] + b.vel[0] * t, Math.max(b.root[1], p[1] + dy), p[2] + b.vel[2] * t]);
     }
-    const maxD = Math.min(P.maxDist, I.maxDist ?? Infinity);
+    const zoom = Math.max(0.75, Math.min(1.45, I.zoom ?? 1));
+    const minDist = P.minDist * zoom;
+    const maxD = Math.min(P.maxDist * Math.max(1, zoom), I.maxDist ?? Infinity);
     const mid: V3 = [(A.root[0] + B.root[0]) / 2, (A.root[1] + B.root[1]) / 2 + 1, (A.root[2] + B.root[2]) / 2];
     let lastFg = 0;
     const score = (yaw: number, pitch: number, base: number, lens: number): number => {
       lastFg = 0;
-      const f = fit(pts, yaw, pitch, lens, I.aspect, soft, P.minDist, maxD);
+      const f = fit(pts, yaw, pitch, lens, I.aspect, soft, minDist, maxD);
       let s = 0;
       if (I.space) {
         // (the eye where the fit puts it, and back along the boom to where the boom is now: it eases in from there)
@@ -702,17 +717,21 @@ export class DuelCamera {
       s += Math.max(0, f.fov - P.fov) / 25;
       if (this.want) {
         s += Math.abs(wrap(yaw - this.yaw)) * K.turn;
-        if (Math.abs(wrap(base - this.want.side)) > 1) s += K.otherSide;
+        if (Math.abs(wrap(base - this.want.side)) > 1) s += K.otherSide * (I.you && sky <= 0 ? 1.6 : 1);
       }
       return s;
     };
 
+    if (this.manualT > 0) {
+      this.manualT = Math.max(0, this.manualT - dt);
+      if (this.manualT <= 0) this.manualPitch = null;
+    }
     this.wait -= dt;
     // (a fused finale beginning: the choice asked again at once, and the turn twice as quick while it lasts, so a lift
     // begun behind a stone is seen past it within a few tenths of a second, not most of the lift: report 23)
-    if (sky > 0 && this.skyWas <= 0) this.wait = 0;
+    if (sky > 0 && this.skyWas <= 0) { this.wait = 0; this.manualT = 0; this.manualPitch = null; }
     this.skyWas = sky;
-    if (this.fresh || this.wait <= 0) {
+    if (this.fresh || (this.wait <= 0 && this.manualT <= 0)) {
       this.wait = P.every;
       let best: Choice | null = null, n = 0;
       for (const base of [this.side, wrap(this.side + Math.PI)]) {
@@ -735,13 +754,14 @@ export class DuelCamera {
       if (this.debug && this.want) { score(this.want.yaw, this.want.pitch, this.want.side, this.want.lens); this.last.wantFg = lastFg; this.last.wantScore = this.want.score; }
     }
     const W = this.want!;
-    // (the choice's pitch is one of the list, which moves as the plain view breathes and comes down over water)
-    W.pitch = pitches[W.pi];
+    // (the choice's pitch is one of the list, which moves as the plain view breathes and comes down over water;
+    // while the player is holding a manual camera angle, respect their pitch too)
+    W.pitch = this.manualT > 0 && this.manualPitch != null ? this.manualPitch : pitches[W.pi];
     // (and the lens opens a little as it breathes)
     const lens = W.lens + calm * BR.widen;
     // the yaw and pitch eased toward the choice at a bounded rate and acceleration (no snaps, no overshoot)
     if (this.fresh) { this.yaw = W.yaw; this.pitch = W.pitch; this.yawV = 0; }
-    else {
+    else if (this.manualT <= 0) {
       const d = wrap(W.yaw - this.yaw);
       // (its speed capped, and never more than it can stop from in the turn left: it arrives without passing it)
       const fast = sky > 0 ? 2 : 1, yr = P.yawRate * fast, ya = P.yawAccel * fast;
@@ -753,7 +773,7 @@ export class DuelCamera {
       this.pitch += Math.max(-P.pitchRate * dt, Math.min(P.pitchRate * dt, dp * (1 - Math.exp(-dt * 3))));
     }
     // the fit from where it is turned now, chased: out and up quickly, in and down gently
-    const F = fit(pts, this.yaw, this.pitch, lens, I.aspect, soft, P.minDist, maxD);
+    const F = fit(pts, this.yaw, this.pitch, lens, I.aspect, soft, minDist, maxD);
     if (this.fresh) { this.look[0] = F.look[0]; this.look[1] = F.look[1]; this.look[2] = F.look[2]; this.dist = F.dist; this.fov = F.fov; }
     else {
       const k = 1 - Math.exp(-dt * 5);

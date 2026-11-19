@@ -52,7 +52,27 @@ test('keyboard solo: the mouse plays the bending hand relative to the dancer', (
   near(i.aimX, 0.5, 1e-9); near(i.aimY, 0.5, 1e-9); assert(i.aimActive, 'active');
   k.mouseMove(800, 300); i = k.update(); near(Math.hypot(i.aimX, i.aimY), 1, 1e-9, 'clamped to reach');
   k.mouseDown(0); i = k.update(); assert(i.punch && i.punchHeld, 'click = punch'); k.mouseUp(0);
-  k.mode = 'free'; k.mouseDown(2); k.mouseMove(810, 300); i = k.update(1 / 60); assert(i.camX > 0 && !i.aimActive, 'right-drag = camera');
+  k.mode = 'free'; k.mouseDown(2); k.mouseMove(810, 300); i = k.update(1 / 60); assert(i.camX > 0 && !i.aimActive, 'right-drag = camera'); k.mouseUp(2);
+  // quick right-click tap kicks without dragging the camera
+  k.mouseDown(2); k.mouseUp(2); i = k.update(1 / 60); assert(i.kick && i.camX === 0, 'right-click tap = kick');
+  // Alt+left-drag orbits camera on trackpads without punching
+  k.mouseDown(0, true); k.mouseMove(830, 300); i = k.update(1 / 60); assert(i.camX > 0 && !i.punch, 'alt+left-drag = camera'); k.mouseUp(0);
+  // R recenters camera
+  k.keyDown('KeyR'); i = k.update(1 / 60); assert(i.camReset === true, 'R = camReset'); k.keyUp('KeyR');
+  // 1-player mode (allowSplit: false): arrows orbit the 3D camera instead of splitting the keyboard
+  const spHub = new InputHub({ target: null, allowSplit: false });
+  spHub.key('KeyW'); spHub.key('ArrowRight');
+  assert(spHub.players.length === 1 && spHub.players[0].slot === 'solo', '1P hub never splits on arrows');
+  const spKb = spHub.players[0].source as KeyboardSource;
+  spKb.mode = 'free'; spKb.keyDown('ArrowRight'); i = spKb.update(1 / 60);
+  assert(i.camX > 0, '1P arrows orbit 3D camera');
+  spKb.keyUp('ArrowRight');
+  // ergonomic solo duel keys: 1/2 powers, F spin, X dodge
+  spKb.scheme = 'duel';
+  spKb.keyDown('Digit1'); assert(spKb.update().power1, 'solo duel: 1 = power1'); spKb.keyUp('Digit1');
+  spKb.keyDown('Digit2'); assert(spKb.update().power2, 'solo duel: 2 = power2'); spKb.keyUp('Digit2');
+  spKb.keyDown('KeyF'); assert(spKb.update().spin, 'solo duel: F = spin'); spKb.keyUp('KeyF');
+  spKb.keyDown('KeyX'); assert(spKb.update().dodge, 'solo duel: X = dodge'); spKb.keyUp('KeyX');
 });
 
 // a fake Gamepad API
@@ -358,7 +378,7 @@ test('hub: the first device is player one, the next player two; the keyboard spl
   const joined: string[] = [], changed: string[] = [];
   hub.onJoin = (p) => joined.push(`${p.index}:${p.device}:${p.slot}`);
   hub.onChange = (p) => changed.push(`${p.index}:${p.slot}`);
-  hub.key('KeyX');   // not anyone's key
+  hub.key('KeyZ');   // not anyone's key
   assert((hub.players.length as number) === 0, 'no one yet');
   hub.key('KeyK');
   assert((hub.players.length as number) === 1 && hub.players[0].slot === 'solo', 'player one: solo keyboard');

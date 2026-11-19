@@ -52,6 +52,9 @@ export class Hand {
   holding = false;
   /** milliseconds for holds and taps (a film gives its own clock so a scripted hold charges the same every time) */
   nowMs: () => number = () => performance.now();
+  /** false while a game is playing: the show's sandbox pointer (orbit, dolly, click-burst, double-click shatter) steps
+   *  aside so it never fights the game's own mouse, click-to-catch/strike, right-drag camera or scroll zoom */
+  enabled: () => boolean = () => true;
   private touches = new Map<number, { x: number; y: number }>();
   private spin = { x: 0, y: 0, vx: 0, vy: 0, rate: 0, sign: 1 };
   private u: Partial<Touch> & { rayOrigin: Vec3; rayDir: Vec3; pointerVel: Vec3; burst: Vec4; finger: Vec4; fingerPrev: Vec4 };
@@ -86,9 +89,10 @@ export class Hand {
     const { pointer, finger, touches, spin, rig } = this;
     const P = touchParams;
     const pinch = () => { const [a, b] = touches.values(); return [(a.x + b.x) / 2, (a.y + b.y) / 2, Math.hypot(a.x - b.x, a.y - b.y)]; };
-    canvas.addEventListener('pointerenter', (e) => { if (e.pointerType === 'mouse') pointer.inside = true; });
+    canvas.addEventListener('pointerenter', (e) => { if (this.enabled() && e.pointerType === 'mouse') pointer.inside = true; });
     canvas.addEventListener('pointerleave', (e) => { if (e.pointerType === 'mouse') { pointer.inside = false; pointer.hasLast = false; } });
     canvas.addEventListener('pointerdown', (e) => {
+      if (!this.enabled()) return;
       this.events.wake();
       canvas.setPointerCapture(e.pointerId);
       finger.mouse = e.pointerType === 'mouse';
@@ -104,6 +108,7 @@ export class Hand {
       }
     });
     canvas.addEventListener('pointermove', (e) => {
+      if (!this.enabled()) { pointer.down = false; finger.hold = false; pointer.inside = false; return; }
       if (e.pointerType !== 'mouse') {
         const t = touches.get(e.pointerId);
         if (!t) return;
@@ -129,6 +134,7 @@ export class Hand {
       pointer.x = e.clientX; pointer.y = e.clientY;
     });
     canvas.addEventListener('pointerup', (e) => {
+      if (!this.enabled()) { pointer.down = false; finger.hold = false; finger.on = false; touches.clear(); return; }
       if (e.pointerType === 'mouse') {
         if (finger.hold) { if (finger.charge > 0.15) this.burstAtPointer(P.burst * (1 + P.blast * finger.charge), cam); }
         else if (pointer.down && pointer.moved <= 6 && this.nowMs() - pointer.downAt < 400) this.burstAtPointer(P.burst, cam);
@@ -153,9 +159,10 @@ export class Hand {
       pointer.down = false; finger.hold = false;
       if (touches.size === 0) { finger.on = false; finger.camera = false; pointer.inside = false; pointer.hasLast = false; }
     });
-    canvas.addEventListener('dblclick', () => { if (finger.mouse) this.shatter(); });
+    canvas.addEventListener('dblclick', () => { if (this.enabled() && finger.mouse) this.shatter(); });
     // two fingers up and down on a trackpad dolly, like a pinch (a pinch arrives as ctrl + wheel)
     canvas.addEventListener('wheel', (e) => {
+      if (!this.enabled()) return;
       e.preventDefault();
       const dy = e.deltaY * (e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? 400 : 1);
       rig.dolly(Math.exp(dy * (e.ctrlKey ? 0.012 : 0.0016)), this.maxDist());
@@ -182,6 +189,15 @@ export class Hand {
   /** each frame, after the camera: the ray, the swipe's velocity on the dancers' plane, the vortex's turn, the charge */
   update(dt: number, cam: Camera) {
     const { pointer, finger, spin } = this, P = touchParams;
+    if (!this.enabled()) {
+      pointer.down = false; pointer.inside = false; finger.on = false; finger.hold = false; finger.charge = 0;
+      vec4.set(this.u.finger, 0, 0, 0, 0);
+      this.u.hoverOn = 0;
+      this.bodies.touch.set(this.u);
+      this.active = false;
+      this.holding = false;
+      return;
+    }
     this.ray(cam);
     vec3.zero(this.vel);
     // a mouse button held still for a moment gathers, like a finger

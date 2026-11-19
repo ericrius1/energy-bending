@@ -99,7 +99,9 @@ const hand = new Hand(bodies, rig, {
   wake: () => wake(),
   blast: (s) => music?.score.blast(music.now(), s),
 }, () => worldOf(main.world).maxDist);
+const inGame = () => document.body.classList.contains('playing') || ['jogo', 'duel', 'play'].some((k) => new URLSearchParams(location.search).has(k));
 hand.attach(canvas, kit.camera);
+hand.enabled = () => !inGame();
 if (FILM) hand.nowMs = () => (music?.filmClock ?? 0) * 1000;
 
 const kinds: MatterPasses[] = [];
@@ -134,7 +136,11 @@ const show = new Show(motion, kinds, bodies, rig, {
 if (query.has('landmarks')) show.castOverride = landmarksDemo();
 if (query.has('wander')) { const t = await travelling; show.castOverride = wanderDemo(motion, t); }
 if (query.has('play') || query.has('roda') || query.has('teach')) {
-  const play = await import('./dancer/play').then((m) => m.playDemo({ show, rig, frame, kit, canvas, world: () => worldOf(main.world), motion, travel: travelling, coarse, wake, seen: (d) => gates.seen(gates.rigWorld, [d]).joints[0] ?? null, worldOf: (d) => worldOf(gates.worldOf(d)) }));
+  const play = await import('./dancer/play').then((m) => m.playDemo({ show, rig, frame, kit, canvas, world: () => worldOf(main.world), motion, travel: travelling, coarse, wake, seen: (d) => gates.seen(gates.rigWorld, [d]).joints[0] ?? null, worldOf: (d) => worldOf(gates.worldOf(d)), allowSplit: query.has('two') }));
+  if (!FILM && !query.has('jogo') && !query.has('duel')) {
+    const { installHelp } = await import('./duel/help');
+    installHelp({ frame, game: 'dance', device: () => play.controllers[0]?.source?.name ?? null, matters: () => [], split: () => play.controllers.some((c) => c.source?.name === 'keyboard-right'), locked: () => rig.mode === 'locked', toggleView: () => play.toggleLock() });
+  }
   // ?play&net=ROOM: the played dancer online, the other seat through the network
   if (query.has('net')) await (await import('./net/play')).netPlay({ show, play, frame, world: () => worldOf(main.world), query, gates });
   // ?play&partner, ?roda, ?teach: brains on the seats (src/ai/demo.ts)
@@ -282,7 +288,6 @@ async function toggleYou() {
 // the show's keys (space, n, w, l, y, f) are for the show and the demos only. In a game (a jogo or a duel, begun from
 // the front or opened by address) the same keys are the players' (W up and jump, L kick, F merge, space jump): there
 // they changed the world, flipped the view and shattered the bodies in the middle of play
-const inGame = () => document.body.classList.contains('playing') || ['jogo', 'duel', 'play'].some((k) => new URLSearchParams(location.search).has(k));
 addEventListener('keydown', (e) => {
   if ((e.target as HTMLElement)?.closest?.('input, select, textarea')) return;
   if (inGame()) return;

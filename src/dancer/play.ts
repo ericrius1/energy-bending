@@ -39,6 +39,7 @@ import type { IntentSource } from '../input/intent';
 import { defineParams, setParams } from '../engine/params';
 import type { WaterPasses } from '../matter/water/pool';
 import type { IceLedge } from '../matter/ice/setice';
+import { showCamToast } from '../duel/help';
 
 export interface PlayCtx {
   show: Show;
@@ -62,6 +63,8 @@ export interface PlayCtx {
   worldOf?: (d: Dancer) => World;
   /** the plane locking uses, in place of the world's own stage (the duel's arena: src/duel) */
   stage?: () => StagePlane | null;
+  /** allow splitting one keyboard into left + right halves (false in 1-player modes so arrows orbit the 3D camera) */
+  allowSplit?: boolean;
 }
 
 export const playParams = defineParams('play', {
@@ -174,6 +177,8 @@ export interface PlayHandle {
   readonly dancers: Dancer[];
   /** the plane locking uses (the world's own stage) */
   plane(): StagePlane | null;
+  /** toggle between 3D free camera and 2D side view */
+  toggleLock(): void;
   /** add a dancer played from elsewhere (the network's NetController): it joins the cast after the players */
   addDancer(d: Dancer): void;
   /** seat the next player on a source (a brain's, src/ai): a dancer like the others, locked with them */
@@ -242,6 +247,7 @@ export async function playDemo(ctx: PlayCtx): Promise<PlayHandle> {
   };
   const hub = new InputHub({
     canvas,
+    allowSplit: ctx.allowSplit,
     // the mouse plays the bending hand from the dancer's shoulder (the right one; the reach an arm's length on screen)
     dancerScreen: (i) => {
       const c = controllers[i]; if (!c) return null;
@@ -265,9 +271,9 @@ export async function playDemo(ctx: PlayCtx): Promise<PlayHandle> {
   };
   hub.onJoin = seat;
   hub.onChange = (p) => { const c = controllers[p.index]; if (c) { c.source = p.source; p.source.mode = lockedPlane ? 'locked' : 'free'; } };
-  // the camera body, on 'c' (loaded only then: the webcam and the models)
+  // the camera body, on Alt+C (never plain C, which is crouch / fast-fall in 3D mode)
   addEventListener('keydown', (e) => {
-    if (e.code !== 'KeyC' || e.repeat || hub.players.some((p) => p.device === 'camera') || (e.target as HTMLElement)?.closest?.('input, select, textarea')) return;
+    if (!e.altKey || e.code !== 'KeyC' || e.repeat || hub.players.some((p) => p.device === 'camera') || (e.target as HTMLElement)?.closest?.('input, select, textarea')) return;
     void import('../input/webcam').then(async ({ Webcam }) => {
       const cam = new Webcam((s) => console.info(`camera: ${s}`));
       try { await cam.start(ctx.coarse); hub.joinCamera(new CameraSource(cam.tracker)); } catch (err) { cam.stop(); console.warn('energybending: the camera', err); }
@@ -296,13 +302,18 @@ export async function playDemo(ctx: PlayCtx): Promise<PlayHandle> {
     for (const c of controllers) c.setPlane(plane);
     for (const p of hub.players) p.source.mode = plane ? 'locked' : 'free';
   };
+  const toggleLock = () => {
+    const nextLocked = rig.mode !== 'locked';
+    rig.lock(nextLocked ? planeOf() : null);
+    showCamToast(nextLocked ? '2D Side View · press V for 3D' : '3D Free Camera · right-drag or arrows to orbit');
+  };
 
   // ---------------------------------------------------------------- each frame
   frame.tick('input', () => hub.poll(), 'play: devices joining');
   frame.tick('travel', () => { for (const e of edges) e(); }, 'play: the soft edge of each world (free, the dance)');
   frame.tick('camera', (f) => {
     // a lock asked for by a player (Tab, V, the View button), or by the rig (l, bend.lock, ?lock)
-    if (controllers.some((c) => c.intent.lock)) rig.lock(rig.mode === 'locked' ? null : planeOf());
+    if (controllers.some((c) => c.intent.lock)) toggleLock();
     if (rig.mode === 'locked' && rig.plane) {
       const want = planeOf();
       if (want && rig.plane !== want) rig.lock(want);   // (the world changed under a lock: its own stage)
@@ -314,7 +325,7 @@ export async function playDemo(ctx: PlayCtx): Promise<PlayHandle> {
       const c = controllers[i], other = controllers[1 - i] ? dancers[1 - i] : null;
       c.character.lookAt = other ? controllers[1 - i].character.root : null;
       c.lookAtHead = other ? other.skeleton.pos[JOINT.Head] : null;
-      c.inputYaw = rig.stickYaw(i, c.intent.moveX, c.intent.moveZ);   // (held steady while the stick is: CameraRig.stickYaw)
+      c.inputYaw = rig.stickYaw(i, c.intent.moveX, c.intent.moveZ, f.dt);
     }
     // the follow camera: behind player one (and, with two, the middle of them, standing back as they part)
     const at = (d: Dancer) => { const J = ctx.seen?.(d) ?? d.skeleton.world, o = JOINT.Spine1 * JOINT_FLOATS; return [J[o], J[o + 1], J[o + 2]]; };
@@ -323,6 +334,14 @@ export async function playDemo(ctx: PlayCtx): Promise<PlayHandle> {
     rig.follow = { x: (a[0] + b[0]) / 2, y: (a[1] + b[1]) / 2 - 0.15, z: (a[2] + b[2]) / 2, yaw: c0.yaw, speed: Math.hypot(c0.v[0], c0.v[2]), spread: Math.hypot(a[0] - b[0], a[2] - b[2]) };
     const look = controllers[0].intent;
     rig.lookBy(look.camX, look.camY, f.dt);
+    if (look.camZoom) rig.zoomBy(look.camZoom);
+    if (look.camReset && rig.mode !== 'locked') {
+      const spread = Math.hypot(b[0] - a[0], b[2] - a[2]);
+      // behind player 1 looking toward partner if nearby, otherwise straight behind player 1's facing
+      const backYaw = dancers[1] && spread > 0.4 && spread < 8 ? Math.atan2(a[0] - b[0], a[2] - b[2]) : c0.yaw + Math.PI;
+      rig.recenter(backYaw);
+      showCamToast('Camera recentered');
+    }
     pad?.update();
   }, 'play: the lock, partners, the follow camera');
 
@@ -334,5 +353,5 @@ export async function playDemo(ctx: PlayCtx): Promise<PlayHandle> {
   }
 
   const addPlayer = (source: IntentSource) => { const c = addDancer(controllers.length); c.source = source; source.mode = lockedPlane ? 'locked' : 'free'; show.stage(show.program); return c; };
-  return { hub, controllers, dancers, plane: () => lockedPlane, addDancer: (d) => { others.push(d); show.stage(show.program); }, addPlayer };
+  return { hub, controllers, dancers, plane: () => lockedPlane, toggleLock, addDancer: (d) => { others.push(d); show.stage(show.program); }, addPlayer };
 }

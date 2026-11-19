@@ -249,12 +249,12 @@ export const cameraParams = defineParams('camera', {
   followDist: 4.6,
   followPitch: 0.22,
   followFov: 48,
-  followSwing: 1.6,
-  followWait: 1.2,
+  followSwing: 0.7,
+  followWait: 2.8,
   /** how far ahead of a travelling player the follow camera aims (seconds of their speed) */
   followLead: 0.3,
   /** how hard the follow camera lines up behind a player heading for a gate (rad/s at the face) */
-  gateAlign: 0.9,
+  gateAlign: 0.55,
   /** the locked view's default turn off square-on and look down (rad; a stage plane may say its own) */
   lockYaw: 0.1,
   lockPitch: 0.07,
@@ -415,20 +415,27 @@ export class CameraRig {
   private boomYaw = 0;
   private boomRate = 0;
   /** per player: the turn their camera-relative stick is read in, while held (see `stickYaw`) */
-  private sticks: { yaw: number; held: boolean }[] = [];
+  private sticks: { yaw: number; held: boolean; dirX: number; dirZ: number }[] = [];
+  /** smooth camera recenter target (R key), cancelled immediately by manual look */
+  private recenterTarget: { yaw: number; pitch: number; t: number } | null = null;
   /** the distance in focus: from the eye to what it looks at (the stage plane, locked). (A film's camera, engine/
    *  filmcam.ts, lays its own focus over this one) */
   get focus() { return Math.hypot(this.look[0] - this.eye[0], this.look[1] - this.eye[1], this.look[2] - this.eye[2]); }
 
-  /** the turn player `p`'s camera-relative stick (moveX, moveZ) is read in. While the stick is held it keeps the turn
-   *  it had when the push began: the camera's own swings (behind a runner, onto a gate, the director's drift) don't
-   *  steer the player, so a stick held one way walks a straight line. The player's own look input (`lookBy`) and a
-   *  gate's carry turn it with the camera. Let go, and it is the camera's again */
-  stickYaw(p: number, moveX: number, moveZ: number) {
-    const s = (this.sticks[p] ??= { yaw: this.yaw, held: false });
-    const held = Math.hypot(moveX, moveZ) > 0.2;
-    if (!held || !s.held) s.yaw = this.yaw;
-    s.held = held;
+  /** the turn player `p`'s camera-relative stick (moveX, moveZ) is read in. Refreshes immediately when the player
+   *  starts moving or changes direction (e.g. W → D), so every direction press always matches the current screen; while
+   *  holding one direction steadily it ignores tiny camera sway, and gently catches up if the camera swings further */
+  stickYaw(p: number, moveX: number, moveZ: number, dt = 1 / 60) {
+    const s = (this.sticks[p] ??= { yaw: this.yaw, held: false, dirX: 0, dirZ: 0 });
+    const mag = Math.hypot(moveX, moveZ), held = mag > 0.2;
+    if (!held) { s.yaw = this.yaw; s.held = false; return s.yaw; }
+    const nx = moveX / mag, nz = moveZ / mag;
+    if (!s.held || nx * s.dirX + nz * s.dirZ < 0.92) {
+      s.yaw = this.yaw; s.dirX = nx; s.dirZ = nz; s.held = true;
+      return s.yaw;
+    }
+    const diff = wrap(this.yaw - s.yaw);
+    if (Math.abs(diff) > 0.25) s.yaw = wrap(s.yaw + diff * (1 - Math.exp(-dt * 4)));
     return s.yaw;
   }
 
@@ -462,10 +469,23 @@ export class CameraRig {
   /** the follow camera turned by a look rate (a stick's -1..1, a mouse's more) over dt seconds */
   lookBy(x: number, y: number, dt: number) {
     if (Math.abs(x) + Math.abs(y) < 1e-3) return;
+    this.recenterTarget = null;
     this.yaw -= x * 2.6 * dt;
     for (const s of this.sticks) if (s?.held) s.yaw -= x * 2.6 * dt;
     this.pitch = Math.max(-0.1, Math.min(1.1, this.pitch - y * 1.6 * dt));
     this.lookIdle = 0;
+    this.idle = 0;
+  }
+  /** adjust zoom in 3D play (positive = zoom out, negative = zoom in) */
+  zoomBy(delta: number) {
+    if (!delta) return;
+    this.zoom = Math.max(0.6, Math.min(1.8, this.zoom * Math.exp(delta)));
+    this.idle = 0;
+  }
+  /** smoothly recenter the 3D follow camera behind a target yaw and reset pitch & zoom */
+  recenter(yaw?: number, pitch = cameraParams.followPitch) {
+    this.recenterTarget = { yaw: yaw ?? this.yaw, pitch, t: 0.45 };
+    this.zoom = 1;
     this.idle = 0;
   }
   /** a pinch's turn (pixels) */
@@ -620,25 +640,36 @@ export class CameraRig {
     // (quick enough upward to keep a 2 m jump in frame)
     this.target[1] += (fy - this.target[1]) * (1 - Math.exp(-dt * (fy > this.target[1] ? 7 : 4)));
     this.target[2] += (az - this.target[2]) * k;
-    if (this.lookIdle > P.followWait) {
-      // left alone: the pitch settles, and while they run the eye swings round behind them
+    if (this.recenterTarget) {
+      const R = this.recenterTarget, rk = 1 - Math.exp(-dt * 10);
+      const dy = wrap(R.yaw - this.yaw) * rk;
+      this.yaw = wrap(this.yaw + dy);
+      for (const s of this.sticks) if (s?.held) s.yaw = wrap(s.yaw + dy);
+      this.pitch += (R.pitch - this.pitch) * rk;
+      R.t -= dt;
+      if (R.t <= 0 || (Math.abs(wrap(R.yaw - this.yaw)) < 0.01 && Math.abs(R.pitch - this.pitch) < 0.01)) this.recenterTarget = null;
+    } else if (this.lookIdle > P.followWait) {
+      // left alone: the pitch settles, and while running forward/diagonally the eye gently swings behind them
+      // (never whipping 180° when backing toward the camera)
       this.pitch += (P.followPitch - this.pitch) * (1 - Math.exp(-dt * 1.2));
       if (F.speed > 0.6) {
         const want = F.yaw + Math.PI, d = wrap(want - this.yaw);
-        const most = P.followSwing * dt * Math.min(1, (this.lookIdle - P.followWait) / 0.8) * Math.min(1, F.speed / 2.5);
+        const fwdMask = smooth01((2.2 - Math.abs(d)) / 0.7);
+        const most = P.followSwing * fwdMask * dt * Math.min(1, (this.lookIdle - P.followWait) / 0.8) * Math.min(1, F.speed / 2.5);
         this.yaw += Math.max(-most, Math.min(most, d));
       }
     }
     // heading for a gate: line up so the eye will pass through the disc right behind them (the eye on the line from the
     // disc's middle through the player), and look a little flatter. The player's own look input wins
     const A = this.approach;
-    if (A && A.w > 0 && P.gateAlign > 0) {
+    if (A && A.w > 0 && P.gateAlign > 0 && !this.recenterTarget) {
       const give = A.w * Math.min(1, this.lookIdle / Math.max(0.1, P.followWait));
       const want = Math.atan2(fx - A.at[0], fz - A.at[2]), d = wrap(want - this.yaw), most = P.gateAlign * give * dt;
       this.yaw += Math.max(-most, Math.min(most, d));
       this.pitch += (Math.min(this.pitch, 0.14) - this.pitch) * (1 - Math.exp(-dt * 2 * give));
     }
-    let dist = P.followDist + Math.min(F.spread, 5) * 0.45 * (1 - alone);
+    const zoom = Math.max(0.6, Math.min(1.8, this.zoom));
+    let dist = P.followDist * zoom + Math.min(F.spread, 5) * 0.45 * (1 - alone);
     this.fov = P.followFov;
     // a partner near enough is kept in frame: stand back as far as it takes (to a limit) to hold both, hips and head
     if (f.dancers.length > 1 && alone < 1) {

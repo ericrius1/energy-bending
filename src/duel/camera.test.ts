@@ -5,7 +5,7 @@
 // no snaps) and the flyer stays in frame.
 import { test, assert, near, done } from '../dancer/test/check';
 import { DUEL_CAM, IMPULSE, DuelCamera, apexOf, fit, screenOf, short, type CamBody, type CamImpulseKind, type CamInput, type CamSpace, type V3 } from './camera';
-import { Solids } from '../engine/camera';
+import { Solids, CameraRig } from '../engine/camera';
 import { simulateDuel, nodeArena, makeBrains } from './sim';
 import { judge, spaceOf as camSpaceOf } from './camspace';
 import { CAM_WORLDS, nodeWorld } from './camworlds';
@@ -337,6 +337,37 @@ test('a fused finale lifts the look to the sky and keeps the lifted body past th
   assert(on.up > off.up, `the look up lifted no more than without (${on.up} against ${off.up})`);
   assert(on.hid <= Math.max(1, off.hid), `the lifted body hidden more with the look up (${on.hid} against ${off.hid})`);
   return `of ${on.n} places: looking level or up ${off.up} → ${on.up}; the lifted body behind a stone ${off.hid} → ${on.hid}; the sky over the flower open ${off.skyOpen} → ${on.skyOpen}`;
+});
+
+test('manual duel camera hold respects yaw and pitch, and recenter releases smoothly', () => {
+  const cam = new DuelCamera();
+  const a = bodyAt([-2, 0, 0]), b = bodyAt([2, 0, 0]);
+  const I: CamInput = { bodies: [a, b], aspect: ASPECT, gravity: 40, space: null, near: 0.6, center: [0, 0, 0], room: 18 };
+  cam.update(1 / 60, I);
+  const wantYaw = 1.2, wantPitch = 0.35;
+  cam.hold(wantYaw, wantPitch);
+  let pose = cam.update(1 / 60, I);
+  for (let i = 0; i < 90; i++) pose = cam.update(1 / 60, I);
+  assert(Math.abs(pose.yaw - wantYaw) < 0.05, `held yaw drifted: ${pose.yaw}`);
+  assert(Math.abs(pose.pitch - wantPitch) < 0.05, `held pitch drifted: ${pose.pitch}`);
+  cam.recenter();
+  for (let i = 0; i < 120; i++) pose = cam.update(1 / 60, I);
+  assert(Math.abs(pose.yaw - wantYaw) > 0.2, `recenter did not return to framing: ${pose.yaw}`);
+});
+
+test('follow camera stickYaw refreshes on direction change and never whips 180° when backing up', () => {
+  const rig = new CameraRig();
+  rig.yaw = 0;
+  // holding W locks initial yaw, then pressing D immediately aligns to new camera yaw
+  assert(rig.stickYaw(0, 0, 1, 1 / 60) === 0, 'initial W');
+  rig.yaw = Math.PI / 2;
+  assert(Math.abs(rig.stickYaw(0, 1, 0, 1 / 60) - Math.PI / 2) < 1e-6, 'D refreshes to current camera yaw');
+  // backing straight toward the camera (F.yaw === rig.yaw) must not whip the camera 180°
+  const rig2 = new CameraRig();
+  rig2.yaw = 0; rig2.lookIdle = 10;
+  rig2.follow = { x: 0, y: 1, z: 0, yaw: 0, speed: 4, spread: 0 };
+  for (let i = 0; i < 120; i++) rig2.update(1 / 60, { aspect: 16 / 9, dancers: [], aimX: 0, aimZ: 0, crowd: 1, ring: false, awake: true, room: 18, maxDist: 14 });
+  assert(Math.abs(rig2.yaw) < 0.05, `camera whipped while backing up: ${rig2.yaw}`);
 });
 
 done();
