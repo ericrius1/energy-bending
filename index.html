@@ -2,7 +2,7 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
     <title>Energy Bending - phone-fluidity</title>
     <meta name="description" content="A dance game for two on WebGPU: bodies of fire, water, ice, plasma and gems play a capoeira-like jogo and walk between worlds through live gates." />
     <meta name="theme-color" content="#0b0906" />
@@ -48,7 +48,9 @@
         /* a sprig of leaves on a whiplash stem, gold and leaf green (the strip's and the card's corners) */
         --eb-sprig: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 32'%3E%3Cpath d='M2 30C14 30 18 21 30 18S50 14 61 5' fill='none' stroke='%23d9b46a' stroke-width='1.5' stroke-linecap='round'/%3E%3Cpath d='M21 22q1-9 10-11q-1 9-10 11z' fill='%238fd17f' fill-opacity='.8' stroke='%23d9b46a' stroke-width='.8'/%3E%3Cpath d='M37 16q6-7 14-5q-6 7-14 5z' fill='%238fd17f' fill-opacity='.7' stroke='%23d9b46a' stroke-width='.8'/%3E%3Cpath d='M29 19q6 6 13 3q-5-6-13-3z' fill='%234e7a45' fill-opacity='.85' stroke='%23d9b46a' stroke-width='.8'/%3E%3Ccircle cx='61' cy='5' r='2' fill='%23ffc861'/%3E%3C/svg%3E");
       }
-      html, body { margin: 0; height: 100%; background: var(--eb-night); overflow: hidden; }
+      /* (touch-action: no browser zoom on a phone, by a pinch or a double tap, which cropped the page; the stage's none
+         takes its own) */
+      html, body { margin: 0; height: 100%; background: var(--eb-night); overflow: hidden; touch-action: pan-x pan-y; }
       /* loading: a dark frame and one slow pulse of warm light where the dancers will stand; then the dancers fade up */
       #stage { position: fixed; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; opacity: 0; transition: opacity 1.6s cubic-bezier(0.55, 0, 0.6, 1); }
       body.ready #stage { opacity: 1; }
@@ -284,6 +286,16 @@
       @media (prefers-reduced-motion: reduce) { body::before, .jg-front .jg-go, .jg-swatch i, .dl.fresh .dl-say, .dl.fresh .dl-keys { animation: none; } }
     </style>
     <script type="module" src="/src/main.ts"></script>
+    <!-- No browser zoom on a phone (it crops the page): Safari and Chrome on an iPhone ignore user-scalable=no, so a
+         pinch is cancelled here, and touch-action on html and body stops pinch and double-tap zoom too. The page's own
+         touch and pointer handlers still get every event; a Mac's trackpad pinch is left alone. -->
+    <script>
+      if (navigator.maxTouchPoints > 0) {
+        const no = (e) => { if (e.cancelable) e.preventDefault(); }, held = { passive: false };
+        for (const g of ['gesturestart', 'gesturechange', 'gestureend']) document.addEventListener(g, no, held);
+        document.addEventListener('touchmove', (e) => { if (e.touches.length > 1) no(e); }, held);
+      }
+    </script>
   </head>
   <body>
     <canvas id="stage" aria-label="Two dancers made of matter. Press any key or tap to dance with them; drag to turn the camera."></canvas>
