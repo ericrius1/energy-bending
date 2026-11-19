@@ -14,7 +14,7 @@ const CSS = `
 .jg-you b { display: flex; align-items: center; gap: 0.42em; padding: 0.22em 0.8em 0.26em 0.55em; border-radius: 999px; white-space: nowrap;
   font: italic 600 17px/1.1 var(--eb-display, Georgia, serif); letter-spacing: 0.02em; color: var(--eb-cream, #fbf4e4);
   background: var(--eb-glass-bg, rgba(30, 22, 10, 0.55)); box-shadow: var(--eb-lead, 0 0 0 1px rgba(222, 180, 104, 0.6));
-  -webkit-backdrop-filter: var(--eb-blur, blur(10px)); backdrop-filter: var(--eb-blur, blur(10px)); text-shadow: 0 1px 2px rgba(20, 12, 4, 0.6); }
+  -webkit-backdrop-filter: var(--eb-blur, none); backdrop-filter: var(--eb-blur, none); text-shadow: 0 1px 2px rgba(20, 12, 4, 0.6); }
 .jg-you b i { width: 0.62em; height: 0.62em; border-radius: 60% 0 60% 0; transform: rotate(-45deg); background: var(--c, #ff6fa3);
   box-shadow: 0 0 8px var(--c, #ff6fa3), inset 0 0 0 1px rgba(255, 240, 205, 0.5); }
 .jg-you small { font: 700 10px/1 var(--eb-body, system-ui, sans-serif); font-style: normal; letter-spacing: 0.12em; text-transform: uppercase;
@@ -25,7 +25,7 @@ const CSS = `
   display: flex; align-items: center; gap: 0.7em; padding: 0.5em 1.25em 0.55em 1em; border-radius: 999px; white-space: nowrap;
   font: italic 500 19px/1.15 var(--eb-display, Georgia, serif); letter-spacing: 0.01em; color: var(--eb-cream, #fbf4e4);
   background: var(--eb-glass-bg, rgba(30, 22, 10, 0.55)); box-shadow: var(--eb-lead, 0 0 0 1px rgba(222, 180, 104, 0.6)), 0 0 28px rgba(255, 200, 97, 0.18);
-  -webkit-backdrop-filter: var(--eb-blur, blur(10px)); backdrop-filter: var(--eb-blur, blur(10px)); text-shadow: 0 1px 2px rgba(20, 12, 4, 0.55);
+  -webkit-backdrop-filter: var(--eb-blur, none); backdrop-filter: var(--eb-blur, none); text-shadow: 0 1px 2px rgba(20, 12, 4, 0.55);
   animation: jg-breathe 3.4s ease-in-out infinite; transition: opacity 0.5s; }
 .jg-press span.k { display: inline-flex; align-items: center; gap: 0.4em; }
 .jg-press svg { width: 1.35em; height: 1.35em; color: var(--eb-sun, #ffc861); }

@@ -96,7 +96,7 @@ class Card {
     const r = this.root = document.createElement('div');
     r.className = 'duel-net';
     r.style.cssText = 'position:fixed;left:50%;top:18%;transform:translateX(-50%);z-index:30;padding:14px 20px;border-radius:14px;'
-      + 'background:rgba(12,14,24,.72);color:#eef;font:500 15px/1.4 system-ui,sans-serif;text-align:center;backdrop-filter:blur(6px);'
+      + 'background:rgba(12,14,24,.72);color:#eef;font:500 15px/1.4 system-ui,sans-serif;text-align:center;'
       + 'box-shadow:0 6px 30px rgba(0,0,0,.35);max-width:min(92vw,520px);pointer-events:auto;transition:opacity .5s';
     const title = document.createElement('div');
     title.textContent = `Room ${room}`;

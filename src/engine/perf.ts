@@ -79,7 +79,7 @@ export const BUDGETS: Record<DeviceClass, Budget> = {
     samples: 1, capacity: { stones: 80_000, flames: 196_608, water: 240_000, sparks: 16_384 },
     targetFps: 60, gpuMs: 12, renderScale: { min: 0.65, max: 1 }, maxPixelRatio: 1.5, coarse: false,
     stones: 12_000, flamesPerDancer: 36_000, waterPerDancer: 60_000, waterResolution: 0.75, waterSmooth: 2, steam: 4000,
-    spriteScale: 0.85, field: { dims: [40, 28, 40], cell: 0.21 }, gates: { live: 1, scale: 0.4, slots: 2, depth: 1 }, dof: true, roda: 0,
+    spriteScale: 0.85, field: { dims: [40, 28, 40], cell: 0.21 }, gates: { live: 1, scale: 0.32, slots: 2, depth: 1 }, dof: true, roda: 0,
   },
   phone: {
     samples: 1, capacity: { stones: 40_000, flames: 131_072, water: 128_000, sparks: 8192 },

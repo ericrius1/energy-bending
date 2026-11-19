@@ -36,11 +36,15 @@
         --eb-seat-1: #ff6fa3; --eb-seat-2: #5ff0a4;
         --eb-display: "Fraunces", "Iowan Old Style", "Palatino Linotype", Georgia, serif;
         --eb-body: "Nunito Sans", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-        /* the glass every panel shares: smoked honey, warm light pooled along its top */
-        --eb-glass-bg: linear-gradient(180deg, rgba(255, 226, 168, 0.14), rgba(255, 226, 168, 0.02) 46%), linear-gradient(rgba(46, 35, 18, 0.5), rgba(20, 15, 8, 0.48));
+        /* the glass every panel shares: smoked honey, warm light pooled along its top. Smoked a little deeper than it
+           was frosted: no backdrop blur (below), so the world behind shows through it sharp */
+        --eb-glass-bg: linear-gradient(180deg, rgba(255, 226, 168, 0.14), rgba(255, 226, 168, 0.02) 46%), linear-gradient(rgba(46, 35, 18, 0.64), rgba(20, 15, 8, 0.62));
         /* its leading: a thin gold came over a darker lead, a cream hairline inside */
         --eb-lead: 0 0 0 1px rgba(222, 180, 104, 0.6), 0 0 0 2.6px rgba(14, 10, 4, 0.32), inset 0 0 0 1px rgba(255, 240, 205, 0.12);
-        --eb-blur: blur(14px) saturate(1.25);
+        /* no backdrop filter over the live canvas: the browser blurs what's under each panel again every frame, outside
+           the GPU budget the game measures, and the gates' names and the YOU tag over the stage cost an M3 Max about
+           9 ms a frame that way (docs/reports/27-mac-perf.md). Even saturate() alone costs most of it */
+        --eb-blur: none;
         /* a sprig of leaves on a whiplash stem, gold and leaf green (the strip's and the card's corners) */
         --eb-sprig: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 32'%3E%3Cpath d='M2 30C14 30 18 21 30 18S50 14 61 5' fill='none' stroke='%23d9b46a' stroke-width='1.5' stroke-linecap='round'/%3E%3Cpath d='M21 22q1-9 10-11q-1 9-10 11z' fill='%238fd17f' fill-opacity='.8' stroke='%23d9b46a' stroke-width='.8'/%3E%3Cpath d='M37 16q6-7 14-5q-6 7-14 5z' fill='%238fd17f' fill-opacity='.7' stroke='%23d9b46a' stroke-width='.8'/%3E%3Cpath d='M29 19q6 6 13 3q-5-6-13-3z' fill='%234e7a45' fill-opacity='.85' stroke='%23d9b46a' stroke-width='.8'/%3E%3Ccircle cx='61' cy='5' r='2' fill='%23ffc861'/%3E%3C/svg%3E");
       }
