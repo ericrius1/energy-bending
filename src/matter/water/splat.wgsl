@@ -1,7 +1,7 @@
 // The first step of the screen-space surface: every particle of the pool that is part of a body (liquid water, and
 // ice still on its dancer) drawn as a sphere seen from the view's camera, twice. `fs_depth` keeps the nearest sphere's
-// view distance per pixel (with a depth buffer of its own: the sphere's true depth is written, so overlapping drops
-// meet in a crease, not a seam), and which capsule that sphere lives on (its slot + 1: surface.wgsl turns the pixel
+// view distance per pixel (with a depth buffer of its own, ordered by each sphere's nearest point: frontOf says why
+// not its true depth per pixel), and which capsule that sphere lives on (its slot + 1: surface.wgsl turns the pixel
 // into that bone's own frame, so ice's facets and the water's caustics ride on the body instead of swimming through
 // the world). `fs_thick` adds up how much matter each pixel looks through (the sphere's chord), with how much of it is
 // foam and how much is frozen. Water lying on the floor before the dancers rise is drawn as flat discs (a film).
@@ -40,6 +40,17 @@ struct SOut {
   @location(7) wp: vec3f,
 }
 
+/** a sphere's billboard moved to the sphere's nearest point, so the rasterizer's own depth orders the drops: no
+ *  frag_depth, which on a tile-based GPU (Apple's) turns off hidden-surface removal and early depth for every one of
+ *  a body's tens of thousands of overlapping sprites. (Two drops now meet in a straight cut where they cross, not the
+ *  crease their true depths would give: the smoothing passes take it out.) The clip-space z is the front point's,
+ *  scaled by w so it stays flat across the quad */
+fn frontOf(wp: vec3f, centre: vec3f, r: f32) -> vec4f {
+  let clip = frame.viewProj * vec4f(wp, 1.0);
+  let f = frame.viewProj * vec4f(centre + normalize(frame.camPos - centre) * r, 1.0);
+  return vec4f(clip.xy, clamp(f.z / f.w, 0.0, 1.0) * clip.w, clip.w);
+}
+
 const CORNERS = array<vec2f, 6>(vec2f(-1.0, -1.0), vec2f(1.0, -1.0), vec2f(1.0, 1.0), vec2f(-1.0, -1.0), vec2f(1.0, 1.0), vec2f(-1.0, 1.0));
 
 @vertex fn vs(@builtin(vertex_index) vi: u32, @builtin(instance_index) ii: u32) -> SOut {
@@ -54,7 +65,7 @@ const CORNERS = array<vec2f, 6>(vec2f(-1.0, -1.0), vec2f(1.0, -1.0), vec2f(1.0, 
     if (MIRROR == 1u) { sp.y = 2.0 * floorY - sp.y; }
     let r = n.size * 1.8;
     let wp = sp + (frame.camRight * c.x + frame.camUp * c.y) * (r * 1.15);
-    o.pos = frame.viewProj * vec4f(wp, 1.0);
+    o.pos = frontOf(wp, sp, r);
     o.wp = wp;
     o.uv = c * 1.15;
     o.centre = sp;
@@ -92,7 +103,7 @@ const CORNERS = array<vec2f, 6>(vec2f(-1.0, -1.0), vec2f(1.0, -1.0), vec2f(1.0, 
     o.uv = c * 1.15;
     o.film = 0.0;
   }
-  o.pos = frame.viewProj * vec4f(wp, 1.0);
+  o.pos = select(frontOf(wp, pos, r), frame.viewProj * vec4f(wp, 1.0), resting);
   o.wp = wp;
   o.centre = pos;
   o.r = r;
@@ -103,9 +114,7 @@ const CORNERS = array<vec2f, 6>(vec2f(-1.0, -1.0), vec2f(1.0, -1.0), vec2f(1.0, 
   return o;
 }
 
-struct DepthOut { @location(0) dist: vec2f, @builtin(frag_depth) depth: f32 }
-
-@fragment fn fs_depth(i: SOut) -> DepthOut {
+@fragment fn fs_depth(i: SOut) -> @location(0) vec2f {
   let d2 = dot(i.uv, i.uv);
   if (d2 > 1.0) { discard; }
   var wp = i.wp;
@@ -113,11 +122,7 @@ struct DepthOut { @location(0) dist: vec2f, @builtin(frag_depth) depth: f32 }
     var toCam = normalize(frame.camPos - i.centre);
     wp = i.centre + (frame.camRight * i.uv.x + frame.camUp * i.uv.y + toCam * sqrt(1.0 - d2)) * i.r;
   }
-  let c = frame.viewProj * vec4f(wp, 1.0);
-  var o: DepthOut;
-  o.dist = vec2f(dot(wp - frame.camPos, frame.camFwd), i.slot);
-  o.depth = clamp(c.z / c.w, 0.0, 1.0);
-  return o;
+  return vec2f(dot(wp - frame.camPos, frame.camFwd), i.slot);
 }
 
 @fragment fn fs_thick(i: SOut) -> @location(0) vec4f {

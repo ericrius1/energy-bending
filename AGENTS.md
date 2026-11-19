@@ -193,7 +193,8 @@ window 0.003 to 0.006 with a live gate on screen; the near fade nothing measurab
 `Budget` that kinds, worlds and the post chain read at declare with `budget()` (flames and water per dancer, the water
 surface's resolution and smoothing, steam, stones, the field's grid, live gates and their scale, the depth of field,
 the sprite scale, the roda, the pixel-ratio cap and the autoscaler's range). It also sizes particle capacities and
-portal slots before allocation and selects 1× HDR on phone/laptop, 4× on desktop. `coarse` remains for geometry
+portal slots before allocation and selects 1× HDR on phone/laptop, 4× on desktop. An Apple GPU is never `desktop` (its
+probe can score there, and the 5090's budget ran an M3 Max at 9 fps: report 26). `coarse` remains for geometry
 (worlds' layouts, the curl grid, the webcam's model). Phones keep render scale 0.85 at capped DPR 2: do not lower
 their resolution to buy FPS. `engine/quality.ts` watches wall-clock frame intervals and reduces air/reflection
 samples, then particle density, with slow recovery. It never caps refresh rate and needs no GPU timestamps.

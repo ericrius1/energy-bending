@@ -246,7 +246,10 @@ let fpsAvg = 60;
 const forcedQuality = Number(query.get('quality'));
 const qualityFixed = query.has('quality') && Number.isInteger(forcedQuality) && forcedQuality >= 0 && forcedQuality < QUALITY.length;
 if (qualityFixed) frameQuality.level = forcedQuality;
-const adaptQuality = device.klass === 'phone' && !FILM && !query.has('noautores') && !qualityFixed;
+// (phones and laptops: the quality steps lighten the air, the reflections and the particles once the dynamic resolution
+// alone can't hold the class's frame rate; a desktop holds it by the resolution)
+const adaptQuality = device.klass !== 'desktop' && !FILM && !query.has('noautores') && !qualityFixed;
+frameQuality.target(device.budget.targetFps);
 let lastFrameAt = performance.now();
 kit.loop(({ dt }) => {
   const now = performance.now(), wallDt = (now - lastFrameAt) / 1000;

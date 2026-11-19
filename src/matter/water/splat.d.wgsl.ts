@@ -168,10 +168,6 @@ export interface SOut {
   film: number;
   wp: Vec3;
 }
-export interface DepthOut {
-  dist: Vec2;
-  depth: number;
-}
 
-declare const shader: Shader<{ Frame: Frame; Joint: Joint; Seg: Seg; Particle: Particle; Home: Home; BodyStep: BodyStep; WaterSim: WaterSim; Aux: Aux; Seen: Seen; ViewSeen: ViewSeen; IceLook: IceLook; SetShard: SetShard; SetNow: SetNow; SOut: SOut; DepthOut: DepthOut }, 'frame' | 'sim' | 'seen' | 'look' | 'state' | 'aux' | 'homes' | 'sets' | 'samp_linear' | 'samp_repeat' | 'samp_nearest' | 'samp_shadow'>;
+declare const shader: Shader<{ Frame: Frame; Joint: Joint; Seg: Seg; Particle: Particle; Home: Home; BodyStep: BodyStep; WaterSim: WaterSim; Aux: Aux; Seen: Seen; ViewSeen: ViewSeen; IceLook: IceLook; SetShard: SetShard; SetNow: SetNow; SOut: SOut }, 'frame' | 'sim' | 'seen' | 'look' | 'state' | 'aux' | 'homes' | 'sets' | 'samp_linear' | 'samp_repeat' | 'samp_nearest' | 'samp_shadow'>;
 export default shader;

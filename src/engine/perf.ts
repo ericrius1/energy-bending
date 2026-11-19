@@ -57,8 +57,9 @@ export interface Budget {
   spriteScale: number;
   /** the matter field's grid (cells) and its cell size (m) */
   field: { dims: [number, number, number]; cell: number };
-  /** live gate views at once and their resolution × the main view's (portalParams.live, .scale) */
-  gates: { live: number; scale: number; slots: number };
+  /** live gate views at once and their resolution × the main view's (portalParams.live, .scale), the views made for them
+   *  (slots: a spare one takes the stills), and whether a gate seen through a gate is live too (depth 2) or shows its still */
+  gates: { live: number; scale: number; slots: number; depth: number };
   /** the depth of field (postParams.dof) */
   dof: boolean;
   /** free dancers ringing a jogo the game plays against the partner or on one screen (src/ai's roda) */
@@ -72,19 +73,19 @@ export const BUDGETS: Record<DeviceClass, Budget> = {
     samples: 4, capacity: { stones: 300_000, flames: 262_144, water: 400_000, sparks: 65_536 },
     targetFps: 60, gpuMs: 14, renderScale: { min: 0.5, max: 1 }, maxPixelRatio: 2, coarse: false,
     stones: 15_000, flamesPerDancer: 60_000, waterPerDancer: 100_000, waterResolution: 1, waterSmooth: 3, steam: 6000,
-    spriteScale: 1, field: { dims: [48, 32, 48], cell: 0.18 }, gates: { live: 2, scale: 0.5, slots: 3 }, dof: true, roda: 0,
+    spriteScale: 1, field: { dims: [48, 32, 48], cell: 0.18 }, gates: { live: 2, scale: 0.5, slots: 3, depth: 2 }, dof: true, roda: 0,
   },
   laptop: {
     samples: 1, capacity: { stones: 80_000, flames: 196_608, water: 240_000, sparks: 16_384 },
-    targetFps: 60, gpuMs: 12, renderScale: { min: 0.5, max: 1 }, maxPixelRatio: 1.5, coarse: false,
+    targetFps: 60, gpuMs: 12, renderScale: { min: 0.65, max: 1 }, maxPixelRatio: 1.5, coarse: false,
     stones: 12_000, flamesPerDancer: 36_000, waterPerDancer: 60_000, waterResolution: 0.75, waterSmooth: 2, steam: 4000,
-    spriteScale: 0.85, field: { dims: [40, 28, 40], cell: 0.21 }, gates: { live: 1, scale: 0.4, slots: 2 }, dof: true, roda: 0,
+    spriteScale: 0.85, field: { dims: [40, 28, 40], cell: 0.21 }, gates: { live: 1, scale: 0.4, slots: 2, depth: 1 }, dof: true, roda: 0,
   },
   phone: {
     samples: 1, capacity: { stones: 40_000, flames: 131_072, water: 128_000, sparks: 8192 },
     targetFps: 30, gpuMs: 26, renderScale: { min: 0.85, max: 0.85 }, maxPixelRatio: 2, coarse: true,
     stones: 9000, flamesPerDancer: 24_000, waterPerDancer: 40_000, waterResolution: 0.5, waterSmooth: 1, steam: 2000,
-    spriteScale: 1, field: { dims: [32, 24, 32], cell: 0.26 }, gates: { live: 1, scale: 0.4, slots: 1 }, dof: false, roda: 0,
+    spriteScale: 1, field: { dims: [32, 24, 32], cell: 0.26 }, gates: { live: 1, scale: 0.4, slots: 1, depth: 1 }, dof: false, roda: 0,
   },
 };
 
@@ -142,8 +143,15 @@ export async function chooseClass(kit: Kit, query: URLSearchParams, o: { film?: 
     pointerCoarse: typeof matchMedia !== 'undefined' && matchMedia('(pointer: coarse)').matches,
   };
   // (kept in perfState at once: kinds and worlds are declared after this, and read budget() then)
-  const make = (klass: DeviceClass, how: DeviceChoice['how'], probe: ProbeResult | null = null): DeviceChoice =>
-    (perfState.choice = { klass, budget: BUDGETS[klass], coarse: BUDGETS[klass].coarse, how, probe, ...base });
+  // An Apple GPU is never a desktop: an M3 Max's fill probe scores past the desktop line, but the desktop budget is the
+  // RTX 5090's (4× MSAA, the full Retina pixel ratio, three gate views), and an M3 Max ran it at 9 fps. The tile GPU
+  // pays far more for MSAA and for every extra full-size pass than the probe's one additive fill shows
+  // (docs/reports/26-mac-perf.md). Forced (?class=desktop) and films still get what they ask for
+  const apple = base.appleGpu || /apple/i.test(adapter.vendor ?? '');
+  const make = (klass: DeviceClass, how: DeviceChoice['how'], probe: ProbeResult | null = null): DeviceChoice => {
+    if (klass === 'desktop' && apple && how !== 'forced' && how !== 'film') klass = 'laptop';
+    return (perfState.choice = { klass, budget: BUDGETS[klass], coarse: BUDGETS[klass].coarse, how, probe, ...base });
+  };
   const forced = query.get('class') as DeviceClass | null;
   if (forced && DEVICE_CLASSES.includes(forced)) return make(forced, 'forced');
   if (o.film) return make('desktop', 'film');

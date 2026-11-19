@@ -175,7 +175,7 @@ export class Portals implements SceneLayer {
   constructor(private ctx: PortalsCtx) {
     const kit = (this.kit = ctx.kit);
     const g = budget().gates;
-    P.live = Math.min(P.live, g.live); P.scale = Math.min(P.scale, g.scale);
+    P.live = Math.min(P.live, g.live); P.scale = Math.min(P.scale, g.scale); P.depth = Math.min(P.depth, g.depth);
     const S = Math.max(0, Math.min(ctx.slots, LIMITS.views, g.slots));
     for (let i = 0; i < S; i++) {
       const cam = new GateCamera();

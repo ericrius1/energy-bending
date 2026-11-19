@@ -16,8 +16,20 @@ export class FrameQuality {
   private bad = 0;
   private good = 0;
   private settling = 12;
+  /** frame times (ms) past which a stretch of frames is slow (mean, p90) and under which it has room (mean, p90). The
+   *  defaults are the phone's at 30 fps, tuned on an iPhone 16e; `target` sets them for another rate */
+  private limits = { badMean: 34.5, badP90: 42, goodMean: 24, goodP90: 28 };
 
   get value() { return QUALITY[this.level]; }
+
+  /** hold the frames to `fps` (the device class's targetFps). At 30 the phone's own numbers; faster, numbers relative to
+   *  the frame interval: slow past a fifth over it on average (or half over it for a tenth of the frames), with room
+   *  when the frames keep to it, so a 60 Hz screen at 60 fps counts as room and steps back up */
+  target(fps: number) {
+    if (fps <= 30) return;
+    const T = 1000 / fps;
+    this.limits = { badMean: T * 1.2, badP90: T * 1.5, goodMean: T * 1.06, goodP90: T * 1.2 };
+  }
 
   /** Seconds of *wall* time between animation frames, before the simulation clamps dt. Ignore pauses and reset
    *  the evidence on visibility changes; neither a background tab nor one startup hitch is a slow GPU. */
@@ -35,8 +47,9 @@ export class FrameQuality {
     this.meanMs = this.elapsed * 1000 / this.samples.length;
     this.samples.sort((a, b) => a - b);
     this.p90Ms = this.samples[Math.floor((this.samples.length - 1) * 0.9)];
-    this.bad = this.meanMs > 34.5 || this.p90Ms > 42 ? this.bad + this.elapsed : 0;
-    this.good = this.meanMs < 24 && this.p90Ms < 28 ? this.good + this.elapsed : 0;
+    const L = this.limits;
+    this.bad = this.meanMs > L.badMean || this.p90Ms > L.badP90 ? this.bad + this.elapsed : 0;
+    this.good = this.meanMs < L.goodMean && this.p90Ms < L.goodP90 ? this.good + this.elapsed : 0;
     const next = this.bad >= 4 ? Math.min(QUALITY.length - 1, this.level + 1)
       : this.good >= 20 ? Math.max(0, this.level - 1) : this.level;
     if (next !== this.level) { this.level = next; this.bad = this.good = 0; this.settling = 4; }
