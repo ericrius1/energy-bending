@@ -68,7 +68,9 @@ import { clearTurn } from './opening';
 import { softEdge } from './edge';
 import { arenaFor } from '../duel/arena';
 import { cameraParams } from '../engine/camera';
-import { installHelp } from '../duel/help';
+import { installHelp, devOf, guessDev } from '../duel/help';
+import { DanceHud } from './dance-hud';
+import { createTutorial, shouldAutoTutorial } from './tutorial';
 
 type V3 = [number, number, number];
 
@@ -572,7 +574,12 @@ export async function startJogo(app: PlayApp, mode: string, opts: { joined?: Joi
     if (openIn > 0 && --openIn === 0 && rig.follow && rig.solids && rig.mode !== 'locked') {
       const F = rig.follow, [w, h] = kit.size.render;
       const T: V3 = [F.x, F.y, F.z], dist = cameraParams.followDist + Math.min(F.spread, 5) * 0.45;
-      const r = clearTurn(rig.solids, T, rig.yaw, cameraParams.followPitch, dist, cameraParams.followFov, w / Math.max(1, h), world().room);
+      // aim cleanly behind player 1 in a 3/4 hero framing looking toward the partner before checking clearTurn
+      const r0 = bodies[0]?.root(), r1 = bodies[1]?.root();
+      const heroYaw = r0 && r1 && Math.hypot(r0[0] - r1[0], r0[2] - r1[2]) > 0.35
+        ? Math.atan2(r0[0] - r1[0], r0[2] - r1[2]) + 0.42
+        : rig.yaw;
+      const r = clearTurn(rig.solids, T, heroYaw, cameraParams.followPitch, dist, cameraParams.followFov, w / Math.max(1, h), world().room);
       opening.push({ t: +(kit.frameIndex / 60).toFixed(2), from: +rig.yaw.toFixed(2), to: +r.yaw.toFixed(2), blocked: r.blocked });
       if (r.yaw !== rig.yaw) { openYaw = r.yaw; openT = 0; }
     }
@@ -605,8 +612,17 @@ export async function startJogo(app: PlayApp, mode: string, opts: { joined?: Joi
     glows, head: headOf, root: (k) => bodies[k].root() as V3, ground: (x, z) => world().groundAt(x, z),
     eye: () => [cam.position[0], cam.position[1], cam.position[2]],
     pressed: (k) => pressedNow(seatCtl[k]?.intent), away: () => fusion.weight, device: sourceName,
+    yaw: (k) => seatCtl[k]?.character.yaw ?? 0,
   }, () => (app.film || scripted ? [] : online ? (room.session.seat != null && room.state?.phase !== undefined ? [room.session.seat] : []) : [0, 1].filter(human)));
   const youTags = new YouTags();
+  const danceHud = !app.film && !scripted ? new DanceHud() : null;
+  const tutorial = !app.film && !scripted ? createTutorial({
+    game: 'dance',
+    autoStart: shouldAutoTutorial('dance', app.query, app.film || scripted),
+    onStep: () => { music.sfx('dodge', { element: 'ice', perfect: true, count: 2, vel: 0.85 }); danceHud?.callout('NICE! STEP COMPLETE', true, 1.0); },
+    onComplete: () => { music.sfx('unison', { element: 'ice', perfect: true, vel: 0.95 }); danceHud?.callout('TUTORIAL COMPLETE!', true, 2.0); },
+  }) : null;
+  let tutLastLocked = rig.mode === 'locked';
   let youWorld = app.main.world, youBeat = Infinity, youBegun = false;
   if (online) { you.set(); youBegun = true; }
   const wasJoin = play.hub.onJoin;
@@ -621,18 +637,59 @@ export async function startJogo(app: PlayApp, mode: string, opts: { joined?: Joi
     if (you.intro() > 0.05 && b !== youBeat && Number.isFinite(youBeat)) you.count();
     youBeat = b;
     you.update(f.dt);
+    const mySeat = online ? (room.session.seat ?? 0) : 0;
+    const myRaw = jogo.raw[mySeat] ?? [];
+    danceHud?.update(f.dt, {
+      seat: mySeat, el: bodies[mySeat]?.element() ?? 'fire', state: room.state, events: frameEvents, raw: myRaw,
+      beat: f.beat.beats, bpm: f.beat.bpm, hidden: fusion.weight > 0.7,
+    });
+    if (tutorial?.active()) {
+      const it = seatCtl[mySeat]?.intent;
+      const lockedNow = rig.mode === 'locked';
+      const viewToggled = lockedNow !== tutLastLocked;
+      tutLastLocked = lockedNow;
+      const moves: string[] = [];
+      let jumped = false, dashed = false, dodged = false;
+      for (const r of myRaw) {
+        if (r.type === 'jump') jumped = true;
+        else if (r.type === 'dash') dashed = true;
+        else if (r.type === 'move' && r.move) {
+          const mv = String(r.move);
+          moves.push(mv);
+          if (mv === 'role' || mv === 'esquiva' || mv === 'block') dodged = true;
+        }
+      }
+      for (const e of frameEvents) if (e.k === 'move' && e.seat === mySeat && e.move !== 'jump') moves.push(e.move);
+      const exchanged = frameEvents.some((e) => (e.k === 'xch' && (e.by === mySeat || e.target === mySeat)) || e.k === 'echo' || e.k === 'unison');
+      const formedOrMerged = frameEvents.some((e) => (e.k === 'form' && e.seat === mySeat && e.on) || e.k === 'fusion') || !!it?.form || !!it?.merge;
+      const root0 = bodies[mySeat]?.root() ?? [0, 0, 0];
+      const root1 = bodies[1 - mySeat]?.root() ?? null;
+      tutorial.update({
+        dt: f.dt,
+        root: [root0[0], root0[1], root0[2]],
+        partner: root1 ? [root1[0], root1[1], root1[2]] : null,
+        camMoved: !!it && (Math.abs(it.camX) > 0.08 || Math.abs(it.camY) > 0.08 || Math.abs(it.camZoom ?? 0) > 0.01 || !!it.camReset),
+        viewToggled,
+        jumped, dashed, dodged, moves, exchanged, caughtOrFlung: false, powered: false, formedOrMerged,
+      }, devOf(sourceName(mySeat)) ?? guessDev());
+    }
   }, "jogo: which one is you (the tell on the page's own seats)");
   frame.tick('post', () => {
-    const own = you.own(), I = you.intro();
+    const own = you.own(), I = you.intro(), vis = Math.max(0, 1 - fusion.weight * 1.4);
     for (let k = 0; k < 2; k++) {
-      const h = own.includes(k) ? you.hud(k) : undefined, head = h ? headOf(k) : null;
-      if (!h || !head) { youTags.place(k, 0, 0, 0, ''); continue; }
-      // (over the petal's tip: its size as the tell draws it, kept on screen)
+      const isOwn = own.includes(k), h = isOwn ? you.hud(k) : undefined, head = headOf(k);
+      if (!head || vis < 0.02 || (!isOwn && own.length !== 1)) { youTags.place(k, 0, 0, 0, ''); continue; }
       const e = cam.position, dist = Math.hypot(head[0] - e[0], head[1] - e[1], head[2] - e[2]);
-      const M = YOU.marker, sc = Math.max(M.scale[0], Math.min(M.scale[1], dist / M.ref)), big = 1 + (M.intro - 1) * I;
-      const p = screenOf(cam.viewProj, [head[0], head[1] + (M.over * (0.6 + 0.4 * big) + M.len * big + 0.08) * sc, head[2]]);
-      const two = own.length > 1;
-      youTags.place(k, p[0], p[1], Math.max(I, you.pulse(k)), two ? h.label : 'you', two ? h.sub : undefined);
+      const M = YOU.marker, sc = Math.max(M.scale[0], Math.min(M.scale[1], dist / M.ref)), big = isOwn ? 1 + (M.intro - 1) * I : 0.7;
+      const lift = isOwn ? (M.over * (0.6 + 0.4 * big) + M.len * big + 0.08) * sc : 0.34 * sc;
+      const p = screenOf(cam.viewProj, [head[0], head[1] + lift, head[2]]);
+      if (isOwn && h) {
+        const two = own.length > 1;
+        // always keep YOUR badge clearly visible (never fades to 0 after intro)
+        youTags.place(k, p[0], p[1], Math.max(0.86, I, you.pulse(k)) * vis, two ? h.label : 'YOU', two ? h.sub : undefined, 'you');
+      } else {
+        youTags.place(k, p[0], p[1], 0.54 * vis, 'Partner', undefined, 'partner');
+      }
     }
   }, 'jogo: the tag over your petal');
 
@@ -657,15 +714,17 @@ export async function startJogo(app: PlayApp, mode: string, opts: { joined?: Joi
       frame, game: 'dance',
       device: () => sourceName(online ? (room.session.seat ?? 0) : 0),
       matters: () => [],
+      lesson: tutorial,
       split: () => seatCtl.some((c) => (c?.source as { name?: string } | undefined)?.name === 'keyboard-right'),
       locked: () => rig.mode === 'locked',
       toggleView: () => play.toggleLock(),
+      replayTutorial: () => tutorial?.start(),
     });
   }
 
   // ---------------------------------------------------------------- the hooks (bend.jogo)
   const api = {
-    room, jogo, feel, fusion, pieces, glows, builder, field,
+    room, jogo, feel, fusion, pieces, glows, builder, field, tutorial,
     get state() { return room.state; },
     get phase() { return room.state?.phase ?? null; },
     /** beats since play began */

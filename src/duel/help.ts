@@ -91,6 +91,8 @@ export interface ToggleOptions {
   toggleView?: () => void;
   /** allow switching between Dance and Duel previews inside the legend (the front menu) */
   allowModeSwitch?: boolean;
+  /** replay the interactive guided tutorial */
+  replayTutorial?: () => void;
 }
 
 let open: HTMLElement | null = null;
@@ -105,7 +107,7 @@ function syncChipState() {
   activeChip.classList.toggle('open', isOpen);
 }
 
-function renderLegendBody(devTab: string, game: HelpGame, matters: string[], locked: boolean, allowModeSwitch: boolean, canToggleView: boolean) {
+function renderLegendBody(devTab: string, game: HelpGame, matters: string[], locked: boolean, allowModeSwitch: boolean, canToggleView: boolean, canReplayTut: boolean) {
   const tab = TABS.find((t) => t[0] === devTab) ?? TABS[0];
   const devs = tab[2];
   const headCols = devs.length > 1 ? `<tr><th></th>${devs.map((d) => `<th>${d === 'left' ? 'P1' : 'P2'}</th>`).join('')}</tr>` : '';
@@ -177,14 +179,17 @@ function renderLegendBody(devTab: string, game: HelpGame, matters: string[], loc
   const viewPill = canToggleView
     ? `<button type="button" class="dh-view" data-view-toggle title="Toggle 3D / Side View (V)">${locked ? '2D Side' : '3D Free'}</button>`
     : '';
+  const tutPill = canReplayTut
+    ? `<button type="button" class="dh-view" data-replay-tut title="Start interactive guided tutorial">Tutorial</button>`
+    : '';
 
   const tabs = TABS.map(([id, label]) => `<button type="button" class="dh-tab${id === devTab ? ' on' : ''}" data-tab="${id}">${label}</button>`).join('');
   const tip = game === 'duel'
-    ? 'Catch, swing & fling on the beat to fill flow, then cast powers. Alt+drag also orbits on a trackpad.'
-    : 'Dance on the beat to build flow, hold F near your partner to fuse, or walk through any mirror to change worlds.';
+    ? 'Catch, swing & fling on the beat to fill flow, then cast powers. Two-finger swipe or Alt+drag orbits on trackpads.'
+    : 'Dance on the beat to build flow, hold F near your partner to fuse, or two-finger swipe / right-drag to orbit.';
 
   return `<div class="dh-card">`
-    + `<div class="dh-head"><div class="dh-title"><span>Controls</span>${modeSwitch}${viewPill}</div><button type="button" class="dh-close" aria-label="close">×</button></div>`
+    + `<div class="dh-head"><div class="dh-title"><span>Controls</span>${modeSwitch}${viewPill}${tutPill}</div><button type="button" class="dh-close" aria-label="close">×</button></div>`
     + `<div class="dh-tabs">${tabs}</div>`
     + `<div class="dh-scroll"><table class="dh-keys">${headCols}${[...moveRows, ...camRows, ...moveActionRows].join('')}</table>${powers}</div>`
     + `<p class="dh-note">${tip}</p>`
@@ -199,7 +204,7 @@ export function toggleHelp(dev: Dev = guessDev(), matters: string[] = [], show =
   if (open) {
     // refresh in place if options changed
     openOpts = { dev, matters, opts, activeTab: tabOf(dev), activeGame: game };
-    open.innerHTML = renderLegendBody(openOpts.activeTab, openOpts.activeGame, matters, !!opts.locked?.(), !!opts.allowModeSwitch, !!opts.toggleView);
+    open.innerHTML = renderLegendBody(openOpts.activeTab, openOpts.activeGame, matters, !!opts.locked?.(), !!opts.allowModeSwitch, !!opts.toggleView, !!opts.replayTutorial);
     syncChipState();
     return true;
   }
@@ -210,7 +215,7 @@ export function toggleHelp(dev: Dev = guessDev(), matters: string[] = [], show =
   openOpts = { dev, matters, opts, activeTab: tabOf(dev), activeGame: game };
   const paint = () => {
     if (!openOpts) return;
-    root.innerHTML = renderLegendBody(openOpts.activeTab, openOpts.activeGame, openOpts.matters, !!openOpts.opts.locked?.(), !!openOpts.opts.allowModeSwitch, !!openOpts.opts.toggleView);
+    root.innerHTML = renderLegendBody(openOpts.activeTab, openOpts.activeGame, openOpts.matters, !!openOpts.opts.locked?.(), !!openOpts.opts.allowModeSwitch, !!openOpts.opts.toggleView, !!openOpts.opts.replayTutorial);
   };
   paint();
   root.addEventListener('click', (e) => {
@@ -224,6 +229,12 @@ export function toggleHelp(dev: Dev = guessDev(), matters: string[] = [], show =
     if (t.closest('[data-view-toggle]') && openOpts?.opts.toggleView) {
       openOpts.opts.toggleView();
       setTimeout(() => paint(), 20);
+      return;
+    }
+    if (t.closest('[data-replay-tut]') && openOpts?.opts.replayTutorial) {
+      const fn = openOpts.opts.replayTutorial;
+      closeHelp();
+      fn();
       return;
     }
   });
@@ -250,7 +261,7 @@ export const helpOpen = () => !!open;
 /** refresh the open legend when the camera view mode changes (e.g. V pressed while legend is open) */
 export function refreshHelp() {
   if (!open || !openOpts) return;
-  open.innerHTML = renderLegendBody(openOpts.activeTab, openOpts.activeGame, openOpts.matters, !!openOpts.opts.locked?.(), !!openOpts.opts.allowModeSwitch, !!openOpts.opts.toggleView);
+  open.innerHTML = renderLegendBody(openOpts.activeTab, openOpts.activeGame, openOpts.matters, !!openOpts.opts.locked?.(), !!openOpts.opts.allowModeSwitch, !!openOpts.opts.toggleView, !!openOpts.opts.replayTutorial);
 }
 
 /** active legend controller on the page (?, / when not split-keyboard, F1 toggle it; Esc closes when open) */
@@ -306,6 +317,8 @@ export interface HelpCtx {
   toggleView?: () => void;
   /** allow switching Dance/Duel inside the legend (used on the front screen) */
   allowModeSwitch?: boolean;
+  /** replay the interactive guided tutorial */
+  replayTutorial?: () => void;
 }
 
 export function installHelp(o: HelpCtx) {
@@ -316,7 +329,7 @@ export function installHelp(o: HelpCtx) {
   const dev = () => devOf(o.device()) ?? guessDev();
   const gameOf = (): HelpGame => (typeof o.game === 'function' ? o.game() : o.game ?? (o.matters().length ? 'duel' : 'dance'));
   const split = o.split ?? (() => false);
-  const toggle = () => toggleHelp(dev(), o.matters(), !open, { game: gameOf(), locked: o.locked, toggleView: o.toggleView, allowModeSwitch: o.allowModeSwitch });
+  const toggle = () => toggleHelp(dev(), o.matters(), !open, { game: gameOf(), locked: o.locked, toggleView: o.toggleView, allowModeSwitch: o.allowModeSwitch, replayTutorial: o.replayTutorial });
 
   const chip = document.createElement('button');
   chip.type = 'button';

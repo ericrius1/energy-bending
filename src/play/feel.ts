@@ -85,8 +85,16 @@ export class Feel {
   /** each frame, after the jogo's update: its events felt, the perks given, the effects drawn */
   update(dt: number, events: readonly JogoEvent[]) {
     this.t += dt;
-    for (const e of events) this.event(e);
-    this.perks(dt);
+    const voicedMove = new Set<number>();
+    const voicedJump = new Set<number>();
+    for (const e of events) {
+      if (e.k === 'move') {
+        if (e.move === 'jump') voicedJump.add(e.seat);
+        else voicedMove.add(e.seat);
+      }
+      this.event(e);
+    }
+    this.perks(dt, voicedMove, voicedJump);
     this.breathe(dt);
     this.fx = this.fx.filter((f) => {
       const age = this.t - f.t, u = age / f.life;
@@ -108,7 +116,11 @@ export class Feel {
   private event(e: JogoEvent) {
     switch (e.k) {
       case 'xch': this.exchange(e); break;
-      case 'move': this.sfx('move', e.at, { move: e.move, element: this.sfxEl(e.seat), perfect: e.perfect, vel: 0.7 }); break;
+      case 'move': {
+        this.sfx('move', e.at, { move: e.move, element: this.sfxEl(e.seat), perfect: e.perfect, vel: e.perfect ? 0.92 : 0.8 });
+        this.moveArc(e.seat, e.move, e.perfect);
+        break;
+      }
       case 'echo': case 'unison': {
         const a = this.bodies[0]?.chest(), b = this.bodies[1]?.chest();
         this.sfx(e.k, null);
@@ -269,8 +281,43 @@ export class Feel {
   /** the dance's speed now (1 outside a breath) */
   get breathing() { return this.breathT >= 0; }
 
+  /** live elemental limb/body ribbon for a dance move (uses existing Glows buffer — zero extra GPU passes) */
+  private moveArc(seat: number, move: string, perfect: boolean) {
+    const d = this.ctx.dancer(seat);
+    if (!d) return;
+    const col = COLOURS[this.el(seat)];
+    const gold: RGB = [1.7, 1.45, 0.75];
+    const mv = move.toLowerCase();
+    const isKick = mv === 'meia-lua' || mv === 'armada' || mv === 'martelo' || mv === 'bencao' || mv === 'rasteira';
+    const isSpin = mv === 'spin' || mv === 'au' || mv === 'macaco' || mv === 'role' || mv === 'pirueta';
+    const joint = isKick ? JOINT.RightFoot : mv === 'strike' || mv === 'throw' ? JOINT.RightHand : JOINT.LeftHand;
+    const trail: V3[] = [];
+    const life = isSpin ? 0.42 : isKick ? 0.36 : 0.28;
+    const G = this.ctx.glows;
+    this.add(life, (u) => {
+      const p = jointOf(d, joint);
+      if (p && u < 0.78) {
+        const last = trail[trail.length - 1];
+        if (!last || Math.hypot(p[0] - last[0], p[1] - last[1], p[2] - last[2]) > 0.04) {
+          trail.push([p[0], p[1], p[2]]);
+          if (trail.length > 10) trail.shift();
+        }
+      }
+      const fade = (1 - u) * (1 - u * 0.5);
+      const cMain = perfect ? mixRGB(col, gold, 0.45) : col;
+      for (let i = 1; i < trail.length; i++) {
+        const w = i / trail.length;
+        G.seg(trail[i - 1], trail[i], (0.014 + 0.012 * w) * (perfect ? 1.25 : 1), cMain, (0.95 + (perfect ? 0.5 : 0)) * w * fade, 'soft');
+      }
+      if (isSpin && p) {
+        const chest = jointOf(d, JOINT.Spine1);
+        if (chest) G.flat([chest[0], chest[1] - 0.15, chest[2]], 0.32 + u * 0.42, cMain, 0.42 * fade, 'ring');
+      }
+    });
+  }
+
   // ---------------------------------------------------------------- the perks
-  private perks(dt: number) {
+  private perks(dt: number, voicedMove: ReadonlySet<number>, voicedJump: ReadonlySet<number>) {
     const st = this.jogo.state, G = this.ctx.glows;
     this.frost = this.frost.filter((f) => this.t - f.t < 7);
     for (let seat = 0; seat < 2; seat++) {
@@ -299,7 +346,34 @@ export class Feel {
           if (el === 'ice') { this.frost.push({ p, t: this.t }); this.ctx.field?.deposit({ p: [p[0], p[1] + 0.1, p[2]], r: 0.3, heat: -0.8 }); }
           if (el === 'water' || el === 'ice') this.ctx.ripple?.(p[0], p[2], ev.type === 'land' ? 0.6 : 0.25, 0.35);
           else if (ev.type === 'land') this.ctx.ripple?.(p[0], p[2], 0.35, 0.3);
+          if (ev.type === 'land' && ((ev.impact as number) ?? 0) >= 3) {
+            const imp = Math.min(1, ((ev.impact as number) - 2) / 10);
+            this.sfx('land', p, { element: this.sfxEl(seat), vel: 0.4 + 0.5 * imp });
+            const cLand = COLOURS[el];
+            this.add(0.32, (u) => { G.flat([p[0], p[1] + 0.02, p[2]], 0.18 + u * 0.48, cLand, 0.45 * (1 - u) * (1 - u), 'ring'); });
+          }
           this.stepCount++;
+        } else if (ev.type === 'jump') {
+          const p: V3 = [ev.x as number, (ev.y as number) + 0.03, ev.z as number];
+          const air = !!ev.air;
+          if (air || !voicedJump.has(seat)) this.sfx('move', p, { move: 'jump', element: this.sfxEl(seat), perfect: air, vel: air ? 0.85 : 0.72 });
+          const cJump = air ? mixRGB(COLOURS[el], [1.6, 1.5, 1.1], 0.4) : COLOURS[el];
+          this.add(0.32, (u) => { G.flat(p, 0.22 + u * 0.5, cJump, 0.65 * (1 - u) * (1 - u), 'ring'); });
+        } else if (ev.type === 'dash') {
+          const p: V3 = [ev.x as number, (ev.y as number) + 0.9, ev.z as number];
+          const dir = (ev.dir as V3 | undefined) ?? [0, 0, 1];
+          this.sfx('move', p, { move: 'dash', element: this.sfxEl(seat), vel: 0.88 });
+          const cDash = mixRGB(COLOURS[el], [1.7, 1.55, 1.15], 0.35);
+          this.add(0.34, (u) => {
+            const k = 1 - u;
+            G.seg([p[0] - dir[0] * 0.4, p[1] - dir[1] * 0.4, p[2] - dir[2] * 0.4], [p[0] + dir[0] * (0.4 + u * 1.1), p[1] + dir[1] * (0.4 + u * 1.1), p[2] + dir[2] * (0.4 + u * 1.1)], 0.03 * k + 0.008, cDash, 1.3 * k, 'soft');
+            G.flat([p[0], p[1] - 0.85, p[2]], 0.25 + u * 0.55, cDash, 0.55 * k * k, 'ring');
+          });
+        } else if (ev.type === 'move' && !voicedMove.has(seat)) {
+          const p: V3 = [ev.x as number, (ev.y as number) + 1, ev.z as number];
+          const mv = String(ev.move ?? 'strike');
+          this.sfx('move', p, { move: mv, element: this.sfxEl(seat), perfect: !!ev.perfect, vel: ev.perfect ? 0.88 : 0.75 });
+          this.moveArc(seat, mv, !!ev.perfect);
         } else if (ev.type === 'blink') {
           // the way it went, as plasma's own lightning (jagged, forked again each frame, flickering out): this was three
           // straight capsules of glow at fixed heights, which drew as hard horizontal violet bars across whoever stood

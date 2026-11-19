@@ -10,16 +10,22 @@ import { GLYPHS } from './menu';
 
 const CSS = `
 .jg-you { position: fixed; left: 0; top: 0; z-index: 4; pointer-events: none; display: flex; flex-direction: column; align-items: center;
-  transform: translate(-50%, -100%); opacity: 0; transition: opacity 0.35s; will-change: transform, opacity; }
-.jg-you b { display: flex; align-items: center; gap: 0.42em; padding: 0.22em 0.8em 0.26em 0.55em; border-radius: 999px; white-space: nowrap;
-  font: italic 600 17px/1.1 var(--eb-display, Georgia, serif); letter-spacing: 0.02em; color: var(--eb-cream, #fbf4e4);
-  background: var(--eb-glass-bg, rgba(30, 22, 10, 0.55)); box-shadow: var(--eb-lead, 0 0 0 1px rgba(222, 180, 104, 0.6));
-  -webkit-backdrop-filter: var(--eb-blur, none); backdrop-filter: var(--eb-blur, none); text-shadow: 0 1px 2px rgba(20, 12, 4, 0.6); }
+  transform: translate(-50%, -100%); opacity: 0; transition: opacity 0.28s; will-change: transform, opacity; }
+.jg-you b { display: flex; align-items: center; gap: 0.42em; padding: 0.24em 0.85em 0.28em 0.58em; border-radius: 999px; white-space: nowrap;
+  font: italic 700 16px/1.1 var(--eb-display, Georgia, serif); letter-spacing: 0.04em; color: var(--eb-cream, #fbf4e4);
+  background: var(--eb-glass-bg, rgba(30, 22, 10, 0.68)); box-shadow: 0 0 0 1.5px var(--c, #ff6fa3), 0 0 18px rgba(255, 200, 97, 0.25);
+  -webkit-backdrop-filter: var(--eb-blur, none); backdrop-filter: var(--eb-blur, none); text-shadow: 0 1px 2px rgba(20, 12, 4, 0.7); }
 .jg-you b i { width: 0.62em; height: 0.62em; border-radius: 60% 0 60% 0; transform: rotate(-45deg); background: var(--c, #ff6fa3);
-  box-shadow: 0 0 8px var(--c, #ff6fa3), inset 0 0 0 1px rgba(255, 240, 205, 0.5); }
+  box-shadow: 0 0 10px var(--c, #ff6fa3), inset 0 0 0 1px rgba(255, 240, 205, 0.65); }
 .jg-you small { font: 700 10px/1 var(--eb-body, system-ui, sans-serif); font-style: normal; letter-spacing: 0.12em; text-transform: uppercase;
-  color: var(--eb-sun-hi, #fff0c8); opacity: 0.85; margin-left: 0.2em; }
-.jg-you s { display: block; width: 1.5px; height: 14px; text-decoration: none; background: linear-gradient(rgba(222, 180, 104, 0.85), rgba(222, 180, 104, 0)); }
+  color: var(--eb-sun-hi, #fff0c8); opacity: 0.9; margin-left: 0.2em; }
+.jg-you s { display: block; width: 0; height: 0; text-decoration: none; border-left: 6px solid transparent; border-right: 6px solid transparent;
+  border-top: 8px solid var(--c, #ff6fa3); filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.45)); margin-top: 2px; }
+.jg-you.partner b { padding: 0.16em 0.65em 0.19em 0.52em; font: 600 11px/1.1 var(--eb-body, system-ui, sans-serif); font-style: normal;
+  text-transform: uppercase; letter-spacing: 0.12em; color: rgba(251, 244, 228, 0.78); background: rgba(22, 16, 10, 0.42);
+  box-shadow: 0 0 0 1px rgba(222, 180, 104, 0.28); }
+.jg-you.partner b i { width: 0.48em; height: 0.48em; box-shadow: none; opacity: 0.75; }
+.jg-you.partner s { border-left-width: 4px; border-right-width: 4px; border-top: 5px solid rgba(222, 180, 104, 0.45); }
 
 .jg-press { position: fixed; left: 50%; bottom: calc(118px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); z-index: 6; pointer-events: none;
   display: flex; align-items: center; gap: 0.7em; padding: 0.5em 1.25em 0.55em 1em; border-radius: 999px; white-space: nowrap;
@@ -58,7 +64,7 @@ export class YouTags {
   private els: (HTMLElement | null)[] = [null, null];
   private texts = ['', ''];
 
-  place(k: number, x: number, y: number, alpha: number, text: string, sub?: string) {
+  place(k: number, x: number, y: number, alpha: number, text: string, sub?: string, kind: 'you' | 'partner' = 'you') {
     if (typeof document === 'undefined') return;
     let el = this.els[k];
     const on = alpha > 0.02 && x > -0.05 && x < 1.05 && y > 0.02 && y < 1.05;
@@ -72,12 +78,15 @@ export class YouTags {
       document.body.append(el);
       this.els[k] = el;
     }
-    const t = `${text}|${sub ?? ''}`;
+    el.classList.toggle('partner', kind === 'partner');
+    const t = `${text}|${sub ?? ''}|${kind}`;
     if (t !== this.texts[k]) {
       this.texts[k] = t;
       el.innerHTML = `<b><i></i>${text}${sub ? `<small>${sub}</small>` : ''}</b><s></s>`;
     }
-    el.style.transform = `translate(${(x * innerWidth).toFixed(1)}px, ${(y * innerHeight).toFixed(1)}px) translate(-50%, -100%)`;
+    // clamp gently so your own tag stays readable even near screen edges
+    const cx = Math.max(0.05, Math.min(0.95, x)), cy = Math.max(0.08, Math.min(0.92, y));
+    el.style.transform = `translate(${(cx * innerWidth).toFixed(1)}px, ${(cy * innerHeight).toFixed(1)}px) translate(-50%, -100%)`;
     el.style.opacity = Math.min(1, alpha).toFixed(3);
   }
   hide() { for (const el of this.els) if (el) el.style.opacity = '0'; }

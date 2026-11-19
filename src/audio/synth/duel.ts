@@ -36,7 +36,7 @@ export const DUEL_GAIN: Record<DuelCue, number> = {
   count: 1, go: 1, catch: 0.85, aerial: 0.9, range: 0.9, swing: 0.55, fling: 0.8, landed: 0.85, lift: 1, counter: 0.6,
   release: 0.45, merge: 0.8, finale: 0.85, fusion: 0.9, banner: 1.1, tier: 0.75, bank: 0.4, fall: 0.5, reform: 0.45,
   cast: 1.1, form: 0.8, react: 0.85, launch: 0.5, swap: 0.6, redirect: 0.6,
-  dash: 0.55, walljump: 0.6, land: 0.65, jump: 0.35,
+  dash: 0.72, walljump: 0.75, land: 0.7, jump: 0.6, move: 0.9,
   splash: 0.7, crest: 0.6, tide: 0.6, gust: 0.7, swell: 0.65, hum: 0.6, humlift: 0.7,
   cross: 0.9,
 };
@@ -44,7 +44,7 @@ export const DUEL_GAIN: Record<DuelCue, number> = {
  *  the arc were 4 to 7 dB under the ice step) */
 const POWER_GAIN: Record<string, number> = { flare: 1.5, ribbon: 1.9, blink: 1.6, arc: 1.6, whip: 1.15, wave: 1.15 };
 /** voices a cue keeps sounding at once, and how long one lasts (s) for the count */
-const CAP: Partial<Record<DuelCue, number>> = { tide: 2, gust: 2, swell: 2, hum: 2, swing: 2, dash: 3, land: 3, walljump: 3, jump: 2, catch: 3, cast: 4 };
+const CAP: Partial<Record<DuelCue, number>> = { tide: 2, gust: 2, swell: 2, hum: 2, swing: 2, dash: 3, land: 3, walljump: 3, jump: 3, move: 4, catch: 3, cast: 4 };
 /** the reverb's share for a cue */
 const WET: Partial<Record<DuelCue, number>> = { cross: 0.55, merge: 0.45, fusion: 0.5, finale: 0.45, banner: 0.45, tier: 0.35, go: 0.4, react: 0.4, form: 0.35 };
 
@@ -562,10 +562,69 @@ export class DuelVoices {
     this.glide(o, t, 'sine', mtof(m), mtof(m + 12), 1, 0.06, 0.3, 0.9);
     return 3;
   }
-  /** an air jump: a whisper */
-  c_jump(t: number, _c: DuelCall, o: Out) {
-    this.air(o, t, [[0, 1200], [0.12, 2600]], 1.5, 0.1, 0.02, 0.1);
-    return 0.25;
+  /** a jump: a buoyant upward breath + soft elemental hop; air jumps chime higher */
+  c_jump(t: number, c: DuelCall, o: Out) {
+    const air = c.level >= 0.85;
+    this.air(o, t, air ? [[0, 1200], [0.14, 3000]] : [[0, 650], [0.12, 1700]], 1.4, air ? 0.22 : 0.16, 0.012, 0.14);
+    const ns = notes(this.tones(c), this.reg(c.matter) + (air ? 7 : 0), 2);
+    this.glide(o, t, 'sine', mtof(ns[0]), mtof(ns[1]), 0.09, air ? 0.14 : 0.09, 0.004, 0.14);
+    if (air) this.bowl(o, t + 0.02, 'crystal', ns[1] + 12, 0.18, 0.55);
+    return 0.55;
+  }
+  /** a dance/capoeira move in the duel (kicks, sweeps, cartwheels, spins, strikes, dodges): distinct elemental whoosh +
+   *  musical figure in the seat's matter and the current harmony, sparkling on the beat */
+  c_move(t: number, c: DuelCall, o: Out) {
+    const mv = (c.power ?? 'strike').toLowerCase();
+    const tones = this.tones(c), reg = this.reg(c.matter), idx = Math.floor(c.seed * 4);
+    if (mv === 'meia-lua' || mv === 'armada' || mv === 'martelo' || mv === 'bencao' || mv === 'queixada' || mv === 'chapa') {
+      const ns = notes(tones, reg, 4), f0 = mtof(ns[idx % 2]), f1 = mtof(ns[(idx % 2) + 2]);
+      const dur = mv === 'martelo' ? 0.22 : mv === 'armada' ? 0.36 : 0.28;
+      this.air(o, t, [[0, f0 * 1.1], [dur * 0.45, f1 * 2.2], [dur, f0 * 1.4]], 2.2, 0.36, 0.025, dur * 0.85);
+      this.tint(o, t + 0.02, c.matter, ns[(idx % 2) + 1], c.perfect ? 0.52 : 0.38, 0.4);
+      if (c.perfect) this.bowl(o, t + dur * 0.35, 'crystal', ns[2] + 12, 0.24, 0.9);
+      return 0.95;
+    }
+    if (mv === 'rasteira' || mv === 'sweep' || mv === 'banda') {
+      const lo = notes(tones, 45, 1)[0];
+      this.air(o, t, [[0, 220], [0.16, 640], [0.34, 240]], 1.8, 0.34, 0.03, 0.3);
+      this.glide(o, t, 'sine', mtof(lo), mtof(lo + 7), 0.16, 0.16, 0.015, 0.24);
+      this.tint(o, t + 0.04, c.matter, notes(tones, reg - 5, 1)[0], 0.3, 0.35);
+      return 0.55;
+    }
+    if (mv === 'au' || mv === 'macaco' || mv === 'role' || mv === 'cartwheel') {
+      const p = this.pent(c, reg, 5);
+      this.air(o, t, [[0, 750], [0.24, 2800], [0.38, 1200]], 1.3, 0.24, 0.03, 0.32);
+      for (let i = 0; i < 3; i++) this.tint(o, t + i * 0.055, c.matter, p[(idx + i) % p.length], 0.34 - i * 0.04, 0.28);
+      if (c.perfect) this.bowl(o, t + 0.16, 'crystal', p[4] + 12, 0.22, 0.8);
+      return 0.85;
+    }
+    if (mv === 'spin' || mv === 'pirueta') {
+      const ns = notes(tones, reg + 5, 2);
+      const trem = this.n.gn(0.55); this.n.link(this.n.o('sine', 13, t, t + 0.45), this.n.gn(0.45), trem.gain);
+      trem.connect(o);
+      this.air(trem, t, [[0, 650], [0.2, 2400], [0.4, 950]], 2.8, 0.38, 0.03, 0.35);
+      this.tint(o, t + 0.04, c.matter, ns[0], c.perfect ? 0.48 : 0.34, 0.45);
+      if (c.perfect) this.bowl(o, t + 0.1, 'crystal', ns[1] + 12, 0.22, 0.85);
+      return 0.9;
+    }
+    if (mv === 'esquiva' || mv === 'dodge' || mv === 'block') {
+      const ns = notes(tones, reg - 5, 2);
+      this.air(o, t, [[0, 2200], [0.22, 480]], 1.2, 0.26, 0.01, 0.22, 'lowpass');
+      this.glide(o, t, 'sine', mtof(ns[1]), mtof(ns[0]), 0.14, 0.14, 0.008, 0.18);
+      return 0.4;
+    }
+    if (mv === 'throw') {
+      const ns = notes(tones, reg + 2, 3);
+      this.air(o, t, [[0, 900], [0.14, 3000], [0.3, 1100]], 1.2, 0.34, 0.02, 0.28);
+      this.tint(o, t, c.matter, ns[idx % ns.length], 0.5, 0.45);
+      return 0.6;
+    }
+    // strike (default): crisp airy snap + elemental chime
+    const ns = notes(tones, reg, 4);
+    this.air(o, t, [[0, 1600], [0.09, 3200]], 1.5, 0.24, 0.003, 0.09);
+    this.tint(o, t, c.matter, ns[idx % ns.length], c.perfect ? 0.52 : 0.38, 0.3);
+    if (c.perfect) this.bowl(o, t + 0.02, 'crystal', ns[idx % ns.length] + 12, 0.2, 0.7);
+    return 0.7;
   }
 }
 

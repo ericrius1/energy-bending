@@ -47,7 +47,8 @@ export const tests: Tests = {
     check(cuesOf('touch:landed', { kind: 'landed', how: 'catch' }).length === 0, 'a flight caught: the catch is the sound');
     check(cuesOf('touch:landed', { kind: 'landed', seat: 0, other: 1, how: 'feet' })[0].seat === 1, 'a flight landed is the flyer\'s');
     check(cuesOf('body:land', { type: 'land', impact: 1 }).length === 0 && cuesOf('body:land', { type: 'land', impact: 8 }).length === 1, 'a landing heard only past a soft one');
-    check(cuesOf('body:jump', { type: 'jump', air: false }).length === 0, 'a ground jump is silent');
+    check(cuesOf('body:jump', { type: 'jump', air: false })[0].level! < cuesOf('body:jump', { type: 'jump', air: true })[0].level!, 'ground jump softer than air jump');
+    check(cuesOf('body:move', { type: 'move', move: 'meia-lua', perfect: true })[0].cue === 'move', 'dance moves are voiced in duel');
     for (const p of ['flare', 'ribbon', 'whip', 'wave', 'step', 'slide', 'blink', 'arc', 'pillar', 'prism']) {
       const c = cuesOf('power:cast', { k: 'cast', seat: 0, power: p, at: [0, 1, 0] })[0];
       check(c.cue === 'cast' && c.power === p, `the ${p}'s cast`);
@@ -116,13 +117,14 @@ export const tests: Tests = {
     c = B.calls();
     check(c[0].matter === 'water' && c[0].other === 'fire', 'water\'s catch, fire caught');
     check(c[0].pan < 0 || c[0].pan === 0 || c[0].pan > 0, 'placed');
-    // body events are their seat's, movement on its own (soft) bus
+    // body events are their seat's, movement on its own (soft) bus — including Duel move events carrying numeric k (slideK)
     const C = sound(['ice', 'plasma']);
-    C.at(3); C.f.body = [[{ type: 'dash', x: 0, y: 0, z: 0 }], [{ type: 'wallJump', x: 0, y: 0, z: 0 }]];
+    C.at(3); C.f.body = [[{ type: 'dash', x: 0, y: 0, z: 0 }, { type: 'move', move: 'meia-lua', k: 3, x: 0, y: 0, z: 0 }], [{ type: 'wallJump', x: 0, y: 0, z: 0 }]];
     C.s.frame();
     c = C.calls();
     check(c.find((x) => x.cue === 'dash')?.matter === 'ice' && c.find((x) => x.cue === 'walljump')?.matter === 'plasma', 'each body in its matter');
-    check(MOTION_CUES.has('dash') && MOTION_CUES.has('land') && !MOTION_CUES.has('catch'), 'movement on the motion bus');
+    check(c.find((x) => x.cue === 'move')?.power === 'meia-lua', 'body:move voiced even when slideK numeric k is present');
+    check(MOTION_CUES.has('dash') && MOTION_CUES.has('land') && MOTION_CUES.has('move') && !MOTION_CUES.has('catch'), 'movement on the motion bus');
   },
 
   'the hazards: each once a phrase, on its own beat'() {

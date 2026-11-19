@@ -65,7 +65,7 @@ export class KeyboardSource implements IntentSource {
   readonly L: Layout;
   private keys = new Set<string>();
   private edgeKeys = new Set<string>();
-  private mouse = { x: 0, y: 0, t: -1e9, inside: true, down: new Set<number>(), dx: 0, dy: 0, wheel: 0, altDrag: false, rDown: null as { x: number; y: number; t: number; moved: number } | null };
+  private mouse = { x: 0, y: 0, t: -1e9, inside: true, down: new Set<number>(), lHold: 0, dx: 0, dy: 0, wheel: 0, wheelX: 0, altDrag: false, rDown: null as { x: number; y: number; t: number; moved: number } | null };
   private lastDir: number;
   private mine: Set<string>;
   private handlers: [EventTarget, string, EventListener][] = [];
@@ -87,7 +87,7 @@ export class KeyboardSource implements IntentSource {
       if (this.mine.has(e.code)) { if (this.opts.preventDefault !== false) e.preventDefault(); if (!e.repeat) this.keyDown(e.code); }
     });
     on(target, 'keyup', (e: KeyboardEvent) => { if (this.mine.has(e.code)) this.keyUp(e.code); });
-    on(target, 'blur', () => { this.keys.clear(); this.mouse.down.clear(); this.mouse.altDrag = false; this.mouse.rDown = null; this.mouse.wheel = 0; });
+    on(target, 'blur', () => { this.keys.clear(); this.mouse.down.clear(); this.mouse.altDrag = false; this.mouse.rDown = null; this.mouse.wheel = 0; this.mouse.wheelX = 0; });
     if (this.L.mouse) {
       const mt = mouseTarget || target;
       on(mt, 'pointermove', (e: PointerEvent) => { if (e.pointerType === 'mouse') this.mouseMove(e.clientX, e.clientY); });
@@ -99,8 +99,10 @@ export class KeyboardSource implements IntentSource {
       on(mt, 'wheel', (e: WheelEvent) => {
         if (this.mode !== 'free') return;
         e.preventDefault();
-        const dy = e.deltaY * (e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? 400 : 1);
-        this.mouse.wheel += dy * (e.ctrlKey ? 0.012 : 0.0016);
+        const scale = e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? 400 : 1;
+        const dx = e.deltaX * scale, dy = e.deltaY * scale;
+        if (!e.ctrlKey && Math.abs(dx) > Math.abs(dy) * 1.15) this.mouse.wheelX += dx * 0.0022;
+        else this.mouse.wheel += dy * (e.ctrlKey ? 0.012 : 0.0016);
       }, { passive: false });
     }
   }
@@ -120,6 +122,7 @@ export class KeyboardSource implements IntentSource {
     m.down.add(b);
     if (b === 0) {
       if (altKey && this.mode === 'free') { m.altDrag = true; return; }
+      m.lHold = 0;
       this.edgeKeys.add('Mouse0'); this.keys.add('Mouse0');
     } else if (b === 2) {
       m.rDown = { x: m.x, y: m.y, t: nowMs(), moved: 0 };
@@ -128,11 +131,17 @@ export class KeyboardSource implements IntentSource {
   mouseUp(b: number) {
     const m = this.mouse;
     m.down.delete(b);
-    if (b === 0) { m.altDrag = false; this.keys.delete('Mouse0'); }
+    if (b === 0) { m.altDrag = false; m.lHold = 0; this.keys.delete('Mouse0'); }
     else if (b === 2) {
       if (m.rDown && m.rDown.moved <= 6 && nowMs() - m.rDown.t < 240) this.edgeKeys.add('Mouse2Tap');
       m.rDown = null;
     }
+  }
+  /** two-finger trackpad horizontal swipe / scroll orbit (pure helper, testable without DOM) */
+  mouseWheel(dx: number, dy: number, ctrlKey = false) {
+    if (this.mode !== 'free') return;
+    if (!ctrlKey && Math.abs(dx) > Math.abs(dy) * 1.15) this.mouse.wheelX += dx * 0.0022;
+    else this.mouse.wheel += dy * (ctrlKey ? 0.012 : 0.0016);
   }
 
   update(dt = 1 / 60): Intent {
@@ -164,15 +173,20 @@ export class KeyboardSource implements IntentSource {
     if (L.mouse) {
       const m = this.mouse;
       const camDrag = m.down.has(2) || m.down.has(1) || m.altDrag;
+      if (m.down.has(0) && !m.altDrag && !camDrag) m.lHold += dt;
+      else m.lHold = 0;
       if (d && d.reach > 0) {
         let ax = (m.x - d.x) / d.reach, ay = -(m.y - d.y) / d.reach;
         const l = Math.hypot(ax, ay); if (l > 1) { ax /= l; ay /= l; }
         o.aimX = ax; o.aimY = ay;
-        o.aimActive = m.inside && nowMs() - m.t < 3000 && !(free && camDrag);
+        // only engage mouse hand-IK while holding left mouse (never on passive cursor hover, so hovering doesn't
+        // yank the dancer's arm sideways or turn quick left-clicks into slow throws)
+        o.aimActive = m.inside && m.down.has(0) && !m.altDrag && !camDrag && m.lHold >= 0.11;
       }
       if (free && camDrag && dt > 0) { o.camX = m.dx / dt / 500; o.camY = -m.dy / dt / 500; }
+      if (free && m.wheelX && dt > 0) o.camX += m.wheelX / Math.max(dt, 1 / 120);
       if (free && m.wheel) o.camZoom = m.wheel;
-      m.dx = 0; m.dy = 0; m.wheel = 0;
+      m.dx = 0; m.dy = 0; m.wheel = 0; m.wheelX = 0;
     }
     if (free && this.opts.camArrows && this.layout === 'solo') {
       const ax = (this.keys.has('ArrowRight') ? 1 : 0) - (this.keys.has('ArrowLeft') ? 1 : 0);

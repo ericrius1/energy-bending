@@ -48,15 +48,15 @@ export type DuelCue =
   | 'count' | 'go' | 'catch' | 'aerial' | 'range' | 'swing' | 'fling' | 'landed' | 'lift' | 'counter' | 'release'
   | 'merge' | 'finale' | 'fusion' | 'banner' | 'tier' | 'bank' | 'fall' | 'reform'
   | 'cast' | 'form' | 'react' | 'launch' | 'swap' | 'redirect'
-  | 'dash' | 'walljump' | 'land' | 'jump'
+  | 'dash' | 'walljump' | 'land' | 'jump' | 'move'
   | 'splash' | 'crest' | 'tide' | 'gust' | 'swell' | 'hum' | 'humlift'
   /** through a mirror (phase 6): the crossing's chime on the beat the new world's track comes in, in its key */
   | 'cross';
 export const DUEL_CUES: DuelCue[] = ['count', 'go', 'catch', 'aerial', 'range', 'swing', 'fling', 'landed', 'lift', 'counter', 'release',
   'merge', 'finale', 'fusion', 'banner', 'tier', 'bank', 'fall', 'reform', 'cast', 'form', 'react', 'launch', 'swap', 'redirect',
-  'dash', 'walljump', 'land', 'jump', 'splash', 'crest', 'tide', 'gust', 'swell', 'hum', 'humlift', 'cross'];
+  'dash', 'walljump', 'land', 'jump', 'move', 'splash', 'crest', 'tide', 'gust', 'swell', 'hum', 'humlift', 'cross'];
 /** the movement voices and the arenas' hazards (soft, under the music: their own bus) */
-export const MOTION_CUES: ReadonlySet<DuelCue> = new Set(['dash', 'walljump', 'land', 'jump', 'splash', 'tide', 'gust', 'swell', 'hum']);
+export const MOTION_CUES: ReadonlySet<DuelCue> = new Set(['dash', 'walljump', 'land', 'jump', 'move', 'splash', 'tide', 'gust', 'swell', 'hum']);
 /** a duel sound as the instrument is handed it */
 export interface DuelCall {
   cue: DuelCue;

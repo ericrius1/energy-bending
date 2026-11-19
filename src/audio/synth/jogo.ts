@@ -18,11 +18,11 @@ const isHot = (el: Element) => el === 'fire' || el === 'plasma';
 /** make-up gain per sound, from offline renders of the sfx bus (vel 0.8): moves and exchanges peak at about 0.2-0.3.
  *  `near` and `esquiva` raised (5 and 2.5 dB) after the lab's sfx-solo render measured them the quietest */
 export const SFX_GAIN: Record<string, number> = {
-  'move:kick': 3.6, 'move:martelo': 3.6, 'move:bencao': 5, 'move:sweep': 2, 'move:run': 4,
-  'move:strike': 4.5, 'move:throw:hot': 3.4, 'move:throw:cold': 5, 'move:spin': 7, 'move:jump': 3.5, 'move:esquiva': 3.7,
-  dodge: 3, near: 6.2, clash: 1.1, parry: 1.3, hit: 1.1, land: 1, respawn: 4.5,
-  'formOn:hot': 1, 'formOn:cold': 3.5, 'formOff:hot': 3, 'formOff:cold': 5,
-  echo: 6, unison: 1, mergeReady: 2.2, count: 1.3, 'count:final': 0.8, finale: 0.8, results: 3,
+  'move:kick': 4.4, 'move:martelo': 4.4, 'move:bencao': 5.6, 'move:sweep': 2.6, 'move:run': 5.2,
+  'move:strike': 5.4, 'move:throw:hot': 4.2, 'move:throw:cold': 5.8, 'move:spin': 7.8, 'move:jump': 4.4, 'move:esquiva': 4.4, 'move:dash': 4.8,
+  dodge: 3.4, near: 6.2, clash: 1.3, parry: 1.5, hit: 1.3, land: 1.4, respawn: 4.5,
+  'formOn:hot': 1.2, 'formOn:cold': 3.8, 'formOff:hot': 3, 'formOff:cold': 5,
+  echo: 6, unison: 1.2, mergeReady: 2.5, count: 1.5, 'count:final': 1.0, finale: 0.9, results: 3,
 };
 
 /** a move's name as the sounds know it: lower case, no accents, dashes for spaces */
@@ -40,7 +40,7 @@ export function gainKey(c: SfxCall) {
   if (SWEEPS.has(mv)) return 'move:sweep';
   if (RUNS.has(mv)) return 'move:run';
   if (mv === 'throw') return `move:throw:${hc}`;
-  if (mv === 'spin' || mv === 'jump') return `move:${mv}`;
+  if (mv === 'spin' || mv === 'jump' || mv === 'dash') return `move:${mv}`;
   if (mv === 'esquiva' || mv === 'dodge') return 'move:esquiva';
   return 'move:strike';
 }
@@ -115,8 +115,9 @@ export class Jogo {
       const air = n.bq('bandpass', a * 2, 0.8); n.path(air.frequency, t, shape.map(([d, f]) => [d, f * 2]));
       n.link(n.noiseL(t, dur + 0.1), air, n.envG(t, 0.07, dur * 0.3, dur * 0.7), out);
       const wh = n.o(hot ? 'triangle' : 'sine', a, t, t + dur + 0.12); n.path(wh.frequency, t, shape);
-      n.link(wh, n.envG(t, hot ? 0.025 : 0.045, dur * 0.35, dur * 0.7), out);
-      if (perfect) tone(n, out, t + dur * 0.4, ns[k % 3 + 2] + 12, el, 0.05, 0.003, 0.3);
+      n.link(wh, n.envG(t, hot ? 0.055 : 0.08, dur * 0.3, dur * 0.7), out);
+      tone(n, out, t + dur * 0.18, ns[k % 3 + 1], el, perfect ? 0.085 : 0.055, 0.004, 0.24, perfect ? 1.25 : 1);
+      if (perfect) tone(n, out, t + dur * 0.4, ns[k % 3 + 2] + 12, el, 0.075, 0.003, 0.34);
     } else if (SWEEPS.has(mv)) { // a low sweep along the floor
       const out = this.sv('move', t, pan, vel, 4, 0.6, 0.1);
       const bp = n.bq('bandpass', 200, 2.5); n.path(bp.frequency, t, [[0, 180], [0.2, 520], [0.45, 220]]);
@@ -156,25 +157,34 @@ export class Jogo {
       n.link(n.noiseL(t, 0.55), bp, trem, n.envG(t, 0.45, 0.05, 0.45), out);
       const f = mtof(notes(tones, 76, 1)[0]);
       const s = n.o('sine', f, t, t + 0.55); n.link(n.o('sine', 7, t, t + 0.55), n.gn(f * 0.02), s.frequency);
-      n.link(s, n.envG(t, perfect ? 0.05 : 0.025, 0.1, 0.4), out);
-    } else if (mv === 'jump') { // a soft up-blip
-      const out = this.sv('move', t, pan, vel, 4, 0.3, 0.12);
-      const ns = notes(tones, 67, 2), s = n.o(hot ? 'triangle' : 'sine', mtof(ns[0]), t, t + 0.25);
+      n.link(s, n.envG(t, perfect ? 0.08 : 0.048, 0.08, 0.4), out);
+      tone(n, out, t + 0.06, notes(tones, 76, 2)[perfect ? 1 : 0], el, perfect ? 0.075 : 0.045, 0.004, 0.28);
+    } else if (mv === 'dash') { // swift aerodynamic burst + rising elemental spark
+      const out = this.sv('move', t, pan, vel, 4, 0.38, 0.15);
+      const bp = n.bq('bandpass', 750, 1.5); n.path(bp.frequency, t, [[0, 750], [0.12, 2900], [0.28, 1200]]);
+      n.link(n.noiseL(t, 0.32), bp, n.envG(t, 0.48, 0.015, 0.24), out);
+      const ns = notes(tones, 72, 3);
+      tone(n, out, t + 0.01, ns[0], el, 0.065, 0.003, 0.16);
+      tone(n, out, t + 0.06, ns[2], el, 0.05, 0.003, 0.22);
+    } else if (mv === 'jump') { // a buoyant elemental lift
+      const out = this.sv('move', t, pan, vel, 4, 0.35, 0.14);
+      const ns = notes(tones, perfect ? 74 : 67, 2), s = n.o(hot ? 'triangle' : 'sine', mtof(ns[0]), t, t + 0.25);
       s.frequency.exponentialRampToValueAtTime(mtof(ns[1]), t + 0.1);
-      n.link(s, n.envG(t, 0.1, 0.005, 0.14), out);
-      n.link(n.noiseL(t, 0.1), n.bq('lowpass', 1200), n.envG(t, 0.06, 0.004, 0.08), out);
+      n.link(s, n.envG(t, 0.14, 0.005, 0.16), out);
+      n.link(n.noiseL(t, 0.14), n.bq('bandpass', perfect ? 2200 : 1200, 1.2), n.envG(t, 0.12, 0.006, 0.1), out);
+      if (perfect) tone(n, out, t + 0.02, ns[1] + 12, el, 0.055, 0.003, 0.22);
     } else if (mv === 'esquiva' || mv === 'dodge') { // a breathy duck downward
       const out = this.sv('move', t, pan, vel, 4, 0.4, 0.1);
       const lp = n.bq('lowpass', 2200, 1); n.path(lp.frequency, t, [[0, 2200], [0.3, 350]]);
-      n.link(n.noiseL(t, 0.35), lp, n.envG(t, 0.2, 0.02, 0.28), out);
+      n.link(n.noiseL(t, 0.35), lp, n.envG(t, 0.24, 0.02, 0.28), out);
       const ns = notes(tones, 55, 2), s = n.o('sine', mtof(ns[1]), t, t + 0.3);
       s.frequency.exponentialRampToValueAtTime(mtof(ns[0]), t + 0.2);
-      n.link(s, n.envG(t, 0.06, 0.01, 0.2), out);
-    } else { // a strike: a short pluck on a chord tone (cycling, so volleys arpeggiate)
-      const out = this.sv('move', t, pan, vel, 4, 0.35, 0.1);
-      n.link(n.noiseL(t, 0.04), n.bq('bandpass', 2500, 1), n.envG(t, 0.18, 0.001, 0.03), out);
+      n.link(s, n.envG(t, 0.09, 0.01, 0.2), out);
+    } else { // a strike: a crisp pluck + elemental chime on a chord tone (cycling, so volleys arpeggiate)
+      const out = this.sv('move', t, pan, vel, 4, 0.38, 0.12);
+      n.link(n.noiseL(t, 0.05), n.bq('bandpass', 2500, 1), n.envG(t, 0.24, 0.001, 0.04), out);
       const ns = notes(tones, 67, 4);
-      tone(n, out, t, ns[k % ns.length], el, perfect ? 0.07 : 0.045, 0.003, 0.13, perfect ? 1.4 : 1);
+      tone(n, out, t, ns[k % ns.length], el, perfect ? 0.095 : 0.068, 0.003, 0.16, perfect ? 1.4 : 1.1);
     }
   }
 

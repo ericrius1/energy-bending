@@ -28,7 +28,7 @@ export const YOU = {
    *  or further, it keeps its size on screen (within `scale`) */
   marker: { over: 0.2, len: 0.24, w: 0.085, I: 1.15, intro: 1.9, ref: 9, scale: [0.75, 1.6] as [number, number] },
   /** the ring round the feet: radius, its strength, in the opening */
-  ring: { R: 0.46, I: 0.42, intro: 0.9 },
+  ring: { R: 0.48, I: 0.68, intro: 1.05 },
   /** the opening's shaft of sunlight on the body (strength), and the disc at the feet */
   shaft: 0.24, disc: 0.5,
   /** the first press's answer (s), and the camera's extra turn behind you in the opening (rad) */
@@ -52,6 +52,8 @@ export interface YouCtx {
   away(k: number): number;
   /** the seat's device ('keyboard-left', 'gamepad-0', …), for two at one screen */
   device(k: number): string | null;
+  /** optional facing yaw (rad, forward = (sin yaw, cos yaw)): draws a crisp forward compass chevron on your foot ring */
+  yaw?(k: number): number;
 }
 
 /** the HUD's part of a seat that is yours (HudPlayer.you) */
@@ -161,9 +163,19 @@ export class YouTell {
       G.petal(a, b, M.w * sc * big, col, M.I * on * (1 + 0.8 * P));
       // (and a faint soft light behind it, so it reads over a busy ground)
       G.dot([a[0], (a[1] + b[1]) / 2, a[2]], M.len * sc * big * 0.75, col, 0.16 * on * (1 + I0), 'soft');
-      // the ring round the feet (in the opening brighter; the answer opens a second one wide)
+      // the ring round the feet (bright, unmistakable steady-state beacon + gold inner rim + forward facing chevron)
       const R = YOU.ring;
       G.flat(foot, R.R, col, (R.I + (R.intro - R.I) * I0) * on, 'ring');
+      G.flat(foot, R.R * 0.78, GOLD, (0.34 + 0.35 * I0) * on, 'ring');
+      if (this.ctx.yaw) {
+        const yw = this.ctx.yaw(k), fx = Math.sin(yw), fz = Math.cos(yw), rx = Math.cos(yw), rz = -Math.sin(yw);
+        const tipR = R.R + 0.24, baseR = R.R + 0.04, wing = 0.14;
+        const tip: V3 = [foot[0] + fx * tipR, foot[1] + 0.015, foot[2] + fz * tipR];
+        const lft: V3 = [foot[0] + fx * baseR - rx * wing, foot[1] + 0.015, foot[2] + fz * baseR - rz * wing];
+        const rgt: V3 = [foot[0] + fx * baseR + rx * wing, foot[1] + 0.015, foot[2] + fz * baseR + rz * wing];
+        G.seg(lft, tip, 0.022, GOLD, (0.95 + 0.4 * I0) * on, 'soft');
+        G.seg(rgt, tip, 0.022, GOLD, (0.95 + 0.4 * I0) * on, 'soft');
+      }
       if (P > 0) {
         const u = 1 - P;
         G.flat(foot, R.R + 1.1 * smooth(u), col, 1.3 * P * on, 'ring');

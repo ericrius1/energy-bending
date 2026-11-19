@@ -49,10 +49,16 @@ test('keyboard: a tap between frames is one edge; held states; layouts; free mod
 test('keyboard solo: the mouse plays the bending hand relative to the dancer', () => {
   const k = new KeyboardSource('solo', { target: null, dancerScreen: () => ({ x: 400, y: 300, reach: 100 }) });
   k.mouseMove(450, 250); let i = k.update();
-  near(i.aimX, 0.5, 1e-9); near(i.aimY, 0.5, 1e-9); assert(i.aimActive, 'active');
+  near(i.aimX, 0.5, 1e-9); near(i.aimY, 0.5, 1e-9); assert(!i.aimActive, 'passive hover does not hijack arm');
   k.mouseMove(800, 300); i = k.update(); near(Math.hypot(i.aimX, i.aimY), 1, 1e-9, 'clamped to reach');
-  k.mouseDown(0); i = k.update(); assert(i.punch && i.punchHeld, 'click = punch'); k.mouseUp(0);
+  k.mouseDown(0); i = k.update(1 / 60); assert(i.punch && i.punchHeld && !i.aimActive, 'quick click = crisp strike');
+  for (let f = 0; f < 8; f++) i = k.update(1 / 60);
+  assert(i.aimActive && i.punchHeld, 'holding left click engages aimed bending hand');
+  k.mouseUp(0);
   k.mode = 'free'; k.mouseDown(2); k.mouseMove(810, 300); i = k.update(1 / 60); assert(i.camX > 0 && !i.aimActive, 'right-drag = camera'); k.mouseUp(2);
+  // two-finger horizontal trackpad swipe orbits the 3D camera
+  k.mouseWheel(40, 2); i = k.update(1 / 60); assert(i.camX > 0 && !i.camZoom, 'trackpad horizontal swipe = camera orbit');
+  k.mouseWheel(2, 40); i = k.update(1 / 60); assert((i.camZoom ?? 0) > 0 && i.camX === 0, 'vertical scroll = camera zoom');
   // quick right-click tap kicks without dragging the camera
   k.mouseDown(2); k.mouseUp(2); i = k.update(1 / 60); assert(i.kick && i.camX === 0, 'right-click tap = kick');
   // Alt+left-drag orbits camera on trackpads without punching

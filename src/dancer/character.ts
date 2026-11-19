@@ -221,7 +221,26 @@ export const DUEL_PHYS: Phys = defineParams('duel.move', {
   dashSpeed: { min: 8, max: 40, label: 'dash (m/s)' },
   dashTime: { min: 0.05, max: 0.4, label: 'dash (s)' },
 });
-export const PROFILES: Record<'jogo' | 'duel', Phys> = { jogo: PHYS, duel: DUEL_PHYS };
+/** responsive human movement for Dance / Solo: crisp acceleration and stops, instant turn-around (no 220 ms backpedal
+ *  delay), air turning, flow move-canceling (recovery cancels into moves/jump/dash, jump/dash cancels once active),
+ *  glancing off pillars and auto-vaulting low steps. Keeps PHYS untouched for deterministic AI/script tests */
+export const HUMAN_DANCE_PHYS: Phys = defineParams('dance.move', {
+  ...PHYS,
+  runSpeed: 5.4,
+  groundAccel: 56, groundDecel: 72, turnAccel: 120, groundOver: 18,
+  airAccel: 28, airDrag: 3.8, airOver: 5,
+  gravity: 30, jumpV: 11.4, airJumpV: 9.8, fallMul: 1.32, cutMul: 2.9,
+  maxFall: 13.5, fastFall: 20, fastFallMul: 2.0,
+  coyote: 0.12, jumpBuffer: 0.14, moveBuffer: 0.22,
+  landSquash: 0.13,
+  airTurn: true, dash: true, dashSpeed: 15, dashTime: 0.14, dashIframes: 0.08, dashEndMul: 0.5, dashCool: 0.24, dashBuffer: 0.1,
+  solidsCollide: true, snappy: true, flow: true,
+  slideK: 4,
+  faceRunDelay: 0,
+  turnRate: 22,
+  glance: 0.8, vaultH: 1.0,
+});
+export const PROFILES: Record<'jogo' | 'duel' | 'human', Phys> = { jogo: PHYS, duel: DUEL_PHYS, human: HUMAN_DANCE_PHYS };
 /** the jogo's timing windows (ms) and how close counts as near (m) */
 export const COMBAT = defineParams('combat', { PARRY_MS: 150, PERFECT_MS: 90, NEAR: 0.14 });
 
@@ -425,8 +444,8 @@ export class Character {
     this._prev.set(this.pose); this.vel.fill(0);
   }
 
-  /** the duel's feel or the jogo's (PROFILES), or a profile of one's own */
-  setProfile(p: Phys | 'jogo' | 'duel') { this.phys = typeof p === 'string' ? PROFILES[p] : p; }
+  /** the duel's feel, the human dance feel, or the jogo's (PROFILES), or a profile of one's own */
+  setProfile(p: Phys | 'jogo' | 'duel' | 'human') { this.phys = typeof p === 'string' ? PROFILES[p] : p; }
   private _resetKit() {
     this.wallSide = 0; this.wallId = null; this.wallNear = 0; this.wallNearId = null; this.wallCoyoteT = 0; this.wallLast = 0; this.wallLastId = null;
     this.wallStickT = 0; this.lockT = 0; this.lockDir = 0; this.wallRunT = 0; this.flightT = 0; this.vaultT = 0;
@@ -587,6 +606,15 @@ export class Character {
     if (this.plane) yaw = this._yawForDir(this.dir);
     else yaw = opts.yaw ?? this.yaw;
     if (!this.plane && opts.dirVec) yaw = yawOf(opts.dirVec[0], opts.dirVec[1]);
+    // gentle 3D target assist for snappy human/duel moves: orient strikes, kicks and throws toward a nearby partner
+    // unless the player explicitly steered away (within ~77°)
+    if (!this.plane && !opts.dirVec && opts.yaw == null && this.lookAt && this.phys.snappy && (def.hit || def.name === 'strike' || def.name === 'throw')) {
+      const dx = this.lookAt[0] - this.root[0], dz = this.lookAt[2] - this.root[2], d = Math.hypot(dx, dz);
+      if (d > 0.25 && d < 6.0) {
+        const toTarget = yawOf(dx, dz);
+        if (Math.abs(wrapPi(toTarget - yaw)) < 1.35) yaw = toTarget;
+      }
+    }
     // travel direction (unit, world x/z): along the plane, or the body's facing when free
     // (held still by a fusion: no travel direction, so the move plays where it starts)
     const still = !!this.env.still;

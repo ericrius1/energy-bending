@@ -19,7 +19,7 @@ import { softEdge } from '../duel/edge';
 import type { Kit } from '@ericrius1/weft';
 import type { Show } from './show';
 import { planePoint, type CameraRig, type StagePlane, type Ledge, type Wall } from '../engine/camera';
-import { DUEL_PHYS } from './character';
+import { DUEL_PHYS, HUMAN_DANCE_PHYS } from './character';
 import type { FrameBuilder } from '../engine/frame';
 import type { World } from '../worlds/world';
 import type { Motion } from '../skeleton/clips';
@@ -265,12 +265,20 @@ export async function playDemo(ctx: PlayCtx): Promise<PlayHandle> {
     let c = controllers[p.index];
     if (!c) { c = addDancer(p.index); show.stage(show.program); }
     c.source = p.source;
+    if (!duel && p.device !== 'bot') c.character.setProfile(HUMAN_DANCE_PHYS);
     p.source.mode = lockedPlane ? 'locked' : 'free';
     if (p.device === 'touch') pad ??= new TouchPad(p.source as TouchSource, canvas);
     console.info(`energybending: player ${p.index + 1} is ${p.source.name}`);
   };
   hub.onJoin = seat;
-  hub.onChange = (p) => { const c = controllers[p.index]; if (c) { c.source = p.source; p.source.mode = lockedPlane ? 'locked' : 'free'; } };
+  hub.onChange = (p) => {
+    const c = controllers[p.index];
+    if (c) {
+      c.source = p.source;
+      if (!duel && p.device !== 'bot') c.character.setProfile(HUMAN_DANCE_PHYS);
+      p.source.mode = lockedPlane ? 'locked' : 'free';
+    }
+  };
   // the camera body, on Alt+C (never plain C, which is crouch / fast-fall in 3D mode)
   addEventListener('keydown', (e) => {
     if (!e.altKey || e.code !== 'KeyC' || e.repeat || hub.players.some((p) => p.device === 'camera') || (e.target as HTMLElement)?.closest?.('input, select, textarea')) return;
@@ -327,11 +335,16 @@ export async function playDemo(ctx: PlayCtx): Promise<PlayHandle> {
       c.lookAtHead = other ? other.skeleton.pos[JOINT.Head] : null;
       c.inputYaw = rig.stickYaw(i, c.intent.moveX, c.intent.moveZ, f.dt);
     }
-    // the follow camera: behind player one (and, with two, the middle of them, standing back as they part)
+    // the follow camera: anchored on player 1 (with a gentle pull toward a nearby partner so you stay hero-framed)
     const at = (d: Dancer) => { const J = ctx.seen?.(d) ?? d.skeleton.world, o = JOINT.Spine1 * JOINT_FLOATS; return [J[o], J[o + 1], J[o + 2]]; };
     const a = at(dancers[0]), b = dancers[1] ? at(dancers[1]) : a;
     const c0 = controllers[0].character;
-    rig.follow = { x: (a[0] + b[0]) / 2, y: (a[1] + b[1]) / 2 - 0.15, z: (a[2] + b[2]) / 2, yaw: c0.yaw, speed: Math.hypot(c0.v[0], c0.v[2]), spread: Math.hypot(a[0] - b[0], a[2] - b[2]) };
+    const spread = Math.hypot(a[0] - b[0], a[2] - b[2]);
+    // 65% player 1 when dancing close together, smoothly shifting to 100% player 1 when roaming apart
+    const far = Math.max(0, Math.min(1, (spread - 2.5) / 5));
+    const wA = dancers[1] ? 0.65 + 0.35 * (far * far * (3 - 2 * far)) : 1;
+    const wB = 1 - wA;
+    rig.follow = { x: a[0] * wA + b[0] * wB, y: a[1] * wA + b[1] * wB - 0.15, z: a[2] * wA + b[2] * wB, yaw: c0.yaw, speed: Math.hypot(c0.v[0], c0.v[2]), spread: spread * (1 - far * 0.6) };
     const look = controllers[0].intent;
     rig.lookBy(look.camX, look.camY, f.dt);
     if (look.camZoom) rig.zoomBy(look.camZoom);

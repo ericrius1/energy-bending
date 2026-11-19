@@ -19,11 +19,9 @@ import { wetOf } from '../sound';
 import { clamp, type Nodes } from './nodes';
 import type { UnderLevels } from '../instrument';
 
-/** the game's sounds under a track (× their levels without one): all of them (-14 dB), then the world's sounds
- *  (stones, feet, matter: the held roars and pours are most of the game's loudness) 4.4 dB lower again, the effects 2 dB
- *  lower, the jogo's sounds 4 dB higher (they say what happened). Measured on film 2's temple (a recorded score against
- *  its track), the game's sounds come out about 8 dB under the track (docs/reports/9-music.md) */
-export const UNDER: UnderLevels = { all: 0.2, world: 0.6, fx: 0.8, sfx: 1.6, duel: 1.6, motion: 0.8 };
+/** the game's sounds under a track (× their levels without one): balanced so dance moves, exchanges, powers and
+ *  movement cues cut clearly and musically above the world's track while the compressor + soft limiter prevent clipping */
+export const UNDER: UnderLevels = { all: 0.28, world: 0.65, fx: 0.95, sfx: 2.8, duel: 2.5, motion: 2.2 };
 
 export class Mix {
   readonly master: GainNode;

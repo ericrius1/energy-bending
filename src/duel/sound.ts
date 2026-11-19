@@ -59,7 +59,7 @@ export const TIMING: Record<DuelCue, { grids: number[]; ahead: number; gap?: num
   fall: { grids: [], ahead: 0 }, reform: { grids: [0.5], ahead: 0.06 },
   cast: { grids: [0.5, 0.25], ahead: 0.06, gap: 0.05 }, form: { grids: [1, 0.5], ahead: 0.1, gap: 0.5 }, react: { grids: [1, 0.5], ahead: 0.1, gap: 0.5 },
   launch: { grids: [], ahead: 0 }, swap: { grids: [], ahead: 0 }, redirect: { grids: [0.25], ahead: 0.04 },
-  dash: { grids: [], ahead: 0, gap: 0.1 }, walljump: { grids: [], ahead: 0, gap: 0.1 }, land: { grids: [], ahead: 0, gap: 0.2 }, jump: { grids: [], ahead: 0, gap: 0.15 },
+  dash: { grids: [], ahead: 0, gap: 0.1 }, walljump: { grids: [], ahead: 0, gap: 0.1 }, land: { grids: [], ahead: 0, gap: 0.2 }, jump: { grids: [], ahead: 0, gap: 0.12 }, move: { grids: [], ahead: 0, gap: 0.08 },
   // (the hazards' phrase sounds come with their own beat: `CueReq.beat`)
   splash: { grids: [], ahead: 0, gap: 0.3 }, crest: { grids: [0.25], ahead: 0.04, gap: 0.3 },
   tide: { grids: [], ahead: 0, gap: 1 }, gust: { grids: [], ahead: 0, gap: 1 }, swell: { grids: [], ahead: 0, gap: 1 }, hum: { grids: [], ahead: 0, gap: 1 }, humlift: { grids: [1], ahead: 0.1, gap: 1 },
@@ -136,11 +136,12 @@ export const DUEL_SOUNDS: Record<string, Rule> = {
   'hazard:splash': (e) => ({ cue: 'splash', seat: seatOf(e), at: v3(e.at), level: num(e.strength, 0.5) }),
   'hazard:crest': (e) => ({ cue: 'crest', seat: seatOf(e), at: v3(e.at) }),
   'hazard:lift': (e) => ({ cue: 'launch', seat: seatOf(e), at: v3(e.at) }),
-  // ---- the bodies (soft)
+  // ---- the bodies (audible elemental movement & dance voices)
   'body:dash': (e) => ({ cue: 'dash', at: [num(e.x), num(e.y) + 1, num(e.z)] }),
   'body:wallJump': (e) => ({ cue: 'walljump', at: [num(e.x), num(e.y) + 1, num(e.z)], level: 1 }),
   'body:land': (e) => (num(e.impact) >= 3.5 ? { cue: 'land', at: [num(e.x), num(e.y), num(e.z)], level: Math.min(1, 0.15 + (num(e.impact) - 3.5) / 9) } : null),
-  'body:jump': (e) => (e.air ? { cue: 'jump', at: [num(e.x), num(e.y) + 1, num(e.z)] } : null),
+  'body:jump': (e) => ({ cue: 'jump', at: [num(e.x), num(e.y) + 1, num(e.z)], level: e.air ? 1 : 0.65 }),
+  'body:move': (e) => ({ cue: 'move', power: String(e.move ?? 'strike'), perfect: !!e.perfect, at: [num(e.x), num(e.y) + 1, num(e.z)] }),
 };
 
 /** an event's sounds by its name (none for a name not in the map) */
@@ -272,7 +273,8 @@ export class DuelSound {
     const take = (prefix: string, list: readonly object[], seat = -1) => {
       for (const x of list) {
         const e = x as Ev;
-        const name = `${prefix}:${String(e.k ?? e.kind ?? e.type ?? '')}`;
+        const tag = typeof e.k === 'string' ? e.k : typeof e.kind === 'string' ? e.kind : typeof e.type === 'string' ? e.type : '';
+        const name = `${prefix}:${tag}`;
         const rs = cuesOf(name, e, this.map);
         if (!rs.length && !(name in this.map)) { this.counts.ignored++; this.unmapped[name] = (this.unmapped[name] ?? 0) + 1; }
         for (const r of rs) reqs.push(seat >= 0 && (r.seat == null || r.seat < 0) ? { ...r, seat } : r);
@@ -371,7 +373,7 @@ export interface MusicLike {
  *  the duel's sounds came out level with the track, in the page and in the films alike. `all` (the game's whole bus,
  *  0.2 in UNDER) takes those 4.9 dB back off in the duel, so the balance is the one report 14 chose. The matter voices
  *  (the world's bus) keep the jogo's level under it */
-export const DUEL_BALANCE: Partial<UnderLevels> = { all: 0.114, duel: 2.6, motion: 3.4 };
+export const DUEL_BALANCE: Partial<UnderLevels> = { all: 0.22, duel: 3.4, motion: 3.8 };
 
 // ---------------------------------------------------------------- joined to the page (src/duel/index.ts)
 /** what duelSound reads of bend.duel (index.ts's api), lazily: it is made just before it */

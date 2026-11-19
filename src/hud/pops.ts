@@ -612,7 +612,7 @@ export function drawTags(g: Ctx, st: HudState, L: Layout, dpr: number, out: Box[
     const top = L.panels[0].y + L.panels[0].h + 4 * u + spr.h;
     const m = L.margin + 22 * u;
     const x = Math.max(m, Math.min(L.W - m, px)), y = Math.max(top, Math.min(L.H - m, py));
-    const a = (p.reforming > 0 ? 0.45 : 1) * (anyYou && !Y ? 0.62 : 1);
+    const a = (p.reforming > 0 ? 0.45 : 1) * (anyYou && !Y ? 0.5 : 1);
     const held = Math.abs(x - px) > 1 || Math.abs(y - py) > 1;
     // the label's middle (the beat ring's centre)
     const cx = x, cy = y - (Y ? 18 : 13) * u * big;

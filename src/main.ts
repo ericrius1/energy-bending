@@ -140,6 +140,18 @@ if (query.has('play') || query.has('roda') || query.has('teach')) {
   if (!FILM && !query.has('jogo') && !query.has('duel')) {
     const { installHelp } = await import('./duel/help');
     installHelp({ frame, game: 'dance', device: () => play.controllers[0]?.source?.name ?? null, matters: () => [], split: () => play.controllers.some((c) => c.source?.name === 'keyboard-right'), locked: () => rig.mode === 'locked', toggleView: () => play.toggleLock() });
+    // voice moves, jumps, dashes and landings in standalone ?play mode too
+    frame.tick('audio', () => {
+      for (const c of play.controllers) {
+        const evs = c.character.events.splice(0, c.character.events.length);
+        for (const ev of evs) {
+          if (ev.type === 'move') music?.sfx('move', { move: String(ev.move ?? 'strike'), element: 'ice', perfect: !!ev.perfect, vel: 0.8 });
+          else if (ev.type === 'jump') music?.sfx('move', { move: 'jump', element: 'ice', perfect: !!ev.air, vel: ev.air ? 0.85 : 0.72 });
+          else if (ev.type === 'dash') music?.sfx('move', { move: 'dash', element: 'ice', vel: 0.88 });
+          else if (ev.type === 'land' && Number(ev.impact ?? 0) >= 3) music?.sfx('land', { element: 'ice', vel: Math.min(0.9, Number(ev.impact) / 10) });
+        }
+      }
+    }, 'play: solo move and jump sound effects');
   }
   // ?play&net=ROOM: the played dancer online, the other seat through the network
   if (query.has('net')) await (await import('./net/play')).netPlay({ show, play, frame, world: () => worldOf(main.world), query, gates });
