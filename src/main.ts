@@ -36,12 +36,16 @@ import { LIMITS } from './engine/limits';
 import { BASELINE_LIMITS } from './engine/baseline';
 import { installArenaLayer } from './duel/arena-layer';
 import { installHud } from './hud';
+import { home } from './ui/home';
 
 import.meta.glob(['./matter/*/index.ts', './worlds/*/index.ts'], { eager: true });
 
 const query = new URLSearchParams(location.search);
 const FILM = query.has('film');
 const base = import.meta.env.BASE_URL;
+// the way home to ericlevin.dev (ui/home.ts, the same pill as every project on the site), top left from the first paint;
+// never in a film's frames
+if (!FILM) home();
 // ?perf: the self-measuring suite (engine/perfrun.ts); its first load only plans the page loads and moves on
 if (query.has('perf') && !query.has('perfgroup')) await (await import('./engine/perfrun')).perfStart(query);
 const canvas = document.getElementById('stage') as HTMLCanvasElement;
