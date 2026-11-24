@@ -265,7 +265,7 @@ export async function playDemo(ctx: PlayCtx): Promise<PlayHandle> {
     let c = controllers[p.index];
     if (!c) { c = addDancer(p.index); show.stage(show.program); }
     c.source = p.source;
-    if (!duel && p.device !== 'bot') c.character.setProfile(HUMAN_DANCE_PHYS);
+    if (!duel && p.device !== 'bot' && !c.character.surfMode) c.character.setProfile(HUMAN_DANCE_PHYS);
     p.source.mode = lockedPlane ? 'locked' : 'free';
     if (p.device === 'touch') pad ??= new TouchPad(p.source as TouchSource, canvas);
     console.info(`energybending: player ${p.index + 1} is ${p.source.name}`);
@@ -275,7 +275,7 @@ export async function playDemo(ctx: PlayCtx): Promise<PlayHandle> {
     const c = controllers[p.index];
     if (c) {
       c.source = p.source;
-      if (!duel && p.device !== 'bot') c.character.setProfile(HUMAN_DANCE_PHYS);
+      if (!duel && p.device !== 'bot' && !c.character.surfMode) c.character.setProfile(HUMAN_DANCE_PHYS);
       p.source.mode = lockedPlane ? 'locked' : 'free';
     }
   };
@@ -340,11 +340,12 @@ export async function playDemo(ctx: PlayCtx): Promise<PlayHandle> {
     const a = at(dancers[0]), b = dancers[1] ? at(dancers[1]) : a;
     const c0 = controllers[0].character;
     const spread = Math.hypot(a[0] - b[0], a[2] - b[2]);
-    // 65% player 1 when dancing close together, smoothly shifting to 100% player 1 when roaming apart
-    const far = Math.max(0, Math.min(1, (spread - 2.5) / 5));
-    const wA = dancers[1] ? 0.65 + 0.35 * (far * far * (3 - 2 * far)) : 1;
+    // 65% player 1 when dancing close together (56% in co-op Flow Surf so both surfers read together), smoothly shifting to 100% player 1 when roaming apart
+    const far = Math.max(0, Math.min(1, (spread - (c0.surfMode ? 4.5 : 2.5)) / 5));
+    const baseW = c0.surfMode ? 0.56 : 0.65;
+    const wA = dancers[1] ? baseW + (1 - baseW) * (far * far * (3 - 2 * far)) : 1;
     const wB = 1 - wA;
-    rig.follow = { x: a[0] * wA + b[0] * wB, y: a[1] * wA + b[1] * wB - 0.15, z: a[2] * wA + b[2] * wB, yaw: c0.yaw, speed: Math.hypot(c0.v[0], c0.v[2]), spread: spread * (1 - far * 0.6) };
+    rig.follow = { x: a[0] * wA + b[0] * wB, y: a[1] * wA + b[1] * wB - 0.15, z: a[2] * wA + b[2] * wB, yaw: c0.surfMode ? c0.surfHeading : c0.yaw, speed: Math.hypot(c0.v[0], c0.v[2]), spread: spread * (1 - far * (c0.surfMode ? 0.35 : 0.6)) };
     const look = controllers[0].intent;
     rig.lookBy(look.camX, look.camY, f.dt);
     if (look.camZoom) rig.zoomBy(look.camZoom);

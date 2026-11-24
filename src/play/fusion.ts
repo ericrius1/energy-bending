@@ -257,22 +257,31 @@ export class Fusion {
    *  locked, since the two stand on its line). Nothing while the fusion lets go or between fusions */
   private pull(dt: number, now: number) {
     const ca = this.bodies[0]?.character, cb = this.bodies[1]?.character;
-    // held: from two seconds before the bar line to the release the pair is one body: a move plays where it starts and
-    // the stick turns the body without walking it (Character.env.still), so nothing but a knock parts them, and the
-    // pull closes that again
+    const surfFused = !!(ca?.surfMode && cb?.surfMode && !ca.plane && !cb.plane);
+    // held: from two seconds before the bar line to the release the pair is one body. In Flow Surf they stay gliding
+    // together as a twin-helix cyclone instead of freezing still!
     const held = jogoParams.fusionPull > 0 && this.releasedAt == null && !!this.kind && now >= this.t0 - 2000;
-    for (const c of [ca, cb]) if (c) c.env.still = held;
+    for (const c of [ca, cb]) if (c) c.env.still = held && !surfFused;
     if (jogoParams.fusionPull <= 0 || this.releasedAt != null) return;
     const both = !!this.bodies[0]?.intent()?.merge && !!this.bodies[1]?.intent()?.merge;
     if (!both && !held) return;
-    if (!ca || !cb || ca.move || cb.move) return;
+    if (!ca || !cb || (!surfFused && (ca.move || cb.move))) return;
+    if (surfFused && held) {
+      // keep partner locked cleanly into twin-helix flight right alongside Seat 0
+      cb.surfHeading = ca.surfHeading;
+    }
     const dx = cb.root[0] - ca.root[0], dz = cb.root[2] - ca.root[2], d = Math.hypot(dx, dz);
-    if (d <= PULL_TO || d > 3) return;
-    // (after the landing it closes a knock's gap within half a second; before it, the gentle draw)
-    const speed = (held && now >= this.t0 ? PULL_HELD : PULL_SPEED) * jogoParams.fusionPull;
-    const step = Math.min((d - PULL_TO) / 2, (d - PULL_TO) * 2.5 * dt, speed * dt), ux = dx / d, uz = dz / d;
-    ca.root[0] += ux * step; ca.root[2] += uz * step;
-    cb.root[0] -= ux * step; cb.root[2] -= uz * step;
+    if (d <= PULL_TO || d > (surfFused ? 8 : 3)) return;
+    const speed = (held && now >= this.t0 ? (surfFused ? 3.2 : PULL_HELD) : PULL_SPEED) * jogoParams.fusionPull;
+    const step = Math.min((d - PULL_TO) / 2, (d - PULL_TO) * 3.0 * dt, speed * dt), ux = dx / d, uz = dz / d;
+    if (surfFused) {
+      // let Seat 0 lead the glide while pulling Seat 1 gracefully into orbit
+      cb.root[0] -= ux * step * 1.65; cb.root[2] -= uz * step * 1.65;
+      ca.root[0] += ux * step * 0.35; ca.root[2] += uz * step * 0.35;
+    } else {
+      ca.root[0] += ux * step; ca.root[2] += uz * step;
+      cb.root[0] -= ux * step; cb.root[2] -= uz * step;
+    }
   }
 
   /** the vortex stops, the dancers part, the one body is let go for a beat (then the matter returns: update) */

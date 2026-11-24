@@ -157,13 +157,12 @@ function renderLegendBody(devTab: string, game: HelpGame, matters: string[], loc
         row('Power Form (full bar)', devs.map((d) => kbd(KEYS[d].form))),
       ]
     : [
-        section('Dance Moves'),
-        row('Strike · Throw (hold)', devs.map((d) => pairKbd(DANCE_KEYS[d].strike, DANCE_ALSO[d]?.strike))),
-        row('Kick', devs.map((d) => pairKbd(DANCE_KEYS[d].kick, DANCE_ALSO[d]?.kick))),
-        row('Spin · Cartwheel (+move)', devs.map((d) => pairKbd(DANCE_KEYS[d].spin, DANCE_ALSO[d]?.spin))),
-        row('Dodge · Block', devs.map((d) => kbd(DANCE_KEYS[d].dodge))),
-        row('Switch element form', devs.map((d) => kbd(DANCE_KEYS[d].form))),
-        row('Merge / Fusion (hold)', devs.map((d) => kbd(DANCE_KEYS[d].merge))),
+        section(locked ? 'Dance Moves (2D)' : 'Flow Surf Tricks (Hold to Charge!)'),
+        row(locked ? 'Strike · Throw (hold)' : 'Spin · Hold: Cyclone Vortex', devs.map((d) => pairKbd(DANCE_KEYS[d].strike, DANCE_ALSO[d]?.spin ?? DANCE_KEYS[d].spin))),
+        row(locked ? 'Kick' : 'Element Morph (Dissolve / Hydro-Slip)', devs.map((d) => pairKbd(DANCE_KEYS[d].dodge, DANCE_KEYS[d].kick))),
+        row(locked ? 'Spin · Cartwheel (+move)' : 'Flip · Hold: Backflip / Corkscrew', devs.map((d) => kbd(DANCE_KEYS[d].jump))),
+        row('Switch element form (30% Flow)', devs.map((d) => kbd(DANCE_KEYS[d].form))),
+        row('Twin-Helix Fusion (100% Harmony)', devs.map((d) => kbd(DANCE_KEYS[d].merge))),
         row('Build ledge / ring', devs.map((d) => kbd(DANCE_KEYS[d].build))),
       ];
 
@@ -186,7 +185,7 @@ function renderLegendBody(devTab: string, game: HelpGame, matters: string[], loc
   const tabs = TABS.map(([id, label]) => `<button type="button" class="dh-tab${id === devTab ? ' on' : ''}" data-tab="${id}">${label}</button>`).join('');
   const tip = game === 'duel'
     ? 'Catch, swing & fling on the beat to fill flow, then cast powers. Two-finger swipe or Alt+drag orbits on trackpads.'
-    : 'Dance on the beat to build flow, hold F near your partner to fuse, or two-finger swipe / right-drag to orbit.';
+    : 'Surf through glowing Flow Rings, cross your partner’s wake for Steam Boosts, hold Space/Click/Shift to charge flips, cyclones & morphs, and hold F at 100% Harmony to Fuse!';
 
   return `<div class="dh-card">`
     + `<div class="dh-head"><div class="dh-title"><span>Controls</span>${modeSwitch}${viewPill}${tutPill}</div><button type="button" class="dh-close" aria-label="close">×</button></div>`

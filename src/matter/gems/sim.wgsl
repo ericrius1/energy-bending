@@ -53,6 +53,8 @@ fn main(@builtin(global_invocation_id) gid: vec3u) {
   let slot = min(u32(home.place.x), MAX_DANCERS * SEGS - 1u);
   let cap = sim.caps[slot];
   let dn = dancerOf(home);
+  let dis = select(clamp(sim.dissolve[min(dn, 7u) / 4u][dn % 4u], 0.0, 1.0), 0.0, spare);
+  let chg = select(clamp(sim.charge[min(dn, 7u) / 4u][dn % 4u], 0.0, 1.0), 0.0, spare);
   if (b.hold > 0.0 && !spare) {
     // the home rides its bone exactly: the joint's velocity plus the bone's turn, and (for the hold) its acceleration
     let jk = dn * MAXJ + u32(segs[slot].info.x);
@@ -91,7 +93,21 @@ fn main(@builtin(global_invocation_id) gid: vec3u) {
     }
   }
 
-  let goal = goalOf(H, seed, b);
+  var goal = goalOf(H, seed, b);
+  if (dis > 0.02) {
+    // prism vortex dissolve: stones burst outward into an orbiting crystalline halo and snap magnetically back on reform
+    b.stiffness *= mix(1.0, 0.24, dis);
+    b.damping *= mix(1.0, 0.65, dis);
+    let ang = home.place.z * 6.2831853 + b.time * 7.5 + f32(slot % SEGS) * 0.7;
+    let rOrb = (0.25 + 0.52 * home.place.w) * dis;
+    goal += vec3f(cos(ang) * rOrb, sin(ang * 1.4) * 0.22 * dis, sin(ang) * rOrb);
+    if (rnd(rn ^ 0x5d1u) < dis * 0.05 * sim.sparkRate) {
+      emit(p.pos, p.vel * 0.4 + sphereDir(rn ^ 0x5d2u) * sim.sparkSpeed * 1.2, mix(accent, vec3f(1.0, 0.92, 0.7), 0.45), 1.05, sim.sparkLife * 0.75);
+    }
+  }
+  if (chg > 0.12 && rnd(rn ^ 0x5c1u) < chg * 0.03 * sim.sparkRate) {
+    emit(p.pos, vec3f(0.0, 0.8 + chg, 0.0) + sphereDir(rn ^ 0x5c2u) * 0.6, mix(accent, vec3f(1.0, 0.88, 0.55), 0.6), 0.9, sim.sparkLife * 0.55);
+  }
   let T = touchAt(p.pos);
   let size = stoneSize(i, home.look.y, sim.gemScale * sim.types[kind].z, sim.sizeVar);
   let rest = b.floorY + size * 0.6;

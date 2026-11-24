@@ -22,6 +22,10 @@ export class Dancer {
   /** when its hands last met in a clap (FrameCtx.t, s; -Infinity: never): whoever drives it keeps it (src/ai's roda,
    *  from its palmas), the gems light the hands with it */
   clapAt = -Infinity;
+  /** hold-to-charge dance energy, 0 … 1 (0 idle, 0.33 Tier 1, 0.66 Tier 2, 1.0 Overdrive): fire/water/gems sims read it */
+  charge = 0;
+  /** elemental morph / dissolve intensity, 0 … 1 (fire → ember comet, water → hydro-slip wave, gems → prism vortex) */
+  dissolve = 0;
   constructor(public readonly id: string, public controller: Controller, public loadout: Loadout) {
     this.skeleton = new Skeleton(controller.rig);
   }
@@ -38,6 +42,11 @@ export class Dancer {
   /** pose and commit, in dance time */
   update(f: FrameCtx) {
     this.controller.update(f.danceDt, f, this.skeleton);
+    const ch = (this.controller as { character?: { charge?: number; dissolve?: number } }).character;
+    if (ch) {
+      this.charge = ch.charge ?? 0;
+      this.dissolve = ch.dissolve ?? 0;
+    }
     this.skeleton.commit(f.danceDt);
   }
 }

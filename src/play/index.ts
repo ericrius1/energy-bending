@@ -71,6 +71,8 @@ import { cameraParams } from '../engine/camera';
 import { installHelp, devOf, guessDev } from '../duel/help';
 import { DanceHud } from './dance-hud';
 import { createTutorial, shouldAutoTutorial } from './tutorial';
+import { SurfEngine } from './surf';
+import { SurfPartnerBrain } from '../ai/surf-partner';
 
 type V3 = [number, number, number];
 
@@ -169,6 +171,11 @@ export async function startJogo(app: PlayApp, mode: string, opts: { joined?: Joi
   const script = scripted ? scriptNamed(q.get('script') ?? 'pool-fire-water') : null;
   /** the side view: asked for (&lock), else open 3D; a script's is the side view unless &free or its own lock is false */
   const side = scripted ? !q.has('free') && script?.lock !== false : q.has('lock') && !q.has('free');
+  /** Flow Surf: continuous co-op kinetic surfing in open 3D Dance (off in scripted films, 2D side view, or &nosurf) */
+  const surfEnabled = !scripted && !q.has('nosurf');
+  /** 2-agent cooperative simulation mode (?jogo=partner&agents=2): both Fire & Water driven by co-op surfing agents */
+  const twoAgents = !online && !scripted && q.get('agents') === '2';
+  const showHud = (!app.film && !scripted) || q.has('showhud');
   const world = () => app.worldOf(app.main.world);
   // a script plays in its own world unless the address names one
   if (script?.world && !q.has('world') && script.world !== app.main.world) await app.setWorld?.(script.world);
@@ -217,7 +224,20 @@ export async function startJogo(app: PlayApp, mode: string, opts: { joined?: Joi
       return { level, breakdown: heard && e.level < 1 && beatNow() - grooveBeat <= 32, mood: e.mood.name };
     },
   }, wanted in PRESETS ? (wanted as PresetName) : 'playful', Number(q.get('seed') ?? 23));
-  let partner: Brain = wanted === 'standin' ? standIn : aiPartner;
+  // Flow Surf partner brain (co-op surfing, wake weaving, Flow Rings, hold-to-charge flips/morphs)
+  let portalGoal: V3 | null = null;
+  let surf: SurfEngine | null = null;
+  const surfSeed = Number(q.get('seed') ?? 23);
+  const surfBrainCtx = (seat: number) => ({
+    activeRing: () => surf?.activeRing ?? null,
+    nextRing: () => surf?.followingRing ?? null,
+    vortex: () => surf?.vortexes.find((v) => v.owner !== seat) ?? null,
+    portalGoal: () => portalGoal,
+  });
+  const surfPartner1 = new SurfPartnerBrain(surfBrainCtx(1), 'water-weaver', surfSeed + 7);
+  const surfPartner0 = new SurfPartnerBrain(surfBrainCtx(0), 'fire-acrobat', surfSeed);
+  const explicitCapoeira = q.has('partner') && wanted !== 'surf';
+  let partner: Brain = wanted === 'standin' ? standIn : (surfEnabled && !side && !explicitCapoeira ? surfPartner1 : aiPartner);
   const partnerView = (seat: number) => (dt: number): PartnerView | null => {
     const me = seatCtl[seat], other = seatDancer[1 - seat];
     if (!me || !other) return null;
@@ -247,12 +267,17 @@ export async function startJogo(app: PlayApp, mode: string, opts: { joined?: Joi
     // (The two bots join through the hub, so its players are numbered by seat, then leave its list so the devices that
     // come later take their places: InputHub numbers a newcomer by how many it holds.)
     const hub = play.hub;
-    hub.join(new BotSource(null, 'waiting'), 'bot');
+    const p0Src = twoAgents ? new BrainSource('agent-0', { think: (v) => surfPartner0.think(v) }, partnerView(0)) : new BotSource(null, 'waiting');
+    hub.join(p0Src, 'bot');
     const ps = new BrainSource('partner', { think: (v) => partner.think(v) }, partnerView(1));
     // (a script with &partner=… seats the partner brain on dancer 2 and scripts dancer 1 alone: a film's jogo)
     hub.join(scripted && !q.has('partner') ? new BotSource(null, 'script') : ps, 'bot');
     hub.players.splice(0, hub.players.length);
-    for (let s = 0; s < 2; s++) { seatCtl[s] = play.controllers[s]; seatDancer[s] = play.dancers[s]; }
+    for (let s = 0; s < 2; s++) {
+      seatCtl[s] = play.controllers[s];
+      seatDancer[s] = play.dancers[s];
+      if (surfEnabled && !side) seatCtl[s]!.character.enableSurf(true);
+    }
     if (scripted) seatCtl[0]!.source = new BotSource(null, 'script');
     for (const d of play.dancers) music.players.add(d.id);
     // the roda: free dancers (src/ai) ringing the stage behind its plane, as many as the device's budget allows
@@ -306,6 +331,33 @@ export async function startJogo(app: PlayApp, mode: string, opts: { joined?: Joi
     glows, sfx, field, arcs: plasma?.arcs ?? null, ripple, rumble, ear, dancer: (s) => seatDancer[s], plane,
     updraftAt: (p) => pieces.updraftAt(p), frame: () => kit.frameIndex, fused: () => fusion.weight,
   });
+  surf = surfEnabled ? new SurfEngine({
+    glows,
+    world: () => app.main.world,
+    groundAt: (x, z) => world().groundAt(x, z),
+    deposit: (d) => field.deposit(d),
+    arc: (a, b, I, frames) => plasma?.arcs?.add(a, b, I, frames),
+    ripple,
+    sfx: (name, at, o) => sfx(name, { ...ear(at), ...o }),
+    award: (seat, flowGain, harmonyGain, axeGain) => {
+      const S = (room.session.net as unknown as { session?: {
+        phase: string; flow: [number, number]; tension: number; axe: number; mergeReady: boolean; changed: boolean;
+      } }).session;
+      if (!S || (S.phase !== 'play' && S.phase !== 'fusion' && S.phase !== 'finale')) return;
+      const idx = (seat ? 1 : 0) as 0 | 1;
+      S.flow[idx] = Math.min(RULES.FLOW_MAX, S.flow[idx] + flowGain);
+      if (S.phase === 'play' && harmonyGain > 0) {
+        const wasReady = S.mergeReady;
+        S.tension = Math.min(RULES.TENSION_MAX, S.tension + harmonyGain);
+        if (S.tension >= RULES.TENSION_MAX && !wasReady) {
+          S.mergeReady = true;
+          sfx('mergeReady', {});
+        }
+      }
+      S.axe += axeGain;
+      S.changed = true;
+    },
+  }) : null;
   const fusion = new Fusion(bodies, {
     glows, rig, field, arcs: plasma?.arcs ?? null, music, ripple, now: () => room.now(), frame: () => kit.frameIndex,
     dancer: (s) => seatDancer[s],
@@ -341,6 +393,7 @@ export async function startJogo(app: PlayApp, mode: string, opts: { joined?: Joi
     music.players.add(meD.id);
     if (seat != null) {
       seatCtl[seat] = me; seatDancer[seat] = meD;
+      if (surfEnabled && !side) me.character.enableSurf(true);
       const other = 1 - seat;
       const remote = room.session.remote(me.rig, other);
       const sp = world().spawns[other] ?? [other ? 1.2 : -1.2, 0, 0];
@@ -404,7 +457,15 @@ export async function startJogo(app: PlayApp, mode: string, opts: { joined?: Joi
       plane: () => play.plane(),
     });
   };
-  if (scripted) {
+  if (twoAgents) {
+    // 2-agent simulation starts immediately (on first stepped frame if manual, else right away)
+    let startedAgent = false;
+    frame.tick('input', () => {
+      if (startedAgent) return;
+      startedAgent = true;
+      void start();
+    }, 'jogo: 2-agent co-op Flow Surf auto-start');
+  } else if (scripted) {
     if (script) runScript(script);
     else console.warn(`jogo: no script '${q.get('script')}' (src/play/scripts)`);
     // a script starts its room on the first frame stepped by hand (a capture or a film: kit.manual), so frame 0 of the
@@ -522,6 +583,20 @@ export async function startJogo(app: PlayApp, mode: string, opts: { joined?: Joi
     }
     if (ev.some((e) => e.k === 'phase' && e.phase === 'intro')) openSoon(2);
     feel.update(f.dt, ev);
+    // keep surfMode cleanly synced with 3D vs 2D side-view toggle
+    const surfNow = surfEnabled && rig.mode !== 'locked';
+    for (let s = 0; s < 2; s++) {
+      const c = seatCtl[s]?.character;
+      if (c && c.surfMode !== surfNow) c.enableSurf(surfNow);
+    }
+    if (surf && surfNow) {
+      surf.update(f.dt, [0, 1].map((s) => ({
+        seat: s,
+        c: seatCtl[s]?.character ?? null,
+        el: bodies[s].element(),
+        raw: jogo.raw[s] ?? [],
+      })), fusion.weight > 0.35);
+    }
     fusion.update(f.dt);
     hud.update(f.dt, room.state, ev);
     flow.update(f.dt, room.state, ev);
@@ -615,16 +690,16 @@ export async function startJogo(app: PlayApp, mode: string, opts: { joined?: Joi
     yaw: (k) => seatCtl[k]?.character.yaw ?? 0,
   }, () => (app.film || scripted ? [] : online ? (room.session.seat != null && room.state?.phase !== undefined ? [room.session.seat] : []) : [0, 1].filter(human)));
   const youTags = new YouTags();
-  const danceHud = !app.film && !scripted ? new DanceHud() : null;
-  const tutorial = !app.film && !scripted ? createTutorial({
+  const danceHud = showHud ? new DanceHud() : null;
+  const tutorial = !app.film && !scripted && !twoAgents ? createTutorial({
     game: 'dance',
     autoStart: shouldAutoTutorial('dance', app.query, app.film || scripted),
     onStep: () => { music.sfx('dodge', { element: 'ice', perfect: true, count: 2, vel: 0.85 }); danceHud?.callout('NICE! STEP COMPLETE', true, 1.0); },
-    onComplete: () => { music.sfx('unison', { element: 'ice', perfect: true, vel: 0.95 }); danceHud?.callout('TUTORIAL COMPLETE!', true, 2.0); },
+    onComplete: () => { music.sfx('unison', { element: 'ice', perfect: true, vel: 0.95 }); danceHud?.callout('FLOW SURF READY!', true, 2.0); },
   }) : null;
   let tutLastLocked = rig.mode === 'locked';
   let youWorld = app.main.world, youBeat = Infinity, youBegun = false;
-  if (online) { you.set(); youBegun = true; }
+  if (online || twoAgents) { you.set(); youBegun = true; }
   const wasJoin = play.hub.onJoin;
   play.hub.onJoin = (p) => { wasJoin?.(p); if (p.index === 0 && !youBegun) { youBegun = true; you.set(); openSoon(2); } };
   if (!online && play.hub.players.some((p) => p.index === 0) && !youBegun) { youBegun = true; you.set(); openSoon(2); }
@@ -639,9 +714,32 @@ export async function startJogo(app: PlayApp, mode: string, opts: { joined?: Joi
     you.update(f.dt);
     const mySeat = online ? (room.session.seat ?? 0) : 0;
     const myRaw = jogo.raw[mySeat] ?? [];
+    const myChar = seatCtl[mySeat]?.character ?? null;
     danceHud?.update(f.dt, {
-      seat: mySeat, el: bodies[mySeat]?.element() ?? 'fire', state: room.state, events: frameEvents, raw: myRaw,
-      beat: f.beat.beats, bpm: f.beat.bpm, hidden: fusion.weight > 0.7,
+      seat: mySeat,
+      el: bodies[mySeat]?.element() ?? 'fire',
+      partnerEl: bodies[1 - mySeat]?.element() ?? 'water',
+      state: room.state,
+      events: frameEvents,
+      raw: myRaw,
+      beat: f.beat.beats,
+      bpm: f.beat.bpm,
+      hidden: fusion.weight > 0.88,
+      surfMode: !!myChar?.surfMode,
+      charge: myChar?.charge ?? 0,
+      chargeAction: myChar?.chargeAction ?? null,
+      dissolve: myChar?.dissolve ?? 0,
+      bank: myChar?.bank ?? 0,
+      carveSlide: myChar?.carveSlide ?? 0,
+      activeMove: myChar?.move?.name ?? null,
+      airborne: !!myChar?.airborne,
+      intent: seatCtl[mySeat]?.intent ?? null,
+      score: surf?.score,
+      combo: surf?.combo,
+      rings: surf?.ringsCleared,
+      surfEvents: surf?.events,
+      dev: devOf(sourceName(mySeat)) ?? guessDev(),
+      tutorialActive: !!tutorial?.active(),
     });
     if (tutorial?.active()) {
       const it = seatCtl[mySeat]?.intent;
@@ -660,7 +758,8 @@ export async function startJogo(app: PlayApp, mode: string, opts: { joined?: Joi
         }
       }
       for (const e of frameEvents) if (e.k === 'move' && e.seat === mySeat && e.move !== 'jump') moves.push(e.move);
-      const exchanged = frameEvents.some((e) => (e.k === 'xch' && (e.by === mySeat || e.target === mySeat)) || e.k === 'echo' || e.k === 'unison');
+      const exchanged = frameEvents.some((e) => (e.k === 'xch' && (e.by === mySeat || e.target === mySeat)) || e.k === 'echo' || e.k === 'unison')
+        || !!(surf && surf.events.some((se) => se.k === 'ring' || se.k === 'reaction' || se.k === 'unison' || se.k === 'vortex'));
       const formedOrMerged = frameEvents.some((e) => (e.k === 'form' && e.seat === mySeat && e.on) || e.k === 'fusion') || !!it?.form || !!it?.merge;
       const root0 = bodies[mySeat]?.root() ?? [0, 0, 0];
       const root1 = bodies[1 - mySeat]?.root() ?? null;
@@ -724,7 +823,8 @@ export async function startJogo(app: PlayApp, mode: string, opts: { joined?: Joi
 
   // ---------------------------------------------------------------- the hooks (bend.jogo)
   const api = {
-    room, jogo, feel, fusion, pieces, glows, builder, field, tutorial,
+    room, jogo, feel, fusion, pieces, glows, builder, field, tutorial, surf,
+    setPortalGoal: (p: V3 | null) => { portalGoal = p; },
     get state() { return room.state; },
     get phase() { return room.state?.phase ?? null; },
     /** beats since play began */
@@ -741,6 +841,7 @@ export async function startJogo(app: PlayApp, mode: string, opts: { joined?: Joi
     stats: () => ({
       phase: room.state?.phase, tension: room.state?.tension, streak: room.state?.streak, flow: room.state?.flow, form: room.state?.form,
       axe: room.state?.axe, fusion: fusion.stats(), feel: feel.stats(), pieces: pieces.stats(), glows: glows.count, travelling,
+      surf: surf?.stats() ?? null,
       seats: [0, 1].map((s) => ({ el: bodies[s].element(), root: bodies[s].root().map((v) => +v.toFixed(2)), world: seatDancer[s] ? gates.worldOf(seatDancer[s]!) : null })),
       crossings: roaming.log, ways: roaming.counts, opening, you: you.own(), world: app.main.world, side: rig.mode === 'locked',
       devices: seatCtl.map((c) => (c?.source as { name?: string } | undefined)?.name ?? null),

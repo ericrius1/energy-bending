@@ -312,6 +312,50 @@ export const LOCO = {
     for (let i = 0; i < NP; i++) out[i] *= s;
     return out;
   },
+
+  /** kinetic surfing & carving glide: leaned into turns, knees athletic, arms open for balance; slideK opens into a sideways carve */
+  surf(out: Float32Array, phase: number, speedK: number, bank = 0, slideK = 0) {
+    const k = clamp(speedK, 0, 1.3), bk = clamp(bank, -1, 1), sl = clamp(slideK, 0, 1);
+    const sway = Math.sin(phase * 0.85) * 0.018 * k;
+    const bounce = Math.cos(phase * 1.7) * 0.014 * k;
+    // sideways surf stance when carving or sliding; forward athletic lean when surging
+    const yaw = sl * (bk < 0 ? -0.92 : 0.92) + bk * 0.28;
+    const roll = bk * 0.42 - sl * (bk < 0 ? -0.18 : 0.18);
+    const pitch = 0.2 + 0.18 * k - 0.12 * sl;
+    const hipY = 0.265 - 0.035 * Math.abs(bk) - 0.055 * sl + bounce;
+    const stride = (1 - sl * 0.65) * 0.14 * Math.sin(phase) * Math.min(k, 1);
+    const liftL = (1 - sl * 0.85) * 0.065 * Math.max(0, Math.cos(phase)) * Math.min(k, 1);
+    const liftR = (1 - sl * 0.85) * 0.065 * Math.max(0, -Math.cos(phase)) * Math.min(k, 1);
+    const P = base({
+      hip: [bk * 0.045, hipY, 0.03 * k],
+      yaw, pitch, roll, twist: -bk * 0.32 - sl * 0.35, crunch: 0.95 - 0.05 * sl,
+      lf: [-0.14 - 0.04 * sl, liftL, -0.09 + stride - 0.07 * sl],
+      rf: [0.14 + 0.04 * sl, liftR, 0.11 - stride + 0.09 * sl],
+    });
+    // arms wide like an expressive surfer/skater carving through energy
+    P.lhB = [-0.26 - 0.06 * sl, -0.04 + 0.1 * bk + sway, 0.04 + 0.08 * sl];
+    P.rhB = [0.26 + 0.06 * sl, -0.02 - 0.1 * bk - sway, 0.08 - 0.06 * sl];
+    delete P.lh; delete P.rh;
+    return rig(P, out);
+  },
+
+  /** hold-to-charge coil: drops low into a loaded athletic crouch while drawing energy into the chest */
+  charge(out: Float32Array, charge: number, beat = 0) {
+    const c = clamp(charge, 0, 1);
+    const vib = c > 0.65 ? Math.sin(beat * TAU * 8) * 0.008 * (c - 0.65) : 0;
+    const P = base({
+      hip: [vib, mix(0.27, 0.17, c), -0.03 * c],
+      pitch: mix(0.2, 0.48, c), crunch: mix(0.96, 0.86, c),
+      lf: [-0.16 - 0.03 * c, 0, -0.09], rf: [0.16 + 0.03 * c, 0, 0.1],
+      lkp: [-0.55, 0.2, 0.9], rkp: [0.55, 0.2, 0.9],
+    });
+    // hands pull inward toward a glowing core at the solar plexus, widening slightly at Overdrive
+    const open = smooth((c - 0.72) / 0.28);
+    P.lhB = [-0.14 + 0.09 * c - 0.12 * open, -0.1 + 0.08 * c, 0.14 + 0.05 * c];
+    P.rhB = [0.14 - 0.09 * c + 0.12 * open, -0.1 + 0.08 * c, 0.14 + 0.05 * c];
+    delete P.lh; delete P.rh;
+    return rig(P, out);
+  },
 };
 
 // ---------------------------------------------------------------- the moves
@@ -780,6 +824,169 @@ const MOVE_DEFS: Record<string, Omit<MoveInput, 'name'>> = {
       if (ctx.air) airLegs(P);
       P.lhB = mix3([-0.06, -0.14, 0.12], [-0.21 + 0.1 * lift, -0.02 + 0.22 * lift, 0.02], on);
       P.rhB = mix3([0.06, -0.14, 0.12], [0.21 - 0.1 * lift, -0.02 + 0.22 * lift, 0.02], on);
+      delete P.lh; delete P.rh;
+      return rig(P, out);
+    },
+  },
+
+  // ---------------------------------------------------------------- Flow Surf acrobatic & morph moves
+  // forward tucked 360° aerial somersault
+  somersault: {
+    dur: 0.72, travel: { z: 0.72 * FU, y: 0.46 * FU, u0: 0.06, u1: 0.88 }, iframes: [0.08, 0.82],
+    cancelInto: ['*'], airOk: true, evade: true, aimW: 0,
+    style: () => ({ hands: ['open', 'open'], feet: ['point', 'point'] }),
+    pose(u, _ctx, out) {
+      const r = smooth((u - 0.06) / 0.78);
+      const tuck = Math.sin(Math.PI * clamp((u - 0.05) / 0.82, 0, 1));
+      const arc = Math.sin(Math.PI * clamp(u / 0.92, 0, 1));
+      const P = base({
+        hip: [0, 0.28 + 0.16 * arc, 0], pitch: 0.28 + 0.52 * tuck, crunch: mix(1, 0.8, tuck),
+        rotX: TAU * r, pivot: [0, 0.34, 0],
+      });
+      P.lfB = mix3([-0.1, -0.3, 0.02], [-0.07, -0.11, 0.16], tuck);
+      P.rfB = mix3([0.1, -0.3, 0.04], [0.07, -0.11, 0.16], tuck);
+      P.lkp = [-0.2, 0.5, 1]; P.rkp = [0.2, 0.5, 1];
+      delete P.lf; delete P.rf;
+      P.lhB = mix3([-0.22, -0.04, 0.06], [-0.08, -0.14, 0.18], tuck);
+      P.rhB = mix3([0.22, -0.04, 0.06], [0.08, -0.14, 0.18], tuck);
+      delete P.lh; delete P.rh;
+      return rig(P, out);
+    },
+  },
+
+  // charged arched 360° backflip with soaring loft
+  backflip: {
+    dur: 0.84, travel: { z: 0.56 * FU, y: 0.74 * FU, u0: 0.06, u1: 0.9 }, iframes: [0.08, 0.84],
+    cancelInto: ['*'], airOk: true, evade: true, aimW: 0,
+    style: () => ({ hands: ['open', 'open'], feet: ['point', 'point'] }),
+    pose(u, _ctx, out) {
+      const r = smooth((u - 0.08) / 0.78);
+      const arch = Math.sin(Math.PI * clamp((u - 0.04) / 0.86, 0, 1));
+      const P = base({
+        hip: [0, 0.28 + 0.22 * arch, 0], pitch: mix(0.22, -0.38, arch), crunch: mix(1, 1.04, arch),
+        rotX: -TAU * r, pivot: [0, 0.36, 0],
+      });
+      P.lfB = mix3([-0.1, -0.3, 0], [-0.09, -0.18, -0.1], arch);
+      P.rfB = mix3([0.1, -0.3, 0.03], [0.09, -0.16, -0.07], arch);
+      delete P.lf; delete P.rf;
+      P.lhB = mix3([-0.2, -0.04, 0.08], [-0.22, 0.2, -0.04], arch);
+      P.rhB = mix3([0.2, -0.04, 0.08], [0.22, 0.2, -0.04], arch);
+      delete P.lh; delete P.rh;
+      return rig(P, out);
+    },
+  },
+
+  // Tier 2 / Overdrive diagonal 540° twisting corkscrew flip
+  corkscrew: {
+    dur: 0.94, travel: { z: 0.96 * FU, y: 0.88 * FU, u0: 0.05, u1: 0.92 }, iframes: [0.06, 0.88],
+    cancelInto: ['*'], airOk: true, evade: true, aimW: 0,
+    style: () => ({ hands: ['open', 'open'], feet: ['point', 'point'] }),
+    pose(u, _ctx, out) {
+      const r = smooth((u - 0.06) / 0.82);
+      const peak = Math.sin(Math.PI * clamp(u / 0.94, 0, 1));
+      const P = base({
+        hip: [0, 0.29 + 0.25 * peak, 0],
+        yaw: TAU * 1.5 * r, pitch: 0.12 - 0.28 * peak, roll: 0.35 * peak,
+        rotX: TAU * r, rotZ: 0.45 * peak, pivot: [0, 0.36, 0],
+      });
+      P.lfB = mix3([-0.1, -0.3, 0], [-0.08, -0.16, 0.08], peak);
+      P.rfB = mix3([0.1, -0.3, 0.02], [0.09, -0.22, -0.05], peak);
+      delete P.lf; delete P.rf;
+      P.lhB = mix3([-0.2, -0.04, 0.08], [-0.26, 0.16, 0.04], peak);
+      P.rhB = mix3([0.2, -0.04, 0.08], [0.26, 0.16, -0.02], peak);
+      delete P.lh; delete P.rh;
+      return rig(P, out);
+    },
+  },
+
+  // charged double-rotation 720° cyclone tornado spin
+  cyclone: {
+    dur: 0.88, travel: { z: 0.56 * FU, y: 0.18 * FU, u0: 0.08, u1: 0.86 }, iframes: [0.1, 0.78],
+    cancelInto: ['*'], airOk: true, evade: true, aimW: 0,
+    style: () => ({ hands: ['open', 'open'], feet: ['point', 'point'] }),
+    pose(u, ctx, out) {
+      const w = smooth(u / 0.14), r = smooth((u - 0.08) / 0.78), e = smooth((u - 0.84) / 0.16), on = w * (1 - e);
+      const lift = Math.sin(Math.PI * r);
+      const P = base({
+        hip: [0, mix(0.28, 0.36, on) + 0.06 * lift, 0],
+        yaw: TAU * 2.0 * r, pitch: mix(0.14, -0.06, on), twist: -0.45 * lift,
+        lf: [mix(-0.13, -0.05, on), mix(0, 0.07, lift), 0],
+        rf: [mix(0.13, 0.05, on), mix(0, 0.11, lift), 0.03],
+      });
+      if (ctx.air) airLegs(P);
+      P.lhB = mix3([-0.14, -0.1, 0.1], [-0.28, 0.14 * lift, 0.02], on);
+      P.rhB = mix3([0.14, -0.1, 0.1], [0.28, 0.18 * lift, 0.02], on);
+      delete P.lh; delete P.rh;
+      return rig(P, out);
+    },
+  },
+
+  // Water / Ice elemental morph: sleek low hydro-slip wave slide skimming the surface
+  'hydro-slip': {
+    dur: 0.76, travel: { z: 1.05 * FU, u0: 0.05, u1: 0.88 }, iframes: [0.06, 0.82],
+    cancelInto: ['*'], airOk: true, evade: true, aimW: 0,
+    style: (u) => ({ hands: [u > 0.12 && u < 0.78 ? 'floor' : 'open', 'open'], feet: ['point', 'point'] }),
+    pose(u, _ctx, out) {
+      const low = smooth(u / 0.18) * (1 - smooth((u - 0.74) / 0.24));
+      const crest = smooth((u - 0.68) / 0.3);
+      const P = base({
+        hip: [0, mix(0.27, 0.13, low) + 0.05 * Math.sin(Math.PI * crest), 0.04 * low],
+        yaw: 0.95 * low, pitch: mix(0.2, 0.42, low), roll: -0.42 * low, twist: -0.5 * low, crunch: mix(1, 0.88, low),
+      });
+      P.lfB = mix3([-0.12, -0.28, -0.06], [-0.14, -0.13, -0.18], low);
+      P.rfB = mix3([0.12, -0.28, 0.08], [0.16, -0.12, 0.24], low);
+      delete P.lf; delete P.rf;
+      // trailing hand skims the glassy floor, leading arm rides the wave crest
+      P.lhB = mix3([-0.22, -0.05, 0.06], [-0.22, -0.2, -0.12], low);
+      P.rhB = mix3([0.22, -0.05, 0.08], [0.26, 0.08, 0.16], low);
+      delete P.lh; delete P.rh;
+      rig(P, out);
+      if (low > 0.05) {
+        const m = lowest(out, [J.LA, J.RA, J.LW]);
+        if (m < 0) shiftPose(out, 0, -m * low, 0);
+      }
+      return out;
+    },
+  },
+
+  // Fire / Plasma / Gems elemental morph: streamlined comet launch + dissolve + triumphant mid-air reform spin
+  'ember-surge': {
+    dur: 0.78, travel: { z: 1.12 * FU, y: 0.28 * FU, u0: 0.05, u1: 0.88 }, iframes: [0.06, 0.84],
+    cancelInto: ['*'], airOk: true, evade: true, aimW: 0,
+    style: () => ({ hands: ['open', 'open'], feet: ['point', 'point'] }),
+    pose(u, _ctx, out) {
+      const dive = smooth(u / 0.18) * (1 - smooth((u - 0.62) / 0.24));
+      const reform = smooth((u - 0.56) / 0.42);
+      const lift = Math.sin(Math.PI * clamp(u / 0.92, 0, 1));
+      const P = base({
+        hip: [0, 0.28 + 0.16 * lift, 0.06 * dive],
+        pitch: mix(0.22, 1.18, dive), yaw: TAU * reform, crunch: mix(1, 1.06, dive),
+      });
+      P.lfB = mix3([-0.1, -0.3, 0], [-0.07, -0.28, -0.14], dive);
+      P.rfB = mix3([0.1, -0.3, 0.02], [0.07, -0.24, -0.18], dive);
+      delete P.lf; delete P.rf;
+      // arms sweep back like comet wings during dissolve, then flare wide on reform
+      const flare = Math.sin(Math.PI * reform);
+      P.lhB = mix3([-0.2, -0.05, 0.08], [-0.14 - 0.16 * flare, -0.18 + 0.28 * flare, -0.18 + 0.22 * flare], Math.max(dive, flare));
+      P.rhB = mix3([0.2, -0.05, 0.08], [0.14 + 0.16 * flare, -0.18 + 0.28 * flare, -0.18 + 0.22 * flare], Math.max(dive, flare));
+      delete P.lh; delete P.rh;
+      return rig(P, out);
+    },
+  },
+
+  // stylish sideways carving power-drift
+  'surf-carve': {
+    dur: 0.56, travel: { z: 0.64 * FU, u0: 0.05, u1: 0.86 }, iframes: [0.08, 0.72],
+    cancelInto: ['*'], airOk: false, evade: true, aimW: 0,
+    style: () => ({ hands: ['open', 'open'], feet: ['flex', 'flex'] }),
+    pose(u, _ctx, out) {
+      const w = Math.sin(Math.PI * clamp(u, 0, 1));
+      const P = base({
+        hip: [0, mix(0.27, 0.18, w), 0],
+        yaw: 1.05 * w, roll: -0.46 * w, pitch: 0.22, twist: -0.4 * w,
+        lf: [-0.17, 0, -0.11], rf: [0.17, 0, 0.13],
+      });
+      P.lhB = [-0.26, -0.14 * w, 0.04]; P.rhB = [0.26, 0.08 * w, 0.1];
       delete P.lh; delete P.rh;
       return rig(P, out);
     },

@@ -289,29 +289,44 @@ export class Feel {
     const gold: RGB = [1.7, 1.45, 0.75];
     const mv = move.toLowerCase();
     const isKick = mv === 'meia-lua' || mv === 'armada' || mv === 'martelo' || mv === 'bencao' || mv === 'rasteira';
-    const isSpin = mv === 'spin' || mv === 'au' || mv === 'macaco' || mv === 'role' || mv === 'pirueta';
-    const joint = isKick ? JOINT.RightFoot : mv === 'strike' || mv === 'throw' ? JOINT.RightHand : JOINT.LeftHand;
+    const isFlip = mv === 'somersault' || mv === 'backflip' || mv === 'corkscrew';
+    const isMorph = mv === 'hydro-slip' || mv === 'ember-surge';
+    const isSpin = mv === 'spin' || mv === 'cyclone' || mv === 'au' || mv === 'macaco' || mv === 'role' || mv === 'pirueta';
+    const joint = isKick || isFlip ? JOINT.RightFoot : mv === 'strike' || mv === 'throw' ? JOINT.RightHand : isMorph ? JOINT.Spine1 : JOINT.LeftHand;
     const trail: V3[] = [];
-    const life = isSpin ? 0.42 : isKick ? 0.36 : 0.28;
+    const trail2: V3[] = [];
+    const life = isFlip || isMorph ? 0.62 : isSpin ? 0.52 : isKick ? 0.36 : 0.28;
     const G = this.ctx.glows;
     this.add(life, (u) => {
       const p = jointOf(d, joint);
-      if (p && u < 0.78) {
+      const p2 = isFlip || isSpin ? jointOf(d, JOINT.LeftHand) : null;
+      if (p && u < 0.82) {
         const last = trail[trail.length - 1];
         if (!last || Math.hypot(p[0] - last[0], p[1] - last[1], p[2] - last[2]) > 0.04) {
           trail.push([p[0], p[1], p[2]]);
-          if (trail.length > 10) trail.shift();
+          if (trail.length > 14) trail.shift();
         }
       }
-      const fade = (1 - u) * (1 - u * 0.5);
-      const cMain = perfect ? mixRGB(col, gold, 0.45) : col;
+      if (p2 && u < 0.82) {
+        const last = trail2[trail2.length - 1];
+        if (!last || Math.hypot(p2[0] - last[0], p2[1] - last[1], p2[2] - last[2]) > 0.04) {
+          trail2.push([p2[0], p2[1], p2[2]]);
+          if (trail2.length > 14) trail2.shift();
+        }
+      }
+      const fade = (1 - u) * (1 - u * 0.45);
+      const cMain = perfect || isFlip ? mixRGB(col, gold, 0.45) : col;
       for (let i = 1; i < trail.length; i++) {
         const w = i / trail.length;
-        G.seg(trail[i - 1], trail[i], (0.014 + 0.012 * w) * (perfect ? 1.25 : 1), cMain, (0.95 + (perfect ? 0.5 : 0)) * w * fade, 'soft');
+        G.seg(trail[i - 1], trail[i], (0.016 + 0.018 * w) * (perfect || isMorph ? 1.35 : 1), cMain, (1.05 + (perfect || isFlip ? 0.55 : 0)) * w * fade, 'soft');
       }
-      if (isSpin && p) {
+      for (let i = 1; i < trail2.length; i++) {
+        const w = i / trail2.length;
+        G.seg(trail2[i - 1], trail2[i], 0.014 + 0.012 * w, mixRGB(col, gold, 0.6), 0.9 * w * fade, 'soft');
+      }
+      if ((isSpin || isMorph) && p) {
         const chest = jointOf(d, JOINT.Spine1);
-        if (chest) G.flat([chest[0], chest[1] - 0.15, chest[2]], 0.32 + u * 0.42, cMain, 0.42 * fade, 'ring');
+        if (chest) G.flat([chest[0], chest[1] - 0.15, chest[2]], 0.34 + u * (mv === 'cyclone' ? 0.85 : 0.48), cMain, (mv === 'cyclone' ? 0.72 : 0.45) * fade, 'ring');
       }
     });
   }

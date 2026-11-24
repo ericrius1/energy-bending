@@ -267,6 +267,8 @@ function ring(bend: Bend) {
 /** a first visit's first jogo: the teacher's first lesson (a meia-lua and the esquiva, each answered twice, the ginga
  *  between), at most a minute, then the partner plays. Remembered, so it is offered once */
 function teach(api: Record<string, any>) {
+  // Flow Surf has its own interactive guide & live surfing partner; skip old standing capoeira teacher
+  if (api.surf) return;
   let seen = false;
   try { seen = !!localStorage.getItem(TAUGHT); localStorage.setItem(TAUGHT, String(Date.now())); } catch { /* no storage: teach */ }
   const partner = api.partner;

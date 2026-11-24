@@ -40,6 +40,10 @@ struct FireSim {
   helixAt: vec4f,
   /** its turn (rad), half height (m), turns per metre, and the pair's floor (m) */
   helixShape: vec4f,
+  /** per dancer slot (MAX_DANCERS = 8): 0 solid flame body … 1 dissolved rushing ember comet */
+  dissolve: array<vec4f, 2>,
+  /** per dancer slot (MAX_DANCERS = 8): 0 idle … 1 overdrive hold-charge */
+  charge: array<vec4f, 2>,
 }
 
 /** a fusion flame's home carries 2 + its side (0 the first seat's body, 1 the second's) where a flame's form would be */

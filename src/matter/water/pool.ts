@@ -282,6 +282,10 @@ export class WaterPool {
     s.forms = [[fm[0], fm[1], fm[2], fm[3]], [fm[4], fm[5], fm[6], fm[7]]];
     const cold = (d: number) => this.layers.ice.reduce((a, l) => a + (l.dancer === d ? l.weight : 0), 0);
     s.colds = [[cold(0), cold(1), cold(2), cold(3)], [cold(4), cold(5), cold(6), cold(7)]];
+    const dis = (d: number) => Math.max(0, Math.min(1, f.dancers[d]?.dissolve ?? 0));
+    const chg = (d: number) => Math.max(0, Math.min(1, f.dancers[d]?.charge ?? 0));
+    s.dissolve = [[dis(0), dis(1), dis(2), dis(3)], [dis(4), dis(5), dis(6), dis(7)]];
+    s.charge = [[chg(0), chg(1), chg(2), chg(3)], [chg(4), chg(5), chg(6), chg(7)]];
     const shatter = this.shatterNow || this.ctx.hand.shatterAll;
     b.dt = dt; b.time = f.t; b.floorY = floorY; b.fill = P.fill;
     b.stiffness = P.stiffness; b.damping = P.damping; b.transition = 0; b.breathe = 0;

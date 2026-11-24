@@ -106,10 +106,12 @@ fn main(@builtin(global_invocation_id) gid: vec3u) {
   let d = dancerOf(home);
   let fus = isFusion(home.look.x);
   let form = select(clamp(home.look.x + sim.form[d / 4u][d % 4u], 0.0, 1.0), 0.0, fus);
+  let dis = select(clamp(sim.dissolve[d / 4u][d % 4u], 0.0, 1.0), 0.0, fus);
+  let chg = select(clamp(sim.charge[d / 4u][d % 4u], 0.0, 1.0), 0.0, fus);
   let seed = pcg(i * 9781u + 17u);
   let rn = pcg(i ^ (sim.frameNo * 2654435761u));
-  // a few slots throw embers (or sparks), the rest are flame (a fusion's are all flame)
-  let emberSlot = rnd(seed ^ 0xe0u) < 0.035 * min(sim.embers, 4.0) && !fus;
+  // a few slots throw embers (or sparks), the rest are flame (a fusion's are all flame); dissolving bursts into embers
+  let emberSlot = (rnd(seed ^ 0xe0u) < 0.035 * min(sim.embers, 4.0) + 0.14 * dis + 0.06 * chg) && !fus;
   let K = u32(sim.fusion.x + 0.5);
   let side = fusionSide(home.look.x);
   // through the eight bars the column grows (aurora most); past the eighth (the release) it parts: every flame is its
@@ -143,22 +145,22 @@ fn main(@builtin(global_invocation_id) gid: vec3u) {
     let r1 = rnd(rn ^ 0xa1u);
     let r2 = rnd(rn ^ 0xa2u);
     let r3 = rnd(rn ^ 0xa3u);
-    // embers fly mostly off fast limbs; a still dancer lets one go now and then
-    let ember = emberSlot && rnd(rn ^ 0xa4u) < 0.06 + 0.94 * smoothstep(1.0, 4.0, speed);
+    // embers fly mostly off fast limbs; charging and ember-dissolve throw showers of bright sparks
+    let ember = emberSlot && rnd(rn ^ 0xa4u) < 0.06 + 0.94 * smoothstep(1.0, 4.0, speed) + 0.85 * dis + 0.45 * chg;
     let core = 1.0 - home.place.w;            // 0 on the surface … ~0.65 deep inside: the inside burns hotter
     let torso = select(0.0, 1.0, home.look.z < 0.5);
     f.age = 0.0;
-    f.pos = H.pos + H.out * (0.015 * r1 * (1.0 - 0.7 * form)) + sphereDir(rn ^ 0xa5u) * 0.008;
+    f.pos = H.pos + H.out * ((0.015 + 0.24 * dis) * r1 * (1.0 - 0.55 * form)) + sphereDir(rn ^ 0xa5u) * (0.008 + 0.16 * dis);
     let k = mix(1.0, 0.35, form) * (1.0 - 0.65 * wet) * (1.0 - 0.55 * cold);
-    let T0 = sim.heat * mix(0.7, 1.3, r2) * (1.0 + 0.6 * core + 0.15 * torso) * (1.0 - 0.75 * wet) * (1.0 - 0.4 * cold);
+    let T0 = sim.heat * mix(0.7, 1.3, r2) * (1.0 + 0.6 * core + 0.15 * torso) * (1.0 - 0.75 * wet) * (1.0 - 0.4 * cold) * (1.0 + 0.65 * chg + 0.55 * dis);
     if (ember) {
-      f.vel = H.vel * mix(0.9, 1.25, r1) + sphereDir(rn ^ 0xa6u) * mix(0.4, 1.0, r3) * (1.0 + form) + UP * 0.4 * (1.0 - form);
-      f.life = mix(mix(0.7, 2.9, r3 * r3), mix(0.18, 0.58, r3), form) * (1.0 - 0.5 * wet);
-      f.look = vec4f(form, 1.0, -sim.size * mix(0.12, 0.26, r2), wet);
+      f.vel = H.vel * mix(0.9, 1.25 + 0.45 * dis, r1) + sphereDir(rn ^ 0xa6u) * mix(0.4, 1.0 + 1.6 * dis, r3) * (1.0 + form) + UP * (0.4 + 0.7 * chg + 0.5 * dis) * (1.0 - form);
+      f.life = mix(mix(0.7, 2.9, r3 * r3), mix(0.18, 0.58, r3), form) * (1.0 - 0.5 * wet) * (1.0 + 0.4 * dis);
+      f.look = vec4f(form, 1.0 + 0.4 * chg + 0.4 * dis, -sim.size * mix(0.12, 0.26, r2) * (1.0 + 0.35 * dis), wet);
     } else {
-      f.vel = H.vel * sim.inherit + H.out * mix(0.03, 0.15, r1) * (1.0 - 0.8 * form) + UP * 0.2 * (1.0 - form);
-      f.life = sim.life * mix(0.45, 1.25, r3 * r3) * k * fm.x * grow;
-      f.look = vec4f(form, T0, sim.size * mix(0.6, 1.4, r1) * (1.0 - 0.45 * cold) * fm.z, wet);
+      f.vel = H.vel * (sim.inherit * (1.0 + 0.45 * dis)) + H.out * (mix(0.03, 0.15, r1) * (1.0 - 0.8 * form) + 0.85 * dis) + UP * (0.2 + 0.55 * chg) * (1.0 - form);
+      f.life = sim.life * mix(0.45, 1.25, r3 * r3) * k * fm.x * grow * (1.0 + 0.85 * dis + 0.28 * chg);
+      f.look = vec4f(form, T0, sim.size * mix(0.6, 1.4, r1) * (1.0 - 0.45 * cold) * fm.z * (1.0 + 0.32 * dis + 0.14 * chg), wet);
     }
     if (fus) {
       // the flame keeps its side where its form would be (the field tells the two bodies' matter apart by it)
@@ -216,14 +218,22 @@ fn main(@builtin(global_invocation_id) gid: vec3u) {
     let T = flameT(f);
     var acc = UP * sim.buoyancy * (0.3 + min(T, 2.5)) * (1.0 - 0.75 * form) * fm.y;
     // aurora's stirring runs at half time
-    acc += stir(f.pos, sim.time * select(1.0, 0.5, fus && K == 3u), mix(1.0, 4.0, form)) * sim.turbulence * (0.35 + min(T, 1.6)) * (1.0 + 0.8 * form) * fm.w;
+    acc += stir(f.pos, sim.time * select(1.0, 0.5, fus && K == 3u), mix(1.0, 4.0, form) * (1.0 + 0.9 * dis)) * sim.turbulence * (0.35 + min(T, 1.6)) * (1.0 + 0.8 * form + 1.15 * dis) * fm.w;
     // plasma clings to its home, so it takes little of the curl
     acc += curlAt(d, f.pos) * (1.0 - 0.8 * form);
-    f.vel = wind + (f.vel - wind) * exp(-sim.drag * dt);
-    // plasma clings: an implicit spring to where its home is now (stable for any stiffness and step)
-    // (prism clings while it holds; on the release every kind's flames are drawn back to their own body, which the
-    // knock is carrying away from the other: the one body parts into two)
-    let kc = sim.cling * form * form + select(0.0, 25.0, fus && K == 1u && !released) + 22.0 * parting;
+    // charge vortex: coils flames inward and swirling upward around the dancer's core
+    if (chg > 0.02) {
+      let hips = joints[d * MAXJ].pos.xyz;
+      let rel = f.pos - hips;
+      let horiz = vec3f(rel.x, 0.0, rel.z);
+      let rLen = max(length(horiz), 0.06);
+      let tang = vec3f(-horiz.z / rLen, 0.42, horiz.x / rLen);
+      acc += tang * (7.0 * chg) - horiz * (4.2 * chg);
+    }
+    f.vel = wind + (f.vel - wind) * exp(-sim.drag * (1.0 - 0.35 * dis) * dt);
+    // plasma clings: an implicit spring to where its home is now; dissolving lets flames burst into a comet, then snaps them back on reform
+    let reform = smoothstep(0.02, 0.35, dis) * (1.0 - smoothstep(0.35, 0.72, dis));
+    let kc = sim.cling * form * form * (1.0 - 0.85 * dis) + select(0.0, 25.0, fus && K == 1u && !released) + 22.0 * parting + 42.0 * reform;
     if (kc > 0.0) {
       let H = homeOf(home, i, sim.body);
       let c = sqrt(kc) * 0.6;

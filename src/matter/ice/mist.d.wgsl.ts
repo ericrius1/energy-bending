@@ -79,6 +79,8 @@ export interface WaterSim {
   colds: ArrayLike<number> | Vec4[];
   flow: Vec4;
   edge: Vec4;
+  dissolve: ArrayLike<number> | Vec4[];
+  charge: ArrayLike<number> | Vec4[];
 }
 export interface Aux {
   ice: number;

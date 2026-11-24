@@ -20,6 +20,7 @@ const isHot = (el: Element) => el === 'fire' || el === 'plasma';
 export const SFX_GAIN: Record<string, number> = {
   'move:kick': 4.4, 'move:martelo': 4.4, 'move:bencao': 5.6, 'move:sweep': 2.6, 'move:run': 5.2,
   'move:strike': 5.4, 'move:throw:hot': 4.2, 'move:throw:cold': 5.8, 'move:spin': 7.8, 'move:jump': 4.4, 'move:esquiva': 4.4, 'move:dash': 4.8,
+  'move:flip': 4.6, 'move:cyclone': 6.4, 'move:hydro-slip': 4.8, 'move:ember-surge': 4.4, 'move:charge': 5.0, 'move:ring': 4.2, 'move:steam': 3.4,
   dodge: 3.4, near: 6.2, clash: 1.3, parry: 1.5, hit: 1.3, land: 1.4, respawn: 4.5,
   'formOn:hot': 1.2, 'formOn:cold': 3.8, 'formOff:hot': 3, 'formOff:cold': 5,
   echo: 6, unison: 1.2, mergeReady: 2.5, count: 1.5, 'count:final': 1.0, finale: 0.9, results: 3,
@@ -40,6 +41,8 @@ export function gainKey(c: SfxCall) {
   if (SWEEPS.has(mv)) return 'move:sweep';
   if (RUNS.has(mv)) return 'move:run';
   if (mv === 'throw') return `move:throw:${hc}`;
+  if (mv === 'somersault' || mv === 'backflip' || mv === 'corkscrew') return 'move:flip';
+  if (mv === 'cyclone' || mv === 'hydro-slip' || mv === 'ember-surge' || mv === 'charge' || mv === 'ring' || mv === 'steam') return `move:${mv}`;
   if (mv === 'spin' || mv === 'jump' || mv === 'dash') return `move:${mv}`;
   if (mv === 'esquiva' || mv === 'dodge') return 'move:esquiva';
   return 'move:strike';
@@ -159,6 +162,66 @@ export class Jogo {
       const s = n.o('sine', f, t, t + 0.55); n.link(n.o('sine', 7, t, t + 0.55), n.gn(f * 0.02), s.frequency);
       n.link(s, n.envG(t, perfect ? 0.08 : 0.048, 0.08, 0.4), out);
       tone(n, out, t + 0.06, notes(tones, 76, 2)[perfect ? 1 : 0], el, perfect ? 0.075 : 0.045, 0.004, 0.28);
+    } else if (mv === 'somersault' || mv === 'backflip' || mv === 'corkscrew') { // soaring aerial flip whoosh + ascending chord chime
+      const out = this.sv('move', t, pan, vel, 4, 0.72, 0.24, { del: 0.14 });
+      const bp = n.bq('bandpass', 620, 2.2); n.path(bp.frequency, t, [[0, 520], [0.16, 2600], [0.42, 1100]]);
+      n.link(n.noiseL(t, 0.48), bp, n.envG(t, 0.46, 0.03, 0.36), out);
+      const ns = notes(tones, mv === 'corkscrew' ? 74 : 70, 5);
+      const cnt = mv === 'corkscrew' ? 4 : 3;
+      for (let i = 0; i < cnt; i++) tone(n, out, t + i * 0.055, ns[i] + (perfect ? 12 : 0), el, 0.068, 0.003, 0.28);
+    } else if (mv === 'cyclone') { // roaring twin-helix whirlwind swirl + sparkling vortex chimes
+      const out = this.sv('move', t, pan, vel, 3, 0.9, 0.26, { del: 0.16 });
+      const bp = n.bq('bandpass', 500, 3.2); n.path(bp.frequency, t, [[0, 480], [0.3, 3100], [0.72, 950]]);
+      const trem = n.gn(0.5); n.link(n.o('sine', 18, t, t + 0.8), n.gn(0.5), trem.gain);
+      n.link(n.noiseL(t, 0.8), bp, trem, n.envG(t, 0.52, 0.06, 0.65), out);
+      const ns = notes(tones, 72, 4);
+      ns.forEach((m, i) => tone(n, out, t + i * 0.07, m, el, 0.055, 0.004, 0.34));
+    } else if (mv === 'hydro-slip') { // silky hydroplaning liquid rush + sparkling surf spray
+      const out = this.sv('move', t, pan, vel, 4, 0.75, 0.22);
+      const bp = n.bq('bandpass', 900, 1.4); n.path(bp.frequency, t, [[0, 800], [0.18, 3200], [0.55, 1100]]);
+      n.link(n.noiseL(t, 0.65), bp, n.envG(t, 0.54, 0.04, 0.5), out);
+      const ns = notes(tones, 74, 4);
+      for (let i = 0; i < 4; i++) {
+        const tt = t + i * 0.055, f = mtof(ns[i]);
+        const s = n.o('sine', f, tt, tt + 0.14); s.frequency.exponentialRampToValueAtTime(f * 1.4, tt + 0.045);
+        n.link(s, n.envG(tt, 0.06, 0.003, 0.1), out);
+      }
+    } else if (mv === 'ember-surge') { // roaring solar flame dissolve + ember crackle + bright reform bell
+      const out = this.sv('move', t, pan, vel, 4, 0.82, 0.24);
+      const bp = n.bq('bandpass', 650, 1.1); n.path(bp.frequency, t, [[0, 650], [0.14, 2900], [0.58, 720]]);
+      n.link(n.noiseL(t, 0.68), bp, n.envG(t, 0.58, 0.02, 0.52), out);
+      for (let i = 0; i < 6; i++) {
+        const tt = t + 0.04 + i * 0.065;
+        n.link(n.noiseL(tt, 0.015), n.bq('bandpass', 2800 + i * 420, 2.2), n.envG(tt, 0.14, 0.001, 0.012), out);
+      }
+      const ns = notes(tones, 69, 4);
+      tone(n, out, t + 0.02, ns[0], 'fire', 0.06, 0.004, 0.22);
+      tone(n, out, t + 0.44, ns[3] + 12, 'fire', 0.085, 0.003, 0.36);
+    } else if (mv === 'charge') { // rising crystalline tier chime (count = 1 | 2 | 3)
+      const tier = clamp((o.count ?? 1) | 0, 1, 3);
+      const out = this.sv('charge', t, pan, vel, 4, 0.55, 0.25);
+      const ns = notes(tones, 72, 6);
+      tone(n, out, t, ns[tier - 1], el, 0.08, 0.003, 0.32);
+      if (tier >= 2) tone(n, out, t + 0.04, ns[tier + 1], 'ice', 0.07, 0.003, 0.38);
+      if (tier >= 3) tone(n, out, t + 0.08, ns[tier + 2] + 12, el, 0.085, 0.002, 0.48);
+    } else if (mv === 'ring') { // radiant Harmonic Flow Ring pentatonic arpeggio climbing with combo
+      const idx = clamp(((o.count ?? 1) - 1) | 0, 0, 7);
+      const out = this.sv('ring', t, pan, vel, 4, 1.15, 0.32, { del: 0.2 });
+      const ns = notes(H.mood.pent, 67, 14);
+      const m0 = ns[idx], m1 = ns[idx + 2], m2 = ns[idx + 4];
+      tone(n, out, t, m0, 'ice', 0.095, 0.003, 0.45);
+      tone(n, out, t + 0.055, m1, el, 0.09, 0.003, 0.52);
+      if (perfect) tone(n, out, t + 0.11, m2, 'ice', 0.095, 0.002, 0.72);
+      n.link(n.noiseL(t, 0.28), n.bq('highpass', 4800), n.envG(t, 0.09, 0.008, 0.22), out);
+    } else if (mv === 'steam') { // lush Steam Boost / Aurora Surge hiss + warm stereo fifth swell
+      const out = this.sv('steam', t, pan, vel, 3, 1.1, 0.34, { del: 0.18 });
+      const bp = n.bq('bandpass', 5200, 0.8); n.path(bp.frequency, t, [[0, 6200], [0.75, 1600]]);
+      n.link(n.noiseL(t, 0.85), n.bq('highpass', 1800), bp, n.envG(t, 0.28, 0.015, 0.7), out);
+      const ns = notes(tones, 72, 5);
+      const [pl, pr] = this.stereo(out, -0.45, 0.45);
+      tone(n, pl, t + 0.01, ns[0], 'fire', 0.075, 0.005, 0.65, 1.25);
+      tone(n, pr, t + 0.03, ns[2], 'ice', 0.08, 0.005, 0.72, 1.25);
+      tone(n, out, t + 0.08, ns[4], el, 0.07, 0.004, 0.85);
     } else if (mv === 'dash') { // swift aerodynamic burst + rising elemental spark
       const out = this.sv('move', t, pan, vel, 4, 0.38, 0.15);
       const bp = n.bq('bandpass', 750, 1.5); n.path(bp.frequency, t, [[0, 750], [0.12, 2900], [0.28, 1200]]);

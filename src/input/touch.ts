@@ -93,7 +93,8 @@ export class TouchSource implements IntentSource {
     this.hand.dx = 0; this.hand.dy = 0;
     o.jump = B.took('jump'); o.jumpHeld = B.held('jump');
     o.punch = B.took('strike'); o.punchHeld = B.held('strike');
-    o.kick = B.took('kick'); o.spin = B.took('spin');
+    o.kick = B.took('kick'); o.kickHeld = B.held('kick');
+    o.spin = B.took('spin'); o.spinHeld = B.held('spin');
     o.dodge = B.took('dodge'); o.dodgeHeld = B.held('dodge');
     o.form = B.took('form'); o.merge = B.held('merge');
     o.lock = B.took('lock'); o.interact = B.took('interact');

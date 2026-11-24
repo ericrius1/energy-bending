@@ -475,6 +475,10 @@ export class GemPasses implements MatterPasses {
     b.hold = P.hold; b.trailCap = P.trailCap; b.speedShed = P.speedShed * (1 - P.hold * (1 - P.leak));
     this.moveBodies(f, shatter);
     s.caps = this.caps;
+    const dis = (d: number) => Math.max(0, Math.min(1, f.dancers[d]?.dissolve ?? 0));
+    const chg = (d: number) => Math.max(0, Math.min(1, f.dancers[d]?.charge ?? 0));
+    s.dissolve = [[dis(0), dis(1), dis(2), dis(3)], [dis(4), dis(5), dis(6), dis(7)]];
+    s.charge = [[chg(0), chg(1), chg(2), chg(3)], [chg(4), chg(5), chg(6), chg(7)]];
     this.sim.set(s);
     this.shatterNow = false;
     for (const v of this.views.values()) {

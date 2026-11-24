@@ -91,6 +91,8 @@ export interface FireSim {
   fusion: Vec4;
   helixAt: Vec4;
   helixShape: Vec4;
+  dissolve: ArrayLike<number> | Vec4[];
+  charge: ArrayLike<number> | Vec4[];
 }
 
 declare const shader: Shader<{ Joint: Joint; Seg: Seg; Particle: Particle; Home: Home; BodyStep: BodyStep; Flame: Flame; FireSim: FireSim }, never>;

@@ -26,6 +26,10 @@ struct Sim {
    *  y this frame's burst (the share of its stones that break off: a peak, an impact, a crystal cracking), z how hard,
    *  w its clap's flash (1 at the moment a dancer's hands meet in a clap, fading; the hands and forearms only) */
   caps: array<vec4f, MAX_DANCERS * SEGS>,
+  /** per dancer slot: 0 solid gem body … 1 orbiting prism scatter vortex */
+  dissolve: array<vec4f, 2>,
+  /** per dancer slot: 0 idle … 1 overdrive charge */
+  charge: array<vec4f, 2>,
 }
 
 /** a view's cull (one per view): which fixtures it sees (its world's), whether its floor mirrors */

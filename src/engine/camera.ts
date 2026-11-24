@@ -648,14 +648,16 @@ export class CameraRig {
       this.pitch += (R.pitch - this.pitch) * rk;
       R.t -= dt;
       if (R.t <= 0 || (Math.abs(wrap(R.yaw - this.yaw)) < 0.01 && Math.abs(R.pitch - this.pitch) < 0.01)) this.recenterTarget = null;
-    } else if (this.lookIdle > P.followWait) {
-      // left alone: the pitch settles, and while running forward/diagonally the eye gently swings behind them
+    } else if (this.lookIdle > (F.speed > 4.2 ? Math.min(P.followWait, 0.9) : P.followWait)) {
+      // left alone: the pitch settles, and while running/surfing forward/diagonally the eye gently swings behind them
       // (never whipping 180° when backing toward the camera)
-      this.pitch += (P.followPitch - this.pitch) * (1 - Math.exp(-dt * 1.2));
+      this.pitch += (P.followPitch - this.pitch) * (1 - Math.exp(-dt * 1.4));
       if (F.speed > 0.6) {
+        const wait = F.speed > 4.2 ? Math.min(P.followWait, 0.9) : P.followWait;
         const want = F.yaw + Math.PI, d = wrap(want - this.yaw);
-        const fwdMask = smooth01((2.2 - Math.abs(d)) / 0.7);
-        const most = P.followSwing * fwdMask * dt * Math.min(1, (this.lookIdle - P.followWait) / 0.8) * Math.min(1, F.speed / 2.5);
+        const fwdMask = smooth01((2.4 - Math.abs(d)) / 0.7);
+        const surfGain = F.speed > 4.2 ? 1.85 : 1;
+        const most = P.followSwing * surfGain * fwdMask * dt * Math.min(1, (this.lookIdle - wait) / 0.6) * Math.min(1.4, F.speed / 2.5);
         this.yaw += Math.max(-most, Math.min(most, d));
       }
     }
@@ -669,8 +671,11 @@ export class CameraRig {
       this.pitch += (Math.min(this.pitch, 0.14) - this.pitch) * (1 - Math.exp(-dt * 2 * give));
     }
     const zoom = Math.max(0.6, Math.min(1.8, this.zoom));
-    let dist = P.followDist * zoom + Math.min(F.spread, 5) * 0.45 * (1 - alone);
-    this.fov = P.followFov;
+    const surfBoom = smooth01((F.speed - 3.6) / 3.0) * 0.85;
+    let dist = (P.followDist + surfBoom) * zoom + Math.min(F.spread, 6.5) * 0.48 * (1 - alone);
+    // kinetic speed FOV surge during high-speed carving, morphs, and Flow Ring boosts
+    const fovBoost = smooth01((F.speed - 4.4) / 4.0) * 6.5;
+    this.fov = P.followFov + fovBoost;
     // a partner near enough is kept in frame: stand back as far as it takes (to a limit) to hold both, hips and head
     if (f.dancers.length > 1 && alone < 1) {
       const t = Math.tan((this.fov * Math.PI) / 360), tx = t * Math.max(f.aspect, 0.5);

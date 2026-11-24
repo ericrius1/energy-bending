@@ -18,6 +18,8 @@ struct WaterSim {
   colds: array<vec4f, 2>,   // how much of each dancer is ice by its loadout (its own cold in the field: not to freeze it)
   flow: vec4f,         // the body running: x how fast it runs along its capsules (m/s), y the travelling bulges' height (m), z their spacing (m), w how much fast limbs peel off their trailing side
   edge: vec4f,         // the outline breaking: x how far the outer shell curls (m), y the curl's scale (1/m), z how fast it climbs (m/s), w streamers: the chance a second an outer particle on a fast limb's trailing side is left hanging
+  dissolve: array<vec4f, 2>, // per dancer slot: 0 upright body … 1 sleek surging hydro-slip wave
+  charge: array<vec4f, 2>,   // per dancer slot: 0 idle … 1 overdrive charge
 }
 
 /** a particle's state of matter: x how frozen (0 water … 1 ice), y foam (spray, splashes), z gone (boiled away:
@@ -28,6 +30,8 @@ struct Aux { ice: f32, foam: f32, gone: f32, was: f32 }
 fn formOf(sim: WaterSim, d: u32) -> f32 { return sim.forms[min(d, 7u) / 4u][d % 4u]; }
 /** how much of a dancer is ice by its loadout */
 fn coldOf(sim: WaterSim, d: u32) -> f32 { return sim.colds[min(d, 7u) / 4u][d % 4u]; }
+fn dissolveOf(sim: WaterSim, d: u32) -> f32 { return clamp(sim.dissolve[min(d, 7u) / 4u][d % 4u], 0.0, 1.0); }
+fn chargeOf(sim: WaterSim, d: u32) -> f32 { return clamp(sim.charge[min(d, 7u) / 4u][d % 4u], 0.0, 1.0); }
 
 /** a particle's splat radius in the surface (0 once boiled away). Ice on the body splats too (the surface shades it as
  *  faceted crystal); ice that has broken off and flies is drawn as shards instead (ice/shards.wgsl) */

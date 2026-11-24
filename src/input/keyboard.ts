@@ -162,9 +162,12 @@ export class KeyboardSource implements IntentSource {
     if (D && !free && !o.moveY && any(D.up)) o.moveY = 1;
     const punchKeys = L.mouse ? [...L.punch, 'Mouse0'] : L.punch;
     const kickKeys = L.mouse ? [...(D ? D.kick : L.kick), 'Mouse2Tap'] : (D ? D.kick : L.kick);
+    const spinKeys = D ? D.spin : L.spin;
+    const dodgeKeys = D ? D.dodge : L.dodge;
     o.punch = edge(punchKeys); o.punchHeld = any(punchKeys);
-    o.kick = edge(kickKeys); o.spin = edge(D ? D.spin : L.spin);
-    o.dodge = edge(D ? D.dodge : L.dodge); o.dodgeHeld = any(D ? D.dodge : L.dodge);
+    o.kick = edge(kickKeys); o.kickHeld = any(D ? D.kick : L.kick);
+    o.spin = edge(spinKeys); o.spinHeld = any(spinKeys);
+    o.dodge = edge(dodgeKeys); o.dodgeHeld = any(dodgeKeys);
     if (D) { o.dash = edge(D.dash); o.power1 = edge(D.power1); o.power2 = edge(D.power2); }
     o.form = edge(L.form); o.merge = any(L.merge);
     o.lock = edge(L.lock); o.interact = edge(L.interact);

@@ -36,7 +36,9 @@ test('RULES lists every move name with attack and flow', () => {
     // the flourishes and the clap (src/ai/clips.ts, the pirouette): no attack, a little flow
     'pirueta', 'giro', 'volta', 'saltos', 'voo', 'tour', 'quebra', 'palmas',
     // the partner's low game and inversions, and the bow (procedural, src/dancer/moves.ts)
-    'negativa', 'cocorinha', 'compasso', 'queda-de-rins', 'bow'];
+    'negativa', 'cocorinha', 'compasso', 'queda-de-rins', 'bow',
+    // Flow Surf aerial acrobatics, spins & elemental morph moves
+    'somersault', 'backflip', 'corkscrew', 'cyclone', 'hydro-slip', 'ember-surge', 'surf-carve'];
   for (const n of names) {
     assert.ok(RULES.moves[n], n);
     assert.equal(typeof RULES.moves[n].attack, 'boolean', n);

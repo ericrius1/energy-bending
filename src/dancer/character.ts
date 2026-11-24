@@ -240,7 +240,21 @@ export const HUMAN_DANCE_PHYS: Phys = defineParams('dance.move', {
   turnRate: 22,
   glance: 0.8, vaultH: 1.0,
 });
-export const PROFILES: Record<'jogo' | 'duel' | 'human', Phys> = { jogo: PHYS, duel: DUEL_PHYS, human: HUMAN_DANCE_PHYS };
+/** kinetic Flow Surf profile: continuous fluid gliding, sweeping carved turns, buoyant charged flips, forgiving air control */
+export const SURF_PHYS: Phys = defineParams('surf.move', {
+  ...HUMAN_DANCE_PHYS,
+  runSpeed: 6.2,
+  groundAccel: 38, groundDecel: 26, turnAccel: 92, groundOver: 9,
+  airAccel: 24, airDrag: 1.8, airOver: 2.5,
+  gravity: 30, jumpV: 10.6, airJumpV: 8.8, fallMul: 1.26, cutMul: 1.85,
+  maxFall: 13.5, fastFall: 18.5, fastFallMul: 1.75,
+  coyote: 0.15, jumpBuffer: 0.16, moveBuffer: 0.24,
+  landSquash: 0.11,
+  slideK: 1.8,
+  turnRate: 18,
+  glance: 0.92, vaultH: 1.15, airVaultH: 0.75,
+});
+export const PROFILES: Record<'jogo' | 'duel' | 'human' | 'surf', Phys> = { jogo: PHYS, duel: DUEL_PHYS, human: HUMAN_DANCE_PHYS, surf: SURF_PHYS };
 /** the jogo's timing windows (ms) and how close counts as near (m) */
 export const COMBAT = defineParams('combat', { PARRY_MS: 150, PERFECT_MS: 90, NEAR: 0.14 });
 
@@ -375,6 +389,30 @@ export class Character {
   dashUp = 0;
   /** how much the wall's lean and the dash's lunge show (0..1, eased) */
   wallW = 0; dashW = 0;
+  // ---- Flow Surf kinetic surfing & hold-to-charge state (active only when surfMode && !plane)
+  /** continuous kinetic surfing mode (free 3D Dance): constant forward/sideways glide + hold-to-charge flips/spins/morphs */
+  surfMode = false;
+  /** dancer's active element so Morph dispatches hydro-slip (water/ice) vs ember-surge (fire/plasma/gems) */
+  surfElement: 'fire' | 'plasma' | 'water' | 'ice' | 'gems' = 'fire';
+  /** continuous surf travel heading (rad, world yaw) */
+  surfHeading = 0;
+  /** carving bank angle (-1 left … +1 right) */
+  bank = 0;
+  /** sideways power-drift amount (0 … 1) */
+  carveSlide = 0;
+  /** hold-to-charge progress (0 … 1; Tier 1 at 0.33, Tier 2 at 0.66, Overdrive at 1.0) */
+  charge = 0;
+  chargeAction: 'jump' | 'spin' | 'morph' | null = null;
+  chargeTier = 0;
+  /** elemental morph dissolve intensity (0 … 1), mirrored to Dancer.dissolve for GPU fire/water/gems shaders */
+  dissolve = 0;
+  private dissolvePeak = 0.9;
+  /** temporary speed surge from Flow Rings, wake drafts, morphs, and charged tricks */
+  boostT = 0;
+  boostSpeed = 0;
+  private _prevHoldJump = false;
+  private _prevHoldSpin = false;
+  private _prevHoldMorph = false;
 
   private _local = new Float32Array(NP);
   private _tmp = new Float32Array(NP);
@@ -444,14 +482,39 @@ export class Character {
     this._prev.set(this.pose); this.vel.fill(0);
   }
 
-  /** the duel's feel, the human dance feel, or the jogo's (PROFILES), or a profile of one's own */
-  setProfile(p: Phys | 'jogo' | 'duel' | 'human') { this.phys = typeof p === 'string' ? PROFILES[p] : p; }
+  /** the duel's feel, the human dance feel, Flow Surf, or the jogo's (PROFILES), or a profile of one's own */
+  setProfile(p: Phys | 'jogo' | 'duel' | 'human' | 'surf') { this.phys = typeof p === 'string' ? PROFILES[p] : p; }
+  /** turn continuous Flow Surf mode on or off */
+  enableSurf(on: boolean) {
+    this.surfMode = on;
+    if (on) {
+      this.phys = SURF_PHYS;
+      this.surfHeading = this.yaw;
+      this.charge = 0; this.chargeTier = 0; this.chargeAction = null;
+      this.dissolve = 0; this.bank = 0; this.carveSlide = 0;
+    }
+  }
+  /** grant a smooth kinetic speed surge (e.g. Flow Ring capture, wake draft, elemental morph) */
+  giveBoost(extraSpeed: number, dur: number) {
+    this.boostSpeed = Math.max(this.boostSpeed, extraSpeed);
+    this.boostT = Math.max(this.boostT, dur);
+    if (this.surfMode && !this.plane) {
+      const f = fwdOf(this.surfHeading);
+      const sp = Math.hypot(this.v[0], this.v[2]);
+      const target = Math.max(sp, 5.2 + extraSpeed);
+      this.v[0] = f[0] * target;
+      this.v[2] = f[1] * target;
+    }
+  }
   private _resetKit() {
     this.wallSide = 0; this.wallId = null; this.wallNear = 0; this.wallNearId = null; this.wallCoyoteT = 0; this.wallLast = 0; this.wallLastId = null;
     this.wallStickT = 0; this.lockT = 0; this.lockDir = 0; this.wallRunT = 0; this.flightT = 0; this.vaultT = 0;
     this.wallN = [0, 0]; this.wallNearN = [0, 0]; this.wallLastN = [0, 0]; this.lockN = [0, 0];
     this.dashT = 0; this.dashV = [0, 0, 0]; this.dashes = 1; this.dashAge = 0; this.dashBuf = 0; this.dashCoolT = 0; this.landLagT = 0;
     this.wallW = 0; this.dashW = 0;
+    this.bank = 0; this.carveSlide = 0; this.charge = 0; this.chargeAction = null; this.chargeTier = 0;
+    this.dissolve = 0; this.boostT = 0; this.boostSpeed = 0;
+    this._prevHoldJump = false; this._prevHoldSpin = false; this._prevHoldMorph = false;
   }
 
   /** lock to a plane (or free with null), easing the dancer onto it from where it stands */
@@ -729,15 +792,34 @@ export class Character {
     }
     if (this.stagger > 0) { this.stagger = Math.max(0, this.stagger - h); if (this.stagger === 0) this._crossfade('loco', 0.12); }
     const env = this.env;
+    // ----- surf timers & elemental dissolve envelope
+    if (this.boostT > 0) {
+      this.boostT = Math.max(0, this.boostT - h);
+      if (this.boostT === 0) this.boostSpeed = 0;
+    }
+    if (this.move?.name === 'hydro-slip') {
+      const u = clamp(this.move.t / this.move.dur, 0, 1);
+      this.dissolve = this.dissolvePeak * Math.sin(Math.PI * clamp((u - 0.03) / 0.86, 0, 1));
+    } else if (this.move?.name === 'ember-surge') {
+      const u = clamp(this.move.t / this.move.dur, 0, 1);
+      this.dissolve = this.dissolvePeak * smooth(u / 0.16) * (1 - smooth((u - 0.58) / 0.28));
+    } else if (this.dissolve > 0) {
+      this.dissolve *= Math.exp(-h * 10);
+      if (this.dissolve < 0.004) this.dissolve = 0;
+    }
     // ----- decisions
     const free = this.stagger <= 0;
     const m = this.move;
-    if (m) {
+    const surfing = this.surfMode && !this.plane;
+    if (m && !surfing) {
       const u = m.t / m.dur;
       // strike held → becomes the throw
       if (m.name === 'strike' && it.punchHeld && m.t > 0.75 * m.def.windup * tempoScale(m.bpm) && u < m.def.active![0]) { this.move = null; this.startMove('throw'); }
     }
-    if (free) this._tryActions(it, beat);
+    if (free) {
+      if (surfing) this._surfActions(h, it);
+      else this._tryActions(it, beat);
+    }
     // ----- move time
     const mv = this.move;
     if (mv) {
@@ -812,6 +894,129 @@ export class Character {
     if (choice.blink) { this._blink(choice); this.btnBuf = null; return; }
     if (this.move) this._endMove();
     if (this.startMove(choice.name, choice)) this.btnBuf = null;
+  }
+
+  /** Flow Surf hold-to-charge & acrobatic trick dispatch (free 3D surfMode only) */
+  private _surfActions(h: number, it: Intent) {
+    const P = this.phys;
+    const holdJump = !!it.jumpHeld;
+    const holdSpin = !!(it.punchHeld || it.spinHeld);
+    const holdMorph = !!(it.dodgeHeld || it.kickHeld);
+    const m = this.move;
+    const u = m ? m.t / m.dur : 1;
+    const canAct = !m || u >= 0.36;
+
+    // mid-air Space press: immediate forward somersault with aerial lift!
+    if (!this.grounded && this.coyote <= 0 && this.jumpBuf > 0 && this.airJumps > 0 && canAct) {
+      this.charge = 0; this.chargeTier = 0; this.chargeAction = null;
+      this.jumpBuf = 0; this.airJumps--; this.fastFalling = false;
+      this.v[1] = P.airJumpV;
+      this.giveBoost(1.6, 0.45);
+      if (this.move) this._endMove();
+      this.startMove('somersault', { yaw: this.surfHeading, air: true });
+      this.events.push({ type: 'jump', x: this.root[0], y: this.root[1], z: this.root[2], air: true });
+      this.events.push({ type: 'trick', move: 'somersault', tier: 1, charged: false, action: 'jump', element: this.surfElement, x: this.root[0], y: this.root[1], z: this.root[2] });
+      this._prevHoldJump = holdJump; this._prevHoldSpin = holdSpin; this._prevHoldMorph = holdMorph;
+      return;
+    }
+
+    // currently charging a move
+    if (this.chargeAction) {
+      const stillHeld = this.chargeAction === 'jump' ? (holdJump && (this.grounded || this.coyote > 0))
+        : this.chargeAction === 'spin' ? holdSpin
+        : holdMorph;
+      if (stillHeld) {
+        this.charge = Math.min(1, this.charge + h / 0.85);
+        const nextTier = this.charge >= 0.98 ? 3 : this.charge >= 0.66 ? 2 : this.charge >= 0.33 ? 1 : 0;
+        if (nextTier > this.chargeTier) {
+          this.chargeTier = nextTier;
+          this.events.push({ type: 'chargeTier', tier: nextTier, action: this.chargeAction, x: this.root[0], y: this.root[1], z: this.root[2] });
+        }
+      } else {
+        const act = this.chargeAction, ch = this.charge, tr = this.chargeTier;
+        this.charge = 0; this.chargeTier = 0; this.chargeAction = null;
+        this._releaseSurfCharge(act, ch, tr);
+      }
+      this._prevHoldJump = holdJump; this._prevHoldSpin = holdSpin; this._prevHoldMorph = holdMorph;
+      return;
+    }
+
+    // fresh press / start charging
+    if (canAct) {
+      const jumpPressed = (this.jumpBuf > 0 || (holdJump && !this._prevHoldJump)) && (this.grounded || this.coyote > 0);
+      const spinPressed = this.btnBuf?.b === 'punch' || this.btnBuf?.b === 'spin' || (holdSpin && !this._prevHoldSpin);
+      const morphPressed = this.btnBuf?.b === 'dodge' || this.btnBuf?.b === 'kick' || this.dashBuf > 0 || (holdMorph && !this._prevHoldMorph);
+      if (jumpPressed) {
+        this.jumpBuf = 0;
+        if (holdJump) { this.chargeAction = 'jump'; this.charge = 0.02; this.chargeTier = 0; }
+        else this._releaseSurfCharge('jump', 0, 0);
+      } else if (spinPressed) {
+        this.btnBuf = null;
+        if (holdSpin) { this.chargeAction = 'spin'; this.charge = 0.02; this.chargeTier = 0; }
+        else this._releaseSurfCharge('spin', 0, 0);
+      } else if (morphPressed) {
+        this.btnBuf = null; this.dashBuf = 0;
+        if (holdMorph) { this.chargeAction = 'morph'; this.charge = 0.02; this.chargeTier = 0; }
+        else this._releaseSurfCharge('morph', 0, 0);
+      }
+    }
+    this._prevHoldJump = holdJump; this._prevHoldSpin = holdSpin; this._prevHoldMorph = holdMorph;
+  }
+
+  private _releaseSurfCharge(action: 'jump' | 'spin' | 'morph', charge: number, tier: number) {
+    const P = this.phys;
+    const x = this.root[0], y = this.root[1], z = this.root[2];
+    if (this.move) this._endMove();
+    if (action === 'jump') {
+      const upMul = 1 + P.updraftJump * (this.env.updraft || 0);
+      this.grounded = false; this.support = null; this.coyote = 0; this.fastFalling = false;
+      if (charge < 0.22) {
+        this.v[1] = P.jumpV * upMul;
+        this.giveBoost(1.2, 0.35);
+        this.events.push({ type: 'jump', x, y, z, air: false });
+      } else if (tier < 2) {
+        this.v[1] = P.jumpV * 1.1 * upMul;
+        this.giveBoost(2.0, 0.55);
+        this.startMove('backflip', { yaw: this.surfHeading, air: true });
+        this.events.push({ type: 'jump', x, y, z, air: false });
+        this.events.push({ type: 'trick', move: 'backflip', tier: 1, charged: true, action, element: this.surfElement, x, y, z });
+      } else {
+        this.v[1] = P.jumpV * (tier >= 3 ? 1.24 : 1.18) * upMul;
+        this.giveBoost(tier >= 3 ? 3.2 : 2.5, 0.75);
+        this.startMove('corkscrew', { yaw: this.surfHeading, air: true });
+        this.events.push({ type: 'jump', x, y, z, air: false });
+        this.events.push({ type: 'trick', move: 'corkscrew', tier, charged: true, action, element: this.surfElement, x, y, z });
+      }
+      return;
+    }
+    if (action === 'spin') {
+      if (charge < 0.22) {
+        const isCarve = this.grounded && (Math.abs(this.bank) > 0.42 || this.carveSlide > 0.35);
+        const mv = isCarve ? 'au' : 'spin';
+        this.giveBoost(isCarve ? 1.9 : 1.4, 0.45);
+        this.startMove(mv, { yaw: this.surfHeading, air: !this.grounded });
+        this.events.push({ type: 'trick', move: mv, tier: 0, charged: false, action, element: this.surfElement, x, y, z });
+      } else {
+        this.giveBoost(2.0 + tier * 0.85, 0.62 + tier * 0.14);
+        if (tier >= 2 && this.grounded) { this.v[1] = 5.4; this.grounded = false; this.support = null; }
+        this.startMove('cyclone', { yaw: this.surfHeading, air: !this.grounded });
+        this.events.push({ type: 'trick', move: 'cyclone', tier, charged: true, action, element: this.surfElement, x, y, z });
+        this.events.push({ type: 'vortex', tier, element: this.surfElement, x, y, z, yaw: this.surfHeading });
+      }
+      return;
+    }
+    // elemental morph: Water/Ice -> hydro-slip wave; Fire/Plasma/Gems -> ember-surge dissolve & reform!
+    const isHydro = this.surfElement === 'water' || this.surfElement === 'ice';
+    this.dissolvePeak = Math.min(1, 0.8 + tier * 0.07);
+    this.giveBoost(2.8 + tier * 0.95, 0.65 + tier * 0.16);
+    if (isHydro) {
+      this.startMove('hydro-slip', { yaw: this.surfHeading, air: !this.grounded });
+      this.events.push({ type: 'trick', move: 'hydro-slip', tier, charged: tier > 0, action, element: this.surfElement, x, y, z });
+    } else {
+      if (this.grounded) { this.v[1] = 3.2 + tier * 0.7; this.grounded = false; this.support = null; }
+      this.startMove('ember-surge', { yaw: this.surfHeading, air: !this.grounded });
+      this.events.push({ type: 'trick', move: 'ember-surge', tier, charged: tier > 0, action, element: this.surfElement, x, y, z });
+    }
   }
 
   /** which move a button means, from the stick and the state (the table in docs/extending/move.md) */
@@ -1169,7 +1374,8 @@ export class Character {
   private _physFree(h: number, it: Intent, env: Character['env']) {
     const P = this.phys;
     let [x, y, z] = this.root, [vx, vy, vz] = this.v;
-    const m = this.move, kin = !!(m && !m.off);
+    const m = this.move, surfing = this.surfMode && !this.plane;
+    const kin = !!(m && !m.off && !surfing);
     const dashing = this.dashT > 0;
     if (dashing) {
       // the dash drives the body: straight, no gravity; it leaves at dashEndMul of its speed
@@ -1182,6 +1388,34 @@ export class Character {
     } else if (this.stagger > 0) {
       const sp = Math.hypot(vx, vz), d = this.grounded ? 3 * 6.38 * h : 0;
       if (sp > 0) { const k = Math.max(0, sp - d) / sp; vx *= k; vz *= k; }
+    } else if (surfing) {
+      // continuous Flow Surf locomotion: constant graceful glide, smooth banking carves, sideways power-drift, speed surges
+      const mv = this._moveVec(it);
+      const l = Math.hypot(mv[0], mv[1]);
+      const sideSlide = !m && this.grounded && it.moveZ < -0.45 && Math.abs(it.moveX) < 0.45;
+      this.carveSlide += ((sideSlide ? 1 : 0) - this.carveSlide) * (1 - Math.exp(-h * 9));
+      if (l > 0.15 && !sideSlide) {
+        const wantYaw = yawOf(mv[0], mv[1]);
+        const diff = wrapPi(wantYaw - this.surfHeading);
+        const turnSp = (m ? 2.2 : 3.9) * (this.grounded ? 1 : 0.72);
+        this.surfHeading = wrapPi(this.surfHeading + clamp(diff, -turnSp * h, turnSp * h));
+        const targetBank = clamp(diff * 1.45, -1, 1);
+        this.bank += (targetBank - this.bank) * (1 - Math.exp(-h * 10));
+      } else if (sideSlide) {
+        const driftSign = this.bank < -0.05 ? -1 : 1;
+        this.surfHeading = wrapPi(this.surfHeading + driftSign * 1.15 * h);
+        this.bank += (driftSign * 0.72 - this.bank) * (1 - Math.exp(-h * 7));
+      } else {
+        this.bank *= Math.exp(-h * 6);
+      }
+      const surge = it.moveZ > 0.35 ? 1.65 : 0;
+      const crouchSlow = this.charge > 0.05 ? 1 - 0.14 * this.charge : 1;
+      const targetSp = env.still ? 0 : (sideSlide ? 4.1 : 4.55 + surge + this.boostSpeed) * crouchSlow;
+      const f = fwdOf(this.surfHeading);
+      const tx = f[0] * targetSp, tz = f[1] * targetSp;
+      const k = 1 - Math.exp(-h * (this.grounded ? 7.5 : 4.2));
+      vx += (tx - vx) * k;
+      vz += (tz - vz) * k;
     } else if (m) {
       // coasting
     } else {
@@ -1411,8 +1645,9 @@ export class Character {
     } else {
       const sp = Math.hypot(this.v[0], this.v[2]);
       let target = this.yaw;
-      // on a wall: turned to it (running along it, half toward the way it runs)
-      if (this.wallSide) {
+      if (this.surfMode) {
+        target = this.surfHeading;
+      } else if (this.wallSide) {
         const n = this.wallN, t = [this.v[0] - n[0] * (this.v[0] * n[0] + this.v[2] * n[1]), this.v[2] - n[1] * (this.v[0] * n[0] + this.v[2] * n[1])];
         const run = this.wallRunT > 0 ? 1 : 0, tl = Math.hypot(t[0], t[1]) || 1;
         target = yawOf(-n[0] + run * t[0] / tl, -n[1] + run * t[1] / tl);
@@ -1474,11 +1709,20 @@ export class Character {
       const u = clamp(m.t / m.dur, 0, 1), ctx = { hand: m.hand, aim: m.aim3, air: m.air, beat, groove: 1, t: m.t };
       m.def.pose(u, ctx, L);
       if (m.def.style) this.style = m.def.style(u, ctx);
-      yaw = m.yaw; src = 'move' + m.serial;
+      yaw = this.surfMode && !this.plane ? this.surfHeading : m.yaw; src = 'move' + m.serial;
     } else {
-      if (this.idle) this.idle(L, beat); else LOCO.ginga(L, beat, 1);
-      if (this.runW > 0.01) { LOCO.run(T, this.runPhase, runK); for (let i = 0; i < NP; i++) L[i] += (T[i] - L[i]) * this.runW; }
-      if (this.crouchW > 0.01) { LOCO.crouch(T, beat); for (let i = 0; i < NP; i++) L[i] += (T[i] - L[i]) * this.crouchW; }
+      if (this.surfMode && !this.plane) {
+        LOCO.surf(L, this.runPhase, clamp(speed / 5.0, 0.35, 1.3), this.bank, this.carveSlide);
+        if (this.charge > 0.02 && this.grounded) {
+          LOCO.charge(T2, this.charge, beat);
+          const cw = clamp(this.charge * 1.15, 0, 0.85);
+          for (let i = 0; i < NP; i++) L[i] += (T2[i] - L[i]) * cw;
+        }
+      } else {
+        if (this.idle) this.idle(L, beat); else LOCO.ginga(L, beat, 1);
+        if (this.runW > 0.01) { LOCO.run(T, this.runPhase, runK); for (let i = 0; i < NP; i++) L[i] += (T[i] - L[i]) * this.runW; }
+      }
+      if (this.crouchW > 0.01 && !this.surfMode) { LOCO.crouch(T, beat); for (let i = 0; i < NP; i++) L[i] += (T[i] - L[i]) * this.crouchW; }
       if (this.landK > 0 && this.grounded) { LOCO.land(T, this.landK); for (let i = 0; i < NP; i++) L[i] += (T[i] - L[i]) * this.landK * 0.8; }
       if (this.airW > 0.01) {
         const vy = this.v[1] / 6.38;

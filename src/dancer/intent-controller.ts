@@ -40,7 +40,7 @@ export const intentParams = defineParams('intent', {
 
 const smooth = (t: number) => { t = Math.max(0, Math.min(1, t)); return t * t * (3 - 2 * t); };
 /** moves in which the head goes where the body takes it (it doesn't keep its eyes on the partner) */
-const NO_LOOK = new Set(['au', 'macaco', 'role', 'spin', 'armada', 'esquiva', 'rasteira']);
+const NO_LOOK = new Set(['au', 'macaco', 'role', 'spin', 'armada', 'esquiva', 'rasteira', 'somersault', 'backflip', 'corkscrew', 'cyclone', 'hydro-slip', 'ember-surge', 'surf-carve']);
 
 /** a scripted patch over a player's Intent (bend.intent): held fields stay until changed; edges fire once */
 export class IntentScript {
@@ -115,7 +115,9 @@ export class IntentController implements Controller {
     const x = r[0], y = r[1], z = r[2];
     c.root = [m[0] * x + m[4] * y + m[8] * z + m[12], m[1] * x + m[5] * y + m[9] * z + m[13], m[2] * x + m[6] * y + m[10] * z + m[14]];
     c.v = [m[0] * v[0] + m[4] * v[1] + m[8] * v[2], m[1] * v[0] + m[5] * v[1] + m[9] * v[2], m[2] * v[0] + m[6] * v[1] + m[10] * v[2]];
-    c.yaw += Math.atan2(m[8], m[10]);
+    const turn = Math.atan2(m[8], m[10]);
+    c.yaw += turn;
+    c.surfHeading += turn;
   }
 
   setPlane(p: StagePlane | null) {
@@ -172,7 +174,7 @@ export class IntentController implements Controller {
     if (!mv || !this.moverSk) return;
     const speed = Math.hypot(c.v[0], c.v[2]);
     const P = intentParams;
-    const free = !c.plane && c.grounded && !c.move && c.stagger <= 0 && c.reformT < 0 && c.camW < 0.5;
+    const free = !c.plane && !c.surfMode && c.grounded && !c.move && c.stagger <= 0 && c.reformT < 0 && c.camW < 0.5;
     const band = smooth((speed - P.walkFrom) / 0.35) * (1 - smooth((speed - P.walkTo) / 0.8));
     const want = free ? band * P.mocapWalk : 0;
     this.mocapW += (want - this.mocapW) * (1 - Math.exp(-dt * (want > this.mocapW ? 5 : 9)));

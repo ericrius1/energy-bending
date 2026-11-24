@@ -44,6 +44,8 @@ export interface Intent {
   camReset?: boolean;
   lock: boolean; interact: boolean;
   dodgeHeld: boolean; punchHeld: boolean;
+  /** held states for Flow Surf hold-to-charge tricks (spin/cyclone and morph) */
+  spinHeld?: boolean; kickHeld?: boolean;
   auDir?: number;
   flick?: boolean;
   limb?: Limb;
@@ -73,12 +75,12 @@ export function makeIntent(): Intent {
   return {
     moveX: 0, moveY: 0, moveZ: 0, jump: false, jumpHeld: false, punch: false, kick: false, spin: false, dodge: false,
     dash: false, form: false, merge: false, aimX: 0, aimY: 0, aimActive: false, camX: 0, camY: 0, lock: false, interact: false,
-    dodgeHeld: false, punchHeld: false,
+    dodgeHeld: false, punchHeld: false, spinHeld: false, kickHeld: false,
   };
 }
 
 export const EDGES = ['jump', 'punch', 'kick', 'spin', 'dodge', 'dash', 'form', 'lock', 'interact', 'power1', 'power2', 'camReset'] as const;
-export const HELDS = ['jumpHeld', 'merge', 'dodgeHeld', 'punchHeld', 'aimActive'] as const;
+export const HELDS = ['jumpHeld', 'merge', 'dodgeHeld', 'punchHeld', 'spinHeld', 'kickHeld', 'aimActive'] as const;
 const AXES = ['moveX', 'moveY', 'moveZ', 'camX', 'camY'] as const;
 
 /** two devices driving one player: the bigger axis wins, any button counts */

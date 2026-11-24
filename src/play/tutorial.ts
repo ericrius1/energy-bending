@@ -101,60 +101,60 @@ export function stepsFor(game: HelpGame): TutorialStepDef[] {
   return [
     {
       id: 'move',
-      title: 'Find Yourself & Move',
-      body: () => 'You are the dancer under the <b>YOU</b> beacon with the gold directional ring at your feet. Run across the stage!',
+      title: 'Carve & Surf Together',
+      body: () => 'You are always gliding! Steer with <b>A / D</b> to bank into turns, hold <b>W</b> to surge faster, or <b>S</b> for a sideways power-drift.',
       keys: MOVE_KEYS,
       goal: 1.8,
     },
     {
       id: 'camera',
       title: 'Steer the Camera',
-      body: () => 'Orbit smoothly with right-drag, two-finger swipe, or arrow keys — or tap <b>V</b> for classic 2D side view.',
+      body: () => 'Orbit smoothly with right-drag, two-finger swipe, or arrow keys — or tap <b>V</b> anytime for 2D side view.',
       keys: CAM_KEYS,
       goal: 1,
     },
     {
       id: 'jump',
-      title: 'Jump & Evade',
-      body: () => 'Tap <b>Jump</b> (twice to double-jump) and try a swift <b>Dodge / Roll</b> to slip under your partner.',
-      keys: (d) => d === 'pad' ? [{ key: 'A', label: 'Jump ×2' }, { key: 'RT', label: 'Dodge / Roll' }]
-        : d === 'touch' ? [{ key: 'Jump', label: 'Jump ×2' }, { key: 'Dodge', label: 'Dodge / Roll' }]
-        : [{ key: 'Space', label: 'Jump ×2' }, { key: 'Shift', label: 'Dodge / Roll' }],
+      title: 'Hold-Charge Flips & Morph',
+      body: () => 'Hold <b>Space</b> to charge a soaring <b>Backflip / Corkscrew</b> (tap again in mid-air to <b>Somersault</b>!), or hold <b>Shift</b> to <b>Dissolve / Hydro-Slip</b>!',
+      keys: (d) => d === 'pad' ? [{ key: 'Hold A', label: 'Charge Flip' }, { key: 'Hold RT', label: 'Element Morph' }]
+        : d === 'touch' ? [{ key: 'Hold Jump', label: 'Charge Flip' }, { key: 'Hold Dodge', label: 'Element Morph' }]
+        : [{ key: 'Hold Space', label: 'Charge Flip' }, { key: 'Hold Shift', label: 'Dissolve / Slip' }],
       goal: 2,
     },
     {
       id: 'attack',
-      title: 'Strike & Kick on the Beat',
-      body: () => 'Tap to strike, hold to stream energy, or right-click to unleash capoeira kicks — time them to the beat pulse!',
-      keys: (d) => d === 'pad' ? [{ key: 'X', label: 'Strike / Hold' }, { key: 'B', label: 'Kick' }]
-        : d === 'touch' ? [{ key: 'Strike', label: 'Strike' }, { key: 'Kick', label: 'Kick' }]
-        : [{ key: 'Click / J', label: 'Strike (hold: Throw)' }, { key: 'R-Click / K', label: 'Kick' }],
+      title: 'Charge Spins & Morph Tricks',
+      body: () => 'Watch the bottom radial ring fill through <b>Tier 1 → Overdrive</b> while holding <b>Click / L</b> for a Cyclone Vortex or <b>Shift</b> for an Elemental Morph!',
+      keys: (d) => d === 'pad' ? [{ key: 'Hold Y', label: 'Cyclone Spin' }, { key: 'Hold RT', label: 'Morph Surge' }]
+        : d === 'touch' ? [{ key: 'Hold Spin', label: 'Cyclone Spin' }, { key: 'Hold Dodge', label: 'Morph Surge' }]
+        : [{ key: 'Hold Click / L', label: 'Cyclone Spin' }, { key: 'Hold Shift / K', label: 'Morph Surge' }],
       goal: 2,
     },
     {
       id: 'acro',
-      title: 'Spin & Cartwheel',
-      body: () => 'Tap <b>Spin</b> to twirl in place, or hold a direction + <b>Spin</b> to throw a sweeping cartwheel (Aú)!',
-      keys: (d) => d === 'pad' ? [{ key: 'LB / RB', label: 'Spin / Cartwheel' }]
-        : d === 'touch' ? [{ key: 'Spin', label: 'Spin / Cartwheel' }]
-        : [{ key: 'L / X', label: 'Spin' }, { key: 'Move + L', label: 'Cartwheel' }],
+      title: 'Chain Acrobatics & Vortexes',
+      body: () => 'Unleash a <b>Spin</b>, <b>Cartwheel</b>, <b>Somersault</b>, or <b>Cyclone</b> while carving — charged Cyclones leave boost rings for your partner!',
+      keys: (d) => d === 'pad' ? [{ key: 'Y / LB', label: 'Spin / Cyclone' }]
+        : d === 'touch' ? [{ key: 'Spin', label: 'Spin / Cyclone' }]
+        : [{ key: 'Click / L', label: 'Spin / Cyclone' }, { key: 'Space ×2', label: 'Somersault' }],
       goal: 1,
     },
     {
       id: 'flow',
-      title: 'Dance Together & Flow',
-      body: () => 'Dance close with your partner to spark dodges, clashes, and Flow — press <b>E</b> for Form or hold <b>F</b> to Merge!',
-      keys: (d) => d === 'pad' ? [{ key: 'LT', label: 'Form' }, { key: 'Hold Y', label: 'Merge' }]
-        : d === 'touch' ? [{ key: 'Form', label: 'Form' }, { key: 'Merge', label: 'Merge' }]
-        : [{ key: 'E', label: 'Elemental Form' }, { key: 'Hold F', label: 'Merge / Fusion' }],
+      title: 'Surf Rings, Wakes & Fusion',
+      body: () => 'Ride through glowing <b>Flow Rings</b> and cross your partner’s wake for <b>Steam Boosts</b> — press <b>E</b> for Form or hold <b>F</b> at 100% Harmony to <b>Fuse</b>!',
+      keys: (d) => d === 'pad' ? [{ key: 'LT', label: 'Form' }, { key: 'Hold Y', label: 'Fuse' }]
+        : d === 'touch' ? [{ key: 'Form', label: 'Form' }, { key: 'Merge', label: 'Fuse' }]
+        : [{ key: 'E', label: 'Elemental Form' }, { key: 'Hold F', label: 'Twin-Helix Fusion' }],
       goal: 2,
     },
   ];
 }
 
-const ATTACK_MOVES = new Set(['strike', 'throw', 'meia-lua', 'armada', 'martelo', 'bencao', 'rasteira']);
-const ACRO_MOVES = new Set(['spin', 'au', 'macaco', 'pirueta']);
-const DODGE_MOVES = new Set(['role', 'esquiva', 'block']);
+const ATTACK_MOVES = new Set(['strike', 'throw', 'meia-lua', 'armada', 'martelo', 'bencao', 'rasteira', 'hydro-slip', 'ember-surge', 'corkscrew', 'backflip']);
+const ACRO_MOVES = new Set(['spin', 'au', 'macaco', 'pirueta', 'somersault', 'backflip', 'corkscrew', 'cyclone', 'surf-carve']);
+const DODGE_MOVES = new Set(['role', 'esquiva', 'block', 'hydro-slip', 'ember-surge']);
 
 /** pure state machine for the interactive tutorial (unit-testable in Node) */
 export class TutorialEngine {

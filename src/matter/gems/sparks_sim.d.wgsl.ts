@@ -77,6 +77,8 @@ export interface Sim {
   envBase: number;
   types: ArrayLike<number> | Vec4[];
   caps: ArrayLike<number> | Vec4[];
+  dissolve: ArrayLike<number> | Vec4[];
+  charge: ArrayLike<number> | Vec4[];
 }
 export interface CullView {
   fixBase: number;

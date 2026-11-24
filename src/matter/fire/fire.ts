@@ -75,6 +75,8 @@ export class FirePasses implements MatterPasses {
   /** per dancer slot: the dancer's form, 0 fire … 1 plasma, added to each layer's own. A copy of `Dancer.form`, made
    *  each frame in update (set the form on the dancer: bend.form(d, v)) */
   readonly form = new Float32Array(LIMITS.dancers);
+  readonly dissolve = new Float32Array(LIMITS.dancers);
+  readonly charge = new Float32Array(LIMITS.dancers);
   readonly sim: UniformBuffer<FireSim>;
   readonly field: UniformBuffer<FireField>;
   readonly flames: StorageBuffer;
@@ -221,7 +223,11 @@ export class FirePasses implements MatterPasses {
   update(f: FrameCtx) {
     if (this.perNow !== fireParams.perDancer * this.scale * quality().particles) this.dirty = true;
     if (this.dirty) this.relayout();
-    for (let d = 0; d < LIMITS.dancers; d++) this.form[d] = f.dancers[d]?.form ?? 0;
+    for (let d = 0; d < LIMITS.dancers; d++) {
+      this.form[d] = f.dancers[d]?.form ?? 0;
+      this.dissolve[d] = Math.max(0, Math.min(1, f.dancers[d]?.dissolve ?? 0));
+      this.charge[d] = Math.max(0, Math.min(1, f.dancers[d]?.charge ?? 0));
+    }
     const P = fireParams, s = this.s, b = s.body;
     const dt = Math.min(f.dt, 1 / 30) * (f.danceDt / Math.max(f.dt, 1e-6));
     this.burn += (this.burnTarget - this.burn) * (1 - Math.exp(-dt * this.burnRate));
@@ -242,6 +248,8 @@ export class FirePasses implements MatterPasses {
     s.fusion = [kind, fu.amount, fu.bar, fu.pulse];
     s.helixAt = [hx.at[0], hx.at[1], hx.at[2], hx.at[3]];
     s.helixShape = [hx.shape[0], hx.shape[1], hx.axis[3], fu.floorY];
+    s.dissolve = [[...this.dissolve.subarray(0, 4)], [...this.dissolve.subarray(4, 8)]] as unknown as FireSim['dissolve'];
+    s.charge = [[...this.charge.subarray(0, 4)], [...this.charge.subarray(4, 8)]] as unknown as FireSim['charge'];
     this.sim.set(s);
     this.blast = [0, 0, 0, 0];
     // a curl grid for each fire dancer (plasma barely takes it: past form 0.7 it has none)
@@ -288,13 +296,14 @@ export class FirePasses implements MatterPasses {
       const flicker = 0.86 + 0.08 * Math.sin(t * 13.1 + k) + 0.06 * Math.sin(t * 31.7 + k * 2.3) + form * 0.15 * Math.sin(t * 57.3 + k);
       const mix = (a: number, b2: number) => a + (b2 - a) * form;
       const fc = fd.fusion ? FUSION_LIGHT[this.fusionKind] : null;
+      const energyBoost = 1 + 0.55 * (dancer.charge ?? 0) + 0.65 * (dancer.dissolve ?? 0);
       L.push({
         dancer: fd.dancer,
         pos: [(w[h] + w[c]) / 2, (w[h + 1] + w[c + 1]) / 2 + 0.1, (w[h + 2] + w[c + 2]) / 2],
-        radius: 0.45,
+        radius: 0.45 + 0.25 * (dancer.dissolve ?? 0),
         color: fc ? [...fc] as [number, number, number] : [mix(1.0, 0.62), mix(0.42, 0.32), mix(0.12, 1.0)],
         // (a fusion's two bodies are one light between them: half each)
-        intensity: fireParams.light * fd.weight * this.burn * flicker * (fc ? 0.5 : 1),
+        intensity: fireParams.light * fd.weight * this.burn * flicker * energyBoost * (fc ? 0.5 : 1),
       });
     }
     writeFireLights(this.lights, L);

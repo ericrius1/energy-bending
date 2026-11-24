@@ -125,6 +125,8 @@ export interface FireSim {
   fusion: Vec4;
   helixAt: Vec4;
   helixShape: Vec4;
+  dissolve: ArrayLike<number> | Vec4[];
+  charge: ArrayLike<number> | Vec4[];
 }
 export interface FireField {
   gain: number;

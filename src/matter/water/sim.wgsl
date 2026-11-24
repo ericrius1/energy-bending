@@ -62,6 +62,8 @@ fn main(@builtin(global_invocation_id) gid: vec3u) {
   let outW = qrot(H.rot, H.out);
   let rn = pcg(i ^ (sim.frameNo * 2654435761u));
   let d = dancerOf(home);
+  let dis = dissolveOf(sim, d);
+  let chg = chargeOf(sim, d);
 
   // ---------------------------------------------------------------- the state of matter
   // a dancer's form freezes its water as a wave that climbs from the feet (and melts back down from the head)
@@ -86,17 +88,17 @@ fn main(@builtin(global_invocation_id) gid: vec3u) {
 
   // ---------------------------------------------------------------- the motion: water's, stiffened by ice
   var bb = b;
-  bb.stiffness = mix(b.stiffness, sim.iceStiff, ice);
-  bb.damping = mix(b.damping, sim.iceDamp, ice);
-  bb.shedRate = b.shedRate * (1.0 - ice);
-  // a fast limb peels sheets off its trailing side, more where a swell is passing
+  bb.stiffness = mix(b.stiffness, sim.iceStiff, ice) * mix(1.0, 0.34, dis);
+  bb.damping = mix(b.damping, sim.iceDamp, ice) * mix(1.0, 0.65, dis);
+  bb.shedRate = b.shedRate * (1.0 - ice) * (1.0 + 1.8 * dis);
+  // a fast limb peels sheets off its trailing side, more where a swell is passing (and massively during hydro-slip!)
   let trailing = trailingOf(outW, H.vel);
   let peel = mix(1.0, (0.15 + 2.2 * smoothstep(-0.1, 0.6, trailing)) * (0.4 + 1.4 * bump), sim.flow.w);
-  bb.speedShed = b.speedShed * (1.0 - ice) * peel;
+  bb.speedShed = b.speedShed * (1.0 - ice) * peel * (1.0 + 2.4 * dis + 0.5 * chg);
   // drips gather where water would hang: the undersides of the outer shell (the hands, the chin, the elbows held out)
   let under = max(0.0, -outW.y);
   bb.shedRate = bb.shedRate * mix(1.0, 0.15 + 4.0 * under * under * under * smoothstep(0.75, 1.0, home.place.w), liquid);
-  bb.noiseAmp = b.noiseAmp * (1.0 - ice);
+  bb.noiseAmp = b.noiseAmp * (1.0 - ice) * (1.0 + 0.8 * dis + 0.5 * chg);
   bb.bounce = mix(b.bounce, 0.2, ice);
   bb.friction = mix(b.friction, 0.15, ice);
   bb.order = 1.0;
@@ -106,7 +108,7 @@ fn main(@builtin(global_invocation_id) gid: vec3u) {
   // ice that melts drips: each melting particle is let go, now and then, as a drop
   if (a.was - a.ice > 0.0 && a.ice < 0.6 && modeIs(p.mode, ON_BODY)) { bb.shedRate += 3.0; }
   // the surface ripples: waves running along the body, out along each home's normal
-  let ripple = sin(dot(H.pos, vec3f(0.3, 1.0, 0.2)) * sim.wobbleFreq - b.time * 5.0 + rnd(seed) * 1.5)
+  let ripple = sin(dot(H.pos, vec3f(0.3, 1.0, 0.2)) * sim.wobbleFreq - b.time * (5.0 + 4.0 * chg) + rnd(seed) * 1.5)
              + 0.6 * sin(dot(H.pos, vec3f(-0.8, 0.4, 0.5)) * sim.wobbleFreq * 1.7 + b.time * 3.7);
   // the outer shell curls: a flow a few centimetres across that climbs the body, stronger on the side trailing the
   // motion, so the outline is never the capsules' smooth contour (the inside stays put: it is what holds the shape)
@@ -114,8 +116,19 @@ fn main(@builtin(global_invocation_id) gid: vec3u) {
   let curlP = H.pos * sim.edge.y - vec3f(0.0, b.time * sim.edge.z * sim.edge.y, 0.0);
   let curlV = flow(curlP, b.time * 0.9);
   let trailK = 1.0 + 1.5 * smoothstep(0.0, 0.7, trailingOf(outW, H.vel)) * smoothstep(0.5, 3.0, length(H.vel));
-  let goal = goalOf(H, seed, bb) + outW * ((ripple * sim.wobble + swell) * (1.0 - ice))
-           + (curlV + outW * (0.6 + 0.6 * curlV.y)) * (sim.edge.x * outer * trailK);
+  var goal = goalOf(H, seed, bb) + outW * ((ripple * sim.wobble * (1.0 + 0.9 * chg + 0.8 * dis) + swell * (1.0 + 0.7 * chg)) * (1.0 - ice))
+           + (curlV + outW * (0.6 + 0.6 * curlV.y)) * (sim.edge.x * outer * trailK * (1.0 + 0.75 * dis + 0.5 * chg));
+  // hydro-slip wave morph: streamlines the liquid body into a low surging hydroplane crest skimming the floor
+  if (dis > 0.02) {
+    let bodyVel = joints[d * MAXJ].vel.xyz;
+    let waveY = b.floorY + 0.14 + 0.42 * home.place.w + 0.08 * sin(home.place.z * 3.0 + b.time * 9.0);
+    let slipGoal = vec3f(
+      goal.x - bodyVel.x * 0.055 * dis + outW.x * 0.14 * dis,
+      mix(goal.y, waveY, dis * 0.76),
+      goal.z - bodyVel.z * 0.055 * dis + outW.z * 0.14 * dis,
+    );
+    goal = mix(goal, slipGoal, dis);
+  }
   // back at the top of its capsule: there at once
   if (wrapped && liquid > 0.5 && modeIs(p.mode, ON_BODY)) { p.pos = goal; p.vel = H.vel; }
   var T = touchAt(p.pos);
@@ -149,10 +162,11 @@ fn main(@builtin(global_invocation_id) gid: vec3u) {
     p.vel = vec3f(0.0);
   }
   a.foam = max(0.0, a.foam - dt * 2.5);
+  a.foam = max(a.foam, dis * 0.85 * (0.4 + 0.6 * outer) + chg * 0.48 * outer);
   if ((s.ev & EV_SHED) != 0u && wasOn) {
     // a drop flung from a moving limb keeps going the way the limb went, and a little out from the body
     let fling = smoothstep(0.8, 3.5, length(H.vel));
-    p.vel += H.vel * (sim.spray * fling) + H.out * (0.25 + 0.6 * fling) * (1.0 - ice);
+    p.vel += H.vel * (sim.spray * (1.0 + 1.1 * dis) * fling) + H.out * (0.25 + 0.6 * fling + 0.65 * dis) * (1.0 - ice);
     a.foam = max(a.foam, 0.4 + 0.6 * fling);
   }
   if ((s.ev & EV_LANDED) != 0u && ice < 0.5 && modeIs(p.mode, FLYING)) {

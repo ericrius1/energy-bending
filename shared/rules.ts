@@ -86,6 +86,14 @@ export const RULES = {
     'compasso':  { attack: true,  flow: 7 },
     'queda-de-rins': { attack: false, flow: 5 },
     'bow':      { attack: false, flow: 1, echo: false },
+    // Flow Surf acrobatic & elemental morph moves
+    'somersault':  { attack: false, flow: 6 },
+    'backflip':    { attack: false, flow: 7 },
+    'corkscrew':   { attack: false, flow: 8 },
+    'cyclone':     { attack: false, flow: 7 },
+    'hydro-slip':  { attack: false, flow: 6 },
+    'ember-surge': { attack: false, flow: 6 },
+    'surf-carve':  { attack: false, flow: 4 },
   } as Record<string, { attack: boolean; flow: number; echo?: boolean }>,
   // Exchange results, reported by the dancer being attacked. streak: true extends the streak, false resets.
   xch: {

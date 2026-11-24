@@ -89,13 +89,13 @@ export class GamepadSource implements IntentSource {
     if (this.scheme === 'duel') {
       o.dash = B.took('B');
       o.power1 = B.took('RT'); o.power2 = B.took('LT');
-      o.kick = B.took('Y');
-      o.spin = B.took('LB');
+      o.kick = B.took('Y'); o.kickHeld = B.held('Y');
+      o.spin = B.took('LB'); o.spinHeld = B.held('LB');
       o.dodge = B.took('RB'); o.dodgeHeld = B.held('RB');
       this.yHeldT = 0;
     } else {
-      o.kick = B.took('B');
-      o.spin = B.took('Y');
+      o.kick = B.took('B'); o.kickHeld = B.held('B');
+      o.spin = B.took('Y'); o.spinHeld = B.held('Y');
       if (!free) { if (B.took('LB')) { o.spin = true; o.auDir = -1; } if (B.took('RB')) { o.spin = true; o.auDir = 1; } }
       o.dodge = B.took('RT'); o.dodgeHeld = B.held('RT');
       this.yHeldT = B.held('Y') ? this.yHeldT + dt : 0;
