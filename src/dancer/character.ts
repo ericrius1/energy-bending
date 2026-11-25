@@ -270,6 +270,25 @@ export const FLAT: Terrain = { groundAt: () => 0 };
 
 export interface Capsule { ax: number; ay: number; az: number; bx: number; by: number; bz: number; r: number; move?: string; id?: number; part?: string }
 export interface CharEvent { type: string; [k: string]: unknown }
+/** the runner's track as a body runs it (src/play/runner.ts, src/play/track.ts): while a surfing body has one, it runs
+ *  along it by itself, and the stick only slides it across the track and quickens or slows it. Nothing else steers it
+ *  (no camera-relative stick, no soft edge, no rim guidance, no solids' push), so nothing fights the player */
+export interface Rail {
+  /** the track's frame through a point: along (f) and to the right (r), unit x z; the facing along; l the point's
+   *  distance right of the middle line */
+  at(x: number, z: number): { f: [number, number]; r: [number, number]; yaw: number; l: number };
+  /** how far either side of the middle line a body may run (m) */
+  half: number;
+  /** the cruising speed (m/s) */
+  speed: number;
+  /** the speed across at a full stick (m/s) */
+  slide: number;
+  /** the stick as this body's view reads it: across (-1 … 1, + right), push (-1 … 1, + faster), or a brain's own
+   *  target across (m, + right of the middle) */
+  steer(c: Character, it: Intent): { lat: number; push: number; target?: number };
+  /** where a body re-forms on the track (x, z) */
+  respawn?(c: Character): [number, number];
+}
 interface Surface { id: string; L: Ledge | null; y: number; x0: number; x1: number; solid: boolean; thick: number }
 interface MoveState {
   def: MoveDef; name: string; t: number; dur: number; serial: number; yaw: number; f: [number, number];
@@ -407,6 +426,13 @@ export class Character {
   /** elemental morph dissolve intensity (0 … 1), mirrored to Dancer.dissolve for GPU fire/water/gems shaders */
   dissolve = 0;
   private dissolvePeak = 0.9;
+  /** the runner's track (Rail, above): set, a surfing body runs along it */
+  rail: Rail | null = null;
+  /** on the track: how far right of its middle (m), the speed across (m/s), the speed along (m/s) */
+  railL = 0; railLv = 0; railSp = 0;
+  /** the lean into a slide (rad), eased: the body turns toward the way across as a runner's shoulders do, not at once */
+  railLean = 0;
+  private _railSync = true;
   /** temporary speed surge from Flow Rings, wake drafts, morphs, and charged tricks */
   boostT = 0;
   boostSpeed = 0;
@@ -498,7 +524,8 @@ export class Character {
   giveBoost(extraSpeed: number, dur: number) {
     this.boostSpeed = Math.max(this.boostSpeed, extraSpeed);
     this.boostT = Math.max(this.boostT, dur);
-    if (this.surfMode && !this.plane) {
+    if (this.surfMode && !this.plane && this.rail) this.railSp = Math.max(this.railSp, this.rail.speed + extraSpeed * 0.35);
+    else if (this.surfMode && !this.plane) {
       const f = fwdOf(this.surfHeading);
       const sp = Math.hypot(this.v[0], this.v[2]);
       const target = Math.max(sp, 5.2 + extraSpeed);
@@ -948,7 +975,8 @@ export class Character {
       const morphPressed = this.btnBuf?.b === 'dodge' || this.btnBuf?.b === 'kick' || this.dashBuf > 0 || (holdMorph && !this._prevHoldMorph);
       if (jumpPressed) {
         this.jumpBuf = 0;
-        if (holdJump) { this.chargeAction = 'jump'; this.charge = 0.02; this.chargeTier = 0; }
+        // (on the track a jump leaves the ground as it is pressed: a runner can't wait for a charge)
+        if (holdJump && !this.rail) { this.chargeAction = 'jump'; this.charge = 0.02; this.chargeTier = 0; }
         else this._releaseSurfCharge('jump', 0, 0);
       } else if (spinPressed) {
         this.btnBuf = null;
@@ -1377,6 +1405,7 @@ export class Character {
     const m = this.move, surfing = this.surfMode && !this.plane;
     const kin = !!(m && !m.off && !surfing);
     const dashing = this.dashT > 0;
+    if (this.rail && (dashing || kin || this.stagger > 0 || !surfing)) this._railSync = true;
     if (dashing) {
       // the dash drives the body: straight, no gravity; it leaves at dashEndMul of its speed
       [vx, vy, vz] = this.dashV;
@@ -1388,6 +1417,40 @@ export class Character {
     } else if (this.stagger > 0) {
       const sp = Math.hypot(vx, vz), d = this.grounded ? 3 * 6.38 * h : 0;
       if (sp > 0) { const k = Math.max(0, sp - d) / sp; vx *= k; vz *= k; }
+    } else if (surfing && this.rail) {
+      // the runner: along the track by itself; the stick slides the body across it (a velocity eased toward the stick's,
+      // quick to start and to stop) and quickens or slows it. Its line across is its own state, held by a gentle
+      // correction, so the curve of the track never drags it outward and nothing pushes back against the stick
+      const R = this.rail, F = R.at(x, z);
+      if (this._railSync) { this.railL = clamp(F.l, -R.half, R.half); this.railLv = 0; this.railSp = Math.max(this.railSp, Math.hypot(vx, vz) * 0.8); this._railSync = false; }
+      const st = R.steer(this, it);
+      const want = st.target != null ? clamp((st.target - this.railL) * 2.6, -R.slide, R.slide) : clamp(st.lat, -1, 1) * R.slide;
+      // (quick to start, quicker to stop: a slide ends a hand's breadth after the key is let go)
+      const kL = 1 - Math.exp(-h * (Math.abs(want) > Math.abs(this.railLv) ? 12 : 17) * (this.grounded ? 1 : 0.75));
+      this.railLv += (want - this.railLv) * kL;
+      this.railL += this.railLv * h;
+      // (the track's sides: a soft stop, the speed across taken away, never a bounce)
+      const lim = R.half;
+      if (this.railL > lim) { this.railL = lim; if (this.railLv > 0) this.railLv = 0; }
+      else if (this.railL < -lim) { this.railL = -lim; if (this.railLv < 0) this.railLv = 0; }
+      const crouchSlow = this.charge > 0.05 ? 1 - 0.12 * this.charge : 1;
+      // (a ring's or a wake's boost is a surge, not a new cruise: a share of it, and never past half again the cruise)
+      // (a brain may push past a person's full stick, to catch up: up to three times)
+      const push = st.target != null ? clamp(st.push, -1.5, 3) : clamp(st.push, -1, 1);
+      const wantSp = env.still ? 0 : Math.min(R.speed * 1.75, R.speed * (1 + 0.25 * push) + this.boostSpeed * 0.4) * crouchSlow;
+      this.railSp += (wantSp - this.railSp) * (1 - Math.exp(-h * (wantSp > this.railSp ? 2.2 : 3.2)));
+      const across = this.railLv + clamp((this.railL - F.l) * 9, -3, 3);
+      vx = F.f[0] * this.railSp + F.r[0] * across;
+      vz = F.f[1] * this.railSp + F.r[1] * across;
+      // the facing: the track's, leaned a little toward the way across
+      const lean = Math.atan2(this.railLv, Math.max(2.5, this.railSp)) * 0.7;
+      this.railLean += (lean - this.railLean) * (1 - Math.exp(-h * 6));
+      this.surfHeading = wrapPi(F.yaw + this.railLean);
+      // (the body faces it always, in a trick too: a trick's own facing, kept from its start, went stale as the track
+      // turned under it, and the body snapped round as it ended)
+      this.yaw = this.surfHeading;
+      this.bank += (clamp(this.railLv / R.slide, -1, 1) - this.bank) * (1 - Math.exp(-h * 9));
+      this.carveSlide *= Math.exp(-h * 8);
     } else if (surfing) {
       // continuous Flow Surf locomotion: constant graceful glide, smooth banking carves, sideways power-drift, speed surges
       const mv = this._moveVec(it);
@@ -1459,7 +1522,9 @@ export class Character {
     } else if (!this.grounded && !(kin && m!.air) && !dashing) vy = this._gravity(h, vy, it, m);
     x += vx * h; z += vz * h;
     // the world's solids: their faces stop the body (and are its walls), their tops are floors
-    const solids = P.solidsCollide ? this.terrain.solids : undefined;
+    // (on the track, the world's solids are left to the track: it is laid clear of them, and a push from one would
+    // fight the run)
+    const solids = P.solidsCollide && !(surfing && this.rail) ? this.terrain.solids : undefined;
     let wall: { near: number; id: string | null; n: [number, number]; gap: number } | null = null;
     if (solids && solids.length) {
       const r = this._solidsPush(solids, x, y, z);
@@ -1667,6 +1732,7 @@ export class Character {
   private _reform() {
     const sp = this.spawnPoint();
     if (this.plane) { this.easeS = this.easeN = 0; this.root = this._planePoint(sp[0], sp[1]); }
+    else if (this.rail?.respawn && this.surfMode) { const p = this.rail.respawn(this); this.root = [p[0], this.terrain.groundAt(p[0], p[1]), p[1]]; this._railSync = true; this.railSp = 0; }
     else this.root = [this.home[0], this.terrain.groundAt(this.home[0], this.home[2]), this.home[2]];
     this.v = [0, 0, 0]; this.move = null; this.stagger = 0; this.grounded = false; this.support = null;
     this.reformT = 0; this.airJumps = 1; this.fastFalling = false; this.btnBuf = null; this.jumpBuf = 0;
@@ -1712,7 +1778,8 @@ export class Character {
       yaw = this.surfMode && !this.plane ? this.surfHeading : m.yaw; src = 'move' + m.serial;
     } else {
       if (this.surfMode && !this.plane) {
-        LOCO.surf(L, this.runPhase, clamp(speed / 5.0, 0.35, 1.3), this.bank, this.carveSlide);
+        if (this.rail) LOCO.run(L, this.runPhase, clamp(speed / 6, 0.45, 1));
+        else LOCO.surf(L, this.runPhase, clamp(speed / 5.0, 0.35, 1.3), this.bank, this.carveSlide);
         if (this.charge > 0.02 && this.grounded) {
           LOCO.charge(T2, this.charge, beat);
           const cw = clamp(this.charge * 1.15, 0, 0.85);

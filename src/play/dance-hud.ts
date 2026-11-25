@@ -334,7 +334,7 @@ export class DanceHud {
       + `<span class="dhud-combo">×1</span>`
       + `<span class="dhud-score">0</span>`
       + `<span class="dhud-rings">0 RINGS</span>`
-      + `<span class="dhud-status">FLOW SURF</span>`
+      + `<span class="dhud-status">FLOW RUN</span>`
       + `</div>`;
     document.body.append(twin);
     this.twin = twin;
@@ -455,7 +455,7 @@ export class DanceHud {
         this.statusEl.textContent = 'E · FORM READY';
         this.statusEl.classList.add('glow');
       } else {
-        this.statusEl.textContent = o.surfMode ? 'FLOW SURF' : `FLOW ${flowMe}%`;
+        this.statusEl.textContent = o.surfMode ? 'FLOW RUN' : `FLOW ${flowMe}%`;
         this.statusEl.classList.remove('glow');
       }
     }

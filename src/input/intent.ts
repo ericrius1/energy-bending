@@ -57,6 +57,10 @@ export interface Intent {
   pinch?: { L: PinchState; R: PinchState };
   walk?: boolean;
   source?: string;
+  /** a brain on the runner's track (src/play/runner.ts): where across the track it wants to be (m, + right of the
+   *  middle) and how much quicker or slower than the cruise (-1 … 1) */
+  railTarget?: number;
+  railPush?: number;
 }
 
 export interface PinchState { on: boolean; conf: number; ratio: number; fine?: boolean }

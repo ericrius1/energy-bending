@@ -116,7 +116,9 @@ function renderLegendBody(devTab: string, game: HelpGame, matters: string[], loc
 
   const moveRows = [
     section('Move'),
-    row(locked ? 'Move (2D)' : 'Move (3D)', devs.map((d) => {
+    row(locked ? 'Move (2D)' : game === 'dance' ? 'Slide across · W S sprint / ease' : 'Move (3D)', devs.map((d) => {
+      // (the dance runs by itself in open 3D: src/play/runner.ts; the keys slide it across the track)
+      if (game === 'dance' && !locked && (d === 'solo' || d === 'left')) return pairKbd('A D', '← →');
       if (d === 'solo' || d === 'left') return kbd(locked ? 'A D' : 'W A S D');
       if (d === 'right') return kbd(locked ? '← →' : '← ↑ ↓ →');
       return kbd(KEYS[d].move);
@@ -135,12 +137,12 @@ function renderLegendBody(devTab: string, game: HelpGame, matters: string[], loc
 
   const camRows = [
     section('Camera'),
-    ...(locked ? [] : [
+    ...(locked || game === 'dance' ? [] : [
       row('Orbit camera', devs.map((d) => pairKbd(CAM_KEYS[d].orbit[0], CAM_KEYS[d].orbit[1]))),
       row('Zoom in / out', devs.map((d) => pairKbd(CAM_KEYS[d].zoom[0]))),
       row('Recenter behind you', devs.map((d) => pairKbd(CAM_KEYS[d].recenter[0]))),
     ]),
-    row('Switch 3D / Side View', devs.map((d) => pairKbd(CAM_KEYS[d].view[0], CAM_KEYS[d].view[1]))),
+    row(game === 'dance' && !locked ? 'Behind them / Side view' : 'Switch 3D / Side View', devs.map((d) => pairKbd(CAM_KEYS[d].view[0], CAM_KEYS[d].view[1]))),
     row('Show mirror names', devs.map((d) => pairKbd(CAM_KEYS[d].mirrors[0]))),
   ];
 
@@ -157,10 +159,10 @@ function renderLegendBody(devTab: string, game: HelpGame, matters: string[], loc
         row('Power Form (full bar)', devs.map((d) => kbd(KEYS[d].form))),
       ]
     : [
-        section(locked ? 'Dance Moves (2D)' : 'Flow Surf Tricks (Hold to Charge!)'),
+        section(locked ? 'Dance Moves (2D)' : 'Tricks on the Run (Hold to Charge!)'),
         row(locked ? 'Strike · Throw (hold)' : 'Spin · Hold: Cyclone Vortex', devs.map((d) => pairKbd(DANCE_KEYS[d].strike, DANCE_ALSO[d]?.spin ?? DANCE_KEYS[d].spin))),
         row(locked ? 'Kick' : 'Element Morph (Dissolve / Hydro-Slip)', devs.map((d) => pairKbd(DANCE_KEYS[d].dodge, DANCE_KEYS[d].kick))),
-        row(locked ? 'Spin · Cartwheel (+move)' : 'Flip · Hold: Backflip / Corkscrew', devs.map((d) => kbd(DANCE_KEYS[d].jump))),
+        row(locked ? 'Spin · Cartwheel (+move)' : 'Jump · in the air: Somersault', devs.map((d) => kbd(DANCE_KEYS[d].jump))),
         row('Switch element form (30% Flow)', devs.map((d) => kbd(DANCE_KEYS[d].form))),
         row('Twin-Helix Fusion (100% Harmony)', devs.map((d) => kbd(DANCE_KEYS[d].merge))),
         row('Build ledge / ring', devs.map((d) => kbd(DANCE_KEYS[d].build))),
@@ -185,7 +187,7 @@ function renderLegendBody(devTab: string, game: HelpGame, matters: string[], loc
   const tabs = TABS.map(([id, label]) => `<button type="button" class="dh-tab${id === devTab ? ' on' : ''}" data-tab="${id}">${label}</button>`).join('');
   const tip = game === 'duel'
     ? 'Catch, swing & fling on the beat to fill flow, then cast powers. Two-finger swipe or Alt+drag orbits on trackpads.'
-    : 'Surf through glowing Flow Rings, cross your partner’s wake for Steam Boosts, hold Space/Click/Shift to charge flips, cyclones & morphs, and hold F at 100% Harmony to Fuse!';
+    : 'You run by yourselves: slide into the glowing Flow Rings, jump the high ones, cut across your partner’s wake for Steam Boosts, hold Click/Shift to charge cyclones & morphs, and hold F at 100% Harmony to Fuse!';
 
   return `<div class="dh-card">`
     + `<div class="dh-head"><div class="dh-title"><span>Controls</span>${modeSwitch}${viewPill}${tutPill}</div><button type="button" class="dh-close" aria-label="close">×</button></div>`

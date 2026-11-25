@@ -73,6 +73,7 @@ import { DanceHud } from './dance-hud';
 import { createTutorial, shouldAutoTutorial } from './tutorial';
 import { SurfEngine } from './surf';
 import { SurfPartnerBrain } from '../ai/surf-partner';
+import { Runner, RunnerBrain, runWorld } from './runner';
 
 type V3 = [number, number, number];
 
@@ -179,6 +180,9 @@ export async function startJogo(app: PlayApp, mode: string, opts: { joined?: Joi
   const world = () => app.worldOf(app.main.world);
   // a script plays in its own world unless the address names one
   if (script?.world && !q.has('world') && script.world !== app.main.world) await app.setWorld?.(script.world);
+  // the runner (runner.ts) runs round a loop: a world with no room for one (the geode's hall) sends the dance out to
+  // the pool's open water
+  if (surfEnabled && !side && runWorld(app.main.world) !== app.main.world) await app.setWorld?.(runWorld(app.main.world));
   const dress = (q.get('dress') ?? script?.dress?.join(',') ?? 'fire,water').split(',');
   // dressed by seat (online, this page's own dancer is its seat's; set once the room says which)
   show.dress = [dress[0] ?? 'fire', dress[1] ?? dress[0] ?? 'water'];
@@ -237,7 +241,12 @@ export async function startJogo(app: PlayApp, mode: string, opts: { joined?: Joi
   const surfPartner1 = new SurfPartnerBrain(surfBrainCtx(1), 'water-weaver', surfSeed + 7);
   const surfPartner0 = new SurfPartnerBrain(surfBrainCtx(0), 'fire-acrobat', surfSeed);
   const explicitCapoeira = q.has('partner') && wanted !== 'surf';
-  let partner: Brain = wanted === 'standin' ? standIn : (surfEnabled && !side && !explicitCapoeira ? surfPartner1 : aiPartner);
+  // the runner (runner.ts) and its partner: the surf partner's tricks on the runner's own line
+  let runner: Runner | null = null;
+  const runnerBrainCtx = { track: () => runner?.track ?? null, ring: () => surf?.activeRing ?? null };
+  const runPartner1 = new RunnerBrain(runnerBrainCtx, surfPartner1, 1);
+  const runPartner0 = new RunnerBrain(runnerBrainCtx, surfPartner0, 0);
+  let partner: Brain = wanted === 'standin' ? standIn : (surfEnabled && !side && !explicitCapoeira ? runPartner1 : aiPartner);
   const partnerView = (seat: number) => (dt: number): PartnerView | null => {
     const me = seatCtl[seat], other = seatDancer[1 - seat];
     if (!me || !other) return null;
@@ -267,7 +276,7 @@ export async function startJogo(app: PlayApp, mode: string, opts: { joined?: Joi
     // (The two bots join through the hub, so its players are numbered by seat, then leave its list so the devices that
     // come later take their places: InputHub numbers a newcomer by how many it holds.)
     const hub = play.hub;
-    const p0Src = twoAgents ? new BrainSource('agent-0', { think: (v) => surfPartner0.think(v) }, partnerView(0)) : new BotSource(null, 'waiting');
+    const p0Src = twoAgents ? new BrainSource('agent-0', { think: (v) => runPartner0.think(v) }, partnerView(0)) : new BotSource(null, 'waiting');
     hub.join(p0Src, 'bot');
     const ps = new BrainSource('partner', { think: (v) => partner.think(v) }, partnerView(1));
     // (a script with &partner=… seats the partner brain on dancer 2 and scripts dancer 1 alone: a film's jogo)
@@ -446,10 +455,10 @@ export async function startJogo(app: PlayApp, mode: string, opts: { joined?: Joi
     const S = (room.session.net as unknown as { session?: { music: { bpm: number }; changed: boolean } }).session;
     if (!online && bpm && bpm >= 60 && bpm <= 180 && S) { S.music.bpm = bpm; S.changed = true; }
   };
-  let runner: ScriptRunner | null = null;
+  let scriptRun: ScriptRunner | null = null;
   let playFrom: number | null = null;
   const runScript = (s: JogoScript) => {
-    runner = new ScriptRunner(s, {
+    scriptRun = new ScriptRunner(s, {
       controllers: () => seatCtl,
       beat: () => (playFrom == null || !room.state ? null : ((room.now() - playFrom) * room.state.music.bpm) / 60000),
       arm: (seat) => builder.arm(seat),
@@ -549,7 +558,7 @@ export async function startJogo(app: PlayApp, mode: string, opts: { joined?: Joi
     tension += (want - tension) * (1 - Math.exp(-f.dt * 1.5));
     f.tension = tension;
     music.tension = tension;
-    runner?.update();
+    scriptRun?.update();
     // online the other dancer is a NetController, which dancer/play.ts doesn't pair with: this page's dancer faces it
     // (set before the dancers move; play.ts's own pairing only knows its controllers)
     if (online) for (const s of room.seats) {
@@ -744,7 +753,7 @@ export async function startJogo(app: PlayApp, mode: string, opts: { joined?: Joi
     if (tutorial?.active()) {
       const it = seatCtl[mySeat]?.intent;
       const lockedNow = rig.mode === 'locked';
-      const viewToggled = lockedNow !== tutLastLocked;
+      const viewToggled = lockedNow !== tutLastLocked || !!runner?.toggled;
       tutLastLocked = lockedNow;
       const moves: string[] = [];
       let jumped = false, dashed = false, dodged = false;
@@ -761,8 +770,10 @@ export async function startJogo(app: PlayApp, mode: string, opts: { joined?: Joi
       const exchanged = frameEvents.some((e) => (e.k === 'xch' && (e.by === mySeat || e.target === mySeat)) || e.k === 'echo' || e.k === 'unison')
         || !!(surf && surf.events.some((se) => se.k === 'ring' || se.k === 'reaction' || se.k === 'unison' || se.k === 'vortex'));
       const formedOrMerged = frameEvents.some((e) => (e.k === 'form' && e.seat === mySeat && e.on) || e.k === 'fusion') || !!it?.form || !!it?.merge;
-      const root0 = bodies[mySeat]?.root() ?? [0, 0, 0];
-      const root1 = bodies[1 - mySeat]?.root() ?? null;
+      // (on the track the run goes on by itself: the first step counts the player's own slides across it)
+      const rc = seatCtl[mySeat]?.character;
+      const root0 = rc?.rail ? [rc.railL, 0, 0] : bodies[mySeat]?.root() ?? [0, 0, 0];
+      const root1 = rc?.rail ? null : bodies[1 - mySeat]?.root() ?? null;
       tutorial.update({
         dt: f.dt,
         root: [root0[0], root0[1], root0[2]],
@@ -807,6 +818,21 @@ export async function startJogo(app: PlayApp, mode: string, opts: { joined?: Joi
 
   frame.tick('post', () => draw.upload(), 'jogo: its glows to the GPU');
 
+  // ---------------------------------------------------------------- the runner (runner.ts): in open 3D the dance runs
+  // round its world's loop; V swaps the view behind the pair and the side view (the 2D lock stays &lock's)
+  if (surfEnabled && !side) {
+    runner = new Runner({
+      frame, rig, world,
+      chars: () => [seatCtl[0]?.character ?? null, seatCtl[1]?.character ?? null],
+      bpm: () => room.state?.music.bpm ?? RULES.BPM,
+      surf,
+      on: () => rig.mode !== 'locked' && !travelling,
+    });
+    if (q.get('view') === 'side') runner.view = 'side';
+    const R = runner;
+    play.setToggle(() => R.toggle());
+  }
+
   // always-visible toggleable control legend for Dance / Jogo (hidden only in films/scripts)
   if (!app.film && !scripted) {
     installHelp({
@@ -824,6 +850,7 @@ export async function startJogo(app: PlayApp, mode: string, opts: { joined?: Joi
   // ---------------------------------------------------------------- the hooks (bend.jogo)
   const api = {
     room, jogo, feel, fusion, pieces, glows, builder, field, tutorial, surf,
+    get runner() { return runner; },
     setPortalGoal: (p: V3 | null) => { portalGoal = p; },
     get state() { return room.state; },
     get phase() { return room.state?.phase ?? null; },
@@ -845,7 +872,7 @@ export async function startJogo(app: PlayApp, mode: string, opts: { joined?: Joi
       seats: [0, 1].map((s) => ({ el: bodies[s].element(), root: bodies[s].root().map((v) => +v.toFixed(2)), world: seatDancer[s] ? gates.worldOf(seatDancer[s]!) : null })),
       crossings: roaming.log, ways: roaming.counts, opening, you: you.own(), world: app.main.world, side: rig.mode === 'locked',
       devices: seatCtl.map((c) => (c?.source as { name?: string } | undefined)?.name ?? null),
-      script: runner ? { fired: (runner as ScriptRunner).fired, done: (runner as ScriptRunner).done } : null,
+      script: scriptRun ? { fired: (scriptRun as ScriptRunner).fired, done: (scriptRun as ScriptRunner).done } : null,
     }),
     start,
     makeIntent,

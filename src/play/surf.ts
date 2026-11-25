@@ -6,6 +6,7 @@ import type { Element } from './jogo';
 import type { Glows, RGB } from './glow';
 import { COLOURS, mixRGB } from './feel';
 import { arenaFor } from '../duel/arena';
+import type { Track } from './track';
 
 type V3 = [number, number, number];
 
@@ -21,6 +22,11 @@ export interface FlowRing {
   el?: Element;
   life?: number;
   maxLife?: number;
+  /** on the runner's track: how far along (m) and right of the middle (m) */
+  s?: number;
+  l?: number;
+  /** a high ring: jumped through */
+  high?: boolean;
 }
 
 export interface WakeNode {
@@ -157,14 +163,51 @@ export class SurfEngine {
   private fx: BurstFx[] = [];
   private nextVortexId = 100;
 
+  /** the runner's track (src/play/track.ts): set, the rings stand along it in its lanes, a few high, and each one
+   *  passed is laid again somewhere else for the next lap; the rim guidance is off */
+  track: Track | null = null;
+  private seed = 7;
+  missed = 0;
+
   constructor(private ctx: SurfCtx) {}
+
+  setTrack(t: Track | null) {
+    if (t === this.track) return;
+    this.track = t;
+    this.worldId = '';
+  }
+
+  private rand() { this.seed = (this.seed * 16807) % 2147483647; return (this.seed - 1) / 2147483646; }
+
+  /** a ring on the track at s: a lane (left, middle, right; never the same twice in a row for long), low or high */
+  private layRing(id: number, s: number, prevL: number | null): FlowRing {
+    const T = this.track!;
+    const lanes = [-T.half * 0.62, 0, T.half * 0.62];
+    let l = lanes[Math.floor(this.rand() * 3)];
+    if (prevL != null && l === prevL && this.rand() < 0.6) l = lanes[(lanes.indexOf(l) + 1 + Math.floor(this.rand() * 2)) % 3];
+    const high = this.rand() < 0.28;
+    const [x, z] = T.point(s, l), F = T.frame(s);
+    const g = this.ctx.groundAt(x, z);
+    return { id, at: [x, g + (high ? 2.35 : 1.05), z], dir: [F.f[0], F.f[1]], radius: high ? 0.95 : 1.1, s, l, high };
+  }
+
+  /** the ring after one is passed: laid again (for the next lap), the next one ahead active */
+  private passRing(idx: number) {
+    const N = this.rings.length, r = this.rings[idx], prev = this.rings[(idx + N - 1) % N];
+    if (this.track && r.s != null) this.rings[idx] = this.layRing(r.id, r.s, prev?.l ?? null);
+    this.nextRing = (idx + 1) % N;
+  }
 
   /** reset circuit whenever the active world changes */
   private syncWorld() {
     const w = this.ctx.world();
     if (w !== this.worldId || !this.rings.length) {
       this.worldId = w;
-      this.rings = circuitFor(w, (x, z) => this.ctx.groundAt(x, z));
+      if (this.track) {
+        const T = this.track, N = Math.max(5, Math.round(T.length / 9));
+        this.rings = [];
+        for (let i = 0; i < N; i++) this.rings.push(this.layRing(i, ((i + 0.5) / N) * T.length, this.rings[i - 1]?.l ?? null));
+      } else this.rings = circuitFor(w, (x, z) => this.ctx.groundAt(x, z));
       this.vortexes = [];
       this.wakes = [[], []];
       this.nextRing = 0;
@@ -219,7 +262,7 @@ export class SurfEngine {
       const c = s.c;
       if (!c) continue;
       c.surfElement = s.el;
-      if (c.surfMode && !c.plane) this.guideRim(c, dt);
+      if (c.surfMode && !c.plane && !c.rail) this.guideRim(c, dt);
       this.handleRaw(s.seat, c, s.el, s.raw);
       this.recordWake(s.seat, c, s.el, dt);
       this.checkRings(s.seat, c, s.el, fused);
@@ -400,10 +443,25 @@ export class SurfEngine {
 
     // 1. active Harmonic Flow Ring
     const ring = this.rings[this.nextRing];
+    if (ring && this.track && ring.s != null) {
+      // (on the track: through the ring's plane, within its lane, at its height; the player running past one leaves it)
+      const p = this.track.project(px, pz, ring.s), ds = p.s - ring.s;
+      if (seat === 0 && ds > 1.6) {
+        // (one far behind is just where the run began: skipped, not missed)
+        if (ds < 8) { this.missed++; this.comboT = Math.min(this.comboT, 1.2); }
+        this.passRing(this.nextRing);
+        return;
+      }
+    }
     if (ring) {
       const dh = Math.hypot(px - ring.at[0], pz - ring.at[2]);
       const dv = Math.abs(py - ring.at[1]);
-      if (dh <= ring.radius + 0.55 && dv <= ring.radius + 0.45) {
+      let through = dh <= ring.radius + 0.55 && dv <= ring.radius + 0.45;
+      if (this.track && ring.s != null) {
+        const p = this.track.project(px, pz, ring.s);
+        through = Math.abs(p.s - ring.s) < 0.8 && Math.abs(p.l - (ring.l ?? 0)) < 1.0 && (ring.high ? py > ring.at[1] - 0.85 : dv <= ring.radius + 0.3);
+      }
+      if (through) {
         this.ringsCleared++;
         this.combo = Math.min(12, this.combo + 1);
         this.comboT = 6.2;
@@ -430,7 +488,7 @@ export class SurfEngine {
           k: 'ring', seat, label: `${mvLabel} ×${this.combo}`, sub: `+${pts}`,
           gold: true, points: pts, combo: this.combo, at, el,
         });
-        this.nextRing = (this.nextRing + 1) % this.rings.length;
+        this.passRing(this.nextRing);
       }
     }
 
@@ -543,11 +601,11 @@ export class SurfEngine {
     if (!N) return;
 
     // draw upcoming 3 rings (active bright golden-teal ring, plus next two softer preview rings)
-    for (let step = 0; step < Math.min(3, N); step++) {
+    for (let step = 0; step < Math.min(this.track ? 4 : 3, N); step++) {
       const idx = (this.nextRing + step) % N;
       const r = this.rings[idx];
       const active = step === 0;
-      const intensity = active ? 1.75 : step === 1 ? 0.56 : 0.22;
+      const intensity = active ? 1.75 : step === 1 ? 0.62 : step === 2 ? 0.3 : 0.16;
       const segs = active ? 24 : 16;
       // orient the ring perpendicular to its circuit tangent dir
       const rx = -r.dir[1], rz = r.dir[0];
@@ -695,6 +753,7 @@ export class SurfEngine {
       unisons: this.unisons,
       tricks: this.tricks,
       nextRing: this.nextRing,
+      missed: this.missed,
       vortexes: this.vortexes.length,
     };
   }

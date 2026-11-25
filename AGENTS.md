@@ -50,6 +50,19 @@ dash, Y kick, LB spin, RB dodge, **RT power 1, LT power 2, both stick clicks the
 matter: fire flare and ribbon, water whip and wave, ice step and slide, plasma blink and arc, gems pillar and prism
 (shared/powers.ts the rules, src/duel/powers.ts on the bodies, src/duel/power-fx.ts drawn).
 
+**The dance is a runner** in open 3D (src/play/runner.ts, track.ts, loops.ts; `&lock` keeps the 2D side lock, a script
+its own): both dancers run by themselves round a loop laid through the world (the pool's open water outside its mirrors,
+round the temple's island on the sea, among the redwoods' trunks; the geode's hall has no room for one, so a dance
+begun there goes out to the pool), side by side, the partner a `RunnerBrain` (the surf partner's tricks on its own line).
+The keys only slide a body across the track (A D, the arrows, a stick; W S sprint and ease) and Space jumps at once; the
+camera is the runner's own (`CameraRig.pose`, led by the track, not the bodies): behind the pair, or from the side with
+V (Tab, the View button), swung round them in a second; `&view=side` starts there. On the track nothing else steers a
+body (`Character.rail`: no camera-relative stick, soft edge, rim guidance or solids' push: those fought the player and
+made the bodies jitter). Flow Rings stand along the track in its lanes, some high (jump through them), laid again each
+lap (surf.ts). The loops are worked out offline (`node scripts/run-loops.mjs` against a dev server writes loops.ts);
+`node scripts/run-capture.mjs --mode stills|video` plays it headless with a virtual player and measures how smooth the
+bodies and the camera are (`npm run build` first, or `--url` a dev server you won't edit during the take).
+
 Links for Eric: never localhost. Serve tailnet-only with `tailscale serve --bg --https=<port> http://127.0.0.1:<port>`
 and give `https://portal-windows.tail4a295a.ts.net:<port>/energybending/`.
 

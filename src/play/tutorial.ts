@@ -101,25 +101,29 @@ export function stepsFor(game: HelpGame): TutorialStepDef[] {
   return [
     {
       id: 'move',
-      title: 'Carve & Surf Together',
-      body: () => 'You are always gliding! Steer with <b>A / D</b> to bank into turns, hold <b>W</b> to surge faster, or <b>S</b> for a sideways power-drift.',
-      keys: MOVE_KEYS,
+      title: 'Run Together',
+      body: () => 'You run on your own, side by side. Slide across the track with <b>A / D</b> (or the arrows), <b>W</b> to sprint, <b>S</b> to ease off.',
+      keys: (d) => d === 'pad' ? [{ key: 'Left Stick', label: 'Slide' }]
+        : d === 'touch' ? [{ key: 'Left Thumb', label: 'Slide' }]
+        : [{ key: 'A D', label: 'Slide' }, { key: '← →', label: 'or Arrows' }, { key: 'W S', label: 'Sprint / Ease' }],
       goal: 1.8,
     },
     {
       id: 'camera',
-      title: 'Steer the Camera',
-      body: () => 'Orbit smoothly with right-drag, two-finger swipe, or arrow keys — or tap <b>V</b> anytime for 2D side view.',
-      keys: CAM_KEYS,
+      title: 'Two Views',
+      body: () => 'Tap <b>V</b> to swing between running behind them and watching from the side. In the side view, <b>W / S</b> slide into and out of the screen.',
+      keys: (d) => d === 'pad' ? [{ key: 'View', label: 'Behind / Side' }]
+        : d === 'touch' ? [{ key: 'Lock', label: 'Behind / Side' }]
+        : [{ key: 'V', label: 'Behind / Side' }],
       goal: 1,
     },
     {
       id: 'jump',
-      title: 'Hold-Charge Flips & Morph',
-      body: () => 'Hold <b>Space</b> to charge a soaring <b>Backflip / Corkscrew</b> (tap again in mid-air to <b>Somersault</b>!), or hold <b>Shift</b> to <b>Dissolve / Hydro-Slip</b>!',
-      keys: (d) => d === 'pad' ? [{ key: 'Hold A', label: 'Charge Flip' }, { key: 'Hold RT', label: 'Element Morph' }]
-        : d === 'touch' ? [{ key: 'Hold Jump', label: 'Charge Flip' }, { key: 'Hold Dodge', label: 'Element Morph' }]
-        : [{ key: 'Hold Space', label: 'Charge Flip' }, { key: 'Hold Shift', label: 'Dissolve / Slip' }],
+      title: 'Jump & Morph',
+      body: () => 'Press <b>Space</b> to leap (again in mid-air to <b>Somersault</b>) through the high rings, or <b>Shift</b> to <b>Dissolve / Hydro-Slip</b>!',
+      keys: (d) => d === 'pad' ? [{ key: 'A', label: 'Jump ×2' }, { key: 'RT', label: 'Element Morph' }]
+        : d === 'touch' ? [{ key: 'Jump', label: 'Jump ×2' }, { key: 'Dodge', label: 'Element Morph' }]
+        : [{ key: 'Space ×2', label: 'Jump / Somersault' }, { key: 'Shift', label: 'Dissolve / Slip' }],
       goal: 2,
     },
     {
@@ -142,8 +146,8 @@ export function stepsFor(game: HelpGame): TutorialStepDef[] {
     },
     {
       id: 'flow',
-      title: 'Surf Rings, Wakes & Fusion',
-      body: () => 'Ride through glowing <b>Flow Rings</b> and cross your partner’s wake for <b>Steam Boosts</b> — press <b>E</b> for Form or hold <b>F</b> at 100% Harmony to <b>Fuse</b>!',
+      title: 'Rings, Wakes & Fusion',
+      body: () => 'Run through the glowing <b>Flow Rings</b> and cut across your partner’s wake for <b>Steam Boosts</b> — press <b>E</b> for Form or hold <b>F</b> at 100% Harmony to <b>Fuse</b>!',
       keys: (d) => d === 'pad' ? [{ key: 'LT', label: 'Form' }, { key: 'Hold Y', label: 'Fuse' }]
         : d === 'touch' ? [{ key: 'Form', label: 'Form' }, { key: 'Merge', label: 'Fuse' }]
         : [{ key: 'E', label: 'Elemental Form' }, { key: 'Hold F', label: 'Twin-Helix Fusion' }],

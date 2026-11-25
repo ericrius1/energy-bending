@@ -177,8 +177,10 @@ export interface PlayHandle {
   readonly dancers: Dancer[];
   /** the plane locking uses (the world's own stage) */
   plane(): StagePlane | null;
-  /** toggle between 3D free camera and 2D side view */
+  /** toggle between 3D free camera and 2D side view (or whatever `setToggle` put in its place: the runner's views) */
   toggleLock(): void;
+  /** what V, Tab and the View button do in place of the lock (null: the lock again) */
+  setToggle(fn: (() => void) | null): void;
   /** add a dancer played from elsewhere (the network's NetController): it joins the cast after the players */
   addDancer(d: Dancer): void;
   /** seat the next player on a source (a brain's, src/ai): a dancer like the others, locked with them */
@@ -226,7 +228,7 @@ export async function playDemo(ctx: PlayCtx): Promise<PlayHandle> {
     if (lockedPlane) c.setPlane(lockedPlane);
     // (free, outside the duel, whose match keeps its own: the world's arena's soft edge, a little wider, so a dance in
     // open 3D curves round the world's rim instead of walking out through its glass; report 24-feel)
-    edges.push(() => { if (duel || c.character.plane) return; const A = arenaFor(home().id); if (A) softEdge(c.character, A, A.space.radius + DANCE_EDGE); });
+    edges.push(() => { if (duel || c.character.plane || c.character.rail) return; const A = arenaFor(home().id); if (A) softEdge(c.character, A, A.space.radius + DANCE_EDGE); });
     controllers.push(c);
     dancer = new Dancer(`player.${seat}`, c, gemsLoadout(seat ? playParams.suiteTwo : playParams.suiteOne));
     dancers.push(dancer);
@@ -310,7 +312,9 @@ export async function playDemo(ctx: PlayCtx): Promise<PlayHandle> {
     for (const c of controllers) c.setPlane(plane);
     for (const p of hub.players) p.source.mode = plane ? 'locked' : 'free';
   };
+  let toggleOverride: (() => void) | null = null;
   const toggleLock = () => {
+    if (toggleOverride) return toggleOverride();
     const nextLocked = rig.mode !== 'locked';
     rig.lock(nextLocked ? planeOf() : null);
     showCamToast(nextLocked ? '2D Side View · press V for 3D' : '3D Free Camera · right-drag or arrows to orbit');
@@ -367,5 +371,5 @@ export async function playDemo(ctx: PlayCtx): Promise<PlayHandle> {
   }
 
   const addPlayer = (source: IntentSource) => { const c = addDancer(controllers.length); c.source = source; source.mode = lockedPlane ? 'locked' : 'free'; show.stage(show.program); return c; };
-  return { hub, controllers, dancers, plane: () => lockedPlane, toggleLock, addDancer: (d) => { others.push(d); show.stage(show.program); }, addPlayer };
+  return { hub, controllers, dancers, plane: () => lockedPlane, toggleLock, setToggle: (fn) => { toggleOverride = fn; }, addDancer: (d) => { others.push(d); show.stage(show.program); }, addPlayer };
 }

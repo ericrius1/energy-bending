@@ -345,13 +345,13 @@ export const HUD_KIT_CSS = `
 `;
 
 const ACTION_LABELS: Record<KitAction, string> = {
-  carve: 'Carve', flip: 'Flip', spin: 'Spin', morph: 'Morph', form: 'Form', fuse: 'Fuse',
+  carve: 'Slide', flip: 'Jump', spin: 'Spin', morph: 'Morph', form: 'Form', fuse: 'Fuse',
 };
 
 const DOCK_KEYS: Record<Dev, Record<KitAction, string>> = {
-  solo:  { carve: 'WASD', flip: 'Space', spin: 'Click', morph: 'Shift', form: 'E', fuse: 'F' },
-  left:  { carve: 'WASD', flip: 'Space', spin: 'L', morph: 'Shift', form: 'E', fuse: 'F' },
-  right: { carve: 'Arrows', flip: "'", spin: '/', morph: 'R-Shift', form: 'Enter', fuse: 'Ctrl' },
+  solo:  { carve: 'A D', flip: 'Space', spin: 'Click', morph: 'Shift', form: 'E', fuse: 'F' },
+  left:  { carve: 'A D', flip: 'Space', spin: 'L', morph: 'Shift', form: 'E', fuse: 'F' },
+  right: { carve: '← →', flip: "'", spin: '/', morph: 'R-Shift', form: 'Enter', fuse: 'Ctrl' },
   pad:   { carve: 'Stick', flip: 'A', spin: 'Y', morph: 'RT', form: 'LT', fuse: 'Hold Y' },
   touch: { carve: 'Stick', flip: 'Jump', spin: 'Spin', morph: 'Dodge', form: 'Form', fuse: 'Merge' },
 };
